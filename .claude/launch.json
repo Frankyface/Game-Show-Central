@@ -4,8 +4,86 @@
     {
       "name": "hub",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8620"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8620",
+        "--bind",
+        "127.0.0.1"
+      ],
       "port": 8620
+    },
+    {
+      "name": "hub-jeopardy",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8631",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8631
+    },
+    {
+      "name": "hub-test-shell",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8641",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8641
+    },
+    {
+      "name": "hub-test-feud",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8642",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8642
+    },
+    {
+      "name": "hub-test-wheel",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8643",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8643
+    },
+    {
+      "name": "hub-test-wl",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8644",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8644
+    },
+    {
+      "name": "hub-test-jeopardy",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8645",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8645
     }
   ]
 }

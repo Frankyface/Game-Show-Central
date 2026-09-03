@@ -1,0 +1,200 @@
+/* ============================================================
+   Game Show Central — shared design tokens
+   Every page (hub + games) loads this first, then its own sheet.
+   Games override the --stage-* colours for their own palette; the
+   ink/gold/red/green tokens, the type scale and the .btn family
+   stay identical everywhere so the night feels like one show.
+   Palette lineage: Jeopardy's navy/gold stage (css/styles.css).
+   ============================================================ */
+
+:root {
+  /* Stage — overridable per game */
+  --stage-deep: #03052e;
+  --stage-night: #010117;
+  --stage-card: #0a103f;
+  --stage-glow: #0a1158;
+  --stage-accent: #060ce9;
+
+  /* Ink + signal colours (never overridden) */
+  --ink: #f4f5ff;
+  --ink-dim: #aab0e0;
+  --ink-faint: rgba(170, 176, 224, 0.45);
+  --gold: #ffcc4d;
+  --gold-deep: #d9a437;
+  --gold-text: #ffd35e;
+  --red: #ff6b6b;
+  --green: #51d88a;
+  --amber: #ffb347;
+
+  --line: rgba(170, 176, 224, 0.25);
+  --panel: linear-gradient(180deg, rgba(20, 28, 96, 0.85), rgba(8, 12, 52, 0.95));
+
+  --font-display: "Anton", "Haettenschweiler", "Arial Narrow Bold", Impact, sans-serif;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius: 10px;
+  --radius-lg: 18px;
+  --duration: 180ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --tap: 56px; /* minimum phone touch target */
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--stage-glow) 0%, var(--stage-deep) 45%, var(--stage-night) 100%);
+  background-attachment: fixed;
+}
+
+/* ============ Utilities ============ */
+
+.hidden { display: none !important; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.error-msg {
+  color: var(--red);
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0;
+}
+
+.hint-msg {
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+}
+
+/* ============ Buttons ============ */
+
+.btn {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.6em 1.3em;
+  border-radius: var(--radius);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--duration) var(--ease-out),
+              box-shadow var(--duration) var(--ease-out),
+              background-color var(--duration) var(--ease-out);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-gold {
+  background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%);
+  color: #2b1d00;
+  box-shadow: 0 4px 14px rgba(217, 164, 55, 0.35);
+}
+
+.btn-gold:hover {
+  box-shadow: 0 6px 20px rgba(255, 204, 77, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+
+.btn-ghost:hover {
+  border-color: var(--gold);
+  color: var(--gold-text);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--red);
+  border-color: rgba(255, 107, 107, 0.5);
+}
+
+.btn-danger:hover { border-color: var(--red); }
+
+.btn-big {
+  font-size: 1.15rem;
+  padding: 0.75em 2em;
+}
+
+.btn-small {
+  font-size: 0.8rem;
+  padding: 0.4em 0.9em;
+}
+
+.btn-tap {
+  min-height: var(--tap);
+  font-size: 1.05rem;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============ Fields ============ */
+
+.field {
+  display: block;
+  margin: 0 0 1rem;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  margin: 0 0 0.4rem;
+}
+
+.field-input {
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 0.7em 0.9em;
+}
+
+.field-input:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* ============ Motion ============ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .btn:hover, .btn:active { transform: none; }
+}

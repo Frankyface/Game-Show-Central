@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fake game (test fixture)</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <style>
+    body { padding: 1rem; font-size: 0.9rem; }
+    dt { font-weight: 700; color: var(--ink-dim); margin-top: 0.5rem; }
+    dd { margin: 0.1rem 0 0; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; word-break: break-all; }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+  </style>
+</head>
+<!-- The smallest possible GSC game: it renders whatever `init` gave it and
+     echoes every `msg` straight back as a `send`, so the hub harness can
+     assert on real bridge traffic without a real game. -->
+<body data-gsc-game="fake-game">
+  <h1 id="title">Fake game</h1>
+  <div id="gsc-join"></div>
+  <dl>
+    <dt>mode</dt><dd id="mode"></dd>
+    <dt>code</dt><dd id="code"></dd>
+    <dt>me</dt><dd id="me"></dd>
+    <dt>players</dt><dd id="players"></dd>
+    <dt>last</dt><dd id="last"></dd>
+    <dt>log</dt><dd id="log"></dd>
+    <dt>events</dt><dd id="events"></dd>
+  </dl>
+  <div class="row">
+    <button id="btn-broadcast" class="btn btn-ghost btn-small" type="button">Broadcast</button>
+    <button id="btn-exit" class="btn btn-ghost btn-small" type="button">Exit to lobby</button>
+    <button id="btn-echo" class="btn btn-ghost btn-small" type="button">Send to host</button>
+  </div>
+
+  <script src="../shared/room-protocol.js"></script>
+  <script src="../shared/room-net.js"></script>
+  <script src="../shared/room-host.js"></script>
+  <script src="../shared/room-player.js"></script>
+  <script src="../shared/bridge.js"></script>
+  <script>
+    "use strict";
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      const log = [];
+      const events = [];
+      let room = null;
+      let me = null;
+
+      function paint() {
+        $("mode").textContent = GSC.mode;
+        $("log").textContent = log.join(" | ");
+        $("events").textContent = events.join(",");
+        if (room) {
+          $("code").textContent = room.code || "";
+          $("players").textContent = room.players().map((p) => `${p.pid}:${p.name}:${p.connected}`).join("|");
+        }
+        if (me) {
+          $("code").textContent = me.code || "";
+          $("me").textContent = `${me.pid}:${me.name}:${me.avatar}`;
+        }
+      }
+
+      function note(pid, m) {
+        const line = `${pid}:${JSON.stringify(m)}`;
+        log.push(line);
+        if (log.length > 20) log.shift();
+        $("last").textContent = line;
+        paint();
+      }
+
+      if (GSC.isPlayer()) {
+        GSC.player({
+          onMessage(m) {
+            note("host", m);
+            me.send({ echo: m, from: me.pid }); // echo straight back
+          },
+          onStatus(connected) { events.push("status:" + connected); paint(); },
+          onConnClose() { events.push("conn-close"); paint(); },
+        }).then((player) => {
+          me = player;
+          document.body.classList.add("player-mode");
+          if (GSC.isEmbedded()) document.body.classList.add("gsc-embedded");
+          $("btn-echo").addEventListener("click", () => me.send({ hello: me.pid }));
+          paint();
+        });
+      } else {
+        GSC.host({
+          onPlayerJoin(p) { events.push("join:" + p.pid); paint(); },
+          onPlayerLeave(pid) { events.push("leave:" + pid); paint(); },
+          onPlayerStatus(pid, connected) { events.push(`status:${pid}:${connected}`); paint(); },
+          onMessage(pid, m) { note(pid, m); },
+        }).then((r) => {
+          room = r;
+          if (GSC.isEmbedded()) document.body.classList.add("gsc-embedded");
+          room.setTitle("Fixture round");
+          $("btn-broadcast").addEventListener("click", () => room.broadcast({ hello: "all" }));
+          $("btn-exit").addEventListener("click", () => room.exit());
+          paint();
+        });
+      }
+
+      // Test seam the harness drives directly (no clicking through a fake UI).
+      window.FakeGame = {
+        room: () => room,
+        me: () => me,
+        send: (m) => (me ? me.send(m) : null),
+        sendTo: (pid, m) => (room ? room.send(pid, m) : null),
+        broadcast: (m) => (room ? room.broadcast(m) : null),
+        exit: () => (room ? room.exit() : null),
+        scores: (s) => (room ? room.reportScores(s) : null),
+        title: (t) => (room ? room.setTitle(t) : null),
+        log: () => log.slice(),
+        events: () => events.slice(),
+      };
+    })();
+  </script>
+</body>
+</html>

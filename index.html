@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Game Show Central</title>
+  <meta name="description" content="Game shows for your video call — share your screen, players use their phones. Jeopardy, Family Feud, Wheel of Fortune and Weakest Link, no accounts and no server.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <link rel="stylesheet" href="css/hub.css">
+</head>
+<body>
+
+  <!-- ============ HOST: shell bar (only while a game is on) ============ -->
+  <header id="shell-bar" class="shell-bar hidden">
+    <button id="shell-lobby" class="btn btn-ghost btn-small" type="button">⌂ Lobby</button>
+    <div class="shell-title">
+      <span id="shell-game-name" class="shell-game-name"></span>
+      <span id="shell-game-sub" class="shell-game-sub"></span>
+    </div>
+    <p id="shell-broker" class="shell-broker"></p>
+    <button id="shell-chip" class="shell-chip" type="button" aria-expanded="false"
+            aria-controls="shell-popover">— · 0 🔔</button>
+  </header>
+  <div id="shell-popover" class="shell-popover hidden" role="dialog" aria-label="Room and players"></div>
+
+  <!-- ============ HOST: landing ============ -->
+  <main id="screen-landing" class="screen screen-landing">
+    <div class="landing-card">
+      <p class="landing-kicker">Welcome to</p>
+      <h1 class="landing-title">Game Show Central</h1>
+      <p class="landing-pitch">Game shows for your video call — share your screen, players use their phones.</p>
+      <div class="landing-actions">
+        <button id="btn-host" class="btn btn-gold btn-big" type="button">Host a game night</button>
+        <button id="btn-no-phones" class="btn btn-ghost btn-big" type="button">Play without phones</button>
+      </div>
+      <p class="landing-join"><a id="link-phone" href="?room=">Join on your phone</a></p>
+      <p id="landing-error" class="error-msg" role="status"></p>
+      <ul id="landing-games" class="landing-games"></ul>
+    </div>
+  </main>
+
+  <!-- ============ HOST: lobby ============ -->
+  <main id="screen-lobby" class="screen screen-lobby hidden">
+    <section class="lobby-left">
+      <div class="room-card">
+        <p class="room-label">Room code</p>
+        <p id="room-code" class="room-code">— — — —</p>
+        <p id="room-join-url" class="room-join-url"></p>
+        <p id="room-status" class="room-status" role="status"></p>
+        <p id="room-error" class="error-msg" role="alert"></p>
+        <div id="room-controls" class="room-controls"></div>
+      </div>
+      <div class="roster-card">
+        <div class="roster-head">
+          <h2 class="card-heading">Players <span id="roster-count" class="roster-count"></span></h2>
+          <button id="btn-add-manual" class="btn btn-ghost btn-small" type="button">+ Add player</button>
+        </div>
+        <ul id="roster-list" class="roster-list"></ul>
+        <p id="roster-hint" class="hint-msg"></p>
+      </div>
+      <div id="night-card" class="night-card hidden">
+        <div class="roster-head">
+          <h2 class="card-heading">Tonight's scoreboard</h2>
+          <button id="btn-reset-night" class="btn btn-ghost btn-small" type="button">Reset night</button>
+        </div>
+        <ul id="night-list" class="night-list"></ul>
+      </div>
+    </section>
+    <section class="lobby-right">
+      <h2 class="card-heading">Pick a game</h2>
+      <ul id="game-tiles" class="game-tiles"></ul>
+      <p id="tile-hint" class="hint-msg" role="status"></p>
+    </section>
+  </main>
+
+  <!-- ============ HOST: a game is running ============ -->
+  <main id="screen-game" class="screen screen-game hidden">
+    <div id="game-frame-slot" class="game-frame-slot"></div>
+  </main>
+
+  <!-- ============ PHONE: join ============ -->
+  <main id="screen-join" class="screen screen-join hidden">
+    <div class="phone-card">
+      <h1 class="phone-title">Game Show Central</h1>
+      <label class="field" for="join-code">
+        <span class="field-label">Room code</span>
+        <input id="join-code" class="field-input code-input" type="text" inputmode="text"
+               autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="4">
+      </label>
+      <label class="field" for="join-name">
+        <span class="field-label">Your name</span>
+        <input id="join-name" class="field-input" type="text" autocomplete="nickname" maxlength="24">
+      </label>
+      <p class="field-label">Pick an avatar</p>
+      <div id="join-avatars" class="avatar-grid" role="radiogroup" aria-label="Pick an avatar"></div>
+      <button id="btn-join" class="btn btn-gold btn-tap btn-block" type="button">Join</button>
+      <p id="join-error" class="error-msg" role="alert"></p>
+      <p id="join-note" class="hint-msg" role="status"></p>
+      <div id="join-tips" class="join-tips hidden"></div>
+    </div>
+  </main>
+
+  <!-- ============ PHONE: waiting room ============ -->
+  <main id="screen-waiting" class="screen screen-waiting hidden">
+    <div class="phone-card">
+      <p id="wait-avatar" class="wait-avatar"></p>
+      <h1 id="wait-title" class="phone-title"></h1>
+      <p class="wait-sub">Waiting for the host to pick a game…</p>
+      <h2 class="card-heading">In the room</h2>
+      <ul id="wait-roster" class="wait-roster"></ul>
+      <button id="btn-leave" class="btn btn-ghost btn-tap btn-block" type="button">Leave</button>
+      <p id="wait-status" class="hint-msg" role="status"></p>
+    </div>
+  </main>
+
+  <!-- ============ PHONE: in a game ============ -->
+  <main id="screen-play" class="screen screen-play hidden">
+    <div id="phone-health" class="phone-health"></div>
+    <div id="phone-frame-slot" class="phone-frame-slot"></div>
+    <div id="phone-banner" class="phone-banner hidden" role="status"></div>
+  </main>
+
+  <div id="dialog-root"></div>
+
+  <script src="shared/room-protocol.js"></script>
+  <script src="shared/room-net.js"></script>
+  <script src="shared/room-host.js"></script>
+  <script src="shared/room-player.js"></script>
+  <script src="shared/bridge.js"></script>
+  <script src="js/hub-registry.js"></script>
+  <script src="js/hub-night.js"></script>
+  <script src="js/hub-host.js"></script>
+  <script src="js/hub-player.js"></script>
+</body>
+</html>

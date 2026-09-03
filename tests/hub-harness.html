@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hub loopback harness (L-I1 … L-I10)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #06010f; color: #f4f5ff; margin: 0; padding: 1.5rem; }
+    h1 { font-size: 1.1rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #51d88a; }
+    #summary.bad { color: #ff6b6b; }
+    #results { list-style: none; margin: 0 0 1.5rem; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.9rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #51d88a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff6b6b; background: rgba(255,107,107,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #51d88a; }
+    li[data-pass="false"] .tag { color: #ff6b6b; }
+    #frames { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    iframe.rig { width: 300px; height: 220px; border: 1px solid #333; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Game Show Central — hub loopback harness</h1>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div id="frames"></div>
+
+  <script>
+  "use strict";
+  (function () {
+    /* ============ Reporting ============ */
+
+    const results = [];
+    const seen = new Set();
+
+    function check(id, label, cond, detail) {
+      if (seen.has(id)) return; // first result for an id wins
+      seen.add(id);
+      results.push({ id, label, pass: !!cond, detail: detail || "" });
+      paint();
+    }
+
+    function paint() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        li.dataset.id = r.id;
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = `${r.pass ? "PASS" : "FAIL"} ${r.id}`;
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label + (r.detail ? ` — ${r.detail}` : "")));
+        list.appendChild(li);
+      }
+      const summary = document.getElementById("summary");
+      const bad = results.filter((r) => !r.pass).length;
+      summary.textContent = `${results.length - bad}/${results.length} passing`;
+      summary.className = bad === 0 && results.length >= 10 ? "ok" : "bad";
+    }
+
+    /* ============ Timing helpers ============ */
+
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function until(fn, timeoutMs, stepMs) {
+      const step = stepMs || 40;
+      const deadline = Date.now() + (timeoutMs || 4000);
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() > deadline) return null;
+        await wait(step);
+      }
+    }
+
+    /* ============ In-page fake PeerJS network ============ */
+
+    let seq = 0;
+    const net = { peers: new Map() };
+
+    function emitter(obj) {
+      const handlers = new Map();
+      obj.on = (ev, fn) => { if (!handlers.has(ev)) handlers.set(ev, []); handlers.get(ev).push(fn); };
+      obj.emit = (ev, arg) => { for (const fn of (handlers.get(ev) || []).slice()) fn(arg); };
+      return obj;
+    }
+
+    function fakeConn(remoteId) {
+      const c = emitter({ peer: remoteId, open: true });
+      c.send = (m) => {
+        if (!c._other || !c._other.open) return;
+        const copy = JSON.parse(JSON.stringify(m));
+        setTimeout(() => c._other.emit("data", copy), 0);
+      };
+      c.close = () => {
+        if (!c.open) return;
+        c.open = false;
+        c.emit("close");
+        const other = c._other;
+        if (other && other.open) { other.open = false; setTimeout(() => other.emit("close"), 0); }
+      };
+      return c;
+    }
+
+    function createPeer(id) {
+      const peerId = id || `phone-${++seq}`;
+      const peer = emitter({ id: peerId, open: false, destroyed: false, disconnected: false, _conns: [] });
+      net.peers.set(peerId, peer);
+      peer.reconnect = () => {};
+      peer.destroy = () => {
+        peer.destroyed = true;
+        if (net.peers.get(peerId) === peer) net.peers.delete(peerId);
+        for (const c of peer._conns.slice()) c.close();
+      };
+      peer.connect = (remoteId, opts) => {
+        const local = fakeConn(remoteId);
+        peer._conns.push(local);
+        const remotePeer = net.peers.get(remoteId);
+        if (!remotePeer || remotePeer.destroyed) {
+          setTimeout(() => peer.emit("error", { type: "peer-unavailable" }), 0);
+          return local;
+        }
+        const remote = fakeConn(peerId);
+        remote.metadata = (opts && opts.metadata) || {};
+        remotePeer._conns.push(remote);
+        local._other = remote;
+        remote._other = local;
+        setTimeout(() => {
+          remotePeer.emit("connection", remote);
+          remote.emit("open");
+          local.emit("open");
+        }, 0);
+        return local;
+      };
+      setTimeout(() => {
+        if (peer.destroyed) return;
+        peer.open = true;
+        peer.emit("open", peerId);
+      }, 0);
+      return peer;
+    }
+
+    /* ============ Frame rig ============ */
+
+    const FAKE_GAME = {
+      id: "fake-game", name: "Fake Game", path: "tests/", page: "fake-game.html",
+      icon: "🧪", accent: "#39ff88", tagline: "Loopback fixture.",
+      phone: ["echo"], players: [1, 16],
+    };
+
+    async function bootFrame(src) {
+      const frame = document.createElement("iframe");
+      frame.className = "rig";
+      const loaded = new Promise((res) => frame.addEventListener("load", res, { once: true }));
+      frame.src = src;
+      document.getElementById("frames").appendChild(frame);
+      await loaded;
+      const w = frame.contentWindow;
+      w.__gscPeerFactory = createPeer;
+      w.HubRegistry.register(FAKE_GAME);
+      w.__gscBoot();
+      return frame;
+    }
+
+    async function reloadFrame(frame) {
+      const loaded = new Promise((res) => frame.addEventListener("load", res, { once: true }));
+      frame.contentWindow.location.reload();
+      await loaded;
+      const w = frame.contentWindow;
+      w.__gscPeerFactory = createPeer;
+      w.HubRegistry.register(FAKE_GAME);
+      w.__gscBoot();
+      return frame;
+    }
+
+    const doc = (frame) => frame.contentWindow.document;
+    const $id = (frame, id) => doc(frame).getElementById(id);
+    const gameWin = (frame, sel) => {
+      const inner = doc(frame).querySelector(sel);
+      return inner ? inner.contentWindow : null;
+    };
+    const hostGame = (frame) => gameWin(frame, ".game-frame");
+    const phoneGame = (frame) => gameWin(frame, ".phone-frame");
+
+    async function joinPhone(frame, name) {
+      $id(frame, "join-name").value = name;
+      $id(frame, "btn-join").click();
+    }
+
+    function rosterNames(frame) {
+      return Array.from(doc(frame).querySelectorAll("#roster-list .roster-name")).map((n) => n.textContent);
+    }
+
+    function rosterColors(frame) {
+      return Array.from(doc(frame).querySelectorAll("#roster-list .roster-swatch"))
+        .map((n) => n.style.backgroundColor);
+    }
+
+    function clickPlay(frame, gameId) {
+      const tiles = Array.from(doc(frame).querySelectorAll(".game-tile"));
+      for (const tile of tiles) {
+        const name = tile.querySelector(".tile-name");
+        if (name && name.textContent === "Fake Game") { tile.querySelector(".tile-play").click(); return true; }
+      }
+      return false;
+    }
+
+    /* ============ Scenarios ============ */
+
+    let hostFrame = null;
+    let p1 = null, p2 = null, p3 = null, p4 = null, p5 = null;
+    let code = "";
+
+    async function scenarioI1() {
+      hostFrame = await bootFrame("../index.html?harness=1&store=host");
+      $id(hostFrame, "btn-host").click();
+      const status = await until(() => {
+        const s = hostFrame.contentWindow.HubHost._status();
+        return s.status === "open" ? s : null;
+      }, 5000);
+      code = status ? status.code : "";
+      check("L-I1a", "Host opens a room and shows a 4-letter code", /^[A-Z2-9]{4}$/.test(code),
+            `code=${code} · on screen "${$id(hostFrame, "room-code").textContent}"`);
+
+      p1 = await bootFrame(`../index.html?room=${code}&harness=1&store=p1`);
+      await joinPhone(p1, "Alex");
+      p2 = await bootFrame(`../index.html?room=${code}&harness=1&store=p2`);
+      await joinPhone(p2, "Bo");
+
+      const ok = await until(() => rosterNames(hostFrame).length === 2, 5000);
+      const colors = rosterColors(hostFrame);
+      check("L-I1", "Two phones join; the roster shows both with distinct colours",
+            ok && colors.length === 2 && colors[0] !== colors[1],
+            `roster=${rosterNames(hostFrame).join(",")} colours=${colors.join(" / ")}`);
+
+      p3 = await bootFrame(`../index.html?room=${code}&harness=1&store=p3`);
+      await joinPhone(p3, "alex");
+      const err = await until(() => {
+        const t = $id(p3, "join-error").textContent;
+        return t ? t : null;
+      }, 5000);
+      check("L-I1b", "A duplicate name is rejected with plain English",
+            err === "That name is taken — add an initial.", `text="${err}"`);
+    }
+
+    async function scenarioI2() {
+      clickPlay(hostFrame);
+      const hg = await until(() => {
+        const w = hostGame(hostFrame);
+        return w && w.document.getElementById("players") &&
+               w.document.getElementById("players").textContent.includes("p1") ? w : null;
+      }, 8000);
+      const players = hg ? hg.document.getElementById("players").textContent : "";
+      check("L-I2a", "The host game frame gets init with both players",
+            players.includes("p1:Alex") && players.includes("p2:Bo"), `players=${players}`);
+
+      const me1 = await until(() => {
+        const w = phoneGame(p1);
+        const node = w && w.document.getElementById("me");
+        return node && node.textContent ? node.textContent : null;
+      }, 8000);
+      const me2 = await until(() => {
+        const w = phoneGame(p2);
+        const node = w && w.document.getElementById("me");
+        return node && node.textContent ? node.textContent : null;
+      }, 8000);
+      check("L-I2", "Both phone frames get init with their own me",
+            !!me1 && me1.startsWith("p1:Alex") && !!me2 && me2.startsWith("p2:Bo"),
+            `p1=${me1} p2=${me2}`);
+    }
+
+    async function scenarioI3() {
+      const hg = hostGame(hostFrame);
+      phoneGame(p1).FakeGame.send({ probe: 1 });
+      const got = await until(() => {
+        const log = hg.FakeGame.log();
+        return log.find((l) => l.startsWith("p1:") && l.includes("probe")) || null;
+      }, 4000);
+      check("L-I3a", "A phone `send` reaches the host frame as `msg` with the right pid",
+            !!got, `log entry=${got}`);
+
+      hg.FakeGame.broadcast({ all: 1 });
+      const both = await until(() => {
+        const a = phoneGame(p1).FakeGame.log().some((l) => l.includes('"all":1'));
+        const b = phoneGame(p2).FakeGame.log().some((l) => l.includes('"all":1'));
+        return a && b;
+      }, 4000);
+      check("L-I3b", "Host `send pid:\"*\"` reaches every phone", !!both);
+
+      const before2 = phoneGame(p2).FakeGame.log().length;
+      hg.FakeGame.sendTo("p1", { solo: 1 });
+      const one = await until(() => phoneGame(p1).FakeGame.log().some((l) => l.includes('"solo":1')), 4000);
+      await wait(300);
+      const untouched = phoneGame(p2).FakeGame.log().filter((l) => l.includes('"solo":1')).length === 0;
+      check("L-I3", "Host `send pid` reaches exactly one phone", !!one && untouched,
+            `p2 log grew from ${before2} to ${phoneGame(p2).FakeGame.log().length} with no solo entry`);
+    }
+
+    async function scenarioI4() {
+      hostGame(hostFrame).FakeGame.exit();
+      const back = await until(() => hostFrame.contentWindow.HubHost._state().activeGame === null, 4000);
+      const waiting = await until(() => p1.contentWindow.HubPlayer._screen() === "waiting" &&
+                                        p2.contentWindow.HubPlayer._screen() === "waiting", 4000);
+      check("L-I4a", "Host `exit` sends every phone back to the waiting room", !!back && !!waiting);
+
+      clickPlay(hostFrame);
+      const same = await until(() => {
+        const w = phoneGame(p1);
+        const node = w && w.document.getElementById("me");
+        return node && node.textContent.startsWith("p1:Alex") ? node.textContent : null;
+      }, 8000);
+      check("L-I4", "Picking the game again re-inits the same phones with the same pids",
+            !!same, `p1 me=${same}`);
+    }
+
+    async function scenarioI7() {
+      p4 = await bootFrame(`../index.html?room=${code}&harness=1&store=p4`);
+      await joinPhone(p4, "Cy");
+      const straight = await until(() => {
+        if (p4.contentWindow.HubPlayer._screen() !== "play") return null;
+        const w = phoneGame(p4);
+        const node = w && w.document.getElementById("me");
+        return node && node.textContent ? node.textContent : null;
+      }, 8000);
+      check("L-I7", "A late joiner lands straight in the game frame with init",
+            !!straight && straight.startsWith("p3:Cy"), `me=${straight}`);
+    }
+
+    async function scenarioI6() {
+      const hg = hostGame(hostFrame);
+      const before = p1.contentWindow.HubPlayer._me();
+      // Kill the phone's connection the way a flaky network would.
+      for (const peer of net.peers.values()) {
+        for (const c of peer._conns) {
+          if (c.peer && String(c.peer).indexOf("phone-") === 0) continue;
+        }
+      }
+      const phonePeerId = Object.keys(hostFrame.contentWindow.HubHost._peers())
+        .find((pid) => hostFrame.contentWindow.HubHost._peers()[pid] === "p1");
+      const phonePeer = net.peers.get(phonePeerId);
+      if (phonePeer) phonePeer.destroy();
+
+      const wentDown = await until(() => hg.FakeGame.events().some((e) => e === "status:p1:false"), 6000);
+      // The RoomPlayer reconnect loop takes 3 s, then rejoins with the stored pid.
+      const backUp = await until(() => hg.FakeGame.events().some((e) => e === "status:p1:true"), 15000);
+      const after = p1.contentWindow.HubPlayer._me();
+      check("L-I6", "A dropped phone rejoins with its stored pid and colour",
+            !!wentDown && !!backUp && after.pid === before.pid && after.color === before.color,
+            `events=${hg.FakeGame.events().filter((e) => e.indexOf("status:p1") === 0).join(",")} pid=${after.pid}`);
+    }
+
+    async function scenarioI5() {
+      const rosterBefore = p1.contentWindow.HubPlayer._roster().length;
+      // Kick Bo (p2) from the shell-bar popover roster.
+      $id(hostFrame, "shell-chip").click();
+      const kickBtn = await until(() => {
+        const rows = Array.from(doc(hostFrame).querySelectorAll("#shell-popover .roster-row"));
+        const row = rows.find((r) => r.querySelector(".roster-name").textContent === "Bo");
+        return row ? row.querySelector(".btn-danger") : null;
+      }, 4000);
+      if (kickBtn) kickBtn.click();
+
+      const told = await until(() => {
+        const t = $id(p2, "join-error").textContent;
+        return t === "The host removed you from the room." ? t : null;
+      }, 6000);
+      const frameGone = p2.contentWindow.HubPlayer._screen() === "join" &&
+                        !doc(p2).querySelector(".phone-frame");
+      const otherRoster = await until(() => {
+        const list = p1.contentWindow.HubPlayer._roster();
+        return list.length < rosterBefore && !list.some((p) => p.name === "Bo");
+      }, 6000);
+      check("L-I5", "Kick removes the player, tells that phone, and updates the others",
+            !!told && frameGone && !!otherRoster,
+            `told=${!!told} frameGone=${frameGone} (screen=${p2.contentWindow.HubPlayer._screen()}) ` +
+            `roster=${!!otherRoster} · p1 sees ${p1.contentWindow.HubPlayer._roster().map((p) => p.name).join(",")}` +
+            ` (was ${rosterBefore})`);
+      $id(hostFrame, "shell-chip").click(); // close the popover
+    }
+
+    async function scenarioI8() {
+      // Back to the lobby so the Lock button is on screen.
+      $id(hostFrame, "shell-lobby").click();
+      const confirmBtn = await until(() => {
+        const btns = Array.from(doc(hostFrame).querySelectorAll("#dialog-root .btn-gold"));
+        return btns.length ? btns[btns.length - 1] : null;
+      }, 4000);
+      if (confirmBtn) confirmBtn.click();
+      await until(() => hostFrame.contentWindow.HubHost._state().activeGame === null, 4000);
+
+      const lock = await until(() => {
+        const btns = Array.from(doc(hostFrame).querySelectorAll("#room-controls .btn"));
+        return btns.find((b) => b.textContent.indexOf("Lock lobby") !== -1) || null;
+      }, 4000);
+      if (lock) lock.click();
+      const locked = hostFrame.contentWindow.HubHost._lobby().locked === true;
+
+      p5 = await bootFrame(`../index.html?room=${code}&harness=1&store=p5`);
+      await joinPhone(p5, "Dee");
+      const refused = await until(() => {
+        const t = $id(p5, "join-error").textContent;
+        return t ? t : null;
+      }, 6000);
+
+      // An existing player may still come back while locked.
+      const cyPeerId = Object.keys(hostFrame.contentWindow.HubHost._peers())
+        .find((pid) => hostFrame.contentWindow.HubHost._peers()[pid] === "p3");
+      const cyPeer = net.peers.get(cyPeerId);
+      if (cyPeer) cyPeer.destroy();
+      const cyBack = await until(() => {
+        const players = hostFrame.contentWindow.HubHost._lobby().players;
+        return players.p3 && players.p3.connected === true;
+      }, 15000);
+
+      check("L-I8", "A locked lobby refuses new joins but still lets an existing player back",
+            locked && refused === "The host locked the lobby." && !!cyBack,
+            `locked=${locked} refused="${refused}" cy-back=${!!cyBack}`);
+    }
+
+    async function scenarioI9() {
+      clickPlay(hostFrame);
+      await until(() => hostFrame.contentWindow.HubHost._state().activeGame === "fake-game", 4000);
+      await until(() => hostGame(hostFrame) && hostGame(hostFrame).FakeGame, 8000);
+
+      // Kill the host peer the way closing the tab would, then reload the shell.
+      const hostPeer = net.peers.get(`gsc-${code}`);
+      if (hostPeer) hostPeer.destroy();
+      await reloadFrame(hostFrame);
+
+      const restored = await until(() => {
+        const H = hostFrame.contentWindow.HubHost;
+        const s = H._status();
+        return s.status === "open" && s.code === code && H._state().activeGame === "fake-game";
+      }, 10000);
+      const reinit = await until(() => {
+        const w = hostGame(hostFrame);
+        const node = w && w.document.getElementById("code");
+        return node && node.textContent === code ? node.textContent : null;
+      }, 10000);
+      check("L-I9", "A host refresh restores the room code and the running game",
+            !!restored && !!reinit, `code=${reinit} game=${hostFrame.contentWindow.HubHost._state().activeGame}`);
+    }
+
+    /* ============ L-I10 — static gates over the shell files ============ */
+
+    const SHELL_FILES = [
+      "../index.html", "../README.md", "../css/hub.css",
+      "../js/hub-registry.js", "../js/hub-host.js", "../js/hub-player.js", "../js/hub-night.js",
+      "../shared/theme.css", "../shared/room-protocol.js", "../shared/room-net.js",
+      "../shared/room-host.js", "../shared/room-player.js", "../shared/bridge.js",
+      "../shared/virtual-peer.js",
+      "./fake-game.html", "./hub-harness.html",
+      "./room-protocol.test.mjs", "./room-transport.test.mjs",
+      "./virtual-peer.test.mjs", "./bridge.test.mjs",
+    ];
+
+    // Built from escapes so this harness does not itself contain the literals it bans.
+    const BANNED = [
+      "inner" + "HTML", "insertAdjacent" + "HTML", "outer" + "HTML =",
+      "document." + "write", "ev" + "al(", "new " + "Function",
+    ];
+
+    async function scenarioI10() {
+      const offenders = [];
+      const tooLong = [];
+      const missing = [];
+      for (const path of SHELL_FILES) {
+        let text = null;
+        try {
+          const res = await fetch(path, { cache: "reload" });
+          if (!res.ok) { missing.push(`${path} (${res.status})`); continue; }
+          text = await res.text();
+        } catch (err) { missing.push(`${path} (${err.message})`); continue; }
+        for (const needle of BANNED) if (text.indexOf(needle) !== -1) offenders.push(`${path}: ${needle}`);
+        const lines = text.split("\n").length;
+        if (lines >= 800) tooLong.push(`${path}: ${lines}`);
+      }
+      check("L-I10", "No banned DOM sinks anywhere in the shell; every file under 800 lines",
+            offenders.length === 0 && tooLong.length === 0 && missing.length === 0,
+            `banned=[${offenders.join("; ")}] long=[${tooLong.join("; ")}] missing=[${missing.join("; ")}]`);
+    }
+
+    /* ============ Runner ============ */
+
+    async function run() {
+      try { localStorage.clear(); } catch (err) { /* ignore */ }
+      const steps = [
+        ["L-I1", scenarioI1], ["L-I2", scenarioI2], ["L-I3", scenarioI3],
+        ["L-I4", scenarioI4], ["L-I7", scenarioI7], ["L-I6", scenarioI6],
+        ["L-I5", scenarioI5], ["L-I8", scenarioI8], ["L-I9", scenarioI9],
+        ["L-I10", scenarioI10],
+      ];
+      for (const [id, fn] of steps) {
+        try {
+          await fn();
+        } catch (err) {
+          check(id, "scenario threw", false, String(err && err.message ? err.message : err));
+        }
+      }
+      paint();
+      document.title = document.getElementById("summary").className === "ok"
+        ? "Hub harness: ALL PASS" : "Hub harness: FAILURES";
+    }
+
+    window.addEventListener("error", (e) => check("uncaught", "uncaught error", false, e.message));
+    run();
+  })();
+  </script>
+</body>
+</html>
