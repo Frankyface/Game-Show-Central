@@ -76,6 +76,36 @@ test("D1 host: player-status false closes that pid's connection; status true ann
   assert.equal(conns.length, 3);
 });
 
+test("D3 host: a player offline at init is announced when the shell reports them back (hub refresh mid-game)", async () => {
+  // After a hub refresh the host frame's init lists phones that have not yet
+  // reconnected as connected:false; manual players never get a connection.
+  const { bus, conns } = hostWithRoom([
+    player("p1", "Rita", false),
+    { pid: "p2", name: "Mo", color: "#000", avatar: "🦊", connected: false, manual: true },
+  ]);
+  await tick();
+  assert.equal(conns.length, 0, "nobody is announced while offline");
+
+  bus.deliver({ gsc: 1, t: "player-status", pid: "p1", connected: true });
+  assert.deepEqual(conns.map((c) => c.peer), ["p1"]);
+  assert.deepEqual(conns[0].metadata, { name: "Rita" }, "the name from init is kept");
+
+  bus.deliver({ gsc: 1, t: "player-status", pid: "p2", connected: true });
+  assert.equal(conns.length, 1, "a manual player is never announced");
+
+  // A message from a phone the shell has not (yet) reported back is queued and
+  // delivered once its status flips, not dropped.
+  bus.deliver({ gsc: 1, t: "player-status", pid: "p1", connected: false });
+  bus.deliver({ gsc: 1, t: "msg", pid: "p1", m: { v: 1, t: "join", name: "Rita" } });
+  assert.equal(conns.length, 1);
+  bus.deliver({ gsc: 1, t: "player-status", pid: "p1", connected: true });
+  assert.equal(conns.length, 2);
+  const data = [];
+  conns[1].on("data", (m) => data.push(m.t));
+  await tick();
+  assert.deepEqual(data, ["join"]);
+});
+
 test("D1 host: a connection the game closed is forgotten, so the next message from that pid announces a new one", async () => {
   const { bus, conns } = hostWithRoom([player("p1", "Alex")]);
   await tick();

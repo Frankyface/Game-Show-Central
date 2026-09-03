@@ -246,7 +246,7 @@ Against `docs/reports/weakest-link-verification.md` (verdict: fix-then-ship —
 three majors, five minors, nothing critical). All three majors and all four
 assigned minors are fixed. `cd games/weakest-link && node --test` →
 **98 tests, 98 pass, 0 fail** (45 shipped + 52 of the tester's + 1 new).
-The browser harness re-run is **BLOCKED-ENV** — see "Harness re-run" below.
+The browser harness was re-run by the orchestrator after the fixes: **All 54 checks passed** (see "Harness re-run" below for the tab-cap history).
 
 The tester's `tests/wl-adversarial.test.mjs` and `tests/wl-adversarial-fuzz.test.mjs`
 are kept as-is except for the five places that deliberately pinned the old
@@ -265,7 +265,7 @@ behaviour; those are inverted and renamed (no longer `DEVIATION`), and the
 | **WL-4** | minor | **Not fixed** — the "questions are repeating" flag still surfaces only through `core.notice`, so the next `bank` or `nextRound` clears it. Listed in the README's known limits. It needs a small persistent badge driven by `core.repeating`; deferred to keep this pass to the defects the coordinator assigned. |
 | WL-8 | minor | Already fixed in place by the tester (`wlLoadMessage` survives the `wlSet` in `wlBoot`); kept, and the same channel now carries the WL-7 notice. |
 
-### Harness re-run — BLOCKED-ENV
+### Harness re-run — PASSED 54/54 (orchestrator run; the implementer was tab-capped, history kept below)
 
 `tests/harness.html` could **not** be re-run in this session. A server was
 started as instructed (`python -m http.server 8644 --bind 127.0.0.1` at the repo

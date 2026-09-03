@@ -98,7 +98,11 @@
       if (conn && conn.open) { conn.open = false; conn.ev.emit("close"); }
     }
 
-    function announceAll() { for (const pid of roster.keys()) announce(pid); }
+    // Only players the shell reports as connected get a connection; the rest stay
+    // in the roster (name known) so a later `player-status true` can announce them.
+    function announceAll() {
+      for (const [pid, info] of roster) if (info.connected !== false) announce(pid);
+    }
 
     function makeConnection(pid, metadata) {
       const ev = emitter();
@@ -130,13 +134,13 @@
         roomCode = d.room && d.room.code ? d.room.code : null;
         if (isHost) {
           const list = (d.room && Array.isArray(d.room.players)) ? d.room.players : [];
-          for (const p of list) if (p.connected !== false) roster.set(p.pid, { name: p.name });
+          for (const p of list) if (!p.manual) roster.set(p.pid, { name: p.name, connected: p.connected !== false });
           announceAll();
         }
         return;
       }
       if (d.t === "player-join" && d.player) {
-        roster.set(d.player.pid, { name: d.player.name });
+        roster.set(d.player.pid, { name: d.player.name, connected: true });
         announce(d.player.pid);
         return;
       }
@@ -153,8 +157,10 @@
         // phone's game frame re-joins on it; a stale-sweep false alarm self-heals
         // through the game's own heartbeat/reconnect within ~30 s.
         if (!isHost || !isPid(d.pid)) return;
+        const known = roster.get(d.pid);
+        if (known) roster.set(d.pid, { ...known, connected: d.connected === true });
         if (d.connected === false) dropConn(d.pid);
-        else if (roster.has(d.pid)) announce(d.pid);
+        else if (known) announce(d.pid);
         return;
       }
       if (d.t === "msg") {
