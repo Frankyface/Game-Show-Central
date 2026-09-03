@@ -208,3 +208,16 @@ The Jeopardy game is vendored from
 the hub's room transport is built from. Jeopardy!, Family Feud, Wheel of
 Fortune and The Weakest Link are trademarks of their respective owners; this is
 an unaffiliated fan project for playing at home.
+
+## Build status and known issues
+
+Every component was built to a written spec (`docs/00`–`07`) and verified by an
+independent tester against that spec's success states — unit tests, browser
+harnesses, real PeerJS/WebRTC rooms, standalone play and static gates. The
+verdicts, the defects found and fixed, and the open known issues are collected
+in [docs/reports/00-orchestrator-triage.md](docs/reports/00-orchestrator-triage.md);
+each component has an implementation and a verification report beside it.
+
+```bash
+node --test   # runs every suite in the repo (shell, shared, all four games)
+```
