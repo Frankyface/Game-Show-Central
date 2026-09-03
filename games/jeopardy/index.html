@@ -12,6 +12,10 @@
   <link rel="stylesheet" href="css/buzzer.css">
   <link rel="stylesheet" href="css/media.css">
   <link rel="stylesheet" href="css/timer.css">
+  <!-- GSC: Game Show Central embed skin. Every rule is scoped to
+       body.gsc-embedded, a class that only exists inside the hub, so this
+       file is inert when index.html is opened standalone. -->
+  <link rel="stylesheet" href="css/gsc-embed.css">
 </head>
 <body>
 
@@ -275,6 +279,19 @@
     </div>
   </section>
 
+  <!-- GSC: Game Show Central. The shared SDK + the PeerJS-shaped shim load
+       first so js/gsc-embed.js can install window.peerjs BEFORE any Jeopardy
+       script asks for one (docs/00 §8). All five shared/*.js files are
+       required (docs/reports/shell-implementation.md §7). None of them runs
+       anything at load, and gsc-embed.js returns immediately unless
+       ?embed=host|player is on the URL — standalone Jeopardy is unchanged. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/virtual-peer.js"></script>
+  <script src="js/gsc-embed.js"></script>
   <script src="js/data.js"></script>
   <script src="js/media.js"></script>
   <script src="js/timer-core.js"></script>

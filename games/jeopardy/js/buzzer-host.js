@@ -772,6 +772,10 @@ const BuzzerHost = (function () {
     if (document.body && document.body.classList.contains("player-mode")) return;
     wireGlobalEvents();
     renderAll();
+    // GSC: inside Game Show Central the hub shell owns the room code, so skip the
+    // saved-code auto-reopen — js/gsc-embed.js calls openRoom(shellCode) once the
+    // bridge handshake lands. Standalone (no gsc-embedded class) is unchanged.
+    if (document.body && document.body.classList.contains("gsc-embedded")) return;
     const s = appState();
     const savedCode = s && s.buzzer && typeof s.buzzer.roomCode === "string" ? s.buzzer.roomCode : null;
     if (savedCode && window.BuzzerProtocol.ROOM_CODE_RE.test(savedCode)) openRoom(savedCode);

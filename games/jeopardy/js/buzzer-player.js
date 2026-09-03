@@ -738,6 +738,22 @@
     prefillCode();
     wireEvents();
     render();
+    gscAutoJoin();
+  }
+
+  // GSC: inside Game Show Central the lobby already took this player's name, so
+  // fill the (CSS-hidden) name field and run the ordinary join() path — same
+  // validation, same connect, same reconnect loop — instead of showing Jeopardy's
+  // own join card a second time (docs/02 §2.4). Standalone has no ?embed=player,
+  // so this returns before touching anything.
+  function gscAutoJoin() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("embed") !== "player") return;
+    const name = (params.get("name") || "").trim();
+    const field = $$("player-name");
+    if (!name || !field || !CODE_RE.test(($$("player-code")?.value || ""))) return;
+    field.value = name.slice(0, NAME_MAX);
+    join();
   }
 
   // Test seam (mirrors BuzzerHost's _init): lets tests/harness.html drive the real

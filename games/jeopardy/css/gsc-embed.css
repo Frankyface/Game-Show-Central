@@ -1,0 +1,83 @@
+/* ============================================================
+   Jeopardy — Game Show Central embed skin (docs/02 §2)
+   EVERY rule in this file is scoped to `body.gsc-embedded`, a class only
+   js/gsc-embed.js adds and only when ?embed=host|player is on the URL.
+   Opened standalone the class never exists, so this stylesheet is inert
+   and the page renders byte-for-byte as upstream.
+
+   It suppresses exactly the chrome the shell already owns:
+     · host  — Open/Close-room buttons, the standalone join URL, the
+               "Playing on your phone?" note
+     · phone — the join card's fields + button, the room-code chip and
+               the "Leave room" footer
+   and adds the one line of new copy the spec asks for, the
+   "managed by Game Show Central" note (built in gsc-embed.js).
+   ============================================================ */
+
+/* ============ Host: the room panel is not yours to open or close ============ */
+
+/* The shell opened this room before the board appeared; "Open buzzer room",
+   "Close room" and the retry hint would all fight it. The player list, the
+   🟢/🔴 dots and Kick inside the same panel stay — they are still useful. */
+body.gsc-embedded .buzzer-panel > .btn,
+body.gsc-embedded .buzzer-panel > .buzzer-hint,
+body.gsc-embedded .buzzer-controls .btn:last-child {
+  display: none;
+}
+
+/* The room code and this page's ?room= join URL belong to standalone Jeopardy.
+   Inside the hub, phones joined through the lobby and never see this page's
+   address, so both would be actively misleading. */
+body.gsc-embedded .buzzer-code-wrap,
+body.gsc-embedded .buzzer-join,
+body.gsc-embedded .buzzer-join-note {
+  display: none;
+}
+
+/* "Room ABCD — managed by Game Show Central" (js/gsc-embed.js inserts it as a
+   sibling of #buzzer-setup, which the host re-renders wholesale). */
+.gsc-room-note {
+  margin: 0.4rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed rgba(255, 204, 77, 0.45);
+  border-radius: var(--radius, 10px);
+  background: rgba(255, 204, 77, 0.07);
+  color: var(--gold-text, #ffd35e);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+/* ============ Phone: no join card, no code chip, no leaving ============ */
+
+/* gsc-embed.js auto-joins with the name the lobby already collected, so the
+   code + name fields and the Join button can never be usefully tapped. The
+   heading (relabelled "Connecting…") and #player-error stay visible, so a
+   failure is still readable instead of a blank screen. */
+body.gsc-embedded #player-join .player-field,
+body.gsc-embedded #player-join-btn,
+body.gsc-embedded #player-webview-hint,
+body.gsc-embedded #player-tips {
+  display: none;
+}
+
+body.gsc-embedded #player-join {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  gap: 0.6rem;
+}
+
+/* The shell bar above this iframe already shows the room code, and leaving is
+   the shell's ⌂ Lobby / the lobby's own controls — not Jeopardy's. */
+body.gsc-embedded .player-head-code,
+body.gsc-embedded .player-foot {
+  display: none;
+}
+
+/* The iframe is the whole viewport already; the standalone full-height
+   centring adds a scrollbar inside the shell's play area. */
+body.gsc-embedded .screen-player {
+  min-height: 100%;
+  padding-bottom: 1rem;
+}

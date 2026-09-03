@@ -77,6 +77,10 @@ function setState(patch) {
   state = { ...state, ...patch };
   saveState();
   render();
+  // GSC: report the scoreboard to Game Show Central's night standings after every
+  // change (docs/02 §2.5). Optional-chained end to end — standalone has no
+  // GscEmbed, and embedded it returns immediately unless this is the host frame.
+  window.GscEmbed?.onStateChanged?.();
 }
 
 /* ============ Persistence ============ */

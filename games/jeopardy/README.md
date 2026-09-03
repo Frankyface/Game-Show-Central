@@ -4,6 +4,32 @@ A customizable Jeopardy game that runs entirely in the browser. No build step, n
 server, no dependencies — just push it to GitHub Pages and play. Questions and
 answers live in a single JSON file you can edit.
 
+## Inside Game Show Central
+
+This folder is vendored into the **Game Show Central** hub (see the repo root and
+`docs/02-jeopardy-integration-spec.md`). It runs in two ways, from the same page:
+
+- **Standalone** — open `games/jeopardy/index.html` directly. Everything below
+  applies unchanged: your own buzzer rooms with the `ghj-` peer prefix, real
+  PeerJS loaded lazily on **Open buzzer room**, the `?room=CODE` phone URL. The
+  hub adds nothing to this path.
+- **Inside the hub** — the hub loads this page in an iframe as
+  `?embed=host` (the shared screen) or `?embed=player` (a phone). Then
+  `js/gsc-embed.js` installs `shared/virtual-peer.js` as `window.peerjs`, so the
+  whole buzzer stack — buzzers, early-buzz lockout, Daily Double wagers, Final
+  wagers and typed answers, timers — works over the hub's single room instead of
+  its own. Players who are already in the lobby (including phone-less ones the
+  host added by hand) appear on the scoreboard automatically, phones land
+  straight on the buzzer screen with no second join card, and scores flow back to
+  the hub's running scoreboard for the night.
+
+Everything the hub adds lives in two new files, `js/gsc-embed.js` and
+`css/gsc-embed.css`, plus five short additions to the upstream files, each marked
+`// GSC:` (or `<!-- GSC: -->`). Every one of them is inert unless `?embed=host` or
+`?embed=player` is on the URL — `css/gsc-embed.css` is scoped entirely to
+`body.gsc-embedded`, a class that only exists inside the hub. **Standalone
+Jeopardy behaves exactly as it did upstream.**
+
 ## Features
 
 - **JSON-driven** — edit [questions.json](questions.json) to make your own game
