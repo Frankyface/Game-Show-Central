@@ -237,3 +237,89 @@ Message contract (spec §5), enforced in `wl-room.js`:
   the hotkeys so a click is never counted twice.
 - `window.WlApp` (`state`, `core`, `dispatch`, `render`, `useGame`, `subscribe`),
   `window.WlEditor` and `window.WlPhone` are the intended automation surfaces.
+
+---
+
+## 10. Fixes after verification
+
+Against `docs/reports/weakest-link-verification.md` (verdict: fix-then-ship —
+three majors, five minors, nothing critical). All three majors and all four
+assigned minors are fixed. `cd games/weakest-link && node --test` →
+**98 tests, 98 pass, 0 fail** (45 shipped + 52 of the tester's + 1 new).
+The browser harness re-run is **BLOCKED-ENV** — see "Harness re-run" below.
+
+The tester's `tests/wl-adversarial.test.mjs` and `tests/wl-adversarial-fuzz.test.mjs`
+are kept as-is except for the five places that deliberately pinned the old
+behaviour; those are inverted and renamed (no longer `DEVIATION`), and the
+`toFinal()` fixtures lost the round that no longer exists.
+
+| ID | Severity | Fix |
+|---|---|---|
+| **WL-1** | major | `js/wl-core.js`: new `readyForFinal(state)` (`active.length <= settings.finalPlayers`). `evNextRound` now returns `enterFinal(state)` instead of opening a round, so the vote that leaves two players goes **straight** to the head-to-head and the multiplier lands on the last **full-team** round's bank. `endRoundFrom` uses the same predicate so the two paths cannot drift (a game that *starts* at the final size still drops straight in). `js/wl-app.js`: `#btn-next-round` reads **"To the head-to-head"** in that case. The goodbye card still plays first. |
+| **WL-2** | major | `js/wl-core.js` `phoneView`: a pid in neither `active` nor `eliminated` now returns `{screen:"out", spectator:true, standings}` **before** any live screen, so a mid-game joiner can never be handed a ballot. `js/wl-phone.js` `SCREENS.out` renders the spectator copy: **"You're watching / You joined mid-game / Watch the host screen — you can play from the next game."** |
+| **WL-7** | major | `js/wl-app.js` `wlBoot`: an explicit `?game=URL` now wins over the saved game unless the save already came from that same URL (`saved.sourceUrl === wantUrl`) — the Family Feud `bootHost` rule. Two refinements beyond the tester's sketch: (a) only a URL that *actually loaded* may displace the save (`loaded.kind === "fetch" && loaded.url === wantUrl`), so a 404 no longer costs the host their game as well as their questions; (b) `wlUseGame` clears `sourceUrl`, so an editor/upload game is not resurrected by a later visit to the old link. When a resumed game is dropped the host is told: *"Loaded the questions from the link, so the game in progress was cleared."* |
+| **WL-3** | minor | `js/wl-core.js` `evBank` refuses while `state.expired` (the question in flight is the last one, so the chain riding on it cannot be rescued) and returns the identical object. `js/wl-app.js` disables `#btn-bank` when `core.expired`. |
+| **WL-6** | minor | `js/wl-app.js`: new `wlUsableCore(core)` checks `phase` against `WlCore.PHASES` plus every array (`players, active, eliminated, order, past, revealed, roundHistory`), object (`clock, votes, stats, roundStats`) and number (`roundIndex, chainIndex, roundBank, total, lastRoundBank, qIndex`) the reducer dereferences; a damaged save is dropped to `core: null` with a `console.warn` instead of being restored. Belt and braces in `js/wl-core.js`: `evClockPause` guards `state.clock` and `evUndo` guards `state.past`, so a truncated state is an *ignored* event rather than a throw. |
+| **WL-9** | minor | `js/wl-room.js`: `lastSent[pid]` is cleared in `onPlayerJoin`, and a real `onPlayerStatus(pid, connected)` handler (previously `() => {}`) clears it and re-pushes on reconnect — so a (re)joining phone gets its view immediately instead of sitting on "Waiting for the host…". |
+| **WL-10** | minor | `js/wl-app.js` `wlRenderTally` gives every dot a glyph (`✓` / `✗`) and a `title` (`Question 3: wrong`); `css/wl.css` makes a miss a **square** and a hit a circle. Colour is now the third signal, not the only one. |
+| **WL-4** | minor | **Not fixed** — the "questions are repeating" flag still surfaces only through `core.notice`, so the next `bank` or `nextRound` clears it. Listed in the README's known limits. It needs a small persistent badge driven by `core.repeating`; deferred to keep this pass to the defects the coordinator assigned. |
+| WL-8 | minor | Already fixed in place by the tester (`wlLoadMessage` survives the `wlSet` in `wlBoot`); kept, and the same channel now carries the WL-7 notice. |
+
+### Harness re-run — BLOCKED-ENV
+
+`tests/harness.html` could **not** be re-run in this session. A server was
+started as instructed (`python -m http.server 8644 --bind 127.0.0.1` at the repo
+root; `http://127.0.0.1:8644/games/weakest-link/tests/harness.html` returns 200
+and serves the fixed `wl-core.js`), but the shared in-app browser pane was at its
+tab cap for the ~45 minutes this fix pass ran, with all nine tabs owned by other
+components' agents (origins `127.0.0.1:8642`, `:8643`, `:8645`, `:8660`). Exact
+errors, retried ten times over that window:
+
+```
+tabs_create   → Could not open a new tab (Browser pane gone, gate off, or tab cap reached).
+preview_start → Tab cap reached. Close a tab (tabs_close) before opening another,
+                or call tabs_context to find an existing tab to reuse.
+```
+
+No tab belonged to this component, so none could be closed or reused without
+destroying another agent's work. **Nothing is recorded as passing on the strength
+of a run that did not happen.** What *was* verified instead:
+
+- **The harness's exact event sequence, in Node** against the real `wl-core.js`
+  and the real `tests/fixtures/harness-game.json`: five players → round 1 with a
+  clock expiry → vote → Eve out → round 2 → tied vote → Ben out → round 3 (the
+  last full-team round, banking 2,500) → vote → Dev out → **straight to
+  `finalIntro`** with `roundIndex` unchanged at 2, `lastRoundBank 2500`,
+  `finalBonus 5000`, `total 10000` → 1-1 head-to-head → sudden death → `Ada wins
+  $10,000`. Bank was refused while expired; the stray pid `px` returned
+  `{screen:"out", spectator:true}`; the tally answers came back `[true,false]`
+  for both finalists, which is what the new WL-10 glyph check reads.
+- The harness script **parses** (`new Function` over its `<script>` body) and all
+  **45** element ids it references exist in `index.html`.
+
+Re-running it needs one free browser tab and nothing else:
+`http://127.0.0.1:8644/games/weakest-link/tests/harness.html`, then read
+`#summary` / `window.__WL_HARNESS__`. The four scenarios touched by these fixes
+are `scenarioFinal` (WL-1 label + no extra round, WL-10 glyphs) and the new
+`scenarioRegressions` (K-I7: WL-7 both directions, WL-3, WL-2, WL-9).
+
+### Tests changed
+
+| Test | Change |
+|---|---|
+| `wl-core.test.mjs` `toFinal()` | Drops the two-player round; a 3-player game is now one full round → one vote → head-to-head. |
+| `wl-core.test.mjs` K-U7 ×2 | Now assert `roundIndex === 0`, `lastRoundBank 2500`, `finalBonus 5000`, `total 7500` (round 1's bank ×3), and `total 2500` with `finalMultiplier: 1`. |
+| `wl-adversarial.test.mjs` `DEVIATION A5` | Inverted → **"A5 the last two go straight to the head-to-head, tripling the last FULL round (WL-1 fixed)"**, and also asserts the round events are dead in `finalIntro`. A new sibling test walks a 4-player game through two votes to the same conclusion. |
+| `wl-adversarial.test.mjs` `DEVIATION A2` | Inverted → **"A2 banking is refused once the clock has expired (WL-3 fixed)"**; also checks the chain stays on the board until judged and is then lost. |
+| `wl-adversarial.test.mjs` `toFinal()` | Same one-fewer-round change. |
+| `wl-adversarial-fuzz.test.mjs` `DEVIATION A9` | Inverted → **"A9 a phone that is not in the game is a spectator, never a voter (WL-2 fixed)"**, extended to five phases. |
+| `wl-adversarial-fuzz.test.mjs` `DEVIATION A10` | Inverted → **"A10 a truncated state object is ignored, never thrown on (WL-6 fixed)"**. |
+| `wl-adversarial-fuzz.test.mjs` A10 undo script | The `nextRound` that leaves two players now enters the head-to-head, so the two-player round it used to drive was removed from the script. |
+| `tests/harness.html` | `scenarioFinal` follows the new flow and adds two WL-1 checks (button label, no extra round) plus the WL-10 glyph/`title` assertion on the **rendered** tally; new `scenarioRegressions` (K-I7) covers WL-7 both ways, WL-3, WL-2 and WL-9. |
+
+The four deliberate NUL bytes in the tester's hostile-payload strings are
+preserved (the fuzz file is still valid UTF-8 with LF endings).
+
+### Sizes after the fixes (gate V2)
+
+`js/wl-app.js` 796, `js/wl-core.js` 796, `tests/wl-core.test.mjs` 717, `tests/harness.html` 628, `tests/wl-adversarial.test.mjs` 562, `css/wl.css` 540, `tests/wl-adversarial-fuzz.test.mjs` 418 — every file still under 800. WL-1/WL-2/WL-3/WL-6 pushed `wl-core.js` to 811 and the WL-6/WL-7 work pushed `wl-app.js` to 801, so eight JSDoc blocks across the two files were compressed to denser equivalents (every fact kept, `@param`/`@returns` tags intact). V3 (no `innerHTML`/`eval`/`document.write`) and V4 (no `console.log`) re-checked clean.

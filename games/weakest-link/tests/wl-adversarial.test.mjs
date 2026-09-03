@@ -192,15 +192,19 @@ test("A2 clockStart/clockPause outside a round are ignored", () => {
   assert.equal(WL.reduce(voting, { type: "clockExpired" }, 1), voting);
 });
 
-test("DEVIATION A2 banking is still allowed after the clock has expired (WL-3)", () => {
+test("A2 banking is refused once the clock has expired (WL-3 fixed)", () => {
   let s = play(started(4), ["correct", "correct"]);
   s = WL.reduce(s, { type: "clockExpired" });
-  const banked = WL.reduce(s, { type: "bank" });
   // Spec §1 lets a player bank only "before hearing their question"; the clock
-  // is already at zero and the question is in flight, so this ought to be
-  // refused. Today it succeeds.
-  assert.equal(banked.roundBank, 2500);
-  assert.equal(banked.phase, "round");
+  // is at zero and that question is in flight, so the chain riding on it can
+  // no longer be rescued.
+  assert.equal(WL.reduce(s, { type: "bank" }), s, "the identical object comes back");
+  assert.equal(s.roundBank, 0);
+  assert.equal(WL.chainValue(s), 2500, "the chain is still on the board until it is judged");
+  // Judging still works, and the unbanked chain is then lost with the round.
+  const judged = WL.reduce(s, { type: "wrong" });
+  assert.equal(judged.phase, "voting");
+  assert.equal(judged.total, 0, "nothing was rescued");
 });
 
 /* ==== A3 — statistics tie-breaks (spec §1 "Voting", K-U5 order) ==== */
@@ -389,25 +393,46 @@ test("A5 turn order skips the eliminated and wraps", () => {
   assert.deepEqual(new Set(order).size, 3);
 });
 
-test("DEVIATION A5 a 3-player game plays an extra TWO-player round before the final (WL-1)", () => {
+test("A5 the last two go straight to the head-to-head, tripling the last FULL round (WL-1 fixed)", () => {
   let s = started(3);
   s = play(s, ["correct", "correct", "bank"]);          // 2500 in round 1
   s = WL.reduce(s, { type: "endRound" });
   assert.equal(s.phase, "voting");
+  assert.equal(s.total, 2500);
   s = voteAll(s, "p3", "p1");
   s = play(s, ["revealAll", "eliminate"]);
   assert.deepEqual(s.active, ["p1", "p2"], "two players remain");
-  // Spec §1: "Rounds continue until 2 players remain" — the head-to-head should
-  // begin here. Instead `nextRound` opens a full round for the last two, and it
-  // is THAT round's bank the multiplier is applied to.
+  assert.equal(s.phase, "goodbye", "the goodbye card still plays");
+  // Spec §1: "Rounds continue until 2 players remain." No two-player round is
+  // played, and the multiplier applies to round 1 — the last full-team round.
   s = WL.reduce(s, { type: "nextRound" });
-  assert.equal(s.phase, "round", "DEVIATION: a two-player round is played");
-  assert.equal(s.roundIndex, 1);
-  s = play(s, ["correct", "correct", "correct", "bank"]);   // 5000 in the extra round
+  assert.equal(s.phase, "finalIntro", "straight into the head-to-head");
+  assert.equal(s.roundIndex, 0, "no extra round was opened");
+  assert.equal(s.lastRoundBank, 2500);
+  assert.equal(s.finalBonus, 5000, "2500 counted three times");
+  assert.equal(s.total, 7500);
+  assert.deepEqual(s.final.pids, ["p1", "p2"]);
+  // The round events are dead now; only the final ones do anything.
+  for (const type of ["correct", "wrong", "bank", "endRound", "nextRound"]) {
+    assert.equal(WL.reduce(s, { type }), s, `${type} after the last vote`);
+  }
+});
+
+test("A5 a 4-player game reaches the final after exactly two votes (WL-1 fixed)", () => {
+  let s = started(4);
+  s = play(s, ["correct", "bank"]);                     // 1000 in round 1
   s = WL.reduce(s, { type: "endRound" });
+  s = voteAll(s, "p4", "p1");
+  s = play(s, ["revealAll", "eliminate", "nextRound"]);
+  assert.equal(s.phase, "round", "three players still play a full round");
+  assert.equal(s.roundIndex, 1);
+  s = play(s, ["correct", "correct", "bank"]);          // 2500 in round 2
+  s = WL.reduce(s, { type: "endRound" });
+  s = voteAll(s, "p3", "p1");
+  s = play(s, ["revealAll", "eliminate", "nextRound"]);
   assert.equal(s.phase, "finalIntro");
-  assert.equal(s.lastRoundBank, 5000, "the tripled bank is the two-player round's, not round 1's");
-  assert.equal(s.finalBonus, 10000);
+  assert.equal(s.lastRoundBank, 2500, "round 2 was the last full-team round");
+  assert.equal(s.total, 1000 + 2500 + 5000);
 });
 
 test("A5 eliminate only fires from voteResult and only once", () => {
@@ -423,15 +448,14 @@ test("A5 eliminate only fires from voteResult and only once", () => {
 
 /* ==== A6 — the head-to-head (spec §1 "Head-to-head") ==== */
 
-/** Drive a 3-player game to `finalIntro`. */
+/** Drive a 3-player game to `finalIntro`. One full round, one vote, then the
+    head-to-head — the last two never play a round of their own (WL-1). */
 function toFinal(settings) {
   let s = started(3, settings);
-  s = play(s, ["correct", "correct", "bank"]);
+  s = play(s, ["correct", "correct", "bank"]);          // 2500 banked by the team
   s = WL.reduce(s, { type: "endRound" });
   s = voteAll(s, "p3", "p1");
-  s = play(s, ["revealAll", "eliminate", "nextRound"]);
-  s = play(s, ["correct", "correct", "correct", "bank"]);
-  return WL.reduce(s, { type: "endRound" });
+  return play(s, ["revealAll", "eliminate", "nextRound"]);
 }
 
 test("A6 finalQuestionsEach 1 decides after one question each", () => {

@@ -22,6 +22,10 @@
 
   function onPlayerJoin(player) {
     if (!player || !player.pid) return;
+    // WL-9: a phone that (re)joins has a blank screen, so the de-duplication
+    // cache must forget whatever we last sent this pid or the identical view
+    // would be suppressed and the phone would sit on "Waiting for the host…".
+    delete lastSent[player.pid];
     const app = window.WlApp.state();
     if (app.core) {
       // A phone already in this game is just reconnecting (or the host
@@ -33,6 +37,13 @@
     }
     const already = app.setup.players.some((p) => p.pid === player.pid);
     if (!already) window.WlApp.addPlayer(player.name, player.pid, false);
+  }
+
+  /** A phone that comes back up needs a fresh push for the same reason. */
+  function onPlayerStatus(pid, connected) {
+    if (!connected) return;
+    delete lastSent[pid];
+    pushViews(window.WlApp.core());
   }
 
   function onPlayerLeave(pid) {
@@ -131,7 +142,7 @@
     const GSC = window.GSC;
     if (!GSC || GSC.mode.endsWith("-player")) return;
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus: () => {}, onMessage });
+      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
     } catch (err) {
       window.WlApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;

@@ -100,6 +100,33 @@ function wlSave() {
   }
 }
 
+/** Every field the reducer and the renderers dereference without a guard. */
+const WL_CORE_ARRAYS = ["players", "active", "eliminated", "order", "past", "revealed", "roundHistory"];
+const WL_CORE_OBJECTS = ["clock", "votes", "stats", "roundStats"];
+const WL_CORE_NUMBERS = ["roundIndex", "chainIndex", "roundBank", "total", "lastRoundBank", "qIndex"];
+const WL_FINAL_PHASES = ["finalIntro", "final", "suddenDeath"];
+
+/** Is this a state the reducer can safely be handed? A hand-edited or half-written
+    `gsc-wl-state-v1` is REJECTED here, not discovered by a handler dereferencing
+    a missing field (WL-6). */
+function wlUsableCore(core) {
+  if (!core || typeof core !== "object") return false;
+  if (typeof core.phase !== "string" || window.WlCore.PHASES.indexOf(core.phase) < 0) return false;
+  if (!core.game || typeof core.game !== "object") return false;
+  if (WL_CORE_ARRAYS.some((k) => !Array.isArray(core[k]))) return false;
+  if (WL_CORE_OBJECTS.some((k) => !core[k] || typeof core[k] !== "object" || Array.isArray(core[k]))) return false;
+  if (WL_CORE_NUMBERS.some((k) => !Number.isFinite(core[k]))) return false;
+  if (typeof core.clock.remainingMs !== "number") return false;
+  // The embedded game is what every money selector reads.
+  const settings = core.game.settings;
+  if (!Array.isArray(core.game.questions) || !settings || !Array.isArray(settings.chain)) return false;
+  // The head-to-head screens dereference `final` directly.
+  if (WL_FINAL_PHASES.indexOf(core.phase) >= 0) {
+    return !!core.final && Array.isArray(core.final.pids) && core.final.pids.length === 2;
+  }
+  return true;
+}
+
 function wlLoadSaved() {
   try {
     const raw = localStorage.getItem(WL_STORAGE_KEY);
@@ -107,7 +134,10 @@ function wlLoadSaved() {
     const saved = JSON.parse(raw);
     if (!saved || typeof saved !== "object") return null;
     if (saved.game) window.WlCore.validateGame(saved.game);
-    if (saved.core && (!saved.core.phase || !saved.core.game)) return null;
+    if (saved.core !== null && saved.core !== undefined && !wlUsableCore(saved.core)) {
+      console.warn("Ignoring a saved game with a damaged state object.");
+      return Object.assign({}, saved, { core: null });
+    }
     return saved;
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
@@ -158,7 +188,12 @@ async function wlLoadContent() {
 /** Adopt a validated game — from the editor, a file, or a URL. */
 function wlUseGame(game, source, kind) {
   window.WlCore.validateGame(game);
-  wlSet({ game, source: source || "Custom questions", sourceKind: kind || "upload", core: null });
+  // sourceUrl is cleared: this content no longer came from the ?game= link, so
+  // a reload of that link must fetch it again rather than resurrect this copy.
+  wlSet({
+    game, source: source || "Custom questions", sourceKind: kind || "upload",
+    sourceUrl: null, core: null,
+  });
   wlError("");
 }
 
@@ -287,7 +322,9 @@ function wlRenderRound(core) {
   wlRenderStats(core);
   show($("wl-answer"), wlApp.keepAnswers || wlPeeking);
   $("btn-clock").textContent = core.clock.running ? "Pause clock" : "Start clock";
-  $("btn-bank").disabled = WLc.chainValue(core) <= 0;
+  // WL-3: once the clock has expired the question in flight is the last one,
+  // so the chain riding on it can no longer be banked.
+  $("btn-bank").disabled = core.expired || WLc.chainValue(core) <= 0;
   $("btn-undo").disabled = core.past.length === 0;
 }
 
@@ -326,12 +363,9 @@ function wlVoteRow(core, voter) {
   return li;
 }
 
-/**
- * The host's per-player override dropdown. It sits on unrevealed rows only,
- * and it always shows the BLANK option even when a vote is already in: the
- * ballot is secret, and a dropdown sitting open on a screen-shared stage
- * would give it away. The dots beside it say a vote arrived.
- */
+/** The host's per-player override dropdown. On unrevealed rows only, and always
+    showing the BLANK option even when a vote is in: the ballot is secret and an
+    open dropdown on a shared stage would give it away. The dots say a vote arrived. */
 function wlVoteSelect(core, voter) {
   const name = window.WlCore.playerName(core, voter);
   const select = el("select");
@@ -375,6 +409,9 @@ function wlRenderVoting(core) {
   show($("wl-tie-panel"), core.phase === "tiebreak");
   show($("wl-vote-result"), core.phase === "voteResult");
   show($("wl-goodbye-panel"), core.phase === "goodbye");
+  // WL-1: after this vote the last two go straight to the head-to-head.
+  $("btn-next-round").textContent = core.active.length <= core.game.settings.finalPlayers
+    ? "To the head-to-head" : "Next round";
   if (core.phase === "tiebreak") wlRenderTie(core);
   if (core.phase === "voteResult") {
     const tally = WLc.voteTally(core);
@@ -460,7 +497,13 @@ function wlRenderTally(core) {
     const dots = el("div", "tally-dots");
     for (let i = 0; i < row.asked; i += 1) {
       const state = row.answers[i];
-      dots.appendChild(el("span", `tally-dot${state === true ? " hit" : state === false ? " miss" : ""}`));
+      // WL-10: colour is never the only signal — each dot carries its own glyph
+      // and a label, so the pattern reads without telling green from red.
+      const mark = state === true ? "hit" : state === false ? "miss" : "";
+      const dot = el("span", `tally-dot${mark ? ` ${mark}` : ""}`,
+        state === true ? "✓" : state === false ? "✗" : "");
+      dot.title = `Question ${i + 1}: ${mark === "hit" ? "correct" : mark === "miss" ? "wrong" : "not asked yet"}`;
+      dots.appendChild(dot);
     }
     card.appendChild(dots);
     card.appendChild(el("p", "tally-score", `${row.correct} correct`));
@@ -701,14 +744,27 @@ async function wlBoot() {
   wlWireChrome();
 
   const loaded = await wlLoadContent();
+  // An explicit ?game=URL always wins over the saved game unless the save
+  // already came from that same URL — otherwise a host who has played once
+  // silently gets their old questions when they follow a shared link. The
+  // in-progress game goes with them: a resumed core carries the old questions
+  // inside it. (Same rule as Family Feud's bootHost.)
+  const wantUrl = new URLSearchParams(location.search).get("game");
+  // Only a URL that actually loaded may displace the save; a 404 must not cost
+  // the host their game as well as their questions (wlLoadMessage says why).
+  const urlWon = !!wantUrl && loaded.kind === "fetch" && loaded.url === wantUrl;
+  const useSaved = saved && (!urlWon || saved.sourceUrl === wantUrl);
   const patch = {
-    game: (saved && saved.game) || loaded.game,
-    source: (saved && saved.source) || loaded.source,
-    sourceKind: (saved && saved.sourceKind) || loaded.kind,
-    sourceUrl: (saved && saved.sourceUrl) || loaded.url,
+    game: (useSaved && saved.game) || loaded.game,
+    source: (useSaved && saved.source) || loaded.source,
+    sourceKind: (useSaved && saved.sourceKind) || loaded.kind,
+    sourceUrl: (useSaved && saved.sourceUrl) || loaded.url,
   };
   if (saved && saved.setup) patch.setup = wlMergeRoster(saved.setup, wlApp.setup.players);
-  if (saved && saved.core) patch.core = saved.core;
+  if (useSaved && saved.core) patch.core = saved.core;
+  if (!useSaved && saved && saved.core && !wlLoadMessage) {
+    wlLoadMessage = "Loaded the questions from the link, so the game in progress was cleared.";
+  }
   if (saved && typeof saved.keepAnswers === "boolean") patch.keepAnswers = saved.keepAnswers;
   $("wl-keep-answers").checked = !!patch.keepAnswers;
   wlSet(patch);

@@ -84,11 +84,8 @@
     return out.map((p) => ({ pid: p.pid, name: p.name }));
   }
 
-  /**
-   * @param {unknown} game
-   * @param {WlPlayer[]} players
-   * @param {{shuffle?:boolean, rng?:() => number}} [options]
-   */
+  /** Build the opening state. `options` = {shuffle, rng}; rng is injected so a
+      shuffled order is reproducible. @param {WlPlayer[]} players */
   function createState(game, players, options) {
     const g = normalizeGame(game);
     const roster = normalizePlayers(players);
@@ -176,11 +173,8 @@
     return entry && entry.stats ? entry.stats : state.roundStats;
   }
 
-  /**
-   * Rank players for a round. `dir` 1 = strongest (most correct, then most
-   * banked, then fewest wrong), -1 = weakest (fewest correct, then least
-   * banked, then most wrong). Seat order is the stable final tie-break.
-   */
+  /** Rank a round's players. `dir` 1 = strongest (most correct, then most banked,
+      then fewest wrong); -1 = weakest (the mirror). Seat order breaks a total tie. */
   function rankBy(state, roundIndex, pool, dir) {
     const stats = statsForRound(state, roundIndex);
     const seats = state.players.map((p) => p.pid);
@@ -250,11 +244,8 @@
 
   /* ============ Phone payloads ============ */
 
-  /**
-   * Validate a phone->host payload. Returns a narrow copy or null for junk
-   * (callers ignore null; they never throw on a hostile frame).
-   * @param {unknown} obj
-   */
+  /** Validate a phone->host payload: a narrow copy, or null for junk — callers
+      ignore null and never throw on a hostile frame. @param {unknown} obj */
   function validatePhoneMsg(obj) {
     if (!isPlainObject(obj) || typeof obj.t !== "string") return null;
     if (obj.t === "vote" || obj.t === "tiebreak") {
@@ -294,6 +285,14 @@
         screen: "result",
         winner: playerName(state, state.winnerPid),
         won: state.winnerPid === pid,
+      });
+    }
+    // A phone that joined after `start` is in neither list. It must never be
+    // handed a ballot: it is not a voter, so its taps would be silently
+    // dropped by canVote and it would just look broken.
+    if (state.active.indexOf(pid) < 0 && state.eliminated.indexOf(pid) < 0) {
+      return Object.assign(base, {
+        screen: "out", spectator: true, standings: standings(state),
       });
     }
     if (state.eliminated.indexOf(pid) >= 0) {
@@ -366,11 +365,8 @@
 
   /* ============ Reducer plumbing ============ */
 
-  /**
-   * A history entry drops the two constants (`game`, `order`) and its own
-   * `past`, so undo stays exact while the saved state stays small enough for
-   * localStorage.
-   */
+  /** A history entry drops the two constants (`game`, `order`) and its own `past`,
+      so undo stays exact while the saved state still fits in localStorage. */
   function snapshot(state) {
     const copy = Object.assign({}, state);
     delete copy.game;
@@ -438,13 +434,9 @@
   // Events that are pure clock bookkeeping are not worth an undo step.
   const NO_HISTORY = new Set(["clockStart", "clockPause", "undo"]);
 
-  /**
-   * Apply `event` to `state`. Illegal or unknown events return `state`
-   * unchanged. `now` is injected (never Date.now inside the core).
-   * @param {object} state
-   * @param {{type:string}} event
-   * @param {number} [now]
-   */
+  /** Apply `event` to `state`; illegal or unknown events return `state` unchanged.
+      `now` is injected — the core never calls Date.now.
+      @param {object} state @param {{type:string}} event @param {number} [now] */
   function reduce(state, event, now) {
     if (!state || !isPlainObject(event) || typeof event.type !== "string") return state;
     const handler = HANDLERS[event.type];
@@ -475,7 +467,7 @@
   }
 
   function evClockPause(state, ev, now) {
-    if (!state.clock.running) return state;
+    if (!isPlainObject(state.clock) || !state.clock.running) return state;
     const left = Math.max(0, (state.clock.deadline || 0) - now);
     return Object.assign({}, state, { clock: { running: false, deadline: null, remainingMs: left } });
   }
@@ -490,7 +482,10 @@
   }
 
   function evBank(state) {
-    if (state.phase !== "round") return state;
+    // Spec §1: a player banks "before hearing their question". Once the clock
+    // has hit 0 the question in flight is the last one, so the chain riding on
+    // it can no longer be rescued.
+    if (state.phase !== "round" || state.expired) return state;
     const value = chainValue(state);
     if (value <= 0) return state;
     const banked = Math.min(state.roundBank + value, chainTop(state));
@@ -517,11 +512,9 @@
     return endNow ? endRoundFrom(next) : next;
   }
 
-  /**
-   * Climb the chain for `pid`. Completing the top link banks it automatically
-   * (credited to that player) and, when configured, ends the round.
-   * @returns {{state:object, endRound:boolean}}
-   */
+  /** Climb the chain for `pid`. Completing the top link auto-banks it (credited to
+      that player) and, when configured, ends the round.
+      @returns {{state:object, endRound:boolean}} */
   function applyCorrect(state, pid) {
     const chain = state.game.settings.chain;
     const climbed = state.chainIndex + 1;
@@ -557,7 +550,9 @@
       expired: false,
       chainIndex: 0,
     });
-    if (state.active.length > state.game.settings.finalPlayers) {
+    // A round only ends into a vote while there are more than `finalPlayers`
+    // left; a game that STARTS at the final size drops straight into it.
+    if (!readyForFinal(base)) {
       return Object.assign(base, {
         phase: "voting", votes: {}, revealed: [], tied: null, tiebreakPid: null, eliminatedPid: null,
         notice: "Vote for the weakest link.",
@@ -576,6 +571,9 @@
       phase: "finalIntro",
       total: state.total + bonus,
       finalBonus: bonus,
+      // The vote that got us here is over; only the strongest link is still
+      // wanted (they choose who answers first).
+      votes: {}, revealed: [], tied: null, eliminatedPid: null,
       tiebreakPid: strongest,
       final: {
         pids,
@@ -656,8 +654,17 @@
     });
   }
 
+  /** True once the vote has cut the team down to the head-to-head. */
+  function readyForFinal(state) {
+    return state.active.length <= state.game.settings.finalPlayers;
+  }
+
   function evNextRound(state) {
     if (state.phase !== "goodbye") return state;
+    // Spec §1: "Rounds continue until 2 players remain." The last two do NOT
+    // play another round — the last FULL-TEAM round's bank is what gets
+    // multiplied, so we go straight from the goodbye to the head-to-head.
+    if (readyForFinal(state)) return enterFinal(state);
     const roundIndex = state.roundIndex + 1;
     // TV rule: the previous round's strongest link (still in the game) starts.
     const starter = strongestLink(state, state.roundHistory.length - 1, state.active) || state.active[0];
@@ -759,7 +766,7 @@
   /* ============ Undo ============ */
 
   function evUndo(state) {
-    if (!state.past.length) return state;
+    if (!Array.isArray(state.past) || !state.past.length) return state;
     const prev = state.past[state.past.length - 1];
     return Object.assign({}, prev, {
       game: state.game, order: state.order, past: state.past.slice(0, -1),

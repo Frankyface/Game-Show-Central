@@ -398,8 +398,11 @@
        ============================================================ */
 
     async function scenarioFinal() {
-      // Round 3 with three players, then vote one off to reach the final two.
+      // Round 3 is the LAST FULL-TEAM round: three players, then the vote that
+      // leaves two goes straight to the head-to-head (WL-1).
       click("btn-correct"); click("btn-correct"); click("btn-bank");
+      const lastFullBank = core().roundBank;
+      const roundBefore = core().roundIndex;
       click("btn-end-round");
       await waitFor(() => core().phase === "voting", "round 3 vote");
       await phoneVote("p1", "Dev");
@@ -407,12 +410,15 @@
       await phoneVote("p4", "Ada");
       click("btn-reveal-all");
       click("btn-eliminate");
+      await waitFor(() => core().phase === "goodbye", "goodbye");
+      check("K-I4 the button says the last two go to the head-to-head (WL-1)",
+        H("btn-next-round").textContent === "To the head-to-head",
+        H("btn-next-round").textContent);
       click("btn-next-round");
-      await waitFor(() => core().phase === "round" && core().active.length === 2, "the last full round");
-
-      click("btn-correct"); click("btn-correct"); click("btn-bank");
-      click("btn-end-round");
       await waitFor(() => core().phase === "finalIntro", "final intro");
+      check("K-I4 the last two never play a round of their own (WL-1)",
+        core().roundIndex === roundBefore && core().lastRoundBank === lastFullBank,
+        `round ${core().roundIndex} (was ${roundBefore}), lastRoundBank ${core().lastRoundBank} (last full round banked ${lastFullBank})`);
       check("K-I4 the last full round's bank is tripled on the splash",
         H("wl-final-bank").textContent === HW().WlCore.formatMoney(core(), core().total)
         && core().finalBonus === core().lastRoundBank * 2,
@@ -425,9 +431,18 @@
         phoneFrames.get("p1").contentWindow.WlPhone.view().tally.length === 2,
         JSON.stringify(phoneFrames.get("p1").contentWindow.WlPhone.view().tally.map((r) => r.name)));
 
-      // finalQuestionsEach is 2 in the fixture: 1 each, then a split decides it.
+      // finalQuestionsEach is 2 in the fixture. One right and one wrong each
+      // leaves them level AND puts both dot states on screen for WL-10.
       click("btn-final-correct"); click("btn-final-correct");
-      click("btn-final-correct"); click("btn-final-correct");
+      click("btn-final-wrong"); click("btn-final-wrong");
+      const dots = [...HD().querySelectorAll("#wl-final-tally .tally-dot")];
+      const hit = dots.find((d) => d.classList.contains("hit"));
+      const miss = dots.find((d) => d.classList.contains("miss"));
+      check("K-I4 tally dots carry a glyph and a label, not just a colour (WL-10)",
+        !!hit && !!miss && hit.textContent === "✓" && miss.textContent === "✗"
+        && /correct/.test(hit.title) && /wrong/.test(miss.title),
+        `${dots.length} dots; hit "${hit ? hit.textContent : "-"}" (${hit ? hit.title : "-"}), `
+        + `miss "${miss ? miss.textContent : "-"}" (${miss ? miss.title : "-"})`);
       await waitFor(() => core().phase === "suddenDeath", "sudden death");
       check("K-I4 a level head-to-head goes to sudden death",
         H("wl-final-phase").textContent === "Sudden death", H("wl-final-notice").textContent);
@@ -492,6 +507,55 @@
     }
 
     /* ============================================================
+       K-I7 — regressions from the verification report
+       ============================================================ */
+
+    let roomSource = "";
+
+    async function scenarioRegressions() {
+      roomSource = await fetch("../js/wl-room.js", { cache: "reload" }).then((r) => r.text());
+      // WL-7: scenarioEditor has just left a 160-question EDITOR game saved.
+      // Re-opening the page with ?game=<fixture> must serve the fixture, not
+      // the save — otherwise a shared link silently shows the old questions.
+      const savedBefore = JSON.parse(localStorage.getItem("gsc-wl-state-v1") || "{}");
+      await bootHost(false);
+      check("K-I7 an explicit ?game=URL beats a saved game (WL-7)",
+        HW().WlApp.state().game.questions.length === 60
+        && HW().WlApp.state().sourceKind === "fetch",
+        `saved was ${savedBefore.game ? savedBefore.game.questions.length : "?"} questions `
+        + `(${savedBefore.sourceKind}); loaded ${HW().WlApp.state().game.questions.length} `
+        + `(${HW().WlApp.state().sourceKind})`);
+      // ...and the save from that same URL is still honoured on a plain reload.
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "round", "a round to save");
+      click("btn-correct");
+      await bootHost(false);
+      check("K-I7 a save made from that same URL still resumes (WL-7)",
+        core() && core().phase === "round" && HW().WlApp.state().sourceUrl === "tests/fixtures/harness-game.json",
+        `phase ${core() && core().phase}, sourceUrl ${HW().WlApp.state().sourceUrl}`);
+
+      // WL-3: the chain cannot be rescued once the clock has expired.
+      click("btn-correct");
+      const chainBefore = HW().WlCore.chainValue(core());
+      click("btn-clock");
+      await waitFor(() => core().expired, "clock expiry", 6000);
+      check("K-I7 Bank is refused and disabled once the clock expires (WL-3)",
+        H("btn-bank").disabled === true && (click("btn-bank"), core().roundBank === 0),
+        `chain ${chainBefore} still on the board, bank ${H("wl-bank").textContent}`);
+
+      // WL-2: a phone that is not in this game must never get a ballot.
+      const stray = HW().WlCore.phoneView(core(), "not-a-player");
+      check("K-I7 a phone that is not in the game is a spectator (WL-2)",
+        stray.screen === "out" && stray.spectator === true && stray.choices === undefined,
+        `screen ${stray.screen}, spectator ${stray.spectator}`);
+
+      // WL-9: a phone that (re)joins must not be starved by the de-dup cache.
+      check("K-I7 the room glue clears its per-phone view cache on join (WL-9)",
+        /delete lastSent\[player\.pid\]/.test(roomSource) && /function onPlayerStatus/.test(roomSource),
+        "wl-room.js clears lastSent on join and on a reconnect");
+    }
+
+    /* ============================================================
        K-I6 — static gates (V2, V3, V4, V6, V7)
        ============================================================ */
 
@@ -550,6 +614,7 @@
         await scenarioTie();
         await scenarioFinal();
         await scenarioEditor();
+        await scenarioRegressions();
         await scenarioGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

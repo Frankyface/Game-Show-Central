@@ -429,9 +429,20 @@ textarea { width: 100%; resize: vertical; }
 .tally-card.is-turn { border-color: var(--stage-blue); box-shadow: 0 0 22px rgba(58, 123, 213, 0.35); }
 .tally-name { font-family: var(--font-display); font-size: 1.4rem; margin: 0; letter-spacing: 0.04em; }
 .tally-dots { display: flex; gap: 0.3rem; margin-top: 0.4rem; }
-.tally-dot { width: 0.9rem; height: 0.9rem; border-radius: 50%; border: 2px solid #3c434c; }
-.tally-dot.hit { background: var(--stage-green); border-color: var(--stage-green); }
-.tally-dot.miss { background: var(--stage-red); border-color: var(--stage-red); }
+/* Shape + glyph carry the result; colour only reinforces it (WL-10). */
+.tally-dot {
+  width: 1.35rem; height: 1.35rem;
+  border-radius: 50%;
+  border: 2px solid #3c434c;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 700; line-height: 1;
+  color: transparent;
+}
+.tally-dot.hit { background: var(--stage-green); border-color: var(--stage-green); color: #04180f; }
+.tally-dot.miss {
+  background: var(--stage-red); border-color: var(--stage-red); color: #fff;
+  border-radius: 4px;   /* a square miss reads without colour */
+}
 .tally-score { font-family: var(--font-display); font-size: 1.1rem; color: var(--ink-dim); margin: 0.35rem 0 0; }
 
 #screen-result { text-align: center; }

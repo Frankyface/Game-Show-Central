@@ -58,8 +58,10 @@ Custom questions load three ways, all through the same `validateGame`:
    phone or through the host's dropdown. **Show statistics** reveals the round's
    strongest and weakest link with the numbers behind them. **Reveal a vote**
    goes one at a time. A tie is broken by that round's strongest link.
-4. **Goodbye** — "You are the weakest link. Goodbye."
-5. **Final** — with two players left, the last full round's bank is tripled.
+4. **Goodbye** — "You are the weakest link. Goodbye." When that vote leaves two
+   players, the button reads **To the head-to-head**: the last two do not play a
+   round of their own.
+5. **Final** — the last full-team round's bank is tripled.
    The strongest link picks who answers first; five questions each, alternating;
    a tie goes to sudden death in pairs.
 
@@ -143,6 +145,9 @@ they have no DOM or timers, and they run unchanged in Node and the browser.
 ## Known limits
 
 - Only a two-player head-to-head is supported (`finalPlayers` must be 2).
+- When the question pool wraps, "Questions are repeating" appears in the notice
+  line under the question, but the next Bank or Next round clears it — there is
+  no persistent badge yet.
 - Players who join mid-game watch until the next game starts.
 - The head-to-head always plays all `finalQuestionsEach` questions; it does not
   stop early when the result is already decided.

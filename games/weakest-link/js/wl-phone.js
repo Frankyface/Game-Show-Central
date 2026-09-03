@@ -77,6 +77,17 @@
       };
     },
     out(v) {
+      // `spectator` = this phone joined after the game started, so it never had
+      // a seat. It must never be offered a ballot (WlCore.phoneView enforces
+      // that); say plainly why the screen is quiet.
+      if (v.spectator) {
+        return {
+          kicker: "You're watching",
+          headline: "You joined mid-game",
+          sub: "Watch the host screen — you can play from the next game.",
+          standings: v.standings || [],
+        };
+      }
       return { kicker: "You are out", headline: "Watch the rest", standings: v.standings || [] };
     },
     final(v) {

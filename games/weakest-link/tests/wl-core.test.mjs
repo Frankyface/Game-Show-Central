@@ -419,34 +419,35 @@ test("K-U6 tiebreak: breakTie only accepts a tied target and only from the tiebr
    K-U7 — the head-to-head final
    ============================================================ */
 
-/** Play a 3-player game down to the finalIntro. */
+/** Play a 3-player game down to the finalIntro. Spec §1: the last two players
+    never play a round of their own — the vote that leaves two goes straight to
+    the head-to-head, and it is the last FULL-TEAM round that is multiplied. */
 function toFinal(settings) {
   let s = started(3, settings);
   s = play(s, ["correct", "correct", "bank"]);   // 2500 banked in round 1
   s = WL.reduce(s, { type: "endRound" });
-  s = play(s, [
+  return play(s, [
     { type: "vote", voter: "p1", target: "p3" },
     { type: "vote", voter: "p2", target: "p3" },
     { type: "vote", voter: "p3", target: "p1" },
     "revealAll", "eliminate", "nextRound",
   ]);
-  s = play(s, ["correct", "correct", "correct", "bank"]);  // 5000 in round 2
-  return WL.reduce(s, { type: "endRound" });
 }
 
 test("K-U7 the last full round's bank is tripled before the head-to-head", () => {
   const s = toFinal();
   assert.equal(s.phase, "finalIntro");
-  assert.equal(s.lastRoundBank, 5000);
-  assert.equal(s.finalBonus, 10000);
-  assert.equal(s.total, 2500 + 5000 + 10000, "round 2's 5000 counts three times");
+  assert.equal(s.roundIndex, 0, "no extra two-player round was played");
+  assert.equal(s.lastRoundBank, 2500);
+  assert.equal(s.finalBonus, 5000);
+  assert.equal(s.total, 2500 * 3, "round 1's 2500 counts three times");
   assert.deepEqual(s.final.pids, ["p1", "p2"]);
 });
 
 test("K-U7 finalMultiplier 1 leaves the bank alone", () => {
   const s = toFinal({ finalMultiplier: 1 });
   assert.equal(s.finalBonus, 0);
-  assert.equal(s.total, 7500);
+  assert.equal(s.total, 2500);
 });
 
 test("K-U7 first-player choice, alternating five each, winner by correct count", () => {
