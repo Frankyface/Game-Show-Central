@@ -222,11 +222,13 @@
 
     function applyEffects(effects) {
       for (const eff of effects) {
-        if (eff.send) host.send(eff.send.to, eff.send.msg);
+        // TESTER FIX: `host` is null until room.open(); a standalone game may build
+        // its roster (addManual/kick/lock) with the room still closed.
+        if (eff.send) { if (host) host.send(eff.send.to, eff.send.msg); }
         // A kicked peer is off `lobby.peers`, so it never receives the snapshot
         // that follows its `kicked` message.
-        else if (eff.broadcastLobby) host.broadcast(RP.lobbySnapshot(lobby), (peerId) => !!lobby.peers[peerId]);
-        else if (eff.close) host.dropConnection(eff.close, true);
+        else if (eff.broadcastLobby) { if (host) host.broadcast(RP.lobbySnapshot(lobby), (peerId) => !!lobby.peers[peerId]); }
+        else if (eff.close) { if (host) host.dropConnection(eff.close, true); }
         else if (eff.frame) dispatchFrame(eff.frame);
       }
     }

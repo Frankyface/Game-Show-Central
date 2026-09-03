@@ -109,7 +109,7 @@
     if (typeof raw !== "string") return null;
     const trimmed = raw.replace(CONTROL_CHARS, "").trim();
     if (!trimmed) return null;
-    return trimmed.slice(0, NAME_MAX).trim() || null;
+    return Array.from(trimmed).slice(0, NAME_MAX).join("").trim() || null; // code points, not UTF-16 units (S-4)
   }
 
   /**
@@ -374,7 +374,7 @@
     const avatar = sanitizeAvatar(event.avatar);
 
     let pid = null;
-    if (isPid(event.pid) && state.players[event.pid] && !state.players[event.pid].connected) {
+    if (isPid(event.pid) && hasPlayer(state, event.pid) && !state.players[event.pid].connected) {
       pid = event.pid;
     } else if (isPid(event.pid) && state.peers[peerId] === event.pid) {
       pid = event.pid; // same phone, same connection — idempotent re-join
@@ -382,6 +382,10 @@
       pid = findByName(state, lower, true);
     }
 
+    // S-1: the name must stay unique even on a relink — a phone holding an old
+    // pid may not seat itself under a name a DIFFERENT live player holds.
+    const clash = findByName(state, lower, false);
+    if (clash && clash !== pid) return rejectJoin(state, peerId, "name-taken");
     if (pid) return relink(state, event, pid, name, avatar);
 
     const liveSameName = findByName(state, lower, false);
@@ -409,6 +413,11 @@
         { frame: { t: "player-join", player: playerCopy(player) } },
       ],
     };
+  }
+
+  /** Own-property check so prototype-shaped ids (`__proto__`…) never look like players. */
+  function hasPlayer(state, pid) {
+    return typeof pid === "string" && Object.prototype.hasOwnProperty.call(state.players, pid);
   }
 
   /** Point `peerId` at `pid`, dropping any other peer that claimed the same pid. */
@@ -450,7 +459,7 @@
   /** A connection dropped: the player stays on the roster, marked 🔴. */
   function reduceLeave(state, event) {
     const pid = state.peers[event.peerId];
-    if (!pid || !state.players[pid]) return unchanged(state);
+    if (!hasPlayer(state, pid)) return unchanged(state);
     const peers = { ...state.peers };
     delete peers[event.peerId];
     const next = {
@@ -467,7 +476,7 @@
   /** Host-side liveness sweep flipping a player's dot without dropping them. */
   function reduceStatus(state, event) {
     const pid = state.peers[event.peerId];
-    if (!pid || !state.players[pid]) return unchanged(state);
+    if (!hasPlayer(state, pid)) return unchanged(state);
     const connected = event.connected === true;
     if (state.players[pid].connected === connected) return unchanged(state);
     const next = {
@@ -482,7 +491,7 @@
 
   function reduceKick(state, event) {
     const pid = event.pid;
-    if (!state.players[pid]) return unchanged(state);
+    if (!hasPlayer(state, pid)) return unchanged(state);
     const peerId = peerForPid(state, pid);
     const next = dropPlayer(state, pid, peerId);
     const effects = [];

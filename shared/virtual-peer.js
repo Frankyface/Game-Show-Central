@@ -82,6 +82,7 @@
         ev,
         on: ev.on, off: ev.off,
         send(m) {
+          if (!conn.open) return; // TESTER FIX: a closed connection never reaches the bridge
           if (isHost) bus.post({ t: "send", pid, m });
           else bus.post({ t: "send", m });
         },
@@ -133,7 +134,8 @@
         return;
       }
       if (d.t === "conn-close") {
-        if (playerConn) { playerConn.open = false; playerConn.ev.emit("close"); }
+        // TESTER FIX: a repeated conn-close must not emit a second `close`.
+        if (playerConn && playerConn.open) { playerConn.open = false; playerConn.ev.emit("close"); }
         return;
       }
       if (d.t === "status" && d.connected === false) {
@@ -172,6 +174,7 @@
       nextTick(() => { self.open = true; self.ev.emit("open", self.id); });
     };
     VirtualPeer.prototype.destroy = function () {
+      if (this.destroyed) return; // TESTER FIX: PeerJS emits `close` once per peer
       this.destroyed = true;
       this.open = false;
       if (hostPeer === this) { hostPeer = null; conns.clear(); }
