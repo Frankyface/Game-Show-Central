@@ -44,6 +44,10 @@ const HubHost = (function () {
   let frame = null;
   let frameBridge = null;
   let frameReady = false;
+  // Phone payloads that arrive before the game iframe posts `ready` are queued
+  // and flushed after `init` instead of being dropped (D2).
+  const PENDING_MAX = 50;
+  let pending = [];
   let frameTimer = null;
   let frameError = "";
   let gameSubtitle = "";
@@ -171,7 +175,9 @@ const HubHost = (function () {
         return;
       }
       const pid = lobby.peers[ev.peerId];
-      if (pid && frameBridge && frameReady) frameBridge.postMsg(pid, msg.m);
+      if (!pid || !frameBridge) return;
+      if (frameReady) frameBridge.postMsg(pid, msg.m);
+      else { pending.push({ pid, m: msg.m }); if (pending.length > PENDING_MAX) pending.shift(); } // D2
       return;
     }
     if (msg.t === "avatar") {
@@ -243,6 +249,7 @@ const HubHost = (function () {
     frame.src = HubRegistry.hostUrl(game, roomStatus.code || state.roomCode || "");
     slot.appendChild(frame);
     frameReady = false;
+    pending = [];
     frameBridge = GSCBridge.attachHostFrame(frame, frameApi());
     frameTimer = setTimeout(() => {
       frameTimer = null;
@@ -260,6 +267,9 @@ const HubHost = (function () {
         frameTimer = null;
         frameError = "";
         frameBridge.postInit({ code: roomStatus.code || state.roomCode, players: RP.playerList(lobby) });
+        const queued = pending;
+        pending = [];
+        for (const q of queued) frameBridge.postMsg(q.pid, q.m); // phone intents that beat `ready` (D2)
         render();
       },
       onSend(pid, m) {
@@ -293,6 +303,7 @@ const HubHost = (function () {
     if (frameBridge) frameBridge.detach();
     frameBridge = null;
     frameReady = false;
+    pending = [];
     frame = null;
     const slot = $("game-frame-slot");
     if (slot) slot.replaceChildren();

@@ -39,6 +39,11 @@ const HubPlayer = (function () {
   let frameBridge = null;
   let frameReady = false;
   let frameTimer = null;
+  // Game payloads that arrive before the game iframe has posted `ready` (a late
+  // joiner's first view, or a game switch racing the iframe load) are queued
+  // and flushed right after `init`, instead of being dropped (D2).
+  const PENDING_MAX = 50;
+  let pending = [];
 
   /* ============ DOM helpers ============ */
 
@@ -163,7 +168,14 @@ const HubPlayer = (function () {
 
   function onGamePayload(msg) {
     if (dismissed || msg.g !== activeGame) return;
-    if (frameBridge && frameReady) frameBridge.postMsg(msg.m);
+    if (frameBridge && frameReady) { frameBridge.postMsg(msg.m); return; }
+    if (frameBridge) { pending.push(msg.m); if (pending.length > PENDING_MAX) pending.shift(); }
+  }
+
+  function flushPending() {
+    const queued = pending;
+    pending = [];
+    for (const m of queued) frameBridge.postMsg(m);
   }
 
   function ended(text) {
@@ -191,6 +203,7 @@ const HubPlayer = (function () {
     frame.src = HubRegistry.playerUrl(game, code, me.pid, me.name);
     slot.appendChild(frame);
     frameReady = false;
+    pending = [];
     frameBridge = GSCBridge.attachPlayerFrame(frame, {
       onReady() {
         frameReady = true;
@@ -202,6 +215,7 @@ const HubPlayer = (function () {
           { code },
         );
         frameBridge.postStatus(lastStatus.connected);
+        flushPending();
         render();
       },
       onSend(m) {
@@ -223,6 +237,7 @@ const HubPlayer = (function () {
     if (frameBridge) frameBridge.detach();
     frameBridge = null;
     frameReady = false;
+    pending = [];
     frame = null;
     const slot = $("phone-frame-slot");
     if (slot) slot.replaceChildren();
