@@ -84,6 +84,18 @@
         "127.0.0.1"
       ],
       "port": 8645
+    },
+    {
+      "name": "hub-orch",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8660",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 8660
     }
   ]
 }

@@ -220,3 +220,8 @@ body.editor-open { overflow: hidden; }
 @media (max-width: 520px) {
   .editor-answer-row { grid-template-columns: 1fr 4.5rem 2rem; }
 }
+
+/* D3: no motion for players who asked for none. */
+@media (prefers-reduced-motion: reduce) {
+  .player-mode * { transition: none !important; animation: none !important; }
+}

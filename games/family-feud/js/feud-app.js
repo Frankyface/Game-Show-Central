@@ -699,7 +699,10 @@ function wireSpaceToArm() {
 async function bootHost() {
   wireHostEvents();
   const saved = loadSavedState();
-  if (saved) {
+  // D1: an explicit ?game=URL always wins over the saved game unless the save
+  // already came from that same URL (Jeopardy behaviour, gate V8).
+  const wantUrl = new URLSearchParams(window.location.search).get("game");
+  if (saved && (!wantUrl || saved.sourceUrl === wantUrl)) {
     state = saved;
     render();
     return;
