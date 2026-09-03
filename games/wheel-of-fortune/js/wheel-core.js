@@ -182,7 +182,7 @@
       turn: index,
       used: BONUS_FREE.slice(),
       revealed,
-      bonus: { leaderPid: pid, picks: [], picked: false, timerRunning: false, result: null },
+      bonus: { leaderPid: pid, picks: [], picked: false, timerRunning: false, result: null, deadline: null },
       banner: `Bonus round — ${turnName(base, index)} picks 3 consonants and a vowel.`,
     };
   }
@@ -282,7 +282,7 @@
       case "tossupRevealNext": return doTossupRevealNext(state);
       case "tossupBuzz": return doTossupBuzz(state, event.pid);
       case "tossupJudged": return doTossupJudged(state, event.correct === true);
-      case "bonusPick": return doBonusPick(state, event.letters);
+      case "bonusPick": return doBonusPick(state, event.letters, event.now);
       case "bonusJudged": return doBonusJudged(state, event.correct === true);
       case "nextRound": return doNextRound(state);
       case "revealAll": return doRevealAll(state);
@@ -402,6 +402,10 @@
 
   function doNextPlayer(state) {
     if (state.phase !== "round" || state.roundDone || state.players.length < 2) return state;
+    // W-D11: the cost of a vowel is taken up front, so skipping the turn here
+    // would pocket $250 for nothing. On the show a bought vowel is always
+    // called, so the skip is refused until it is -- Undo is still the way out.
+    if (state.pendingVowel) return state;
     return {
       ...state, turn: nextTurn(state), pendingSpin: false, pendingVowel: false,
       solving: false, solveText: "", wedge: null,
@@ -506,18 +510,27 @@
     return clean;
   }
 
-  function doBonusPick(state, letters) {
+  /**
+   * `now` is the caller's clock (epoch ms), injected exactly like `rng` so the
+   * reducer stays pure. It fixes the countdown's DEADLINE in state, which is
+   * what lets a reload resume the bar where it was instead of granting a fresh
+   * 10 seconds (W-D6). Omit it and the round simply carries no deadline.
+   */
+  function doBonusPick(state, letters, now) {
     if (state.phase !== "bonus" || !state.bonus || state.bonus.picked) return state;
     const picks = validateBonusPicks(letters, state.used);
     if (!picks) return state;
     let revealed = state.revealed;
     for (const L of picks) revealed = revealLetter(state.round.puzzle, revealed, L);
+    const seconds = state.game.settings.bonusSeconds;
+    const clock = typeof now === "number" && Number.isFinite(now) ? now : null;
     return {
       ...state, revealed,
       used: [...state.used, ...picks],
       bonus: {
         ...state.bonus, picks, picked: true,
-        timerRunning: state.game.settings.bonusSeconds > 0,
+        timerRunning: seconds > 0,
+        deadline: seconds > 0 && clock !== null ? clock + seconds * 1000 : null,
       },
       banner: `${picks.join(" ")} — solve it out loud!`,
     };
@@ -531,7 +544,7 @@
       ...state,
       revealed: revealEvery(state.round.puzzle),
       roundDone: true,
-      bonus: { ...b, timerRunning: false, result: correct ? "win" : "lose" },
+      bonus: { ...b, timerRunning: false, deadline: null, result: correct ? "win" : "lose" },
       banner: correct
         ? `${name} wins ${state.game.settings.bonusPrize}!`
         : `Out of time — the answer was "${state.round.puzzle}".`,
@@ -613,7 +626,7 @@
    * What phone `pid` should render. The `turn` / `solve` / `bonus` screens are
    * only ever emitted for the player they belong to (spec §5, W-U10).
    */
-  function phoneView(state, pid) {
+  function phoneView(state, pid, now) {
     const base = {
       screen: "wait", name: "", round: 0, total: 0, vowelCost: 0,
       category: state && state.round ? state.round.category : "",
@@ -635,7 +648,7 @@
     };
     if (state.phase === "final") return { ...view, screen: "result" };
     if (state.phase === "tossup") return tossupPhoneView(state, view, pid);
-    if (state.phase === "bonus") return bonusPhoneView(state, view, pid);
+    if (state.phase === "bonus") return bonusPhoneView(state, view, pid, now);
     if (state.phase !== "round" || !me || index !== state.turn || state.roundDone) return view;
     if (state.solving) return { ...view, screen: "solve", submitted: true };
     return {
@@ -655,17 +668,36 @@
     };
   }
 
-  function bonusPhoneView(state, view, pid) {
+  function bonusPhoneView(state, view, pid, now) {
     const b = state.bonus;
     if (!b || b.leaderPid !== pid) return { ...view, screen: "wait" };
     const used = new Set(state.used);
+    const seconds = state.game.settings.bonusSeconds;
     return {
       ...view, screen: "bonus",
       picked: b.picked, picks: b.picks.slice(), result: b.result,
-      seconds: state.game.settings.bonusSeconds,
+      seconds,
+      // The host's clock is the only one that counts; it sends what is LEFT so
+      // a phone that reloads mid-bonus resumes the bar instead of restarting it.
+      secondsLeft: bonusSecondsLeft(state, now),
       consonants: ALPHABET.split("").filter((L) => !isVowel(L) && !used.has(L)),
       vowels: VOWELS.split("").filter((L) => !used.has(L)),
     };
+  }
+
+  /**
+   * Whole seconds left on the bonus clock, from the deadline stored in state.
+   * Falls back to the full length when there is no deadline (an older saved
+   * game, or a caller that did not inject a clock). 0 means "time is up".
+   */
+  function bonusSecondsLeft(state, now) {
+    if (!state || !state.game || !state.bonus) return 0;
+    const seconds = state.game.settings.bonusSeconds;
+    if (!seconds || !state.bonus.picked || state.bonus.result) return 0;
+    const deadline = state.bonus.deadline;
+    if (typeof deadline !== "number" || !Number.isFinite(deadline)) return seconds;
+    const clock = typeof now === "number" && Number.isFinite(now) ? now : Date.now();
+    return Math.max(Math.ceil((deadline - clock) / 1000), 0);
   }
 
   /** Validate/sanitise a phone->host payload. Returns a clean copy or null. */
@@ -699,7 +731,7 @@
 
   return {
     ...C, // validators, layoutPuzzle, sanitisers and constants (spec §4 API)
-    createState, reduce, legalActions, leaderPid, tossUpValueFor,
+    createState, reduce, legalActions, leaderPid, tossUpValueFor, bonusSecondsLeft,
     validateBonusPicks, boardView, podiumView, phoneView, standingsView,
     validatePhoneMsg,
   };

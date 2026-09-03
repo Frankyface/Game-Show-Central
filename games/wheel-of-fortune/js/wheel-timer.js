@@ -5,8 +5,10 @@
    TimerCore; this file only paints it. Purely a visual cue:
    hitting zero flashes the bar and plays a sting — it never
    scores, closes or locks anything, and the host still decides
-   with Correct / Time's up. Countdown state is ephemeral module
-   state, never serialised (a refresh just drops the clock).
+   with Correct / Time's up. The DEADLINE lives in the game state
+   (bonus.deadline), so callers pass the seconds REMAINING plus
+   the original length and the bar resumes at the right stage
+   after a reload instead of granting a fresh countdown (W-D6).
    Every caller optional-chains window.WheelTimer.
    ============================================================ */
 
@@ -41,22 +43,46 @@ const WheelTimer = (function () {
     }
   }
 
-  /** Start (or restart) a slot's countdown with `seconds` on the clock. */
-  function start(slot, seconds, key) {
+  /**
+   * Start (or restart) a slot's countdown with `seconds` LEFT on the clock.
+   * `totalSeconds` (defaulting to `seconds`) is the countdown's ORIGINAL
+   * length: a page that reloads mid-bonus passes both, so the bar is
+   * back-dated by the elapsed part and resumes at the true stage instead of
+   * lighting a fresh full strip (W-D6). `seconds <= 0` paints the expired bar
+   * rather than hiding it, so the host can see the time ran out.
+   */
+  function start(slot, seconds, key, totalSeconds) {
     stop(slot);
     const tc = core();
     const node = slotNode(slot);
     const secs = typeof seconds === "number" && Number.isFinite(seconds) ? seconds : 0;
-    if (!tc || !node || secs <= 0) return;
+    if (!tc || !node) return;
+    const totalSecs =
+      typeof totalSeconds === "number" && Number.isFinite(totalSeconds) && totalSeconds > secs
+        ? totalSeconds
+        : secs;
+    if (totalSecs <= 0) return;
     buildBlocks(node, tc.BLOCKS);
     node.classList.remove("hidden", "timer-done");
+    if (secs <= 0) {
+      expire(node, key);
+      return;
+    }
     const entry = {
-      startAt: Date.now(), totalMs: secs * 1000,
+      startAt: Date.now() - (totalSecs - secs) * 1000, // back-dated by the elapsed part
+      totalMs: totalSecs * 1000,
       key: key || null, intervalId: 0, lastLit: -1,
     };
     entry.intervalId = window.setInterval(() => tick(slot, entry), TICK_MS);
     running.set(slot, entry);
-    tick(slot, entry); // paint the full bar immediately
+    tick(slot, entry); // paint the current bar immediately
+  }
+
+  /** Paint an already-expired bar: every block dark, no interval, no sting. */
+  function expire(node, key) {
+    for (const block of node.children) block.classList.add("off");
+    node.classList.add("timer-done");
+    node.dataset.timerKey = key || "";
   }
 
   function tick(slot, entry) {
@@ -94,6 +120,7 @@ const WheelTimer = (function () {
     if (node && (entry || !node.classList.contains("hidden"))) {
       node.classList.add("hidden");
       node.classList.remove("timer-done");
+      delete node.dataset.timerKey;
       node.replaceChildren();
     }
   }
@@ -111,14 +138,18 @@ const WheelTimer = (function () {
    * truthy and unchanged, (re)start it when the key changes, stop it when the
    * key is null. Calling every render is safe.
    */
-  function sync(slot, key, seconds) {
+  function sync(slot, key, seconds, totalSeconds) {
     const entry = running.get(slot);
     if (!key) {
       if (entry) stop(slot);
       return;
     }
     if (entry && entry.key === key) return;
-    start(slot, seconds, key);
+    // An expired bar is not in `running`; remember its key so a re-render does
+    // not rebuild (and re-flash) it every frame.
+    const node = slotNode(slot);
+    if (!entry && node && node.dataset.timerKey === key) return;
+    start(slot, seconds, key, totalSeconds);
   }
 
   return {

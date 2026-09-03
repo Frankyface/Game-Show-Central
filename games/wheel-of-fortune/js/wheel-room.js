@@ -18,7 +18,21 @@
   const app = () => window.WheelApp;
 
   let room = null;
+  let adoptedCode = null;  // the room this game is currently bound to (W-D9)
   const known = new Map(); // pid -> name, as reported by the shell
+
+  /**
+   * Bind the game to a room code. Pids are handed out per room, so when the
+   * code changes the previous room's roster means nothing here: forget it
+   * before the game re-maps its podiums (W-D9).
+   */
+  function adoptRoomCode(code) {
+    if (typeof code !== "string" || !code || code === adoptedCode) return;
+    if (adoptedCode) known.clear();
+    adoptedCode = code;
+    app().adoptRoom(code);
+    syncPids();
+  }
 
   function status(message) {
     const node = $("room-status");
@@ -100,7 +114,7 @@
     }
     if (msg.t === "bonus-pick") {
       if (state.phase === "bonus" && state.bonus && state.bonus.leaderPid === pid) {
-        app().dispatch({ type: "bonusPick", letters: msg.letters });
+        app().dispatch({ type: "bonusPick", letters: msg.letters, now: Date.now() });
       }
       return;
     }
@@ -118,7 +132,8 @@
     if (!room || !state) return;
     for (const pid of known.keys()) {
       try {
-        room.send(pid, { t: "view", ...core().phoneView(state, pid) });
+        // The host's clock is injected here, never read inside the core.
+        room.send(pid, { t: "view", ...core().phoneView(state, pid, Date.now()) });
       } catch (err) {
         console.warn(`Could not send to ${pid}:`, err);
       }
@@ -153,7 +168,10 @@
       status("Opening a room…");
       room.open();
     });
-    room.onStatus(() => renderRoomStatus());
+    room.onStatus(() => {
+      adoptRoomCode(room.code);
+      renderRoomStatus();
+    });
     renderRoomStatus();
   }
 
@@ -191,6 +209,12 @@
       status(`Phones are unavailable: ${err.message}`);
       return;
     }
+    // A saved game belongs to the room it was played in. Wait for the restore
+    // to finish (otherwise it would overwrite the code we just adopted), then
+    // adopt BEFORE the roster is read, so a new room's p1 cannot inherit the
+    // old p1's podium and grand total (W-D9).
+    await app().ready;
+    adoptRoomCode(room.code);
     if (window.GSC.mode === "embed-host") {
       show($("btn-exit"), true);
       $("btn-exit").addEventListener("click", () => room.exit());

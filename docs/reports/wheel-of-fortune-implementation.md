@@ -278,3 +278,101 @@ Recorded because they are the kind of thing the tester would otherwise hit.
    never ran, `spinning` stayed `true` and the host was **locked out of their
    own game**. Fixed with an idempotent wall-clock guard
    (`setTimeout(finish, duration + 900)`) alongside the rAF loop.
+
+---
+
+## 8. Fixes after verification
+
+Second pass, against `docs/reports/wheel-of-fortune-verification.md` (verdict
+**fix-then-ship**). The orchestrator had already applied **W-D1**
+(`globalThis.DEFAULT_PUZZLES`) and **W-D2** (Solve stays enabled while
+`state.solving`), and **W-D3** was fixed shell-side by queueing payloads until a
+phone's game iframe is ready — none of those three were redone here. Everything
+below is new work in `games/wheel-of-fortune/**`.
+
+Note on ids: the coordinator's list swapped two of the tester's labels. I used
+the tester's numbering throughout — **W-D9** is the room-scoping defect and
+**W-D10** is the `— 1 rounds.` plural. Both are fixed.
+
+### 8.1 What changed
+
+| Defect | Severity | Fix |
+|---|---|---|
+| **W-D11** `nextPlayer` after Buy a vowel pocketed the $250 | minor | `doNextPlayer` now refuses while `pendingVowel` (`js/wheel-core.js`). The show rule is that a bought vowel is always called, so the skip is **blocked**, not refunded. The host UI disables **Next player** rather than no-opping silently, the keyboard hint reads *"Pick a vowel — it is already paid for."*, and handing the turn over by clicking a podium is blocked the same way (`js/wheel-app.js`). **Undo** is still the way out and restores the pot exactly. A pending *spin* still skips freely — no money has been spent there. |
+| **W-D9** saved state was not room-scoped | minor (privacy) | The room code and the phone-pid set are now persisted alongside the state (`js/wheel-app.js` `save`/`load`). `adoptRoom(code)` drops every player that reached the board through a phone when the code changes, keeps players the host typed in (name and money intact), clamps `turn`, and falls back to a clean `createState` when nobody hand-added remains. `js/wheel-room.js` calls it **before** the roster is read, and clears its own `known` pid map so no ghost podium survives. |
+| **W-D6** bonus timer restarted from full on reload | minor | The deadline now lives in the game state: `bonusPick` takes an injected `now` (exactly like `rng`, so the reducer stays pure) and stores `bonus.deadline`. `WheelCore.bonusSecondsLeft(state, now)` reports what is left; `js/wheel-timer.js` regained Jeopardy's `totalSeconds` back-dating so the bar resumes at the right stage, and paints an already-expired bar instead of hiding it. `phoneView(state, pid, now)` sends `secondsLeft` alongside `seconds`, so a phone that reloads mid-bonus resumes too. |
+| **W-D7** host keys 33×35 px, Spin 54 px | minor | `.keyboard` is now `minmax(44px, 1fr)` with `min-height/min-width: 44px` per key; `.btn-big` carries `min-height: 56px`. Measured live at 1280×720: **keys 47×44, Spin 118×56**. |
+| **W-D8** Take over cleared every phone's marker | minor | Replaced the `phonePids = new Set()` wipe with a single `takenOverPid`. The roster set is untouched (every 📱 marker stays), only the active player's *"Waiting for …'s phone"* indicator is cleared, and the take-over lapses as soon as the turn moves on — which is what spec §3 describes. |
+| **W-D10** `— 1 rounds.` | minor (cosmetic) | `${n} round${n === 1 ? "" : "s"}` in the source note. |
+| **W-D5** ~72 px of vertical scroll at 1280×720 | minor | Board tiles and the headline type now track the **shorter** axis (`min(3.3vw, 5.1vh)` etc.), so a 720p projector shrinks the board instead of pushing the podium column off-screen; the middle column was widened (27% / 1fr / 22%) so the bigger keys still fit on three rows; topbar, board, gaps and paddings trimmed. Measured live at 1280×720: **0 px vertical scroll, 0 px horizontal**, with the larger W-D7 targets in place. |
+
+Two further defects surfaced while testing these and are fixed:
+
+- **The bonus deadline never reached the reducer from a phone.** Only the host
+  button passed `now`; `js/wheel-room.js` now injects `Date.now()` on the
+  phone's `bonus-pick` path too, so a phone-driven pick gets a real clock.
+- **`adoptRoom` raced the restore.** `wheel-room.js` ran before `wheel-app.js`'s
+  async `init()` had read `localStorage`, so the restored code overwrote the
+  freshly adopted one and the purge never ran. `WheelApp.ready` is now a promise
+  resolved when `init()` settles, and the room glue awaits it.
+
+**W-D4** (greedy `layoutPuzzle` can reject a puzzle a different word order would
+fit) is left as the tester recorded it — spec §3 mandates the greedy packer, and
+the tester's `A1` characterises the behaviour so any future change is
+deliberate. It is now called out under "Known limitations" in the README, with
+the advice to re-order or shorten the words.
+
+### 8.2 Tests added
+
+| Where | What |
+|---|---|
+| `tests/wheel-fixes.test.mjs` (new, 74 lines) | `W-D11` — the skip is refused while a vowel is pending, Undo restores the pot, resolving the vowel releases the skip, a pending *spin* still skips. `W-D6` — the deadline is `now + bonusSeconds`, `bonusSecondsLeft` resumes correctly and never goes negative, it survives a JSON round-trip, `phoneView` carries `seconds` + `secondsLeft`, judging clears the clock, an un-clocked pick falls back to the full length, and `bonusSeconds: 0` means no timer. Split from `wheel-core.test.mjs` so both files stay under 800 lines. |
+| `tests/harness.html` | **17 new checks.** `W-D1` — `window.DEFAULT_PUZZLES` is a real object with rounds. `W-D2` — a phone submits a solve, it is shown and never auto-judged, the host's Solve control is **visible and enabled**, clicking it opens the judge dialog pre-filled with the phone's text, and **Correct** pays the phone player (all through controls that are actually on screen, no direct dispatch). `W-D8` — both markers survive Take over, only the active player's indicator clears, the take-over lapses on the next turn. `W-D11` — Next player is disabled and the turn does not move, then works again once the vowel is called. `W-D6` — the deadline is in state, and a host reload mid-bonus comes back with **7/9** blocks lit rather than a fresh 9. `W-D10` — `1 round` / `10 rounds`. `W-D9` — a resumed game handed a **different** room code drops the old phone podium (`p1` comes back as Pia at $0, not Ana at $9,999), keeps the hand-added player's $4,242, and re-binds to the new code. |
+
+One pre-existing harness assertion was corrected rather than worked around:
+`W-I2 Take over` asserted `phonePids().size === 0`, which was the old (wrong)
+behaviour; it now asserts the active player's marker cleared.
+
+### 8.3 Results after the fixes
+
+```
+cd games/wheel-of-fortune && node --test
+ℹ tests 71        (41 original + 28 tester-added adversarial + 2 new regressions)
+ℹ pass 71
+ℹ fail 0
+```
+
+`tests/harness.html` on `python -m http.server 8643 --bind 127.0.0.1`:
+**`#summary.ok` = "All 63 checks passed."**, `__WHEEL_HARNESS__.failed === 0`,
+`uncaught === null`. Run four times end to end during this pass, identical.
+
+Static gates re-run on the whole component: **V2** largest file is
+`tests/wheel-adversarial.test.mjs` at 798, then `tests/harness.html` at 795 and
+`js/wheel-core.js` at 738 — all under 800. **V3** and **V4** greps return no
+matches (exit 1). `git status` shows changes confined to
+`games/wheel-of-fortune/**` and this report.
+
+Re-verified live in the browser after the changes:
+
+- **1280×720**: `scrollHeight - innerHeight === 0` and
+  `scrollWidth - innerWidth === 0` mid-round with three players, a pending
+  vowel and the keyboard open; smallest key **47×44**, Spin **118×56**;
+  **Next player disabled** with the hint *"Pick a vowel — it is already paid
+  for."*
+- **W-D9 over the real PeerJS broker** (not the harness's fake shell): host
+  opened room `KH88`, a real phone joined as Ana (`p1`) and was given $7,500;
+  the host closed that room and opened `NU95`; the board came back **empty**
+  (no ghost podium), and a different person joining the new room was handed
+  `p1` again and landed as **Pia at $0**. That is the tester's exact repro,
+  fixed.
+- Standalone room opening still adopts its code (`XQ3S` → persisted in
+  `gsc-wheel-state-v1` alongside `phonePids`).
+
+### 8.4 Still open
+
+- **W-D4** — recorded, not fixed (spec-mandated greedy packer); documented in
+  the README.
+- The embedded path is exercised by the harness and by the tester's real-network
+  T3 run; nothing further is outstanding from the verification report.
+- The two-phone-tabs-in-one-profile artefact the tester noted is a shell/test
+  environment matter, not a wheel defect.

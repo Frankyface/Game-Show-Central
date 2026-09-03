@@ -35,7 +35,7 @@ cd games/wheel-of-fortune && node --test
 Browser loopback harness (serve the repo root first):
 `http://127.0.0.1:8643/games/wheel-of-fortune/tests/harness.html` — it is its
 own shell, so it needs no hub and no PeerJS. Green when `#summary` reads
-"All 46 checks passed."
+"All 63 checks passed."
 
 ## Playing it
 
@@ -48,6 +48,9 @@ own shell, so it needs no hub and no PeerJS. Green when `#summary` reads
   passes the turn. **LOSE A TURN** just passes the turn.
 - A correct solve banks `max(round pot, roundMinimum)`, clears everyone else's
   round pot, and that player starts the next round. A wrong solve passes the turn.
+- **A bought vowel is always called.** The $250 comes out of the pot up front, so
+  **Next player** (and handing the turn over by clicking a podium) is blocked
+  until the vowel is picked. **Undo** is the way back if you bought by mistake.
 - When only vowels are left, **Spin** is disabled and the banner says so.
 - A full board still needs a confirmed solve — the host clicks **Solve...** then
   **Correct**.
@@ -62,6 +65,8 @@ are revealed automatically; they pick **3 consonants and 1 vowel** (on the host
 keyboard or their phone), those are revealed, and a 10-second red-block timer
 runs as a cue while they guess out loud. The host judges with **Correct** /
 **Time's up**. The prize is a label, not a number, so it never touches scores.
+The countdown's deadline is part of the saved game, so a reload mid-round
+resumes the bar where it was rather than handing out a fresh ten seconds.
 
 **Host escape hatches, always available:** **Next player** (skip), **Undo**
 (exact, one step at a time), **Reveal all**, **Next round** (skip a round),
@@ -144,8 +149,14 @@ js/timer-core.js           the countdown maths (copied from games/jeopardy)
 js/data.js                 offline mirror of puzzles.json
 css/wheel.css              host styles; css/wheel-phone.css; css/timer.css
 tests/wheel-core.test.mjs  node:test suite (W-U1 ... W-U10)
-tests/harness.html         browser loopback harness (W-I1 ... W-I7)
+tests/wheel-fixes.test.mjs node:test regressions for the reviewed defects
+tests/harness.html         browser loopback harness (W-I1 ... W-I7, W-D fixes)
 ```
+
+A saved game is bound to the room it was played in: open a **different** room
+and the previous room's phone podiums are cleared before the new roster is
+applied, so a new player handed the same `p1` can never inherit a stranger's
+grand total. Players the host typed in by hand keep their name and money.
 
 `js/wheel-content.js` **must** load before `js/wheel-core.js`; the split exists
 only to keep both files under the 800-line house limit, and `WheelCore` remains
@@ -161,3 +172,7 @@ the single API the app, editor, phones and tests use.
   and nothing else changes until the host presses a button.
 - Sound needs a user gesture first (browser autoplay policy); the first click
   on **Start game** or the sound toggle unlocks it.
+- `layoutPuzzle` packs words greedily, as the spec requires, so a long puzzle
+  can occasionally be rejected when a different word order would have fitted
+  (e.g. `ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN`, 48 of 52 tiles).
+  Re-order or shorten the words if the editor says a puzzle doesn't fit.

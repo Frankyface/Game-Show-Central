@@ -27,6 +27,8 @@ const WheelApp = (function () {
   let state = null;
   let source = { text: "loading…", kind: "default", url: null };
   let phonePids = new Set(); // pids that came from the roster (transport-owned)
+  let takenOverPid = null;   // the one phone player the host is acting for (W-D8)
+  let roomCode = null;       // the room this saved game belongs to (W-D9)
   let listeners = [];
   let spinning = false;
   let cancelSpin = null;
@@ -34,6 +36,10 @@ const WheelApp = (function () {
   let bonusPicks = [];
   let playerSeq = 0;
   let booted = false;
+  // Resolves once init() has restored (or fetched) a game, so wheel-room.js can
+  // bind the room code without racing the restore (W-D9).
+  let markReady = null;
+  const ready = new Promise((resolve) => { markReady = resolve; });
 
   /* ============ State plumbing ============ */
 
@@ -50,7 +56,9 @@ const WheelApp = (function () {
   function save() {
     if (!state) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ state, source }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        state, source, roomCode, phonePids: [...phonePids],
+      }));
       warn("");
     } catch (err) {
       console.warn("Could not save the game:", err);
@@ -78,6 +86,39 @@ const WheelApp = (function () {
       console.warn("Ignoring a corrupt saved game:", err);
       return null;
     }
+  }
+
+  /**
+   * Bind the restored game to the room it is actually in (W-D9).
+   *
+   * Shell pids are handed out per room (`p1`, `p2`, ...), so a saved game from
+   * an EARLIER room already holds a `p1` and the next room's first phone would
+   * silently land on that stranger's podium and grand total. When the code
+   * changes, every player that reached the board through a phone is dropped;
+   * players the host typed in by hand keep their name and money.
+   */
+  function adoptRoom(code) {
+    if (typeof code !== "string" || !code) return;
+    if (roomCode === code) return;
+    const previous = roomCode;
+    roomCode = code;
+    if (!previous || !state) { save(); render(); return; }
+    const stale = new Set(phonePids);
+    phonePids = new Set();
+    takenOverPid = null;
+    const keep = state.players.filter((p) => !stale.has(p.pid));
+    if (keep.length === state.players.length) { save(); render(); return; }
+    if (!keep.length) {
+      // Nobody typed in by hand: start the room clean rather than half a game.
+      setState(core().createState(state.game, [], { sound: sound() ? sound().isOn() : true }));
+      return;
+    }
+    setState({
+      ...state,
+      players: keep,
+      turn: Math.min(state.turn, keep.length - 1),
+      banner: `New room ${code} — the previous room's phone players were cleared.`,
+    });
   }
 
   /* ============ Content loading ============ */
@@ -228,7 +269,8 @@ const WheelApp = (function () {
     show($("screen-final"), final && !isEditorOpen());
     show($("btn-new-game"), !setup);
     $("setup-title").textContent = state.game.title;
-    $("source-note").textContent = `Puzzles: ${source.text} — ${state.game.rounds.length} rounds.`;
+    const n = state.game.rounds.length;
+    $("source-note").textContent = `Puzzles: ${source.text} — ${n} round${n === 1 ? "" : "s"}.`;
     view().renderPlayerList($("player-list"), state.players, phonePids, removePlayer);
     $("btn-start").disabled = state.players.length === 0;
     if (setup) return;
@@ -270,7 +312,9 @@ const WheelApp = (function () {
     $("btn-vowel").disabled = !actions.buyVowel || spinning;
     // W-D2: while a phone solve is pending (state.solving) the Solve button is the only way to judge it.
     $("btn-solve").disabled = (!actions.solve && !state.solving) || spinning;
-    $("btn-next-player").disabled = !isRound || state.roundDone || spinning || state.players.length < 2;
+    // pendingVowel blocks the skip (W-D11) — disable it rather than no-op silently.
+    $("btn-next-player").disabled = !isRound || state.roundDone || spinning
+      || state.pendingVowel || state.players.length < 2;
     $("btn-undo").disabled = state.history.length === 0 || spinning;
     $("btn-reveal").disabled = state.roundDone || spinning;
     show($("btn-next-round"), state.roundDone);
@@ -283,7 +327,7 @@ const WheelApp = (function () {
   function keyboardHint(bonusMode, actions) {
     if (bonusMode) return `Pick 3 consonants and a vowel: ${bonusPicks.join(" ") || "—"}`;
     if (state.pendingSpin) return `${core().formatMoney(state.wedge.value)} — call a consonant.`;
-    if (state.pendingVowel) return "Pick a vowel.";
+    if (state.pendingVowel) return "Pick a vowel — it is already paid for.";
     return actions.letters.length ? "Call a letter." : "";
   }
 
@@ -348,16 +392,21 @@ const WheelApp = (function () {
     $("bonus-result").textContent = b.result === "win" ? `\u{1F389} ${state.game.settings.bonusPrize}!`
       : b.result === "lose" ? `The answer was "${state.round.puzzle}".` : "";
     if (window.WheelTimer) {
+      // Seconds LEFT (from bonus.deadline) plus the original length, so a
+      // reload mid-bonus resumes the bar instead of granting a fresh one.
       window.WheelTimer.sync("bonus", b.picked && !b.result ? `${state.roundIndex}:picked` : null,
-        state.game.settings.bonusSeconds);
+        core().bonusSecondsLeft(state), state.game.settings.bonusSeconds);
     }
     show($("btn-next-round"), state.roundDone);
   }
 
   function renderPhoneTurn() {
     const active = state.players[state.turn];
+    // Taking over is a one-turn escape hatch, so it lapses as soon as the turn
+    // moves on, and it never touches anyone else's phone marker (W-D8).
+    if (takenOverPid && (!active || active.pid !== takenOverPid)) takenOverPid = null;
     const waiting = state.phase === "round" && !state.roundDone && !spinning
-      && active && phonePids.has(active.pid);
+      && active && phonePids.has(active.pid) && takenOverPid !== active.pid;
     show($("phone-turn"), !!waiting);
     if (waiting) $("phone-turn-text").textContent = `Waiting for ${active.name}’s phone…`;
   }
@@ -381,7 +430,8 @@ const WheelApp = (function () {
       dispatch({ type: "tossupBuzz", pid });
       return;
     }
-    if (state.phase === "round" && !state.roundDone) {
+    // Handing the turn to someone else would pocket a bought vowel too (W-D11).
+    if (state.phase === "round" && !state.roundDone && !state.pendingVowel) {
       const index = state.players.findIndex((p) => p.pid === pid);
       if (index >= 0 && index !== state.turn) {
         setState({ ...state, turn: index, pendingSpin: false, pendingVowel: false, wedge: null,
@@ -435,11 +485,16 @@ const WheelApp = (function () {
     $("btn-tossup-wrong").addEventListener("click", () => dispatch({ type: "tossupJudged", correct: false }));
     $("btn-bonus-clear").addEventListener("click", () => { bonusPicks = []; render(); });
     $("btn-bonus-reveal").addEventListener("click", () => {
-      if (dispatch({ type: "bonusPick", letters: bonusPicks })) bonusPicks = [];
+      // Date.now() is injected, never read inside the reducer (W-D6).
+      if (dispatch({ type: "bonusPick", letters: bonusPicks, now: Date.now() })) bonusPicks = [];
     });
     $("btn-bonus-right").addEventListener("click", () => dispatch({ type: "bonusJudged", correct: true }));
     $("btn-bonus-wrong").addEventListener("click", () => dispatch({ type: "bonusJudged", correct: false }));
-    $("btn-take-over").addEventListener("click", () => { phonePids = new Set(); render(); });
+    $("btn-take-over").addEventListener("click", () => {
+      const active = state && state.players[state.turn];
+      takenOverPid = active ? active.pid : null;
+      render();
+    });
     $("btn-sound").addEventListener("click", onSoundToggle);
     $("btn-reload").addEventListener("click", reloadContent);
     $("file-input").addEventListener("change", onUpload);
@@ -517,11 +572,15 @@ const WheelApp = (function () {
     const savedMatches = !!saved && (!gameParam || saved.source.url === gameParam);
     if (saved && savedMatches && saved.state.phase !== "idle") {
       source = saved.source;
+      roomCode = saved.roomCode || null;
+      phonePids = new Set(Array.isArray(saved.phonePids) ? saved.phonePids : []);
       setState(saved.state);
       return; // a game in progress wins over a re-fetch (reload-resume)
     }
     if (saved && savedMatches) {
       source = saved.source;
+      roomCode = saved.roomCode || null;
+      phonePids = new Set(Array.isArray(saved.phonePids) ? saved.phonePids : []);
       state = saved.state;
       playerSeq = saved.state.players.length;
     }
@@ -543,6 +602,10 @@ const WheelApp = (function () {
     renamePlayer,
     setPhonePids(pids) { phonePids = new Set(pids); render(); },
     phonePids: () => new Set(phonePids),
+    adoptRoom,
+    ready,
+    roomCode: () => roomCode,
+    takenOverPid: () => takenOverPid,
     isSpinning: () => spinning,
     render,
     useGame,
@@ -551,10 +614,16 @@ const WheelApp = (function () {
     STORAGE_KEY,
   };
 
+  function boot() {
+    init()
+      .catch((err) => { console.warn("Wheel of Fortune could not start:", err); })
+      .finally(() => markReady());
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => { init(); });
+    document.addEventListener("DOMContentLoaded", boot);
   } else {
-    init();
+    boot();
   }
 
   return api;

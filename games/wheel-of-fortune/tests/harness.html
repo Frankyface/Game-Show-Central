@@ -15,13 +15,11 @@
     #results li[data-pass="true"] { border-left: 4px solid #51d88a; }
     #results li[data-pass="false"] { border-left: 4px solid #ff6b6b; background: rgba(255,107,107,0.12); }
     .tag { font-weight: 700; margin-right: 0.5rem; }
-    li[data-pass="true"] .tag { color: #51d88a; }
-    li[data-pass="false"] .tag { color: #ff6b6b; }
+    li[data-pass="true"] .tag { color: #51d88a; } li[data-pass="false"] .tag { color: #ff6b6b; }
     .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
     .stage { display: flex; gap: 10px; margin-top: 1.2rem; align-items: flex-start; flex-wrap: wrap; }
     iframe { border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
-    #host { width: 1100px; height: 720px; }
-    .phone { width: 360px; height: 640px; }
+    #host { width: 1100px; height: 720px; } .phone { width: 360px; height: 640px; }
     figcaption { font-size: 0.75rem; opacity: 0.7; margin-bottom: 3px; }
   </style>
 </head>
@@ -47,8 +45,9 @@
 
     const results = [];
     let uncaught = null;
-    window.addEventListener("error", (e) => { uncaught = uncaught || e.message; });
-    window.addEventListener("unhandledrejection", (e) => { uncaught = uncaught || String(e.reason); });
+    const trap = (m) => { uncaught = uncaught || m; };
+    window.addEventListener("error", (e) => trap(e.message));
+    window.addEventListener("unhandledrejection", (e) => trap(String(e.reason)));
 
     function check(label, cond, detail) {
       results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
@@ -87,7 +86,6 @@
     /* ============ Async helpers ============ */
 
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
     async function waitFor(fn, label, timeout) {
       const limit = timeout || 8000;
       const start = Date.now();
@@ -105,7 +103,7 @@
     const ORIGIN = location.origin;
     const KEYS = ["host", "p1", "p2"];
     const frames = {};
-    for (const key of KEYS) frames[key] = { el: document.getElementById(key), ready: false };
+    KEYS.forEach((k) => { frames[k] = { el: document.getElementById(k), ready: false }; });
 
     const PLAYERS = [
       { pid: "p1", name: "Ana", color: "#12b3a6", avatar: "\u{1F3A1}", connected: true, manual: false },
@@ -113,25 +111,15 @@
     ];
     const ROOM = { code: "WHEE", players: PLAYERS };
 
-    const sentToHost = [];  // {pid, m}
-    const sentToPhone = []; // {pid, m}
     let lastScores = null;
     let lastTitle = null;
-    let exited = false;
 
     const W = (k) => frames[k].el.contentWindow;
     const D = (k) => frames[k].el.contentDocument;
     const $ = (k, id) => D(k).getElementById(id);
+    const post = (key, msg) => { if (W(key)) W(key).postMessage({ gsc: 1, ...msg }, ORIGIN); };
 
-    function post(key, msg) {
-      const win = W(key);
-      if (win) win.postMessage({ gsc: 1, ...msg }, ORIGIN);
-    }
-
-    function keyOf(source) {
-      for (const key of KEYS) if (frames[key].el.contentWindow === source) return key;
-      return null;
-    }
+    const keyOf = (src) => KEYS.find((k) => frames[k].el.contentWindow === src) || null;
 
     window.addEventListener("message", (event) => {
       if (event.origin !== ORIGIN) return;
@@ -151,20 +139,14 @@
       if (d.t === "send") {
         if (from === "host") {
           const targets = d.pid === "*" ? ["p1", "p2"] : [d.pid];
-          for (const pid of targets) {
-            if (!frames[pid]) continue;
-            sentToPhone.push({ pid, m: d.m });
-            post(pid, { t: "msg", m: d.m });
-          }
+          for (const pid of targets) if (frames[pid]) post(pid, { t: "msg", m: d.m });
         } else {
-          sentToHost.push({ pid: from, m: d.m });
           post("host", { t: "msg", pid: from, m: d.m });
         }
         return;
       }
       if (d.t === "scores") lastScores = d.scores;
       else if (d.t === "title") lastTitle = d.text;
-      else if (d.t === "exit") exited = true;
     });
 
     /* ============ Boot ============ */
@@ -194,10 +176,7 @@
       const src = SRC[key];
       await fetch(src, { cache: "reload" });
       frames[key].ready = false;
-      await new Promise((resolve) => {
-        frames[key].el.onload = resolve;
-        frames[key].el.src = src;
-      });
+      await new Promise((resolve) => { frames[key].el.onload = resolve; frames[key].el.src = src; });
       await waitFor(() => frames[key].ready, `${key} bridge ready`);
     }
 
@@ -219,6 +198,8 @@
     const hostState = () => W("host").WheelApp.getState();
     const HC = () => W("host").WheelCore;
     const phoneView = (k) => (W(k).WheelPhone ? W(k).WheelPhone.getView() : null);
+    const boardText = () => [...D("host").querySelectorAll("#board .tile")]
+      .map((t) => t.textContent || ".").join("");
 
     /** Land the next host spin on `index` (the core still decides; we fix rng). */
     async function spinTo(index) {
@@ -231,9 +212,6 @@
       await waitFor(() => !win.WheelApp.isSpinning(), "spin to finish", 12000);
     }
 
-    const boardText = () => [...D("host").querySelectorAll("#board .tile")]
-      .map((t) => t.textContent || ".").join("");
-
     /* ============ W-I3 — toss-up ============ */
 
     async function testTossup() {
@@ -243,7 +221,6 @@
       const buzz1 = $("p1", "p-btn-buzz");
       check("W-I3 phone buzzers are disarmed before the host starts the reveal",
         buzz1.disabled && buzz1.textContent === "WAIT", `p1 button = "${buzz1.textContent}"`);
-
       $("host", "btn-tossup-start").click();
       await waitFor(() => phoneView("p1").armed, "buzzers armed");
       check("W-I3 buzzers arm on Start reveal",
@@ -256,7 +233,7 @@
       // flight — measure once the host has actually taken the buzz.
       await waitFor(() => hostState().tossup.buzzed === "p2", "p2 buzz reached the host");
       const revealedAtBuzz = hostState().revealed.filter(Boolean).length;
-      await sleep(1800); // longer than the 1.2 s reveal interval
+      await sleep(1800); // longer than the 1.2 s reveal tick
       check("W-I3 the first buzz pauses the reveals",
         hostState().revealed.filter(Boolean).length === revealedAtBuzz
           && !hostState().tossup.running,
@@ -275,7 +252,6 @@
           && $("p2", "p-btn-buzz").disabled && phoneView("p1").armed,
         `locked=${hostState().tossup.locked} running=${hostState().tossup.running}`);
 
-      $("host", "btn-tossup-start").click(); // no-op while already running
       $("p1", "p-btn-buzz").click();
       await waitFor(() => hostState().tossup.buzzed === "p1", "p1 buzz");
       $("host", "btn-tossup-right").click();
@@ -302,10 +278,9 @@
         `core=${hostState().wedge.index} dom=${domIndex} rotation=${rotation.toFixed(1)}deg`);
       check("W-I1 the spin turns the wheel several times before landing",
         Math.abs(rotation) >= 3 * 360, `total rotation ${Math.abs(rotation).toFixed(0)}deg`);
+      const readout = $("host", "wedge-readout").textContent;
       check("W-I1 the readout matches the wedge",
-        $("host", "wedge-readout").textContent
-          === HC().formatMoney(hostState().round.wedges[7]),
-        `readout "${$("host", "wedge-readout").textContent}"`);
+        readout === HC().formatMoney(hostState().round.wedges[7]), `readout "${readout}"`);
 
       // Reduced motion: the result appears without an animation (spec §3).
       const draw = W("host").WheelDraw;
@@ -383,10 +358,11 @@
         !$("host", "phone-turn").classList.contains("hidden"),
         `phone-turn text: "${$("host", "phone-turn-text").textContent}"`);
       $("host", "btn-take-over").click();
+      // The marker is cleared for THIS player only (W-D8); the roster is untouched.
       check("W-I2 Take over lets the host act instead of the phone",
         $("host", "phone-turn").classList.contains("hidden")
-          && W("host").WheelApp.phonePids().size === 0,
-        "waiting-for-phone indicator cleared");
+          && W("host").WheelApp.takenOverPid() === hostState().players[hostState().turn].pid,
+        "waiting-for-phone indicator cleared for the active player");
 
       check("W-I2 the host reports standings to the shell",
         Array.isArray(lastScores) && lastScores.length === 2 && typeof lastTitle === "string",
@@ -405,28 +381,21 @@
       const legal = HC().legalActions(hostState()).letters;
       D("host").querySelector(`#keyboard .key[data-letter="${legal[0]}"]`).click();
 
-      const before = {
+      const snap = () => ({
         roundIndex: hostState().roundIndex,
         used: hostState().used.join(""),
         revealed: hostState().revealed.join(""),
         turn: hostState().turn,
         totals: hostState().players.map((p) => `${p.round}/${p.total}`).join(","),
         board: boardText(),
-      };
+      });
+      const before = snap();
       await loadFrame("host");
       await waitFor(() => W("host").WheelApp && W("host").WheelApp.getState()
         && W("host").WheelApp.getState().phase === "round", "host restored");
-      const after = {
-        roundIndex: hostState().roundIndex,
-        used: hostState().used.join(""),
-        revealed: hostState().revealed.join(""),
-        turn: hostState().turn,
-        totals: hostState().players.map((p) => `${p.round}/${p.total}`).join(","),
-        board: boardText(),
-      };
-      for (const field of ["roundIndex", "used", "revealed", "turn", "totals"]) {
-        check(`W-I5 reload restores ${field}`, before[field] === after[field],
-          `${before[field]} -> ${after[field]}`);
+      const after = snap();
+      for (const f of ["roundIndex", "used", "revealed", "turn", "totals"]) {
+        check(`W-I5 reload restores ${f}`, before[f] === after[f], `${before[f]} -> ${after[f]}`);
       }
       check("W-I5 reload repaints the board tiles", before.board === after.board,
         `${after.board.replace(/\./g, "_").slice(0, 60)}…`);
@@ -479,12 +448,29 @@
       const hostLit = () => [...D("host").querySelectorAll("#bonus-timer .timer-block")]
         .filter((b) => !b.classList.contains("off")).length;
       const litAtStart = hostLit();
+      const phoneBlocks = D("p1").querySelectorAll("#phone-bonus-timer .timer-block").length;
       check("W-I4 the countdown blocks run on the host and on the phone",
-        litAtStart === 9 && D("p1").querySelectorAll("#phone-bonus-timer .timer-block").length === 9,
-        `host lit ${litAtStart}/9, phone blocks ${D("p1").querySelectorAll("#phone-bonus-timer .timer-block").length}`);
+        litAtStart === 9 && phoneBlocks === 9, `host lit ${litAtStart}/9, phone blocks ${phoneBlocks}`);
       await sleep(2600); // 10 s timer, 5 stages -> at least one pair is out
       check("W-I4 the countdown actually counts down", hostLit() < litAtStart,
         `lit ${litAtStart} -> ${hostLit()}`);
+
+      // W-D6: the deadline lives in state, so a reload resumes the bar.
+      const deadline = hostState().bonus.deadline;
+      const leftBeforeReload = HC().bonusSecondsLeft(hostState());
+      check("W-D6 the bonus deadline is stored in the game state",
+        typeof deadline === "number" && leftBeforeReload < 10 && leftBeforeReload > 0,
+        `deadline set, ${leftBeforeReload}s left`);
+      await loadFrame("host");
+      await waitFor(() => W("host").WheelApp && W("host").WheelApp.getState()
+        && W("host").WheelApp.getState().phase === "bonus", "host restored mid-bonus");
+      await waitFor(() => D("host").querySelectorAll("#bonus-timer .timer-block").length > 0,
+        "the bar came back");
+      const litAfter = [...D("host").querySelectorAll("#bonus-timer .timer-block")]
+        .filter((b) => !b.classList.contains("off")).length;
+      check("W-D6 a reload mid-bonus resumes the countdown instead of restarting it",
+        hostState().bonus.deadline === deadline && litAfter < 9,
+        `${litAfter}/9 blocks lit after the reload (a restart would show 9)`);
 
       $("host", "btn-bonus-right").click();
       await waitFor(() => hostState().bonus.result === "win", "bonus judged");
@@ -500,6 +486,168 @@
         D("host").querySelectorAll("#final-list .final-row").length === 2
           && D("p1").querySelectorAll("#p-standings .final-row").length === 2,
         `host rows=${D("host").querySelectorAll("#final-list .final-row").length}`);
+    }
+
+    /* ============ Fixes after verification (W-D ids) ============ */
+
+    /**
+     * W-D2 regression: a phone's solve leaves legalActions.solve false, so the
+     * host's judge dialog has to stay REACHABLE. Everything below goes through
+     * controls that are actually visible and enabled — no direct dispatch.
+     */
+    async function testPhoneSolve() {
+      await giveTurnToP1();
+      await waitFor(() => phoneView("p1").screen === "turn", "p1 back on turn");
+
+      const totalsBefore = hostState().players.map((p) => p.total).join();
+      $("p1", "p-btn-solve").click();
+      const box = $("p1", "p-solve-input");
+      box.value = "the corner coffee shop";
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+      $("p1", "p-btn-solve-send").click();
+      await waitFor(() => hostState().solving, "the solve reached the host");
+      check("W-D2 a phone solve is shown to the host and never auto-judged",
+        hostState().solveText === "the corner coffee shop"
+          && hostState().roundDone === false
+          && hostState().players.map((p) => p.total).join() === totalsBefore,
+        `banner: "${$("host", "banner").textContent}"`);
+
+      const solveBtn = $("host", "btn-solve");
+      check("W-D2 the host's Solve control stays visible and enabled while a phone is solving",
+        !solveBtn.classList.contains("hidden") && !solveBtn.disabled
+          && solveBtn.offsetParent !== null,
+        `#btn-solve disabled=${solveBtn.disabled}`);
+
+      solveBtn.click();
+      const right = $("host", "btn-solve-right");
+      check("W-D2 clicking it opens the judge dialog with a usable Correct button",
+        !$("host", "solve-dialog").classList.contains("hidden")
+          && !right.disabled && right.offsetParent !== null
+          && $("host", "solve-input").value === "the corner coffee shop",
+        "dialog reachable, pre-filled with what the phone sent");
+
+      right.click();
+      await waitFor(() => hostState().roundDone, "the solve was judged");
+      const ana = hostState().players.find((p) => p.pid === "p1");
+      check("W-D2 Correct pays the phone player from the visible host control",
+        ana.total > 0 && hostState().solving === false
+          && HC().allRevealed(hostState().round.puzzle, hostState().revealed),
+        `Ana banked ${HC().formatMoney(ana.total)}`);
+    }
+
+    /** Bring the turn back to p1, skipping anything pending. */
+    async function giveTurnToP1() {
+      while (hostState().pendingSpin || hostState().pendingVowel) {
+        const legal = HC().legalActions(hostState()).letters;
+        D("host").querySelector(`#keyboard .key[data-letter="${legal[0]}"]`).click();
+      }
+      let guard = 0;
+      while (hostState().players[hostState().turn].pid !== "p1" && guard < 8) {
+        $("host", "btn-next-player").click();
+        guard += 1;
+      }
+    }
+
+    /** W-D8 / W-D11 / W-D10 — the smaller host-behaviour fixes. */
+    async function testHostFixes() {
+      $("host", "btn-next-round").click();
+      await waitFor(() => hostState().phase === "round" && !hostState().roundDone, "a fresh round");
+      await giveTurnToP1();
+
+      const pids = () => [...W("host").WheelApp.phonePids()].join();
+      check("W-D8 both phones are still marked before Take over",
+        W("host").WheelApp.phonePids().size === 2
+          && !$("host", "phone-turn").classList.contains("hidden"), `phonePids = ${pids()}`);
+      $("host", "btn-take-over").click();
+      check("W-D8 Take over clears only the active player's phone marker",
+        $("host", "phone-turn").classList.contains("hidden")
+          && W("host").WheelApp.phonePids().size === 2
+          && W("host").WheelApp.takenOverPid() === "p1",
+        `phonePids still ${pids()}, takenOver=p1`);
+      $("host", "btn-next-player").click();
+      check("W-D8 the take-over lapses when the turn moves on",
+        !$("host", "phone-turn").classList.contains("hidden")
+          && W("host").WheelApp.takenOverPid() === null,
+        `now waiting for ${$("host", "phone-turn-text").textContent}`);
+
+      // W-D11: Next player must not pocket a bought vowel.
+      await giveTurnToP1();
+      let spins = 0;
+      while (!HC().legalActions(hostState()).buyVowel && spins < 8) {
+        await giveTurnToP1();
+        await spinTo(4);
+        const letters = HC().legalActions(hostState()).letters;
+        const hit = letters.find((L) => HC().letterCount(hostState().round.puzzle, L) > 0);
+        D("host").querySelector(`#keyboard .key[data-letter="${hit || letters[0]}"]`).click();
+        spins += 1;
+      }
+      const pot = hostState().players[hostState().turn].round;
+      $("host", "btn-vowel").click();
+      await waitFor(() => hostState().pendingVowel, "a vowel was bought");
+      const paid = hostState().players[hostState().turn].round;
+      const turnBefore = hostState().turn;
+      $("host", "btn-next-player").click();
+      check("W-D11 Next player cannot skip past a vowel that was paid for",
+        hostState().turn === turnBefore && hostState().pendingVowel
+          && $("host", "btn-next-player").disabled,
+        `pot ${pot} -> ${paid}, still ${hostState().players[hostState().turn].name}'s turn`);
+      const vowel = HC().legalActions(hostState()).letters[0];
+      D("host").querySelector(`#keyboard .key[data-letter="${vowel}"]`).click();
+      check("W-D11 resolving the vowel releases the skip again",
+        !hostState().pendingVowel && !$("host", "btn-next-player").disabled,
+        `called ${vowel}`);
+    }
+
+    /**
+     * W-D9: a saved game belongs to the room it was played in. Re-open the host
+     * in a DIFFERENT room and the previous room's phone podiums must not be
+     * inherited, while a player the host typed in keeps their money.
+     */
+    async function testNewRoom() {
+      // W-D10: "1 round", not "1 rounds". Done here because useGame resets the
+      // game to setup, which would strand a scenario running mid-round.
+      const saved = JSON.parse(JSON.stringify(W("host").WheelApp.getState().game));
+      W("host").WheelApp.useGame(
+        { title: "One", rounds: [{ category: "Thing", puzzle: "GAME SHOW CENTRAL" }] },
+        { text: "a one-round file", kind: "upload", url: null });
+      const one = $("host", "source-note").textContent;
+      W("host").WheelApp.useGame(saved, { text: "puzzles.json", kind: "fetch", url: null });
+      const many = $("host", "source-note").textContent;
+      check("W-D10 the round count is pluralised properly",
+        / 1 round\./.test(one) && / 10 rounds\./.test(many),
+        `"${one.trim()}" / "${many.trim()}"`);
+
+      W("host").WheelApp.newGame();
+      await waitFor(() => hostState().phase === "idle", "back to setup");
+      W("host").WheelApp.addPlayer("Hal");
+      await waitFor(() => hostState().players.some((p) => p.name === "Hal"), "Hal added");
+      // The risky path is a game the host RESUMES: at setup a reload zeroes
+      // scores anyway, so start play before banking the totals.
+      $("host", "btn-start").click();
+      await waitFor(() => hostState().phase !== "idle", "game started");
+      W("host").WheelApp.dispatch({ type: "setTotal", pid: "p1", total: 9999 });
+      const hal = hostState().players.find((p) => p.name === "Hal");
+      W("host").WheelApp.dispatch({ type: "setTotal", pid: hal.pid, total: 4242 });
+      check("W-D9 the room code is saved with the game",
+        W("host").WheelApp.roomCode() === "WHEE",
+        `roomCode = ${W("host").WheelApp.roomCode()}`);
+
+      ROOM.code = "ZZZZ"; // the shell hands this game a different room
+      PLAYERS[0].name = "Pia";
+      await loadFrame("host");
+      await waitFor(() => W("host").WheelApp && W("host").WheelApp.getState(), "host restored");
+      await waitFor(() => hostState().players.some((p) => p.pid === "p1"), "roster re-applied");
+      const pia = hostState().players.find((p) => p.pid === "p1");
+      const keptHal = hostState().players.find((p) => p.name === "Hal");
+      check("W-D9 a new room's p1 does not inherit the old p1's podium",
+        !!pia && pia.name === "Pia" && pia.total === 0,
+        `p1 = ${pia ? `${pia.name} ${HC().formatMoney(pia.total)}` : "gone"} (was Ana $9,999)`);
+      check("W-D9 a player the host typed in keeps their name and money",
+        !!keptHal && keptHal.total === 4242,
+        keptHal ? `Hal ${HC().formatMoney(keptHal.total)}` : "Hal was dropped");
+      check("W-D9 the game now belongs to the new room",
+        W("host").WheelApp.roomCode() === "ZZZZ",
+        `roomCode = ${W("host").WheelApp.roomCode()}`);
     }
 
     /* ============ W-I6 — the editor ============ */
@@ -530,15 +678,15 @@
         !$("host", "btn-editor-download").disabled && !$("host", "editor-error").textContent,
         "validation cleared");
 
-      const wedgesBefore = D("host").querySelectorAll("#ed-wheel .wheel-wedge").length;
+      const wedgeCount = () => D("host").querySelectorAll("#ed-wheel .wheel-wedge").length;
+      const wedgesBefore = wedgeCount();
       $("host", "btn-add-bankrupt").click();
-      const wedgesAfter = D("host").querySelectorAll("#ed-wheel .wheel-wedge").length;
+      const wedgesAfter = wedgeCount();
       const chips = D("host").querySelectorAll(".wedge-chip").length;
       D("host").querySelectorAll(".wedge-chip")[chips - 1].click();
       check("W-I6 the wheel preview follows the wedge chips",
-        wedgesAfter === wedgesBefore + 1 && chips === wedgesAfter
-          && D("host").querySelectorAll("#ed-wheel .wheel-wedge").length === wedgesBefore,
-        `${wedgesBefore} -> ${wedgesAfter} -> ${D("host").querySelectorAll("#ed-wheel .wheel-wedge").length}`);
+        wedgesAfter === wedgesBefore + 1 && chips === wedgesAfter && wedgeCount() === wedgesBefore,
+        `${wedgesBefore} -> ${wedgesAfter} -> ${wedgeCount()}`);
 
       // Use in game must go through the same validateGame the loader uses.
       $("host", "btn-editor-use").click();
@@ -550,15 +698,11 @@
 
     /* ============ W-I7 — static gates ============ */
 
-    const SOURCE_FILES = [
-      "../index.html", "../README.md",
-      "../js/wheel-content.js", "../js/wheel-core.js", "../js/wheel-draw.js",
-      "../js/wheel-view.js", "../js/wheel-app.js", "../js/wheel-room.js",
-      "../js/wheel-phone.js", "../js/wheel-editor.js", "../js/wheel-sound.js",
-      "../js/wheel-timer.js", "../js/timer-core.js", "../js/data.js",
-      "../css/wheel.css", "../css/wheel-phone.css", "../css/timer.css",
-      "./wheel-core.test.mjs", "./harness.html",
-    ];
+    // Everything this component owns: its own assets (not shared/) plus the
+    // tests and this page, because the house gates cover tests too (06 §4).
+    const SOURCE_FILES = ASSETS.filter((u) => u.indexOf("shared/") < 0)
+      .concat(["../README.md", "./wheel-core.test.mjs",
+        "./wheel-adversarial.test.mjs", "./harness.html"]);
 
     async function testGates() {
       // Assembled from fragments so this gate's own source never trips the
@@ -620,6 +764,10 @@
     (async function run() {
       try {
         await bootAll(true);
+        const fallback = W("host").DEFAULT_PUZZLES;
+        check("W-D1 js/data.js publishes the offline fallback as a global",
+          !!fallback && Array.isArray(fallback.rounds) && fallback.rounds.length > 0,
+          `window.DEFAULT_PUZZLES has ${fallback ? fallback.rounds.length : "no"} rounds`);
         check("Boot: host and two phones joined through the bridge",
           hostState().players.map((p) => p.pid).join() === "p1,p2"
             && W("host").WheelApp.phonePids().size === 2,
@@ -628,8 +776,11 @@
         await testWheel();
         await testPhonePlay();
         await testReload();
+        await testPhoneSolve();
+        await testHostFixes();
         await testBonus();
         await testEditor();
+        await testNewRoom();
         await testGates();
       } catch (err) {
         uncaught = uncaught || (err && err.message) || String(err);

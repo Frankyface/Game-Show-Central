@@ -150,7 +150,14 @@
     show($("p-btn-bonus-clear"), !picked && bonusPicks.length > 0);
     $("p-btn-bonus-send").disabled = bonusPicks.length !== 4;
     if (window.WheelTimer) {
-      window.WheelTimer.sync("phoneBonus", picked && !view.result ? "bonus" : null, view.seconds);
+      // The host sends what is LEFT plus the full length, so a phone that
+      // reloads mid-bonus resumes the bar instead of restarting it (W-D6).
+      const left = typeof view.secondsLeft === "number" ? view.secondsLeft : view.seconds;
+      // The key is stable for the round, so later pushes never restart a bar
+      // that is already ticking locally; only a reload (empty timer map) does,
+      // and it then starts from `left`.
+      window.WheelTimer.sync("phoneBonus", picked && !view.result ? `bonus:${view.picks.join("")}` : null,
+        left, view.seconds);
     }
   }
 
