@@ -124,6 +124,8 @@ function wlError(message) {
 
 /* ============ Content loading ============ */
 
+let wlLoadMessage = "";   // survives the wlSet() in wlBoot, which clears wlError
+
 async function wlLoadContent() {
   const url = new URLSearchParams(location.search).get("game");
   if (url) {
@@ -134,7 +136,7 @@ async function wlLoadContent() {
       window.WlCore.validateGame(game);
       return { game, source: `Custom questions from ${url}`, kind: "fetch", url };
     } catch (err) {
-      wlError(`Could not load questions from ${url}: ${err.message}. Using the built-in set instead.`);
+      wlLoadMessage = `Could not load questions from ${url}: ${err.message}. Using the built-in set instead.`;
     }
   }
   try {
@@ -710,6 +712,7 @@ async function wlBoot() {
   if (saved && typeof saved.keepAnswers === "boolean") patch.keepAnswers = saved.keepAnswers;
   $("wl-keep-answers").checked = !!patch.keepAnswers;
   wlSet(patch);
+  if (wlLoadMessage) wlError(wlLoadMessage);
   wlStartClock();
 }
 
