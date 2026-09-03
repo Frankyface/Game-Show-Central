@@ -48,6 +48,9 @@ const HubHost = (function () {
   // and flushed after `init` instead of being dropped (D2).
   const PENDING_MAX = 50;
   let pending = [];
+  // Bumped on every host-frame mount and carried in `lobby` snapshots, so phones
+  // remount their game frames after a hub refresh mid-game (fresh handshake).
+  let frameSession = 0;
   let frameTimer = null;
   let frameError = "";
   let gameSubtitle = "";
@@ -210,7 +213,7 @@ const HubHost = (function () {
   // not receive the lobby that follows its `kicked` message and bounce back
   // into the game frame it was just removed from.
   function broadcastLobby() {
-    if (host) host.broadcast(RP.lobbySnapshot(lobby), (peerId) => !!lobby.peers[peerId]);
+    if (host) host.broadcast({ ...RP.lobbySnapshot(lobby), session: frameSession }, (peerId) => !!lobby.peers[peerId]);
   }
 
   function sendToFrame(msg) {
@@ -233,8 +236,8 @@ const HubHost = (function () {
     setState({ activeGame: id });
     gameSubtitle = "";
     frameError = "";
+    mountFrame(game); // sets frameSession BEFORE the lobby broadcast below
     reduce({ type: "setGame", gameId: id }); // broadcasts the lobby → phones swap
-    mountFrame(game);
     render();
   }
 
@@ -250,6 +253,7 @@ const HubHost = (function () {
     slot.appendChild(frame);
     frameReady = false;
     pending = [];
+    frameSession = Date.now();
     frameBridge = GSCBridge.attachHostFrame(frame, frameApi());
     frameTimer = setTimeout(() => {
       frameTimer = null;

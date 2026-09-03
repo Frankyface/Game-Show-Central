@@ -31,6 +31,7 @@ const HubPlayer = (function () {
   let avatarChoice = null;
   let roster = [];
   let activeGame = null;
+  let frameSession = null; // host-frame session from the last `lobby` (see hub-host)
   let screen = "join"; // join | waiting | play
   let notice = "";
   let dismissed = false; // kicked or the room closed: ignore anything still in flight
@@ -158,8 +159,18 @@ const HubPlayer = (function () {
     if (dismissed) return;
     roster = msg.players;
     const next = msg.game;
-    if (next === activeGame) { render(); return; }
+    const session = typeof msg.session === "number" ? msg.session : null;
+    if (next === activeGame) {
+      // Same game, but the host frame was remounted (hub refresh): re-handshake
+      // by remounting ours, so games that join on connect (Jeopardy) re-join.
+      const changed = next && session !== null && frameSession !== null && session !== frameSession;
+      if (session !== null) frameSession = session;
+      if (changed) { const g = HubRegistry.find(next); if (g) mountFrame(g); }
+      render();
+      return;
+    }
     activeGame = next;
+    frameSession = session;
     const game = next ? HubRegistry.find(next) : null;
     if (game) mountFrame(game);
     else { unmountFrame(); screen = "waiting"; }

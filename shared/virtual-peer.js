@@ -51,6 +51,8 @@
    */
   // Closure factory, not a long function: the body is the VirtualPeer class plus
   // small helpers, all sharing one private roster/connection map per bus.
+  function isPid(pid) { return typeof pid === "string" && /^p[0-9]{1,6}$/.test(pid); }
+
   function createHub(bus) {
     const isHost = bus.mode === "embed-host";
     const roster = new Map(); // pid → {name}
@@ -60,6 +62,11 @@
     let playerConn = null;
     let initSeen = false;
     let roomCode = null;
+    // D2: phone messages that arrive before the game has opened its room (no
+    // hostPeer yet) or before this pid was announced are held here, per pid, and
+    // replayed on that pid's connection right after its `open` fires.
+    const PENDING_PER_PID = 20;
+    const pendingByPid = new Map();
 
     function announce(pid) {
       if (!hostPeer || conns.has(pid)) return;
@@ -67,7 +74,28 @@
       const conn = makeConnection(pid, { name: info.name });
       conns.set(pid, conn);
       hostPeer.ev.emit("connection", conn);
-      nextTick(() => conn.ev.emit("open"));
+      nextTick(() => { conn.ev.emit("open"); drainPending(pid, conn); });
+    }
+
+    function drainPending(pid, conn) {
+      const queued = pendingByPid.get(pid);
+      pendingByPid.delete(pid);
+      if (!queued) return;
+      for (const m of queued) if (conn.open) conn.ev.emit("data", m);
+    }
+
+    function queuePending(pid, m) {
+      const q = pendingByPid.get(pid) || [];
+      q.push(m);
+      if (q.length > PENDING_PER_PID) q.shift();
+      pendingByPid.set(pid, q);
+    }
+
+    /** Close + forget a host-side connection so a rejoin gets a fresh one (D1). */
+    function dropConn(pid) {
+      const conn = conns.get(pid);
+      conns.delete(pid);
+      if (conn && conn.open) { conn.open = false; conn.ev.emit("close"); }
     }
 
     function announceAll() { for (const pid of roster.keys()) announce(pid); }
@@ -89,7 +117,7 @@
         close() {
           if (!conn.open) return;
           conn.open = false;
-          if (isHost) bus.post({ t: "close", pid });
+          if (isHost) { bus.post({ t: "close", pid }); if (conns.get(pid) === conn) conns.delete(pid); }
           ev.emit("close");
         },
       };
@@ -114,20 +142,28 @@
       }
       if (d.t === "player-leave") {
         roster.delete(d.pid);
-        const conn = conns.get(d.pid);
-        conns.delete(d.pid);
-        if (conn) { conn.open = false; conn.ev.emit("close"); }
+        pendingByPid.delete(d.pid);
+        dropConn(d.pid);
         return;
       }
       if (d.t === "player-status") {
-        // A phone going quiet is not a PeerJS event on the host side; the shell's
-        // connection map stays authoritative and Jeopardy's own heartbeat paints 🔴.
+        // D1: a phone that dropped gets its host-side connection CLOSED so the
+        // game frees that player (Jeopardy: handleClose → relink-by-name on the
+        // rejoin). When it is back, a fresh connection is announced and the
+        // phone's game frame re-joins on it; a stale-sweep false alarm self-heals
+        // through the game's own heartbeat/reconnect within ~30 s.
+        if (!isHost || !isPid(d.pid)) return;
+        if (d.connected === false) dropConn(d.pid);
+        else if (roster.has(d.pid)) announce(d.pid);
         return;
       }
       if (d.t === "msg") {
         if (isHost) {
+          if (!isPid(d.pid)) return;
           const conn = conns.get(d.pid);
-          if (conn) conn.ev.emit("data", d.m);
+          if (conn && conn.open) { conn.ev.emit("data", d.m); return; }
+          queuePending(d.pid, d.m); // D2: replayed after the connection opens
+          if (roster.has(d.pid)) announce(d.pid); // no-op until the game has a peer
         } else if (playerConn) {
           playerConn.ev.emit("data", d.m);
         }

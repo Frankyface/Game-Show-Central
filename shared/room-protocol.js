@@ -231,7 +231,11 @@
       if (!p) return null;
       players.push(p);
     }
-    return { v: 2, t: "lobby", game: m.game, players };
+    const out = { v: 2, t: "lobby", game: m.game, players };
+    // Optional host-frame session marker: a phone remounts its game frame when
+    // it changes for the same game (hub refresh mid-game re-handshake).
+    if (Number.isInteger(m.session) && m.session >= 0) out.session = m.session;
+    return out;
   }
 
   function validateLobbyPlayer(raw) {
