@@ -78,6 +78,9 @@
     }
 
     function drainPending(pid, conn) {
+      // Only the pid's CURRENT live connection may drain its queue: a superseded
+      // connection's deferred `open` must not swallow messages meant for the new one.
+      if (!conn.open || conns.get(pid) !== conn) return;
       const queued = pendingByPid.get(pid);
       pendingByPid.delete(pid);
       if (!queued) return;

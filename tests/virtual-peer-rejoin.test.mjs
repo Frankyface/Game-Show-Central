@@ -93,17 +93,18 @@ test("D3 host: a player offline at init is announced when the shell reports them
   bus.deliver({ gsc: 1, t: "player-status", pid: "p2", connected: true });
   assert.equal(conns.length, 1, "a manual player is never announced");
 
-  // A message from a phone the shell has not (yet) reported back is queued and
-  // delivered once its status flips, not dropped.
+  // A message from a known phone proves it is live: it gets a fresh connection
+  // at once (the shell's status flag may lag), the message is delivered after
+  // `open`, and the later status:true does not announce a duplicate.
   bus.deliver({ gsc: 1, t: "player-status", pid: "p1", connected: false });
   bus.deliver({ gsc: 1, t: "msg", pid: "p1", m: { v: 1, t: "join", name: "Rita" } });
-  assert.equal(conns.length, 1);
-  bus.deliver({ gsc: 1, t: "player-status", pid: "p1", connected: true });
   assert.equal(conns.length, 2);
   const data = [];
   conns[1].on("data", (m) => data.push(m.t));
   await tick();
   assert.deepEqual(data, ["join"]);
+  bus.deliver({ gsc: 1, t: "player-status", pid: "p1", connected: true });
+  assert.equal(conns.length, 2, "no duplicate connection on the trailing status:true");
 });
 
 test("D1 host: a connection the game closed is forgotten, so the next message from that pid announces a new one", async () => {
