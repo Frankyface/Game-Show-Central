@@ -159,10 +159,14 @@ test("ADV-B1 names survive unicode and shed every control character", () => {
   assert.equal(RP.validateEnvelope({ v: 2, t: "join", name: "x".repeat(241) }), null);
 });
 
-test("ADV-B2 a name is never longer than NAME_MAX code units after sanitising", () => {
+test("ADV-B2 a name is never longer than NAME_MAX code points after sanitising", () => {
   for (const raw of ["x".repeat(200), "🦊".repeat(40), "日".repeat(40), "á".repeat(40)]) {
     const out = RP.sanitizeName(raw);
-    assert.ok(out.length <= RP.NAME_MAX, `${JSON.stringify(out)} is ${out.length} units`);
+    // Spec "24 chars" = 24 Unicode code points (S-4): an all-emoji name may be
+    // up to 48 UTF-16 units but never more than 24 visible characters.
+    const points = Array.from(out).length;
+    assert.ok(points <= RP.NAME_MAX, `${JSON.stringify(out)} is ${points} code points`);
+    assert.ok(out.length <= RP.NAME_MAX * 2, `${JSON.stringify(out)} is ${out.length} units`);
   }
 });
 
