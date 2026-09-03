@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Feud loopback harness (F-I1–F-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #04091c; color: #f4f5ff; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #51d88a; }
+    #summary.bad { color: #ff6b6b; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); }
+    #results li[data-pass="true"] { border-left: 4px solid #51d88a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff6b6b; background: rgba(255,107,107,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #51d88a; }
+    li[data-pass="false"] .tag { color: #ff6b6b; }
+    .detail { display: block; opacity: 0.75; font-size: 0.82rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.8rem; margin-top: 1.4rem; flex-wrap: wrap; }
+    iframe { border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    #host { width: 900px; height: 560px; }
+    .phone { width: 300px; height: 460px; }
+    .phones { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <h1>Family Feud loopback harness — success states F-I1–F-I6 (spec 03 §8)</h1>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <!-- This page IS the shell for the frames below: it speaks the bridge
+       protocol from docs/00 §6 directly (no PeerJS, no hub). -->
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+    }
+
+    function report() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} loopback checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__FEUD_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(40);
+      }
+    }
+
+    /* ============ Stale-bundle guard (Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/feud-content.js", "../js/feud-core.js", "../js/feud-app.js", "../js/feud-fm.js",
+      "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
+      "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
+      "../css/feud.css", "../css/feud-phone.css", "../css/timer.css", "../questions.json",
+      "../../../shared/bridge.js", "../../../shared/room-protocol.js",
+      "../../../shared/room-net.js", "../../../shared/room-host.js", "../../../shared/room-player.js",
+    ];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+    }
+
+    /* ============ The mini shell (bridge protocol, 00 §6) ============ */
+
+    const HOST_SRC = "../index.html?embed=host&harness=1";
+    const ROOM_CODE = "TEST";
+    const hostFrame = document.getElementById("host");
+    const phoneHost = document.getElementById("phones");
+
+    /** pid → {iframe, pid, name} */
+    const phones = new Map();
+    /** [{pid,name,color,avatar,connected,manual}] — the shell's roster */
+    let roster = [];
+    let hostReady = false;
+    const shellLog = { scores: null, title: null, exited: false };
+
+    function post(target, msg) {
+      if (!target || !target.contentWindow) return;
+      target.contentWindow.postMessage({ gsc: 1, ...msg }, location.origin);
+    }
+
+    const toHost = (msg) => post(hostFrame, msg);
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { onHostFrame(d); return; }
+      for (const entry of phones.values()) {
+        if (event.source === entry.iframe.contentWindow) { onPhoneFrame(entry, d); return; }
+      }
+    });
+
+    function onHostFrame(d) {
+      if (d.t === "ready") {
+        hostReady = true;
+        toHost({ t: "init", mode: "embed-host", room: { code: ROOM_CODE, players: roster.slice() } });
+        return;
+      }
+      if (d.t === "send") {
+        if (d.pid === "*") {
+          phones.forEach((entry) => post(entry.iframe, { t: "msg", m: d.m }));
+        } else {
+          const entry = phones.get(d.pid);
+          if (entry) post(entry.iframe, { t: "msg", m: d.m });
+        }
+        return;
+      }
+      if (d.t === "scores") shellLog.scores = d.scores;
+      if (d.t === "title") shellLog.title = d.text;
+      if (d.t === "exit") shellLog.exited = true;
+    }
+
+    function onPhoneFrame(entry, d) {
+      if (d.t === "ready") {
+        post(entry.iframe, {
+          t: "init", mode: "embed-player",
+          me: { pid: entry.pid, name: entry.name, color: "#f2b632", avatar: "🙂" },
+          room: { code: ROOM_CODE },
+        });
+        return;
+      }
+      if (d.t === "send") toHost({ t: "msg", pid: entry.pid, m: d.m });
+    }
+
+    /* ============ Frames ============ */
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const hostState = () => HW().FeudApp.getState();
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => {
+        frame.onload = resolve;
+        frame.src = src;
+      });
+    }
+
+    async function bootHost(clearStorage) {
+      if (clearStorage !== false) {
+        localStorage.removeItem("gsc-family-feud-state-v1");
+      }
+      hostReady = false;
+      await fetch(HOST_SRC, { cache: "reload" });
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().FeudApp && hostState(), "host boot");
+      await waitFor(() => hostReady, "host bridge init");
+      if (typeof HW().FeudRoom === "undefined") throw new Error("host bundle is stale (FeudRoom missing)");
+      HW().confirm = () => true;
+      HW().prompt = () => null;
+    }
+
+    async function addPhone(pid, name) {
+      const player = { pid, name, color: "#f2b632", avatar: "🙂", connected: true, manual: false };
+      roster = roster.concat([player]);
+      const iframe = document.createElement("iframe");
+      iframe.className = "phone";
+      iframe.title = `phone ${name}`;
+      phoneHost.appendChild(iframe);
+      const entry = { iframe, pid, name };
+      phones.set(pid, entry);
+      await loadFrame(iframe, `../index.html?embed=player&harness=1&pid=${pid}&name=${encodeURIComponent(name)}`);
+      toHost({ t: "player-join", player });
+      await waitFor(() => iframe.contentWindow.FeudPhone && iframe.contentWindow.FeudPhone.getView(),
+        `phone ${name} first view`);
+      return entry;
+    }
+
+    function resetPhones() {
+      phones.clear();
+      roster = [];
+      phoneHost.replaceChildren();
+    }
+
+    const phoneDoc = (pid) => phones.get(pid).iframe.contentDocument;
+    const phoneWin = (pid) => phones.get(pid).iframe.contentWindow;
+    const phoneView = (pid) => phoneWin(pid).FeudPhone.getView();
+
+    function clickIn(doc, text) {
+      const btn = Array.from(doc.querySelectorAll("button"))
+        .find((b) => b.textContent.trim() === text && !b.disabled);
+      if (!btn) throw new Error(`no enabled button "${text}"`);
+      btn.click();
+      return true;
+    }
+
+    const clickHost = (text) => clickIn(HD(), text);
+    const dispatchHost = (event) => HW().FeudApp.dispatch(event);
+
+    /* ============ F-I1 — team picks from four phones ============ */
+
+    async function testTeamPicks() {
+      await bootHost();
+      resetPhones();
+      await addPhone("p1", "Ana");
+      await addPhone("p2", "Ben");
+      await addPhone("p3", "Cleo");
+      await addPhone("p4", "Dev");
+      await waitFor(() => hostState().roster.length === 4, "roster sync");
+      check("F-I1 four phones appear on the host roster", hostState().roster.length === 4,
+        hostState().roster.map((p) => p.name).join(", "));
+
+      check("F-I1 each phone opens on the team-pick screen",
+        ["p1", "p2", "p3", "p4"].every((pid) => phoneView(pid).screen === "team-pick"),
+        ["p1", "p2", "p3", "p4"].map((pid) => `${pid}:${phoneView(pid).screen}`).join(" "));
+
+      phoneDoc("p1").getElementById("player-team-a").click();
+      phoneDoc("p2").getElementById("player-team-b").click();
+      phoneDoc("p3").getElementById("player-team-a").click();
+      phoneDoc("p4").getElementById("player-team-b").click();
+      await waitFor(() => hostState().teams[0].players.length === 2 &&
+        hostState().teams[1].players.length === 2, "team picks land");
+      const teams = hostState().teams.map((t) => t.players.join("+"));
+      check("F-I1 phone team picks land on the host roster",
+        teams[0] === "p1+p3" && teams[1] === "p2+p4", teams.join(" | "));
+
+      // Host override: move Cleo to team B with the roster toggle.
+      const toggle = Array.from(HD().querySelectorAll("button"))
+        .find((b) => b.getAttribute("aria-label") === "Put Cleo on team B");
+      toggle.click();
+      await sleep(60);
+      check("F-I1 the host's A/B toggle wins over the phone's pick",
+        HW().FeudCore.teamOfPid(hostState(), "p3") === 1,
+        `Cleo is on team ${HW().FeudCore.teamOfPid(hostState(), "p3")}`);
+      // …and the phone is told about it.
+      await waitFor(() => phoneView("p3").teamLabel === "B", "phone sees the override");
+      check("F-I1 the overridden phone is pushed the new team",
+        phoneView("p3").teamLabel === "B", `p3 view team ${phoneView("p3").teamLabel}`);
+      // Put Cleo back on A for the face-off scenario.
+      Array.from(HD().querySelectorAll("button"))
+        .find((b) => b.getAttribute("aria-label") === "Put Cleo on team A").click();
+      await sleep(60);
+    }
+
+    /* ============ F-I2 — face-off buzzers ============ */
+
+    async function testFaceoff() {
+      clickHost("Start the Feud");
+      await waitFor(() => hostState().phase === "faceoff", "face-off phase");
+      await waitFor(() => phoneView("p1").screen === "faceoff", "podium phone view");
+      check("F-I2 only the two podium players get the buzzer screen",
+        phoneView("p1").screen === "faceoff" && phoneView("p2").screen === "faceoff" &&
+        phoneView("p3").screen === "wait" && phoneView("p4").screen === "wait",
+        ["p1", "p2", "p3", "p4"].map((pid) => `${pid}:${phoneView(pid).screen}`).join(" "));
+
+      const buzz = (pid) => phoneDoc(pid).getElementById("player-buzz");
+      check("F-I2 an unarmed buzzer is disabled on the phone", buzz("p1").disabled === true);
+      buzz("p1").click(); // early tap: ignored, no lockout
+      await sleep(60);
+      check("F-I2 an early tap is ignored (no lockout in Feud)",
+        hostState().faceoff.buzzed === null, `buzzed=${hostState().faceoff.buzzed}`);
+
+      clickHost("Arm buzzers");
+      await waitFor(() => phoneView("p1").armed === true, "phones armed");
+      check("F-I2 arming lights both podium phones",
+        phoneView("p1").armed === true && phoneView("p2").armed === true);
+
+      buzz("p2").click();
+      await waitFor(() => hostState().faceoff.buzzed === 1, "team B buzz lands");
+      buzz("p1").click(); // second buzz: must be ignored
+      await sleep(80);
+      check("F-I2 the first phone buzz wins and the second is ignored",
+        hostState().faceoff.buzzed === 1, `buzzed=${hostState().faceoff.buzzed}`);
+      await waitFor(() => phoneView("p1").buzzed === 1, "loser phone told");
+      check("F-I2 the phones are told who buzzed",
+        phoneDoc("p2").getElementById("player-buzz").textContent === "You buzzed!" &&
+        phoneDoc("p1").getElementById("player-buzz").textContent === "Too late",
+        `${phoneDoc("p2").getElementById("player-buzz").textContent} / ${phoneDoc("p1").getElementById("player-buzz").textContent}`);
+
+      // Host reveal flow proceeds from the buzz.
+      HD().querySelectorAll("#board .tile")[2].click(); // #3 → the other podium answers
+      await sleep(60);
+      check("F-I2 revealing a lower answer passes the podium to the other team",
+        hostState().phase === "faceoff" && hostState().faceoff.buzzed === 0,
+        `phase=${hostState().phase} buzzed=${hostState().faceoff.buzzed}`);
+      HD().querySelectorAll("#board .tile")[0].click(); // #1 → team A wins control
+      await sleep(60);
+      check("F-I2 the better rank takes control and the host is asked play-or-pass",
+        hostState().phase === "playpass" && hostState().control === 0,
+        `phase=${hostState().phase} control=${hostState().control}`);
+    }
+
+    /* ============ F-I4 — reload mid-round ============ */
+
+    async function testReload() {
+      clickHost("Play the board");
+      HD().querySelectorAll("#board .tile")[1].click();
+      clickHost("Strike ✕");
+      clickHost("Strike ✕");
+      await sleep(80);
+      const before = hostState();
+      const snapshot = {
+        phase: before.phase, round: before.roundIndex, revealed: before.revealed.join(","),
+        strikes: before.strikes, control: before.control, bank: before.bank,
+        history: before.history.length, roster: before.roster.length,
+      };
+      hostReady = false;
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().FeudApp && hostState(), "host reboot");
+      const after = hostState();
+      const same = after.phase === snapshot.phase && after.roundIndex === snapshot.round &&
+        after.revealed.join(",") === snapshot.revealed && after.strikes === snapshot.strikes &&
+        after.control === snapshot.control && after.bank === snapshot.bank &&
+        after.history.length === snapshot.history && after.roster.length === snapshot.roster;
+      check("F-I4 a reload mid-round restores board, strikes, control, bank and history", same,
+        `before ${JSON.stringify(snapshot)} after ${JSON.stringify({
+          phase: after.phase, round: after.roundIndex, revealed: after.revealed.join(","),
+          strikes: after.strikes, control: after.control, bank: after.bank,
+          history: after.history.length, roster: after.roster.length })}`);
+      check("F-I4 the restored board repaints the revealed tiles",
+        HD().querySelectorAll("#board .tile.revealed").length ===
+          after.revealed.filter(Boolean).length,
+        `${HD().querySelectorAll("#board .tile.revealed").length} revealed tiles`);
+    }
+
+    /* ============ F-I3 — Fast Money from the phones ============ */
+
+    async function testFastMoney() {
+      // Re-establish the bridge after the reload, then run the round out.
+      await waitFor(() => hostReady, "host bridge re-init");
+      dispatchHost({ type: "strike" }); // third strike → steal
+      dispatchHost({ type: "steal", index: null }); // no steal → round over
+      dispatchHost({ type: "setScore", team: "A", score: 400 }); // team A leads → they play
+      await waitFor(() => hostState().phase === "roundover", "round over");
+      clickHost("Fast Money");
+      await waitFor(() => hostState().phase === "fastmoney", "fast money");
+      const fm = hostState().fastMoney;
+      check("F-I3 Fast Money seats the leading team's first two players",
+        fm.team === 0 && fm.players[0] === "p1" && fm.players[1] === "p3",
+        `team=${fm.team} players=${fm.players.join(",")}`);
+
+      await waitFor(() => phoneView("p1").screen === "fm-answer", "player 1 gets the sheet");
+      check("F-I3 player 1's phone shows the Fast Money answer screen",
+        phoneView("p1").screen === "fm-answer" &&
+        phoneView("p1").fm.questions.length === 5,
+        `${phoneView("p1").screen} / ${phoneView("p1").fm.questions.length} questions`);
+      check("F-I3 player 2's phone shows the cover-your-ears screen while player 1 answers",
+        phoneView("p3").screen === "fm-wait" &&
+        phoneDoc("p3").getElementById("player-message-title").textContent === "Cover your ears!",
+        phoneDoc("p3").getElementById("player-message-title").textContent);
+      check("F-I3 nobody else is dragged into Fast Money",
+        phoneView("p2").screen === "wait" && phoneView("p4").screen === "wait");
+
+      await typeOnPhone("p1", ["Strawberry", "Butter", "Restaurant", "Lion", "Read a book"]);
+      await waitFor(() => hostState().fastMoney.rows[1][4].text === "Read a book", "answers land");
+      check("F-I3 typed phone answers land in the host's rows",
+        hostState().fastMoney.rows[1].map((r) => r.text).join("|") ===
+          "Strawberry|Butter|Restaurant|Lion|Read a book",
+        hostState().fastMoney.rows[1].map((r) => r.text).join("|"));
+      const shown = Array.from(HD().querySelectorAll("#fm-table input")).map((i) => i.value).join("|");
+      check("F-I3 the host sheet shows what the phone typed",
+        shown === "Strawberry|Butter|Restaurant|Lion|Read a book", shown);
+
+      clickHost("Lock in — reveal the answers");
+      revealAll([1, 0, 0, 0, 0]);
+      await sleep(60);
+      check("F-I3 player 1's revealed total is scored",
+        HW().FeudCore.fmTotal(hostState()) === 177,
+        `total ${HW().FeudCore.fmTotal(hostState())}`);
+
+      clickHost("Bring in player 2");
+      clickHost("Player 2 is ready");
+      await waitFor(() => phoneView("p3").screen === "fm-answer", "player 2 gets the sheet");
+      check("F-I3 player 2's sheet never carries player 1's answers",
+        JSON.stringify(phoneView("p3")).indexOf("Strawberry") === -1);
+      check("F-I3 the host screen hides player 1's column while player 2 answers",
+        HD().getElementById("fm-table").textContent.indexOf("Strawberry") === -1);
+
+      await typeOnPhone("p3", ["Apple", "Butter", "The movies", "Elephant", "Warm milk"]);
+      await waitFor(() => hostState().fastMoney.rows[2][0].text === "Apple", "player 2 answers land");
+      clickHost("Lock in — reveal the answers");
+      revealAll([0, 0, 1, 1, "none"]);
+      await sleep(60);
+      const dup = hostState().fastMoney.rows[2][1];
+      check("F-I3 a duplicate board answer is flagged and scores nothing",
+        dup.duplicate === true && dup.points === 0 &&
+        !!HD().querySelector(".fm-row.duplicate") &&
+        HD().querySelector(".fm-dup-flag").textContent.indexOf("duplicate") !== -1,
+        `duplicate=${dup.duplicate} points=${dup.points}`);
+      clickHost("Show the result");
+      await sleep(60);
+      check("F-I3 clearing the target declares a winner",
+        hostState().fastMoney.winner === true &&
+        HD().getElementById("fm-result").textContent.indexOf("Winner") === 0,
+        HD().getElementById("fm-result").textContent);
+      check("F-I3 the shell is told the scores and the section title",
+        Array.isArray(shellLog.scores) && shellLog.title === "Fast Money",
+        `title=${shellLog.title} scores=${JSON.stringify(shellLog.scores)}`);
+    }
+
+    /** Type five answers on a phone by driving its real input + Submit button. */
+    async function typeOnPhone(pid, texts) {
+      const doc = phoneDoc(pid);
+      const win = phoneWin(pid);
+      for (const text of texts) {
+        const input = doc.getElementById("player-fm-input");
+        input.value = text;
+        input.dispatchEvent(new win.Event("input", { bubbles: true }));
+        doc.getElementById("player-fm-next").click();
+        await sleep(40);
+      }
+    }
+
+    /** Answer the host's reveal dropdowns, top row first. */
+    function revealAll(picks) {
+      for (const pick of picks) {
+        const select = HD().querySelector("#fm-table .fm-row select");
+        if (!select) return;
+        const win = HW();
+        select.value = String(pick);
+        select.dispatchEvent(new win.Event("change", { bubbles: true }));
+      }
+    }
+
+    /* ============ F-I5 — the editor round-trips ============ */
+
+    async function testEditor() {
+      localStorage.removeItem("gsc-family-feud-draft-v1");
+      await bootHost();
+      clickHost("Question Editor");
+      await waitFor(() => !HD().getElementById("screen-editor").classList.contains("hidden"), "editor open");
+
+      // Capture what Download JSON would write.
+      let downloaded = null;
+      const win = HW();
+      const realCreate = win.URL.createObjectURL;
+      win.URL.createObjectURL = (blob) => { downloaded = blob; return "blob:harness"; };
+      win.URL.revokeObjectURL = () => {};
+      const realClick = win.HTMLAnchorElement.prototype.click;
+      win.HTMLAnchorElement.prototype.click = function noop() {};
+      clickHost("Download JSON");
+      win.URL.createObjectURL = realCreate;
+      win.HTMLAnchorElement.prototype.click = realClick;
+
+      check("F-I5 Download JSON produced a file", !!downloaded, downloaded ? downloaded.type : "nothing");
+      const text = downloaded ? await downloaded.text() : "{}";
+      let parsed = null;
+      let valid = false;
+      try {
+        parsed = JSON.parse(text);
+        win.FeudCore.validateGame(parsed);
+        valid = true;
+      } catch (err) {
+        valid = err.message;
+      }
+      check("F-I5 the downloaded file passes validateGame", valid === true, String(valid));
+      check("F-I5 the downloaded file equals the editor draft",
+        JSON.stringify(parsed) === JSON.stringify(win.FeudEditor.cleanDraft()));
+      check("F-I5 the editor error line is clear after a valid download",
+        HD().getElementById("editor-error").textContent === "",
+        HD().getElementById("editor-error").textContent);
+
+      // A sum over 100 is a WARNING, not a load failure.
+      const count = HD().querySelectorAll("#editor-rounds .editor-q")[0]
+        .querySelectorAll(".editor-answer-row input[type=number]")[0];
+      count.value = "95";
+      count.dispatchEvent(new win.Event("input", { bubbles: true }));
+      await sleep(60);
+      const badge = HD().querySelectorAll("#editor-rounds .editor-sum")[0];
+      check("F-I5 a sum over 100 turns the badge amber and warns in words",
+        badge.className.indexOf("over") !== -1 &&
+        HD().getElementById("editor-warnings").textContent.indexOf("can't total more than 100") !== -1,
+        `${badge.textContent} — ${HD().getElementById("editor-warnings").textContent}`);
+      check("F-I5 the over-100 draft still validates (warning, not failure)",
+        (() => { try { win.FeudCore.validateGame(win.FeudEditor.cleanDraft()); return true; }
+          catch (e) { return e.message; } })() === true);
+
+      // Use in game.
+      HD().getElementById("editor-title").value = "Harness Edition";
+      HD().getElementById("editor-title").dispatchEvent(new win.Event("input", { bubbles: true }));
+      clickHost("Use in game");
+      await waitFor(() => hostState().game.title === "Harness Edition", "use in game");
+      check("F-I5 Use in game starts the session with the edited content",
+        hostState().game.title === "Harness Edition" && hostState().phase === "setup" &&
+        HD().getElementById("source-note").textContent.indexOf("question editor") !== -1,
+        HD().getElementById("source-note").textContent);
+      check("F-I5 the edited counts are what the board will use",
+        hostState().game.rounds[0].answers[0].count === 95,
+        `top answer count ${hostState().game.rounds[0].answers[0].count}`);
+      localStorage.removeItem("gsc-family-feud-draft-v1");
+    }
+
+    /* ============ F-I6 — static gates ============ */
+
+    const SOURCE_FILES = [
+      "../index.html",
+      "../js/feud-content.js", "../js/feud-core.js", "../js/feud-app.js", "../js/feud-fm.js",
+      "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
+      "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
+      "../css/feud.css", "../css/feud-phone.css", "../css/timer.css",
+      "../tests/feud-core.test.mjs", "../tests/harness.html",
+    ];
+
+    async function testStaticGates() {
+      const files = await Promise.all(SOURCE_FILES.map(async (url) => {
+        const res = await fetch(url, { cache: "reload" });
+        return { url, ok: res.ok, text: res.ok ? await res.text() : "" };
+      }));
+      const missing = files.filter((f) => !f.ok).map((f) => f.url);
+      check("F-I6 every component file is served", missing.length === 0, missing.join(", "));
+
+      // Built from fragments so this harness does not flag ITSELF (F-I6).
+      const BS = "\\";
+      const unsafe = new RegExp([
+        "inner" + "HTML", "insertAdjacent" + "HTML", "outer" + "HTML" + BS + "s*=",
+        "document" + BS + ".write", "eval" + BS + "(", "new " + "Function",
+      ].join("|"));
+      const bad = files.filter((f) => unsafe.test(f.text)).map((f) => f.url);
+      check("F-I6 no markup-injection or dynamic-code sinks anywhere in the component",
+        bad.length === 0, bad.join(", "));
+
+      const logs = files.filter((f) => /console\.log\s*\(/.test(f.text)).map((f) => f.url);
+      check("F-I6 no stray debug logging anywhere in the component", logs.length === 0, logs.join(", "));
+
+      const long = files.map((f) => ({ url: f.url, lines: f.text.split("\n").length }))
+        .filter((f) => f.lines >= 800);
+      check("F-I6 every file is under 800 lines", long.length === 0,
+        long.map((f) => `${f.url}:${f.lines}`).join(", ") ||
+        files.map((f) => `${f.url.replace("../", "")}=${f.text.split("\n").length}`).join(" "));
+
+      // Every external URL is the pinned PeerJS CDN or Google Fonts (V6).
+      const urls = [];
+      files.forEach((f) => {
+        (f.text.match(/https?:\/\/[^\s"'`)<>]+/g) || []).forEach((u) => urls.push({ u, from: f.url }));
+      });
+      const allowed = /^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com|cdnjs\.cloudflare\.com\/ajax\/libs\/peerjs\/1\.5\.5\/|www\.w3\.org)/;
+      const rogue = urls.filter((x) => !allowed.test(x.u));
+      check("F-I6 the only external URLs are Google Fonts (no CDN scripts of our own)",
+        rogue.length === 0, rogue.map((x) => `${x.u} (${x.from})`).join(", "));
+
+      // Phone-facing strings are all textContent: the phone screens are static
+      // markup plus textContent writes, so an empty grep above is the gate.
+      const phoneJs = files.find((f) => f.url.indexOf("feud-phone.js") !== -1).text;
+      check("F-I6 the phone controller only writes text through textContent",
+        !unsafe.test(phoneJs) && /textContent/.test(phoneJs));
+
+      const page = files.find((f) => f.url.indexOf("index.html") !== -1).text;
+      check("F-I6 the page declares its game id and provides the #gsc-join container",
+        /<body data-gsc-game="family-feud">/.test(page) && /id="gsc-join"/.test(page));
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await testTeamPicks();
+        await testFaceoff();
+        await testReload();
+        await testFastMoney();
+        await testEditor();
+        await testStaticGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+      }
+      report();
+    })();
+  })();
+  </script>
+</body>
+</html>

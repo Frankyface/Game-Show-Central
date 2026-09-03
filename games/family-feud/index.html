@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Feud</title>
+  <meta name="description" content="A customizable Family Feud game board — survey rounds, strikes, steals and Fast Money. Load your own questions from JSON; phones optional.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Shared tokens first so the game palette below can override them. The
+       page is fully styled on its own if shared/theme.css is not there yet. -->
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/feud.css">
+  <link rel="stylesheet" href="css/feud-phone.css">
+  <link rel="stylesheet" href="css/timer.css">
+</head>
+<body data-gsc-game="family-feud">
+
+  <header class="topbar">
+    <h1 id="game-title" class="topbar-title">Family Feud</h1>
+    <div class="topbar-actions">
+      <span id="room-chip" class="room-chip hidden"></span>
+      <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">&#8630; Undo</button>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; Sound</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question Editor</button>
+      <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
+    </div>
+  </header>
+
+  <p id="save-warning" class="error-msg hidden" role="alert"></p>
+
+  <main>
+    <!-- ===== Setup ===== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="setup-card">
+        <p class="setup-kicker">Survey says&hellip;</p>
+        <h2 id="setup-title" class="setup-title">Family Feud</h2>
+        <p id="source-note" class="source-note"></p>
+
+        <div class="setup-section">
+          <h3 class="setup-heading">Teams</h3>
+          <div class="team-name-row">
+            <label class="setup-field" for="team-a-name">Team A
+              <input id="team-a-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="setup-field" for="team-b-name">Team B
+              <input id="team-b-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+            </label>
+          </div>
+          <ul id="roster-list" class="roster-list"></ul>
+          <form id="add-player-form" class="add-player-form">
+            <label class="visually-hidden" for="player-name-input">Player name</label>
+            <input id="player-name-input" type="text" maxlength="24" placeholder="Add a player by name"
+                   autocomplete="off" spellcheck="false">
+            <button class="btn btn-ghost" type="submit">+ Add player</button>
+          </form>
+          <p class="setup-hint">Players are optional &mdash; a host alone can run the whole
+            game. Phone players appear here automatically; the host&rsquo;s A / B / &ndash;
+            choice always wins.</p>
+        </div>
+
+        <div class="setup-section">
+          <h3 class="setup-heading">Game</h3>
+          <div class="setup-grid">
+            <label class="setup-field" for="rounds-to-play">Rounds to play
+              <input id="rounds-to-play" type="number" min="1" step="1" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="setup-check">
+              <input id="fast-money-on" type="checkbox"> Play Fast Money
+            </label>
+          </div>
+          <p id="fast-money-note" class="setup-hint"></p>
+        </div>
+
+        <div class="setup-section">
+          <h3 class="setup-heading">Questions</h3>
+          <div class="setup-load">
+            <button id="btn-load-json" class="btn btn-ghost" type="button">Load custom questions (.json)</button>
+            <button id="btn-editor-setup" class="btn btn-ghost" type="button">Open question editor</button>
+            <input type="file" id="json-file-input" accept=".json,application/json" hidden>
+          </div>
+        </div>
+
+        <div class="setup-section standalone-only" id="room-section">
+          <h3 class="setup-heading">Phones (optional)</h3>
+          <div class="setup-load">
+            <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            <button id="btn-close-room" class="btn btn-ghost hidden" type="button">Close room</button>
+          </div>
+          <p id="room-status" class="setup-hint"></p>
+          <p id="room-join" class="setup-hint"></p>
+        </div>
+
+        <p id="setup-error" class="error-msg" role="alert"></p>
+        <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the Feud</button>
+      </div>
+    </section>
+
+    <!-- ===== Board ===== -->
+    <section id="screen-board" class="screen hidden">
+      <p id="phase-banner" class="phase-banner" aria-live="polite"></p>
+      <h2 id="round-question" class="round-question"></h2>
+      <div class="stage-row">
+        <div id="team-panel-a" class="team-panel"></div>
+        <div class="stage-centre">
+          <div id="board" class="board" role="list" aria-label="Answer board"></div>
+          <div class="bank-row">
+            <div class="bank">
+              <span class="bank-label">Bank</span>
+              <span id="bank-value" class="bank-value" aria-live="polite">0</span>
+              <span id="bank-mult" class="bank-mult hidden"></span>
+            </div>
+            <div id="strike-row" class="strike-row" aria-label="Strikes"></div>
+          </div>
+        </div>
+        <div id="team-panel-b" class="team-panel"></div>
+      </div>
+      <p id="board-hint" class="board-hint"></p>
+      <div id="controls" class="controls"></div>
+    </section>
+
+    <!-- ===== Fast Money ===== -->
+    <section id="screen-fm" class="screen hidden">
+      <p id="fm-banner" class="phase-banner" aria-live="polite"></p>
+      <div id="fm-cover" class="fm-cover hidden">
+        <p class="fm-cover-title">Player 2 &mdash; cover your ears!</p>
+        <p class="fm-cover-sub">Mute the call or step away. The host will bring you back in.</p>
+      </div>
+      <div id="fm-table" class="fm-table"></div>
+      <div id="fm-timer" class="timer-bar hidden" aria-hidden="true"></div>
+      <div class="fm-total-row">
+        <span class="fm-total-label">Total</span>
+        <span id="fm-total" class="fm-total" aria-live="polite">0</span>
+        <span id="fm-target" class="fm-target"></span>
+      </div>
+      <p id="fm-result" class="fm-result"></p>
+      <div id="fm-controls" class="controls"></div>
+    </section>
+
+    <!-- ===== Final standings ===== -->
+    <section id="screen-final" class="screen hidden">
+      <h2 class="final-heading">Final standings</h2>
+      <div id="final-standings" class="final-standings"></div>
+      <p id="final-note" class="final-note"></p>
+      <div class="controls">
+        <button id="btn-play-again" class="btn btn-gold btn-big" type="button">Play again</button>
+        <button id="btn-back-setup" class="btn btn-ghost btn-big" type="button">Back to setup</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Big red X shown over the board on a strike; cue only. -->
+  <div id="strike-overlay" class="strike-overlay hidden" aria-hidden="true">
+    <span id="strike-overlay-marks" class="strike-overlay-marks"></span>
+  </div>
+
+  <!-- ===== Question editor ===== -->
+  <section id="screen-editor" class="editor hidden" aria-label="Question editor">
+    <div class="editor-inner">
+      <div class="editor-head">
+        <h2 class="editor-title">Question Editor</h2>
+        <div class="editor-head-actions">
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-use" class="btn btn-gold" type="button">Use in game</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p class="editor-hint">
+        Build your own survey board, then <strong>Download JSON</strong> to get a
+        <code>questions.json</code> you can commit, or <strong>Use in game</strong> to
+        play it right away. Your draft auto-saves in this browser.
+      </p>
+
+      <label class="editor-field editor-game-title">Game title
+        <input id="editor-title" type="text" maxlength="80" autocomplete="off">
+      </label>
+
+      <fieldset class="editor-settings">
+        <legend>Settings</legend>
+        <div class="setup-grid">
+          <label class="setup-field" for="editor-strikes">Strikes per round
+            <input id="editor-strikes" type="number" min="1" max="5" step="1" inputmode="numeric">
+          </label>
+          <label class="setup-field" for="editor-multipliers">Multipliers (comma separated)
+            <input id="editor-multipliers" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="setup-field" for="editor-fm-target">Fast Money target
+            <input id="editor-fm-target" type="number" min="0" step="1" inputmode="numeric">
+          </label>
+          <label class="setup-field" for="editor-fm-timer1">Player 1 timer (s)
+            <input id="editor-fm-timer1" type="number" min="0" max="120" step="1" inputmode="numeric">
+          </label>
+          <label class="setup-field" for="editor-fm-timer2">Player 2 timer (s)
+            <input id="editor-fm-timer2" type="number" min="0" max="120" step="1" inputmode="numeric">
+          </label>
+          <label class="setup-check">
+            <input id="editor-fm-enabled" type="checkbox"> Include Fast Money
+          </label>
+        </div>
+      </fieldset>
+
+      <h3 class="editor-section-title">Rounds</h3>
+      <div id="editor-rounds"></div>
+      <button id="btn-add-round" class="btn btn-ghost btn-small" type="button">+ Add round</button>
+
+      <h3 class="editor-section-title">Fast Money questions</h3>
+      <div id="editor-fastmoney"></div>
+      <button id="btn-add-fm" class="btn btn-ghost btn-small" type="button">+ Add Fast Money question</button>
+
+      <div class="editor-row-actions">
+        <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to loaded game</button>
+        <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+      </div>
+
+      <p id="editor-warnings" class="warn-msg" role="status"></p>
+      <p id="editor-error" class="error-msg" role="alert"></p>
+      <p id="editor-save-warning" class="error-msg" role="alert"></p>
+    </div>
+  </section>
+
+  <!-- ===== Phone (player) mode ===== -->
+  <section id="screen-player" class="screen-player hidden" aria-label="Family Feud controller">
+    <!-- The SDK renders its own minimal join card in here when standalone. -->
+    <div id="gsc-join"></div>
+
+    <header id="player-head" class="player-head hidden">
+      <span id="player-head-team" class="player-head-team"></span>
+      <span id="player-head-name" class="player-head-name"></span>
+    </header>
+
+    <div id="player-team-pick" class="player-panel hidden">
+      <p class="player-panel-title">Pick your team</p>
+      <button id="player-team-a" class="player-team-btn team-a" type="button"></button>
+      <button id="player-team-b" class="player-team-btn team-b" type="button"></button>
+      <p class="player-panel-note">The host can move you either way.</p>
+    </div>
+
+    <div id="player-faceoff" class="player-panel hidden">
+      <p id="player-faceoff-q" class="player-panel-question"></p>
+      <button id="player-buzz" class="player-buzz-btn mode-idle" type="button" disabled></button>
+      <p id="player-buzz-note" class="player-panel-note"></p>
+    </div>
+
+    <div id="player-fm" class="player-panel hidden">
+      <p id="player-fm-step" class="player-panel-step"></p>
+      <p id="player-fm-q" class="player-panel-question"></p>
+      <label class="visually-hidden" for="player-fm-input">Your answer</label>
+      <input id="player-fm-input" type="text" maxlength="60" autocomplete="off" spellcheck="false"
+             placeholder="Type your answer">
+      <div class="player-fm-actions">
+        <button id="player-fm-prev" class="btn btn-ghost btn-big" type="button">&#8592; Back</button>
+        <button id="player-fm-next" class="btn btn-gold btn-big" type="button">Submit &#8594;</button>
+      </div>
+      <div id="player-fm-timer" class="timer-bar timer-bar-phone hidden" aria-hidden="true"></div>
+      <p id="player-fm-note" class="player-panel-note"></p>
+    </div>
+
+    <div id="player-message" class="player-panel hidden">
+      <p id="player-message-title" class="player-panel-title"></p>
+      <p id="player-message-sub" class="player-panel-note"></p>
+      <div id="player-scores" class="player-scores"></div>
+    </div>
+
+    <p id="player-error" class="error-msg" role="alert"></p>
+    <footer class="player-foot standalone-only">
+      <button id="player-leave" class="btn btn-ghost btn-small" type="button">Leave room</button>
+    </footer>
+  </section>
+
+  <script src="js/data.js"></script>
+  <script src="js/timer-core.js"></script>
+  <script src="js/feud-timer.js"></script>
+  <script src="js/feud-sound.js"></script>
+  <script src="js/feud-content.js"></script>
+  <script src="js/feud-core.js"></script>
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/feud-app.js"></script>
+  <script src="js/feud-fm.js"></script>
+  <script src="js/feud-editor.js"></script>
+  <script src="js/feud-room.js"></script>
+  <script src="js/feud-phone.js"></script>
+  <script src="js/feud-boot.js"></script>
+</body>
+</html>
