@@ -15,7 +15,7 @@ const STORAGE_KEY = "gsc-family-feud-state-v1";
 const MAX_PLAYERS = 16;
 /* App-only slices that must survive a reducer `undo`: the roster and the
    content provenance are host bookkeeping, not game rules. */
-const APP_FIELDS = ["roster", "source", "sourceKind", "sourceUrl"];
+const APP_FIELDS = ["roster", "source", "sourceKind", "sourceUrl", "roomCode"];
 
 /** @type {object|null} the one state object (FeudCore state + APP_FIELDS) */
 let state = null;
@@ -104,6 +104,9 @@ function loadSavedState() {
     const restored = { ...fresh, ...saved, game: fresh.game };
     if (!Array.isArray(restored.roster)) restored.roster = [];
     if (!Array.isArray(restored.history)) restored.history = [];
+    // Saves written before rooms were stamped count as "unknown room", so the
+    // first room to open scrubs their phone seats (see bindRoom).
+    if (typeof restored.roomCode !== "string") restored.roomCode = null;
     return restored;
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
@@ -155,6 +158,7 @@ function stateForGame(game, meta, keep) {
   return {
     ...base,
     roster: keep && keep.roster ? keep.roster : [],
+    roomCode: keep && typeof keep.roomCode === "string" ? keep.roomCode : null,
     source: meta.source,
     sourceKind: meta.sourceKind,
     sourceUrl: meta.sourceUrl,
@@ -163,7 +167,11 @@ function stateForGame(game, meta, keep) {
 
 function keepFromState() {
   if (!state) return null;
-  return { teamNames: state.teams.map((t) => t.name), roster: state.roster };
+  return {
+    teamNames: state.teams.map((t) => t.name),
+    roster: state.roster,
+    roomCode: state.roomCode,
+  };
 }
 
 function handleCustomFile(file) {
@@ -329,6 +337,37 @@ function syncRoster(players) {
   setState({ roster: phones.concat(manual.filter((p) => !seen.has(p.pid))) });
 }
 
+/* ============ Room identity ============ */
+
+/** Strip every phone pid out of one state slice (or one history snapshot). */
+function withoutPhoneSeats(slice, manual) {
+  const seat = (pid) => (pid && manual.has(pid) ? pid : null);
+  return {
+    teams: slice.teams.map((t) => ({ ...t, players: t.players.filter((pid) => manual.has(pid)) })),
+    faceoff: { ...slice.faceoff, podium: slice.faceoff.podium.map(seat) },
+    fastMoney: { ...slice.fastMoney, players: slice.fastMoney.players.map(seat) },
+  };
+}
+
+/**
+ * Bind the saved game to the room it is being played in. Shell pids (p1, p2, …)
+ * restart at p1 in every new room, so a resumed game's pid-keyed team seats,
+ * podium and Fast Money seats would otherwise be inherited by whoever is issued
+ * that pid next — and a Fast Money seat carries the previous player's typed
+ * answers. Whenever the room code differs from the one this game was saved
+ * with, every phone pid is dropped from the line-ups, in the history stack too
+ * so an undo cannot resurrect them. Players the host typed in by hand keep
+ * their own ids and stay. Same code (a plain refresh) changes nothing.
+ */
+function bindRoom(code) {
+  if (!state || typeof code !== "string" || !code) return;
+  if (state.roomCode === code) return;
+  const manual = new Set(state.roster.filter((p) => p.manual).map((p) => p.pid));
+  const scrubbed = withoutPhoneSeats(state, manual);
+  const history = state.history.map((entry) => ({ ...entry, ...withoutPhoneSeats(entry, manual) }));
+  setState({ ...scrubbed, history, roomCode: code });
+}
+
 function setSetupError(msg) {
   $("setup-error").textContent = msg || "";
 }
@@ -479,13 +518,13 @@ function editScore(team) {
   const current = state.teams[team].score;
   const raw = window.prompt(`Set the score for ${state.teams[team].name}`, String(current));
   if (raw === null) return;
-  const value = Number.parseInt(raw, 10);
-  if (!Number.isInteger(value)) {
-    setSaveWarning("");
+  // Whole numbers only. parseInt would read "12abc" as 12 and quietly set it.
+  const trimmed = raw.trim();
+  if (!/^-?\d+$/.test(trimmed)) {
     $("board-hint").textContent = "That score wasn’t a whole number — nothing changed.";
     return;
   }
-  dispatch({ type: "setScore", team, score: value });
+  dispatch({ type: "setScore", team, score: Number.parseInt(trimmed, 10) });
 }
 
 /* ============ Host controls ============ */
@@ -723,6 +762,7 @@ window.FeudApp = {
   setState,
   render,
   syncRoster,
+  bindRoom,
   getState: () => state,
   stateForGame,
   clearSavedState,

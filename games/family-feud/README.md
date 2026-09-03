@@ -153,6 +153,14 @@ player's typed answers.
 Players with no phone are typed into the roster by hand; they show up in the
 team line-ups and nothing else changes.
 
+**Rooms and identity.** Phone ids (`p1`, `p2`, …) are handed out per room and
+start again at `p1` in the next one, so the saved game records the room code it
+belongs to. Resume it in the same room (a refresh, a trip back to the lobby) and
+everyone keeps their seat. Open a **different** room and every phone seat —
+team line-ups, the podium and the Fast Money seats — is vacated first, so a new
+arrival can never inherit the previous player's seat or be shown their typed
+Fast Money answers. Hand-typed players keep their seats either way.
+
 ---
 
 ## Layout
@@ -204,8 +212,9 @@ directly — no PeerJS, no hub. `#summary.ok` means everything passed.
 
 ## Known issues
 
-- Real-network play with the PeerJS broker (two devices, a real room code) has
-  not been exercised in this environment; the standalone **Open room** path is
-  wired to the shared SDK but only verified through the loopback harness.
-- Fast Money reveals must be taken from the top row down (the dropdown always
-  belongs to the topmost unrevealed row).
+- Real-network play across two separate physical devices has not been
+  exercised; the room has been opened and joined for real over the PeerJS
+  broker, but from two browsing contexts on one machine.
+- Opening a **new** room while a saved game is being resumed clears the phone
+  players out of the team line-ups and the Fast Money seats (see below).
+  Everyone re-picks their team; players the host typed in by hand are kept.

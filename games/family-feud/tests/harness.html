@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Family Feud loopback harness (F-I1–F-I6)</title>
+  <title>Family Feud loopback harness (F-I1–F-I7)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #04091c; color: #f4f5ff; margin: 0; padding: 1.6rem; }
     h1 { font-size: 1.15rem; }
@@ -26,7 +26,7 @@
   </style>
 </head>
 <body>
-  <h1>Family Feud loopback harness — success states F-I1–F-I6 (spec 03 §8)</h1>
+  <h1>Family Feud loopback harness — success states F-I1–F-I6 (spec 03 §8) plus F-I7 (room binding)</h1>
   <p id="summary">Running…</p>
   <ul id="results"></ul>
 
@@ -532,6 +532,86 @@
       localStorage.removeItem("gsc-family-feud-draft-v1");
     }
 
+    /* ============ F-I7 — a new room never inherits the old room's seats ============ */
+
+    const STATE_KEY = "gsc-family-feud-state-v1";
+
+    async function testRoomBinding() {
+      // Clear the harness roster BEFORE booting, so the host's `init` carries an
+      // empty lobby and the two phones below are the only ones it ever sees.
+      resetPhones();
+      await bootHost();
+      await addPhone("p1", "Ana");
+      await addPhone("p2", "Ben");
+      await waitFor(() => hostState().roster.length === 2, "two phones");
+
+      // A phone-less player the host typed in: they must survive the scrub.
+      HD().getElementById("player-name-input").value = "Mo";
+      clickHost("+ Add player");
+      await waitFor(() => hostState().roster.length === 3, "manual player added");
+      const moPid = hostState().roster.find((p) => p.manual).pid;
+
+      // Both phones on team A (so they take both Fast Money seats), Mo on team B.
+      phoneDoc("p1").getElementById("player-team-a").click();
+      phoneDoc("p2").getElementById("player-team-a").click();
+      await waitFor(() => hostState().teams[0].players.length === 2, "phones seated");
+      HD().querySelector('button[aria-label="Put Mo on team B"]').click();
+      await waitFor(() => hostState().teams[1].players.length === 1, "manual player seated");
+
+      // Play a round out and start Fast Money with a typed answer on the sheet.
+      clickHost("Start the Feud");
+      dispatchHost({ type: "giveControl", team: "A" });
+      dispatchHost({ type: "play" });
+      hostState().revealed.forEach((_, i) => dispatchHost({ type: "reveal", index: i }));
+      await waitFor(() => hostState().phase === "roundover", "round over");
+      clickHost("Fast Money");
+      await waitFor(() => hostState().phase === "fastmoney", "fast money");
+      dispatchHost({ type: "fmAnswer", slot: 1, q: 0, text: "OLD-ROOM-SECRET" });
+      await waitFor(() => hostState().fastMoney.rows[1][0].text === "OLD-ROOM-SECRET", "typed");
+      check("F-I7 Fast Money seats the phone players while the room is unchanged",
+        hostState().fastMoney.players.join(",") === "p1,p2",
+        hostState().fastMoney.players.join(","));
+
+      const saved = JSON.parse(localStorage.getItem(STATE_KEY));
+      check("F-I7 the room code is persisted with the saved game",
+        saved.roomCode === ROOM_CODE, String(saved.roomCode));
+
+      // Pretend the save came from a different room, then reboot into this one.
+      saved.roomCode = "OLD";
+      localStorage.setItem(STATE_KEY, JSON.stringify(saved));
+      hostReady = false;
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().FeudApp && hostState(), "host reboot");
+      await waitFor(() => hostState().roomCode === ROOM_CODE, "rebound to the new room");
+      const after = hostState();
+
+      check("F-I7 a new room drops the previous room's phone seats",
+        after.teams[0].players.indexOf("p1") === -1 && after.teams[0].players.indexOf("p2") === -1,
+        `A=[${after.teams[0].players}] B=[${after.teams[1].players}]`);
+      check("F-I7 a phone-less player the host typed in keeps their seat",
+        after.teams[1].players.indexOf(moPid) !== -1, `B=[${after.teams[1].players}]`);
+      check("F-I7 the Fast Money seats are vacated",
+        after.fastMoney.players.every((pid) => pid === null),
+        JSON.stringify(after.fastMoney.players));
+      const freshP1 = HW().FeudCore.phoneView(after, "p1");
+      check("F-I7 a fresh p1 in the new room is never shown the old sheet",
+        freshP1.screen !== "fm-answer" &&
+        JSON.stringify(freshP1).indexOf("OLD-ROOM-SECRET") === -1, freshP1.screen);
+      check("F-I7 undo cannot resurrect the old room's seats",
+        after.history.every((h) => h.teams.every((t) => t.players.indexOf("p1") === -1)) &&
+        after.history.every((h) => h.fastMoney.players.every((pid) => pid === null || pid === moPid)),
+        `${after.history.length} history entries scrubbed`);
+      check("F-I7 the game itself is untouched — the host keeps their typed sheet",
+        after.phase === "fastmoney" && after.fastMoney.rows[1][0].text === "OLD-ROOM-SECRET",
+        after.phase);
+
+      // Re-binding to the SAME room is a no-op: a plain refresh keeps its seats.
+      const seatsNow = JSON.stringify(after.teams.map((t) => t.players));
+      HW().FeudApp.bindRoom(ROOM_CODE);
+      check("F-I7 re-binding to the same room changes nothing",
+        JSON.stringify(hostState().teams.map((t) => t.players)) === seatsNow, seatsNow);
+    }
+
     /* ============ F-I6 — static gates ============ */
 
     const SOURCE_FILES = [
@@ -540,7 +620,7 @@
       "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
       "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
       "../css/feud.css", "../css/feud-phone.css", "../css/timer.css",
-      "../tests/feud-core.test.mjs", "../tests/harness.html",
+      "../tests/feud-core.test.mjs", "../tests/feud-adversarial.test.mjs", "../tests/harness.html",
     ];
 
     async function testStaticGates() {
@@ -601,6 +681,7 @@
         await testReload();
         await testFastMoney();
         await testEditor();
+        await testRoomBinding();
         await testStaticGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

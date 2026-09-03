@@ -48,7 +48,16 @@ const FeudRoom = (function () {
       setRoomStatus(`Phones are unavailable: ${err.message}`);
       return;
     }
-    if (typeof room.onStatus === "function") room.onStatus(paintRoom);
+    // Bind the (possibly resumed) game to THIS room before any phone can join,
+    // so a fresh p1 never inherits the previous room's seat. Embedded: the code
+    // arrives with `init`. Standalone: it arrives when the room opens.
+    window.FeudApp.bindRoom(room.code);
+    if (typeof room.onStatus === "function") {
+      room.onStatus(() => {
+        window.FeudApp.bindRoom(room.code);
+        paintRoom();
+      });
+    }
     wireRoomButtons();
     syncPlayers();
     paintRoom();

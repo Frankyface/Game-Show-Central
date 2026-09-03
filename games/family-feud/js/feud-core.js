@@ -421,6 +421,9 @@
       if (s.phase !== "fastmoney") return s;
       const slot = e.slot === 1 || e.slot === 2 ? e.slot : null;
       if (slot === null || !Number.isInteger(e.q) || e.q < 0 || e.q >= FM_QUESTIONS) return s;
+      // Only the player who is up may be revealed: duplicate detection reads
+      // slot 1, so an out-of-order slot-2 reveal would silently skip it.
+      if (slot !== s.fastMoney.slot) return s;
       const question = fmQuestions(s)[e.q];
       if (!question) return s;
       let answerIndex = null;

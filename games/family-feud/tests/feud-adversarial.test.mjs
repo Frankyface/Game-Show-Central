@@ -770,21 +770,20 @@ test("ADV immutability: an illegal event returns the IDENTICAL object (cheap ren
 });
 /* ===== 9. Reducer looseness worth knowing about (documented, not fatal) ===== */
 
-test("ADV known looseness: fmReveal does not check the active slot", () => {
-  // The host UI only ever renders a reveal control for `fastMoney.slot`, so this
-  // is unreachable through the shipped UI — but the reducer would accept an
-  // out-of-band slot-2 reveal before player 1 has finished, and duplicate
-  // detection (which only looks at slot 1) would then miss.
+test("ADV D7 regression: fmReveal ignores a slot that is not the active one", () => {
+  // Was documented looseness: an out-of-band slot-2 reveal while player 1 was
+  // up skipped duplicate detection (which reads slot 1) and double-counted.
   let s = fmState();
-  s = FC.reduce(s, { type: "fmReveal", slot: 2, q: 0, answerIndex: 0 });
-  assert.equal(s.fastMoney.slot, 1, "the stage machine is unchanged");
-  assert.equal(s.fastMoney.rows[2][0].revealed, true);
-  assert.equal(s.fastMoney.rows[2][0].duplicate, false);
-  // Player 1 then picking the same board answer is not flagged either.
+  assert.equal(FC.reduce(s, { type: "fmReveal", slot: 2, q: 0, answerIndex: 0 }), s,
+    "a slot-2 reveal while player 1 is up is a no-op");
   s = run(s, { type: "fmAdvance" }, { type: "fmReveal", slot: 1, q: 0, answerIndex: 0 });
-  assert.equal(s.fastMoney.rows[1][0].duplicate, false);
-  assert.equal(FC.fmTotal(s), 120,
-    "documented: out-of-order reveals can double-count — host UI prevents it");
+  assert.equal(s.fastMoney.rows[1][0].points, 60);
+  s = run(s, { type: "fmAdvance" }, { type: "fmAdvance" }, { type: "fmAdvance" },
+    { type: "fmReveal", slot: 2, q: 0, answerIndex: 0 });
+  assert.equal(s.fastMoney.rows[2][0].duplicate, true, "the legitimate order still flags it");
+  assert.equal(FC.fmTotal(s), 60, "no double-count is reachable any more");
+  // A stale slot-1 reveal once player 2 is up is ignored the same way.
+  assert.equal(FC.reduce(s, { type: "fmReveal", slot: 1, q: 1, answerIndex: 0 }), s);
 });
 
 test("ADV known looseness: setScore is legal in every phase, including mid-steal", () => {

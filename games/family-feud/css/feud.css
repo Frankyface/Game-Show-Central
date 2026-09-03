@@ -448,6 +448,10 @@ button.tile:not(:disabled):hover .tile-back { filter: brightness(1.25); }
 }
 
 .control-label { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
+
+/* Stands in for a control that would have nothing to do — e.g. a Fast Money
+   clock configured as 0 seconds. Never a disabled button. */
+.control-note { font-size: 0.9rem; color: var(--ink-dim); }
 .board-hint { text-align: center; color: var(--ink-dim); font-size: 0.9rem; margin: 1rem auto 0; max-width: 70ch; min-height: 1.2em; }
 
 /* --- Strike overlay: the big red X --- */

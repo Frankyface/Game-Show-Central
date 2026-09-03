@@ -258,11 +258,19 @@ const FeudFM = (function () {
 
   function playControls(state) {
     const fm = state.fastMoney;
-    const clock = group(`Clock (${clockSeconds(state)}s)`);
-    clock.appendChild(button("btn btn-gold", fm.timer.running ? "Restart timer" : "Start timer",
-      () => window.FeudApp.dispatch({ type: "fmTimer", action: "start", now: Date.now() })));
-    clock.appendChild(button("btn btn-ghost btn-small", "Stop",
-      () => window.FeudApp.dispatch({ type: "fmTimer", action: "stop" })));
+    const seconds = clockSeconds(state);
+    const clock = group(seconds > 0 ? `Clock (${seconds}s)` : "Clock");
+    if (seconds > 0) {
+      clock.appendChild(button("btn btn-gold", fm.timer.running ? "Restart timer" : "Start timer",
+        () => window.FeudApp.dispatch({ type: "fmTimer", action: "start", now: Date.now() })));
+      clock.appendChild(button("btn btn-ghost btn-small", "Stop",
+        () => window.FeudApp.dispatch({ type: "fmTimer", action: "stop" })));
+    } else {
+      // A timer of 0 is legal content meaning "no clock" — say so rather than
+      // render a Start button that could never do anything.
+      clock.appendChild(el("span", "control-note",
+        "No clock — this question file sets the timer to 0."));
+    }
     const next = group("When they're done");
     next.appendChild(button("btn btn-gold btn-big", "Lock in — reveal the answers",
       () => window.FeudApp.dispatch({ type: "fmAdvance" })));
