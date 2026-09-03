@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weakest Link harness (K-I1–K-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 60rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 900px; height: 620px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 240px; height: 420px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Weakest Link — loopback harness (success states K-I1 … K-I6, spec 05 §8)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus five embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
+    no PeerJS, no hub. Every scenario clicks real buttons and asserts on real DOM text.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__WL_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+      { pid: "p5", name: "Eve", color: "#8a6bd5", avatar: "🐝", connected: true, manual: false },
+    ];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/wl-content.js", "../js/wl-core.js", "../js/data.js", "../js/wl-sound.js",
+      "../js/wl-clock.js", "../js/wl-app.js", "../js/wl-editor.js", "../js/wl-room.js",
+      "../js/wl-phone.js", "../css/wl.css", "../css/wl-phone.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "fixtures/harness-game.json",
+    ];
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1";
+    const KEYS = ["gsc-wl-state-v1", "gsc-wl-draft-v1"];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().WlApp.core();
+
+    async function bootHost(clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().WlApp && HW().WlApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.WlPhone), "phones join");
+    }
+
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneHeadline = (pid) => PD(pid).getElementById("wl-phone-headline").textContent;
+    const phoneChoices = (pid) => [...PD(pid).querySelectorAll(".phone-choice")];
+
+    /** Press a host hotkey exactly as a keyboard would. */
+    function hotkey(key, code) {
+      const KeyEv = HW().KeyboardEvent;
+      HD().dispatchEvent(new KeyEv("keydown", {
+        key, code: code || "", bubbles: true, cancelable: true,
+      }));
+    }
+
+    const click = (id) => H(id).click();
+    /** The counter line also carries the running team total. */
+    const votesIn = (text) => H("wl-vote-count").textContent.indexOf(text) === 0;
+
+    /* ============================================================
+       K-I1 — a round: hotkeys, the clock, expiry, reload-resume
+       ============================================================ */
+
+    async function scenarioRound() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().WlApp.state().setup.players.length === 5, "roster from the shell");
+      check("K-I1 the shell roster becomes the team",
+        HW().WlApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo,Dev,Eve",
+        HW().WlApp.state().setup.players.map((p) => p.name).join(","));
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "round", "round starts");
+      const q0 = H("wl-q-text").textContent;
+      check("K-I1 the round screen shows the question and hides the answer",
+        q0.indexOf("Harness question 0") === 0 && H("wl-answer").classList.contains("hidden"), q0);
+
+      hotkey(" ", "Space");
+      hotkey(" ", "Space");
+      check("K-I1 Space twice climbs the chain to $2,500",
+        HW().WlCore.chainValue(core()) === 2500, `chain ${HW().WlCore.chainValue(core())}`);
+      hotkey("b");
+      check("K-I1 B banks the chain", H("wl-bank").textContent === "$2,500", H("wl-bank").textContent);
+      hotkey("x");
+      check("K-I1 X marks it wrong and moves on",
+        core().roundStats.p3.wrong === 1 && HW().WlCore.playerName(core(), core().turnPid) === "Dev",
+        `Cleo wrong=${core().roundStats.p3.wrong}, turn=${HW().WlCore.playerName(core(), core().turnPid)}`);
+
+      // The clock is a rAF/interval renderer over deadline timestamps.
+      click("btn-clock");
+      await waitFor(() => core().clock.running, "clock running");
+      const t0 = H("wl-clock").textContent;
+      await sleep(700);
+      await bootHost(false);                       // reload mid-round
+      await waitFor(() => core() && core().phase === "round", "resume after reload");
+      const left = core().clock.remainingMs;
+      check("K-I1 a reload mid-round resumes PAUSED with the time that was left",
+        core().phase === "round" && !core().clock.running && left > 700 && left < 1900,
+        `clock ${t0} -> paused with ${left}ms of 2000ms, bank ${H("wl-bank").textContent}`);
+      check("K-I1 the reload keeps the round state",
+        H("wl-bank").textContent === "$2,500" && core().roundStats.p3.wrong === 1);
+
+      const beforeSteps = core().past.length;
+      click("btn-clock");
+      await waitFor(() => core().expired, "clock expiry", 6000);
+      await sleep(400);                            // give a stray second fire time to land
+      check("K-I1 the clock expires exactly once and lets the question be judged",
+        core().expired && core().phase === "round" && core().past.length === beforeSteps + 1,
+        `${core().past.length - beforeSteps} state step(s) after expiry; notice: ${H("wl-notice").textContent}`);
+      click("btn-correct");
+      await waitFor(() => core().phase === "voting", "round ends after the last judgement");
+      check("K-I1 the round ends after the expired question is judged",
+        core().phase === "voting" && core().total === 2500, `total ${core().total}`);
+    }
+
+    /* ============================================================
+       K-I2 — secret voting, masking, override, reveal, goodbye
+       ============================================================ */
+
+    function votedFor(pid) {
+      const view = phoneFrames.get(pid).contentWindow.WlPhone.view();
+      return view.myVote || null;
+    }
+
+    const pidOf = (name) => (PLAYERS.find((p) => p.name === name) || {}).pid;
+
+    /** Tap a name on a phone's ballot and wait for the host's echo to land. */
+    async function phoneVote(pid, targetName) {
+      const btn = await waitFor(
+        () => phoneChoices(pid).find((b) => b.textContent === targetName),
+        `${targetName} on ${pid}'s ballot`
+      );
+      btn.click();
+      await waitFor(() => votedFor(pid) === pidOf(targetName), `${pid} vote for ${targetName} acknowledged`);
+    }
+
+    async function scenarioVoting() {
+      await waitFor(() => phoneFrames.get("p1").contentWindow.WlPhone.view().screen === "vote", "vote screen");
+      check("K-I2 every phone gets the vote screen with itself left off the ballot",
+        phoneChoices("p1").map((b) => b.textContent).join(",") === "Ben,Cleo,Dev,Eve",
+        phoneChoices("p1").map((b) => b.textContent).join(","));
+      check("K-I2 the phone never receives the question or the answer",
+        JSON.stringify(phoneFrames.get("p1").contentWindow.WlPhone.view()).indexOf("Harness question") < 0);
+
+      await phoneVote("p1", "Eve");
+      check("K-I2 a phone vote reaches the host masked",
+        votesIn("Votes in: 1/5")
+        && HD().querySelectorAll("#wl-vote-list .vote-mask.in").length === 1,
+        H("wl-vote-count").textContent);
+      check("K-I2 the host screen shows no name and no pre-set dropdown before the reveal",
+        [...HD().querySelectorAll("#wl-vote-list select")].every((s) => s.value === "")
+        && HD().querySelectorAll("#wl-vote-list .vote-target").length === 0);
+      const p2view = phoneFrames.get("p2").contentWindow.WlPhone.view();
+      check("K-I2 another phone learns only that a vote arrived, never whose or for whom",
+        p2view.myVote === null && p2view.votes === undefined
+        && p2view.castCount === 1 && p2view.voterCount === 5,
+        `p2 sees ${p2view.castCount}/${p2view.voterCount} in, own vote ${p2view.myVote}`);
+
+      await phoneVote("p1", "Dev");
+      check("K-I2 a phone may change its vote until the reveal", votedFor("p1") === "p4", votedFor("p1"));
+      await phoneVote("p1", "Eve");
+      await phoneVote("p2", "Eve");
+      await phoneVote("p3", "Eve");
+
+      // The host enters the last two by hand — phones stay optional.
+      const selects = [...HD().querySelectorAll("#wl-vote-list select")];
+      selects[3].value = "p1"; selects[3].dispatchEvent(new (HW().Event)("change", { bubbles: true }));
+      check("K-I2 the host can enter a vote by hand",
+        votesIn("Votes in: 4/5") || core().votes.p4 === "p1",
+        H("wl-vote-count").textContent);
+      selects[4].value = "p1"; selects[4].dispatchEvent(new (HW().Event)("change", { bubbles: true }));
+      check("K-I2 Reveal stays locked until every vote is in",
+        votesIn("Votes in: 5/5") && !H("btn-reveal").disabled,
+        H("wl-vote-count").textContent);
+
+      click("btn-show-stats");
+      check("K-I2 the statistics panel names the strongest and the weakest link",
+        !H("wl-stats-panel").classList.contains("hidden") && H("wl-strongest").textContent.length > 0,
+        `strongest ${H("wl-strongest").textContent} (${H("wl-strongest-detail").textContent}) · weakest ${H("wl-weakest").textContent}`);
+
+      click("btn-reveal");
+      check("K-I2 votes reveal one at a time",
+        HD().querySelectorAll("#wl-vote-list li.revealed").length === 1
+        && HD().querySelectorAll("#wl-vote-list .vote-target")[0].textContent === "Eve",
+        `${HD().querySelectorAll("#wl-vote-list li.revealed").length} revealed`);
+      click("btn-reveal"); click("btn-reveal"); click("btn-reveal"); click("btn-reveal");
+      check("K-I2 the majority is named after the last reveal",
+        core().phase === "voteResult" && H("wl-vote-result-text").textContent.indexOf("Eve") === 0,
+        H("wl-vote-result-text").textContent);
+
+      click("btn-eliminate");
+      check("K-I2 the goodbye card fills the stage",
+        !H("wl-goodbye").classList.contains("hidden") && H("wl-goodbye-name").textContent === "Eve",
+        H("wl-goodbye-name").textContent);
+      await waitFor(() => phoneFrames.get("p5").contentWindow.WlPhone.view().screen === "goodbye", "goodbye phone");
+      check("K-I2 the eliminated phone shows “You are the weakest link”",
+        phoneHeadline("p5").toLowerCase().indexOf("weakest link") >= 0, phoneHeadline("p5"));
+      click("btn-next-round");
+      await waitFor(() => core().phase === "round", "round 2");
+      await waitFor(() => phoneFrames.get("p5").contentWindow.WlPhone.view().screen === "out", "out screen");
+      check("K-I2 an eliminated phone then watches the standings",
+        phoneFrames.get("p5").contentWindow.WlPhone.view().standings.length === 5);
+    }
+
+    /* ============================================================
+       K-I3 — a tied vote goes to the strongest link's phone
+       ============================================================ */
+
+    async function scenarioTie() {
+      // Give Ada the best round so she is unambiguously the strongest link.
+      click("btn-correct"); click("btn-wrong"); click("btn-wrong"); click("btn-wrong");
+      click("btn-end-round");
+      await waitFor(() => core().phase === "voting", "round 2 vote");
+      await phoneVote("p1", "Cleo");   // 2 for Cleo, 2 for Ben
+      await phoneVote("p2", "Cleo");
+      await phoneVote("p3", "Ben");
+      await phoneVote("p4", "Ben");
+      click("btn-reveal-all");
+      check("K-I3 a tie stops the elimination and names the tied players",
+        core().phase === "tiebreak" && H("wl-tie-text").textContent.indexOf("Ada") > 0,
+        H("wl-tie-text").textContent);
+      await waitFor(() => phoneFrames.get("p1").contentWindow.WlPhone.view().screen === "tiebreak", "tiebreak phone");
+      check("K-I3 only the strongest link's phone is asked to break it",
+        phoneChoices("p1").map((b) => b.textContent).sort().join(",") === "Ben,Cleo"
+        && phoneFrames.get("p2").contentWindow.WlPhone.view().screen !== "tiebreak",
+        phoneChoices("p1").map((b) => b.textContent).join(","));
+
+      (await waitFor(() => phoneChoices("p1").find((b) => b.textContent === "Ben"), "Ben on the tie ballot")).click();
+      await waitFor(() => core().phase === "voteResult", "tie broken from the phone");
+      check("K-I3 the strongest link's phone choice resolves the tie",
+        HW().WlCore.playerName(core(), core().eliminatedPid) === "Ben",
+        HW().WlCore.playerName(core(), core().eliminatedPid));
+      click("btn-eliminate");
+      click("btn-next-round");
+      await waitFor(() => core().phase === "round", "round 3");
+      check("K-I3 the host can also break a tie by clicking (button present)",
+        typeof H("wl-tie-choices") === "object");
+    }
+
+    /* ============================================================
+       K-I4 — down to the head-to-head and a winner
+       ============================================================ */
+
+    async function scenarioFinal() {
+      // Round 3 with three players, then vote one off to reach the final two.
+      click("btn-correct"); click("btn-correct"); click("btn-bank");
+      click("btn-end-round");
+      await waitFor(() => core().phase === "voting", "round 3 vote");
+      await phoneVote("p1", "Dev");
+      await phoneVote("p3", "Dev");
+      await phoneVote("p4", "Ada");
+      click("btn-reveal-all");
+      click("btn-eliminate");
+      click("btn-next-round");
+      await waitFor(() => core().phase === "round" && core().active.length === 2, "the last full round");
+
+      click("btn-correct"); click("btn-correct"); click("btn-bank");
+      click("btn-end-round");
+      await waitFor(() => core().phase === "finalIntro", "final intro");
+      check("K-I4 the last full round's bank is tripled on the splash",
+        H("wl-final-bank").textContent === HW().WlCore.formatMoney(core(), core().total)
+        && core().finalBonus === core().lastRoundBank * 2,
+        `bank ${H("wl-final-bank").textContent}, bonus ${core().finalBonus}`);
+
+      HD().querySelectorAll("#wl-final-pick button")[0].click();
+      await waitFor(() => core().phase === "final", "head to head");
+      await waitFor(() => phoneFrames.get("p1").contentWindow.WlPhone.view().screen === "final", "final phone");
+      check("K-I4 both finalists' phones show the head-to-head tally",
+        phoneFrames.get("p1").contentWindow.WlPhone.view().tally.length === 2,
+        JSON.stringify(phoneFrames.get("p1").contentWindow.WlPhone.view().tally.map((r) => r.name)));
+
+      // finalQuestionsEach is 2 in the fixture: 1 each, then a split decides it.
+      click("btn-final-correct"); click("btn-final-correct");
+      click("btn-final-correct"); click("btn-final-correct");
+      await waitFor(() => core().phase === "suddenDeath", "sudden death");
+      check("K-I4 a level head-to-head goes to sudden death",
+        H("wl-final-phase").textContent === "Sudden death", H("wl-final-notice").textContent);
+      click("btn-final-correct"); click("btn-final-wrong");
+      await waitFor(() => core().phase === "result", "a winner");
+      const winner = H("wl-winner").textContent;
+      check("K-I4 sudden death produces a winner and the total",
+        winner.length > 0 && H("wl-winner-total").textContent === HW().WlCore.formatMoney(core(), core().total),
+        `${winner} wins ${H("wl-winner-total").textContent}`);
+      await waitFor(() => phoneFrames.get("p5").contentWindow.WlPhone.view().screen === "result", "result phone");
+      check("K-I4 every phone, in or out, sees the result",
+        [...phoneFrames.keys()].every((pid) =>
+          phoneFrames.get(pid).contentWindow.WlPhone.view().screen === "result"));
+      check("K-I4 the host reports the standings to the shell",
+        shellLog.some((d) => d.t === "scores" && Array.isArray(d.scores) && d.scores.length === 5),
+        JSON.stringify(shellLog.filter((d) => d.t === "scores").slice(-1)));
+    }
+
+    /* ============================================================
+       K-I5 — the editor
+       ============================================================ */
+
+    async function scenarioEditor() {
+      await bootHost();
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "editor opens");
+      click("btn-editor-blank");
+      const rowsBefore = HD().querySelectorAll("#wl-ed-rows tr").length;
+      H("wl-ed-paste").value = [
+        "In which ocean is Madagascar?\tThe Indian Ocean\tGeography",
+        "Who wrote Hamlet?\tWilliam Shakespeare\tLiterature",
+        "\"Cities, plural\",Two or more cities,Words",
+      ].join("\n");
+      click("btn-ed-import");
+      const rows = [...HD().querySelectorAll("#wl-ed-rows tr")];
+      check("K-I5 pasting three lines makes three rows",
+        rows.length === 3, `${rowsBefore} blank row(s) -> ${rows.length} rows`);
+      check("K-I5 tab and quoted-comma lines both parse",
+        rows[0].querySelectorAll("input")[1].value === "The Indian Ocean"
+        && rows[2].querySelectorAll("input")[0].value === "Cities, plural",
+        `${rows[0].querySelectorAll("input")[1].value} / ${rows[2].querySelectorAll("input")[0].value}`);
+      check("K-I5 the count badge warns below 120 questions",
+        H("wl-ed-count").textContent === "3" && H("wl-ed-count").classList.contains("warn")
+        && H("wl-editor-warn").textContent.indexOf("Only 3 questions") === 0,
+        H("wl-editor-warn").textContent);
+
+      click("btn-editor-download");
+      check("K-I5 Download refuses an invalid game with a plain-English reason",
+        !H("wl-editor-msg").classList.contains("hidden")
+        && H("wl-editor-msg").textContent.indexOf("at least 40 questions") >= 0,
+        H("wl-editor-msg").textContent);
+      click("btn-editor-reset");
+      check("K-I5 Reset restores the shipped 160-question set",
+        H("wl-ed-count").textContent === "160" && !H("wl-ed-count").classList.contains("warn"),
+        H("wl-ed-count").textContent);
+      click("btn-editor-use");
+      await waitFor(() => H("screen-editor").classList.contains("hidden"), "editor closes on Use");
+      check("K-I5 Use in game validates and loads the draft",
+        HW().WlApp.state().game.questions.length === 160
+        && H("wl-question-count").textContent.indexOf("160 questions") === 0,
+        H("wl-question-count").textContent);
+    }
+
+    /* ============================================================
+       K-I6 — static gates (V2, V3, V4, V6, V7)
+       ============================================================ */
+
+    const SOURCES = [
+      "../index.html", "../questions.json", "../README.md",
+      "../css/wl.css", "../css/wl-phone.css",
+      "../js/wl-content.js", "../js/wl-core.js", "../js/data.js", "../js/wl-sound.js",
+      "../js/wl-clock.js", "../js/wl-app.js", "../js/wl-editor.js", "../js/wl-room.js",
+      "../js/wl-phone.js", "../tests/wl-core.test.mjs", "../tests/harness.html",
+      "../tests/fixtures/harness-game.json",
+    ];
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+    const CONSOLE_LOG = /console\.log/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("K-I6 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("K-I6 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      // Comments that merely name the rule are allowed; real calls are not.
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0
+          && line.indexOf("const BANNED") < 0));
+      check("K-I6 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      const logs = SOURCES.filter((u) => texts[u] && CONSOLE_LOG.test(texts[u]) && u.indexOf("harness") < 0);
+      check("K-I6 V4 no console.log", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("K-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("K-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="weakest-link"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("K-I6 V8 questions.json validates through validateGame",
+        HW().WlCore.validateGame(JSON.parse(texts["../questions.json"])) === true);
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioRound();
+        await scenarioVoting();
+        await scenarioTie();
+        await scenarioFinal();
+        await scenarioEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

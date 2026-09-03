@@ -1,0 +1,117 @@
+/* ============================================================
+   Weakest Link — phone controller
+   320–430 px portrait, thumb-sized targets (>= 56 px), the same
+   black/steel/cold-blue stage as the host screen. Votes are the
+   whole point of this screen, so the buttons are huge and the
+   confirmation is unmistakable.
+   ============================================================ */
+
+.screen-phone {
+  padding: 1rem 0.9rem 2.5rem;
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+#gsc-join:empty { display: none; }
+
+.phone-card {
+  background: linear-gradient(180deg, #15191f 0%, #0f1216 100%);
+  border: 1px solid #2b3138;
+  border-radius: 16px;
+  padding: 1.1rem 1rem 1.3rem;
+  text-align: center;
+}
+
+.phone-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 0.68rem;
+  color: var(--stage-blue, #3a7bd5);
+  margin: 0 0 0.4rem;
+  min-height: 1em;
+}
+
+.phone-headline {
+  font-family: var(--font-display, "Anton", sans-serif);
+  font-size: clamp(1.7rem, 9vw, 2.6rem);
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 0.4rem;
+  color: var(--ink, #f6f7f9);
+}
+
+.phone-sub {
+  color: var(--ink-dim, #9aa3ad);
+  font-size: 0.95rem;
+  margin: 0 0 0.9rem;
+  min-height: 1.2em;
+}
+
+.phone-choices { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.phone-choice {
+  min-height: 60px;
+  width: 100%;
+  font-family: var(--font-display, "Anton", sans-serif);
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 12px;
+  border: 2px solid #3c434c;
+  background: #12161b;
+  color: var(--ink, #f6f7f9);
+  cursor: pointer;
+}
+.phone-choice:focus-visible { outline: 3px solid var(--stage-blue, #3a7bd5); outline-offset: 2px; }
+.phone-choice[aria-pressed="true"] {
+  background: linear-gradient(180deg, #3a7bd5 0%, #1d4a86 100%);
+  border-color: #8dc0ff;
+  color: #fff;
+}
+
+.phone-status {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-dim, #9aa3ad);
+  min-height: 1.3em;
+}
+
+.phone-money {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  margin: 0.6rem 0 0;
+}
+.phone-money div {
+  flex: 1 1 0;
+  background: #12161b;
+  border: 1px solid #262b32;
+  border-radius: 10px;
+  padding: 0.5rem;
+}
+.phone-money p { margin: 0; }
+.phone-money .k { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem; color: var(--ink-dim, #9aa3ad); }
+.phone-money .v { font-family: var(--font-display, "Anton", sans-serif); font-size: 1.3rem; }
+
+.phone-card.goodbye-card {
+  background: radial-gradient(80% 80% at 50% 30%, #6b0910 0%, #2a0407 70%);
+  border-color: #7d1119;
+}
+.phone-card.goodbye-card .phone-headline { color: #fff; }
+.phone-card.goodbye-card .phone-sub { color: #ffd0d4; }
+
+.phone-card.winner-card { border-color: var(--stage-gold, #d9a437); }
+.phone-card.winner-card .phone-headline { color: var(--stage-gold, #d9a437); }
+
+.phone-standings { list-style: none; margin: 0.6rem 0 0; padding: 0; text-align: left; }
+.phone-standings li {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #23272d;
+  color: var(--ink-dim, #9aa3ad);
+}
+.phone-standings li.in { color: var(--ink, #f6f7f9); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-card { animation: none !important; }
+}
