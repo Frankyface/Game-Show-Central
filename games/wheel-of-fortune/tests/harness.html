@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wheel of Fortune loopback harness (W-I1 … W-I7)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #150430; color: #f4f5ff; margin: 0; padding: 1.5rem; }
+    h1 { font-size: 1.1rem; margin: 0 0 0.4rem; }
+    #summary { font-weight: 700; margin: 0.5rem 0 1rem; }
+    #summary.ok { color: #51d88a; }
+    #summary.bad { color: #ff6b6b; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.35rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.9rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #51d88a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff6b6b; background: rgba(255,107,107,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #51d88a; }
+    li[data-pass="false"] .tag { color: #ff6b6b; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 10px; margin-top: 1.2rem; align-items: flex-start; flex-wrap: wrap; }
+    iframe { border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    #host { width: 1100px; height: 720px; }
+    .phone { width: 360px; height: 640px; }
+    figcaption { font-size: 0.75rem; opacity: 0.7; margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  <h1>Wheel of Fortune — loopback harness (success states W-I1 … W-I7, spec 04 §8)</h1>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <!-- The REAL game pages. This harness IS the shell for them: it implements
+       the bridge protocol from docs/00 §6 directly (post `init`, route
+       `send` <-> `msg`). No PeerJS, no hub. -->
+  <div class="stage">
+    <figure style="margin:0"><figcaption>host — ?embed=host</figcaption><iframe id="host" title="host game"></iframe></figure>
+    <figure style="margin:0"><figcaption>phone p1 (Ana)</figcaption><iframe id="p1" class="phone" title="phone one"></iframe></figure>
+    <figure style="margin:0"><figcaption>phone p2 (Ben)</figcaption><iframe id="p2" class="phone" title="phone two"></iframe></figure>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = uncaught || e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = uncaught || String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      report();
+    }
+
+    function report() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__WHEEL_HARNESS__ = { total: results.length, failed, uncaught, results, done: window.__WHEEL_DONE__ === true };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 8000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(40);
+      }
+    }
+
+    /* ============ The shell (docs/00 §6) ============ */
+
+    const ORIGIN = location.origin;
+    const KEYS = ["host", "p1", "p2"];
+    const frames = {};
+    for (const key of KEYS) frames[key] = { el: document.getElementById(key), ready: false };
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ana", color: "#12b3a6", avatar: "\u{1F3A1}", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#ffcc4d", avatar: "\u{1F3AF}", connected: true, manual: false },
+    ];
+    const ROOM = { code: "WHEE", players: PLAYERS };
+
+    const sentToHost = [];  // {pid, m}
+    const sentToPhone = []; // {pid, m}
+    let lastScores = null;
+    let lastTitle = null;
+    let exited = false;
+
+    const W = (k) => frames[k].el.contentWindow;
+    const D = (k) => frames[k].el.contentDocument;
+    const $ = (k, id) => D(k).getElementById(id);
+
+    function post(key, msg) {
+      const win = W(key);
+      if (win) win.postMessage({ gsc: 1, ...msg }, ORIGIN);
+    }
+
+    function keyOf(source) {
+      for (const key of KEYS) if (frames[key].el.contentWindow === source) return key;
+      return null;
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== ORIGIN) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      const from = keyOf(event.source);
+      if (!from) return;
+      if (d.t === "ready") {
+        frames[from].ready = true;
+        if (from === "host") post("host", { t: "init", mode: "embed-host", room: ROOM });
+        else {
+          const me = PLAYERS.find((p) => p.pid === from);
+          post(from, { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        }
+        return;
+      }
+      if (d.t === "send") {
+        if (from === "host") {
+          const targets = d.pid === "*" ? ["p1", "p2"] : [d.pid];
+          for (const pid of targets) {
+            if (!frames[pid]) continue;
+            sentToPhone.push({ pid, m: d.m });
+            post(pid, { t: "msg", m: d.m });
+          }
+        } else {
+          sentToHost.push({ pid: from, m: d.m });
+          post("host", { t: "msg", pid: from, m: d.m });
+        }
+        return;
+      }
+      if (d.t === "scores") lastScores = d.scores;
+      else if (d.t === "title") lastTitle = d.text;
+      else if (d.t === "exit") exited = true;
+    });
+
+    /* ============ Boot ============ */
+
+    // Each frame src is its own cache entry, so re-fetch every asset with
+    // cache:"reload" once per run — otherwise an edited file can keep serving
+    // the old bundle and the run would report on code that is not on disk.
+    const ASSETS = [
+      "../index.html", "../puzzles.json",
+      "../js/wheel-content.js", "../js/wheel-core.js", "../js/wheel-draw.js",
+      "../js/wheel-view.js", "../js/wheel-app.js", "../js/wheel-room.js",
+      "../js/wheel-phone.js", "../js/wheel-editor.js", "../js/wheel-sound.js",
+      "../js/wheel-timer.js", "../js/timer-core.js", "../js/data.js",
+      "../css/wheel.css", "../css/wheel-phone.css", "../css/timer.css",
+      "../../../shared/bridge.js", "../../../shared/room-protocol.js",
+      "../../../shared/room-net.js", "../../../shared/room-host.js",
+      "../../../shared/room-player.js", "../../../shared/theme.css",
+    ];
+
+    const SRC = {
+      host: "../index.html?embed=host&harness=1",
+      p1: "../index.html?embed=player&harness=1&pid=p1&name=Ana",
+      p2: "../index.html?embed=player&harness=1&pid=p2&name=Ben",
+    };
+
+    async function loadFrame(key) {
+      const src = SRC[key];
+      await fetch(src, { cache: "reload" });
+      frames[key].ready = false;
+      await new Promise((resolve) => {
+        frames[key].el.onload = resolve;
+        frames[key].el.src = src;
+      });
+      await waitFor(() => frames[key].ready, `${key} bridge ready`);
+    }
+
+    async function bootAll(clearStorage) {
+      if (clearStorage !== false) {
+        localStorage.removeItem("gsc-wheel-state-v1");
+        localStorage.removeItem("gsc-wheel-draft-v1");
+      }
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" })));
+      await loadFrame("host");
+      await waitFor(() => W("host").WheelApp && W("host").WheelApp.getState()
+        && W("host").WheelApp.getState().game, "host game loaded");
+      W("host").confirm = () => true;
+      await Promise.all([loadFrame("p1"), loadFrame("p2")]);
+      await waitFor(() => W("p1").WheelPhone && W("p2").WheelPhone, "phones joined");
+      await waitFor(() => hostState().players.length === 2, "roster synced");
+    }
+
+    const hostState = () => W("host").WheelApp.getState();
+    const HC = () => W("host").WheelCore;
+    const phoneView = (k) => (W(k).WheelPhone ? W(k).WheelPhone.getView() : null);
+
+    /** Land the next host spin on `index` (the core still decides; we fix rng). */
+    async function spinTo(index) {
+      const win = W("host");
+      const count = hostState().round.wedges.length;
+      const real = win.Math.random;
+      win.Math.random = () => (index + 0.5) / count;
+      $("host", "btn-spin").click();
+      win.Math.random = real;
+      await waitFor(() => !win.WheelApp.isSpinning(), "spin to finish", 12000);
+    }
+
+    const boardText = () => [...D("host").querySelectorAll("#board .tile")]
+      .map((t) => t.textContent || ".").join("");
+
+    /* ============ W-I3 — toss-up ============ */
+
+    async function testTossup() {
+      $("host", "btn-start").click();
+      await waitFor(() => hostState().phase === "tossup", "toss-up round");
+      await waitFor(() => phoneView("p1") && phoneView("p1").screen === "tossup", "phone toss-up screen");
+      const buzz1 = $("p1", "p-btn-buzz");
+      check("W-I3 phone buzzers are disarmed before the host starts the reveal",
+        buzz1.disabled && buzz1.textContent === "WAIT", `p1 button = "${buzz1.textContent}"`);
+
+      $("host", "btn-tossup-start").click();
+      await waitFor(() => phoneView("p1").armed, "buzzers armed");
+      check("W-I3 buzzers arm on Start reveal",
+        !$("p1", "p-btn-buzz").disabled && !$("p2", "p-btn-buzz").disabled,
+        `p1="${$("p1", "p-btn-buzz").textContent}" p2="${$("p2", "p-btn-buzz").textContent}"`);
+
+      await waitFor(() => hostState().tossup.next >= 1, "at least one letter revealed", 4000);
+      $("p2", "p-btn-buzz").click();
+      // The buzz travels over postMessage, so a reveal tick can still land in
+      // flight — measure once the host has actually taken the buzz.
+      await waitFor(() => hostState().tossup.buzzed === "p2", "p2 buzz reached the host");
+      const revealedAtBuzz = hostState().revealed.filter(Boolean).length;
+      await sleep(1800); // longer than the 1.2 s reveal interval
+      check("W-I3 the first buzz pauses the reveals",
+        hostState().revealed.filter(Boolean).length === revealedAtBuzz
+          && !hostState().tossup.running,
+        `revealed frozen at ${revealedAtBuzz} for 1.8 s`);
+      check("W-I3 only the buzzing phone is on the spot",
+        phoneView("p2").mine === true && phoneView("p1").armed === false,
+        `p1 armed=${phoneView("p1").armed}, p2 mine=${phoneView("p2").mine}`);
+      check("W-I3 the host shows who buzzed",
+        $("host", "tossup-buzz").textContent.indexOf("Ben") >= 0,
+        `banner = "${$("host", "tossup-buzz").textContent}"`);
+
+      $("host", "btn-tossup-wrong").click();
+      await waitFor(() => phoneView("p2").locked, "p2 locked out");
+      check("W-I3 Wrong locks that player and the reveals resume",
+        hostState().tossup.locked.join() === "p2" && hostState().tossup.running
+          && $("p2", "p-btn-buzz").disabled && phoneView("p1").armed,
+        `locked=${hostState().tossup.locked} running=${hostState().tossup.running}`);
+
+      $("host", "btn-tossup-start").click(); // no-op while already running
+      $("p1", "p-btn-buzz").click();
+      await waitFor(() => hostState().tossup.buzzed === "p1", "p1 buzz");
+      $("host", "btn-tossup-right").click();
+      await waitFor(() => hostState().roundDone, "toss-up judged");
+      check("W-I3 a correct toss-up pays the nth value and fills the board",
+        hostState().players[0].total === 1000
+          && HC().allRevealed(hostState().round.puzzle, hostState().revealed),
+        `Ana total = ${hostState().players[0].total}`);
+    }
+
+    /* ============ W-I1 — the wheel ============ */
+
+    async function testWheel() {
+      $("host", "btn-next-round").click();
+      await waitFor(() => hostState().phase === "round", "regular round");
+      const count = hostState().round.wedges.length;
+
+      await spinTo(7);
+      const rotor = D("host").querySelector("#wheel .wheel-rotor");
+      const rotation = Number(rotor.dataset.rotation);
+      const domIndex = W("host").WheelDraw.wedgeAtPointer(rotation, count);
+      check("W-I1 the animation stops on the wedge the core chose",
+        domIndex === hostState().wedge.index && hostState().wedge.index === 7,
+        `core=${hostState().wedge.index} dom=${domIndex} rotation=${rotation.toFixed(1)}deg`);
+      check("W-I1 the spin turns the wheel several times before landing",
+        Math.abs(rotation) >= 3 * 360, `total rotation ${Math.abs(rotation).toFixed(0)}deg`);
+      check("W-I1 the readout matches the wedge",
+        $("host", "wedge-readout").textContent
+          === HC().formatMoney(hostState().round.wedges[7]),
+        `readout "${$("host", "wedge-readout").textContent}"`);
+
+      // Reduced motion: the result appears without an animation (spec §3).
+      const draw = W("host").WheelDraw;
+      const svg = $("host", "wheel");
+      const before = draw.rotationOf(draw.rotorOf(svg));
+      let landed = null;
+      const t0 = Date.now();
+      draw.spin({ svg, index: 3, count, reduced: true, onDone: (deg) => { landed = deg; } });
+      const elapsed = Date.now() - t0;
+      // onDone having already fired by the time spin() returns IS the assertion:
+      // no animation ran at all. (The elapsed time is reported, not asserted --
+      // a loaded machine can take a while over one forced reflow.)
+      check("W-I1 with reduced motion the wheel jumps straight to the result",
+        landed !== null
+          && draw.wedgeAtPointer(landed, count) === 3
+          && landed !== before && svg.classList.contains("wheel-faded"),
+        `settled synchronously (${elapsed}ms) on wedge ${landed === null ? "—" : draw.wedgeAtPointer(landed, count)}`);
+      // Put the wheel back where the real spin left it.
+      draw.showIndex(svg, hostState().wedge.index, count);
+    }
+
+    /* ============ W-I2 — phone play + take over ============ */
+
+    async function testPhonePlay() {
+      // Ana (p1) starts this round because she won the toss-up.
+      await waitFor(() => phoneView("p1") && phoneView("p1").screen === "turn", "p1 turn screen");
+      check("W-I2 only the player on turn gets the turn screen",
+        phoneView("p1").screen === "turn" && phoneView("p2").screen === "wait",
+        `p1=${phoneView("p1").screen} p2=${phoneView("p2").screen}`);
+
+      // The host already spun in W-I1, so a consonant is pending: call one first.
+      const puzzle = hostState().round.puzzle;
+      const present = HC().ALPHABET.split("")
+        .find((L) => !HC().isVowel(L) && HC().letterCount(puzzle, L) > 0 && !hostState().used.includes(L));
+      await waitFor(() => phoneView("p1").actions.letters.length > 0, "phone keyboard");
+      const keys = () => [...D("p1").querySelectorAll("#p-keyboard .key")];
+      check("W-I2 the phone keyboard offers consonants only after a spin",
+        keys().filter((b) => !b.disabled).every((b) => !HC().isVowel(b.dataset.letter)),
+        `${keys().filter((b) => !b.disabled).length} keys enabled, none a vowel`);
+
+      const revealedBefore = hostState().revealed.filter(Boolean).length;
+      keys().find((b) => b.dataset.letter === present).click();
+      await waitFor(() => hostState().used.includes(present), "letter reached the host");
+      check(`W-I2 a phone letter (${present}) reveals on the host board`,
+        hostState().revealed.filter(Boolean).length > revealedBefore
+          && boardText().indexOf(present) >= 0,
+        `revealed ${revealedBefore} -> ${hostState().revealed.filter(Boolean).length}`);
+
+      await waitFor(() => phoneView("p1").actions.spin, "phone spin button back");
+      check("W-I2 used letters are disabled on the phone keyboard",
+        keys().find((b) => b.dataset.letter === present).disabled
+          && !phoneView("p1").actions.letters.includes(present),
+        `${present} disabled after use`);
+
+      // Phone-driven spin.
+      const win = W("host");
+      const real = win.Math.random;
+      win.Math.random = () => (2 + 0.5) / hostState().round.wedges.length;
+      $("p1", "p-btn-spin").click();
+      await waitFor(() => win.WheelApp.isSpinning() || hostState().wedge, "host started the spin");
+      win.Math.random = real;
+      await waitFor(() => !win.WheelApp.isSpinning(), "phone-driven spin finished", 12000);
+      check("W-I2 a phone SPIN drives the host wheel",
+        hostState().wedge.index === 2
+          && $("host", "banner").textContent.length > 0,
+        `host banner: "${$("host", "banner").textContent}"`);
+
+      // "Take over": the host stops waiting for the phone and acts itself.
+      const wedge = hostState().wedge.value;
+      if (typeof wedge !== "number") {
+        // A BANKRUPT / LOSE A TURN wedge passed the turn — bring it back to Ana.
+        while (hostState().players[hostState().turn].pid !== "p1") $("host", "btn-next-player").click();
+      }
+      check("W-I2 the host shows it is waiting for a phone player",
+        !$("host", "phone-turn").classList.contains("hidden"),
+        `phone-turn text: "${$("host", "phone-turn-text").textContent}"`);
+      $("host", "btn-take-over").click();
+      check("W-I2 Take over lets the host act instead of the phone",
+        $("host", "phone-turn").classList.contains("hidden")
+          && W("host").WheelApp.phonePids().size === 0,
+        "waiting-for-phone indicator cleared");
+
+      check("W-I2 the host reports standings to the shell",
+        Array.isArray(lastScores) && lastScores.length === 2 && typeof lastTitle === "string",
+        `scores=${JSON.stringify(lastScores)} title="${lastTitle}"`);
+    }
+
+    /* ============ W-I5 — reload mid-round ============ */
+
+    async function testReload() {
+      // Make the round interesting first: money, used letters, a turn change.
+      while (hostState().pendingSpin || hostState().pendingVowel) {
+        const legal = HC().legalActions(hostState()).letters;
+        D("host").querySelector(`#keyboard .key[data-letter="${legal[0]}"]`).click();
+      }
+      await spinTo(0);
+      const legal = HC().legalActions(hostState()).letters;
+      D("host").querySelector(`#keyboard .key[data-letter="${legal[0]}"]`).click();
+
+      const before = {
+        roundIndex: hostState().roundIndex,
+        used: hostState().used.join(""),
+        revealed: hostState().revealed.join(""),
+        turn: hostState().turn,
+        totals: hostState().players.map((p) => `${p.round}/${p.total}`).join(","),
+        board: boardText(),
+      };
+      await loadFrame("host");
+      await waitFor(() => W("host").WheelApp && W("host").WheelApp.getState()
+        && W("host").WheelApp.getState().phase === "round", "host restored");
+      const after = {
+        roundIndex: hostState().roundIndex,
+        used: hostState().used.join(""),
+        revealed: hostState().revealed.join(""),
+        turn: hostState().turn,
+        totals: hostState().players.map((p) => `${p.round}/${p.total}`).join(","),
+        board: boardText(),
+      };
+      for (const field of ["roundIndex", "used", "revealed", "turn", "totals"]) {
+        check(`W-I5 reload restores ${field}`, before[field] === after[field],
+          `${before[field]} -> ${after[field]}`);
+      }
+      check("W-I5 reload repaints the board tiles", before.board === after.board,
+        `${after.board.replace(/\./g, "_").slice(0, 60)}…`);
+    }
+
+    /* ============ W-I4 — bonus round ============ */
+
+    async function testBonus() {
+      // Make Ana the leader, then skip forward to the bonus round.
+      W("host").WheelApp.dispatch({ type: "setTotal", pid: "p1", total: 20000 });
+      W("host").WheelApp.dispatch({ type: "setTotal", pid: "p2", total: 5000 });
+      let guard = 0;
+      while (hostState().phase !== "bonus" && guard < 20) {
+        $("host", "btn-next-round").click();
+        guard += 1;
+      }
+      await waitFor(() => hostState().phase === "bonus", "bonus round");
+      check("W-I4 the leader plays the bonus round",
+        hostState().bonus.leaderPid === "p1" && hostState().used.join("") === "RSTLNE",
+        `leader=${hostState().bonus.leaderPid}, free letters=${hostState().used.join("")}`);
+
+      await waitFor(() => phoneView("p1").screen === "bonus", "leader's phone shows the bonus screen");
+      check("W-I4 only the leader's phone gets the bonus screen",
+        phoneView("p1").screen === "bonus" && phoneView("p2").screen === "wait",
+        `p1=${phoneView("p1").screen} p2=${phoneView("p2").screen}`);
+      check("W-I4 the free letters are not offered again",
+        !phoneView("p1").consonants.some((L) => "RSTLN".includes(L))
+          && !phoneView("p1").vowels.includes("E"),
+        `vowels offered: ${phoneView("p1").vowels.join("")}`);
+
+      // Pick 3 consonants + a vowel on the phone.
+      const picks = [...phoneView("p1").consonants.slice(0, 3), phoneView("p1").vowels[0]];
+      for (const letter of picks) {
+        D("p1").querySelector(`#p-bonus-keys .key[data-letter="${letter}"]`).click();
+      }
+      check("W-I4 the phone collects 3 consonants and a vowel",
+        $("p1", "p-bonus-picks").textContent.replace(/\s/g, "") === picks.join(""),
+        `picked ${picks.join(" ")}`);
+      $("p1", "p-btn-bonus-send").click();
+      await waitFor(() => hostState().bonus.picked, "picks reached the host");
+      check("W-I4 the phone's picks land on the host and are revealed",
+        hostState().bonus.picks.join("") === picks.join("")
+          && $("host", "bonus-picks").textContent.replace(/\s/g, "") === picks.join(""),
+        `host shows "${$("host", "bonus-picks").textContent.trim()}"`);
+
+      await waitFor(() => D("host").querySelectorAll("#bonus-timer .timer-block").length > 0,
+        "host timer blocks");
+      await waitFor(() => D("p1").querySelectorAll("#phone-bonus-timer .timer-block").length > 0,
+        "phone timer blocks");
+      const hostLit = () => [...D("host").querySelectorAll("#bonus-timer .timer-block")]
+        .filter((b) => !b.classList.contains("off")).length;
+      const litAtStart = hostLit();
+      check("W-I4 the countdown blocks run on the host and on the phone",
+        litAtStart === 9 && D("p1").querySelectorAll("#phone-bonus-timer .timer-block").length === 9,
+        `host lit ${litAtStart}/9, phone blocks ${D("p1").querySelectorAll("#phone-bonus-timer .timer-block").length}`);
+      await sleep(2600); // 10 s timer, 5 stages -> at least one pair is out
+      check("W-I4 the countdown actually counts down", hostLit() < litAtStart,
+        `lit ${litAtStart} -> ${hostLit()}`);
+
+      $("host", "btn-bonus-right").click();
+      await waitFor(() => hostState().bonus.result === "win", "bonus judged");
+      check("W-I4 the host judges the bonus round and the prize is announced",
+        $("host", "bonus-result").textContent.indexOf("$25,000") >= 0
+          && D("host").querySelectorAll("#bonus-timer .timer-block").length === 0,
+        `result: "${$("host", "bonus-result").textContent}"`);
+
+      $("host", "btn-next-round").click();
+      await waitFor(() => hostState().phase === "final", "final standings");
+      await waitFor(() => phoneView("p1").screen === "result", "phones show the standings");
+      check("W-I4 the game ends on the standings, mirrored to the phones",
+        D("host").querySelectorAll("#final-list .final-row").length === 2
+          && D("p1").querySelectorAll("#p-standings .final-row").length === 2,
+        `host rows=${D("host").querySelectorAll("#final-list .final-row").length}`);
+    }
+
+    /* ============ W-I6 — the editor ============ */
+
+    async function testEditor() {
+      $("host", "btn-editor").click();
+      await waitFor(() => D("host").querySelectorAll(".ed-round").length > 0, "editor rounds");
+      const card = D("host").querySelectorAll(".ed-round")[1];
+      const puzzleInput = card.querySelectorAll(".ed-round-row input")[1];
+      const shown = [...card.querySelectorAll(".ed-preview-row")]
+        .map((r) => [...r.children].map((t) => t.textContent).join("|")).join("/");
+      const expected = HC().layoutPuzzle(puzzleInput.value)
+        .map((r) => r.map((c) => (c ? c.ch : "")).join("|")).join("/");
+      check("W-I6 the editor's live board preview matches layoutPuzzle",
+        shown === expected, `${puzzleInput.value}`);
+
+      puzzleInput.value = "SUPERCALIFRAGILISTICEXPIALIDOCIOUS";
+      puzzleInput.dispatchEvent(new Event("input", { bubbles: true }));
+      check("W-I6 a puzzle that doesn't fit blocks Download and Use",
+        $("host", "btn-editor-download").disabled && $("host", "btn-editor-use").disabled
+          && card.querySelector(".ed-fit").classList.contains("ed-fit-bad")
+          && $("host", "editor-error").textContent.indexOf("does not fit") >= 0,
+        `error: "${$("host", "editor-error").textContent}"`);
+
+      puzzleInput.value = "GAME SHOW CENTRAL";
+      puzzleInput.dispatchEvent(new Event("input", { bubbles: true }));
+      check("W-I6 fixing the puzzle unblocks Download",
+        !$("host", "btn-editor-download").disabled && !$("host", "editor-error").textContent,
+        "validation cleared");
+
+      const wedgesBefore = D("host").querySelectorAll("#ed-wheel .wheel-wedge").length;
+      $("host", "btn-add-bankrupt").click();
+      const wedgesAfter = D("host").querySelectorAll("#ed-wheel .wheel-wedge").length;
+      const chips = D("host").querySelectorAll(".wedge-chip").length;
+      D("host").querySelectorAll(".wedge-chip")[chips - 1].click();
+      check("W-I6 the wheel preview follows the wedge chips",
+        wedgesAfter === wedgesBefore + 1 && chips === wedgesAfter
+          && D("host").querySelectorAll("#ed-wheel .wheel-wedge").length === wedgesBefore,
+        `${wedgesBefore} -> ${wedgesAfter} -> ${D("host").querySelectorAll("#ed-wheel .wheel-wedge").length}`);
+
+      // Use in game must go through the same validateGame the loader uses.
+      $("host", "btn-editor-use").click();
+      await waitFor(() => hostState().phase === "idle", "editor content loaded into the game");
+      check("W-I6 Use in game loads the edited content through validateGame",
+        hostState().game.rounds.length > 0 && hostState().phase === "idle",
+        `${hostState().game.rounds.length} rounds, source = ${W("host").WheelApp.sourceInfo().text}`);
+    }
+
+    /* ============ W-I7 — static gates ============ */
+
+    const SOURCE_FILES = [
+      "../index.html", "../README.md",
+      "../js/wheel-content.js", "../js/wheel-core.js", "../js/wheel-draw.js",
+      "../js/wheel-view.js", "../js/wheel-app.js", "../js/wheel-room.js",
+      "../js/wheel-phone.js", "../js/wheel-editor.js", "../js/wheel-sound.js",
+      "../js/wheel-timer.js", "../js/timer-core.js", "../js/data.js",
+      "../css/wheel.css", "../css/wheel-phone.css", "../css/timer.css",
+      "./wheel-core.test.mjs", "./harness.html",
+    ];
+
+    async function testGates() {
+      // Assembled from fragments so this gate's own source never trips the
+      // repo-wide grep the tester runs (06 §4 V3).
+      const banned = new RegExp([
+        "inner" + "HTML", "insertAdjacent" + "HTML", "outer" + "HTML\\s*=",
+        "document\\." + "write", "[^.\\w]" + "eval\\(", "new " + "Function",
+      ].join("|"));
+      const bad = [];
+      const logged = [];
+      const tooLong = [];
+      const external = [];
+      for (const path of SOURCE_FILES) {
+        const res = await fetch(path, { cache: "reload" });
+        const text = await res.text();
+        if (banned.test(text)) bad.push(path);
+        const noisy = new RegExp("console\." + "log");
+        if (path.indexOf("/js/") >= 0 && noisy.test(text)) logged.push(path);
+        const lines = text.split("\n").length;
+        if (lines >= 800) tooLong.push(`${path} (${lines})`);
+        // Documentation prose may cite example/localhost URLs; this gate is
+        // about what the BROWSER would actually fetch, so scan loaded assets only.
+        const loaded = /\.(html|js|mjs|css|json)$/.test(path);
+        for (const url of (loaded ? text.match(/https?:\/\/[^\s"'<>)]+/g) : null) || []) {
+          const ok = url.indexOf("https://fonts.googleapis.com") === 0
+            || url.indexOf("https://fonts.gstatic.com") === 0
+            || url.indexOf("https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/") === 0
+            || url.indexOf("http://www.w3.org/2000/svg") === 0; // the SVG XML namespace, never fetched
+          if (!ok) external.push(`${path}: ${url}`);
+        }
+      }
+      check("W-I7 no HTML-string, document-write, eval or Function-constructor APIs anywhere",
+        bad.length === 0, bad.join(", ") || `${SOURCE_FILES.length} files scanned`);
+      check("W-I7 no console." + "log calls in js/", logged.length === 0,
+        logged.join(", ") || "console.warn only");
+      check("W-I7 every file is under 800 lines", tooLong.length === 0,
+        tooLong.join(", ") || `${SOURCE_FILES.length} files under the limit`);
+      check("W-I7 the only external URLs in loaded assets are Google Fonts and the pinned PeerJS CDN",
+        external.length === 0, external.join(", ") || "no stray external URLs");
+
+      const html = await (await fetch("../index.html", { cache: "reload" })).text();
+      const css = await (await fetch("../css/wheel.css", { cache: "reload" })).text();
+      check("W-I7 the page declares data-gsc-game and provides #gsc-join",
+        html.indexOf('data-gsc-game="wheel-of-fortune"') >= 0
+          && html.indexOf('id="gsc-join"') >= 0
+          && D("p1").getElementById("gsc-join") !== null,
+        "body attribute + join container present");
+      check("W-I7 player-mode and gsc-embedded body classes are wired",
+        css.indexOf("body.player-mode") >= 0 && css.indexOf("body.gsc-embedded") >= 0
+          && D("host").body.classList.contains("gsc-embedded")
+          && !D("host").body.classList.contains("player-mode")
+          && D("p1").body.classList.contains("player-mode")
+          && D("p1").body.classList.contains("gsc-embedded"),
+        `host classes: ${D("host").body.className || "(none)"} · phone: ${D("p1").body.className}`);
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await bootAll(true);
+        check("Boot: host and two phones joined through the bridge",
+          hostState().players.map((p) => p.pid).join() === "p1,p2"
+            && W("host").WheelApp.phonePids().size === 2,
+          `players: ${hostState().players.map((p) => p.name).join(", ")}`);
+        await testTossup();
+        await testWheel();
+        await testPhonePlay();
+        await testReload();
+        await testBonus();
+        await testEditor();
+        await testGates();
+      } catch (err) {
+        uncaught = uncaught || (err && err.message) || String(err);
+        check("Harness run completed", false, uncaught);
+      }
+      window.__WHEEL_DONE__ = true;
+      report();
+    }());
+  }());
+  </script>
+</body>
+</html>

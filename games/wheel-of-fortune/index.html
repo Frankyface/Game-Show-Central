@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wheel of Fortune</title>
+  <meta name="description" content="Wheel of Fortune for Game Show Central: spin the wheel, call letters and solve the puzzle. Load your own puzzles from JSON, play host-only or with phones.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/timer.css">
+  <link rel="stylesheet" href="css/wheel.css">
+  <link rel="stylesheet" href="css/wheel-phone.css">
+</head>
+<body data-gsc-game="wheel-of-fortune">
+
+  <header class="topbar">
+    <h1 id="game-title" class="topbar-title">Wheel of Fortune</h1>
+    <div class="topbar-actions">
+      <span id="room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; Sound</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Puzzle Editor</button>
+      <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="save-warning" class="error-msg hidden" role="alert"></p>
+
+  <main>
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="setup-card">
+        <p class="setup-kicker">Big money, big prizes&hellip;</p>
+        <h2 id="setup-title" class="setup-title">Wheel of Fortune</h2>
+        <p id="source-note" class="source-note">Loading puzzles&hellip;</p>
+
+        <div class="setup-section">
+          <h3 class="setup-heading">Players</h3>
+          <ul id="player-list" class="player-list"></ul>
+          <form id="add-player-form" class="add-player-form">
+            <label class="visually-hidden" for="player-name-input">Player name</label>
+            <input id="player-name-input" type="text" maxlength="24" placeholder="Player name"
+                   autocomplete="off" spellcheck="false">
+            <button class="btn btn-ghost" type="submit">+ Add player</button>
+          </form>
+          <p class="setup-hint">Up to 6 players. Phones are optional &mdash; a host alone can run
+            the whole game from this screen.</p>
+        </div>
+
+        <div class="setup-section">
+          <h3 class="setup-heading">Phones</h3>
+          <div id="room-panel" class="room-panel">
+            <p id="room-status" class="setup-hint">Checking for a room&hellip;</p>
+            <button id="btn-open-room" class="btn btn-ghost hidden" type="button">Open room (phones)</button>
+            <p id="room-join" class="room-join"></p>
+          </div>
+        </div>
+
+        <div class="setup-section">
+          <h3 class="setup-heading">Puzzles</h3>
+          <div class="setup-row">
+            <label class="btn btn-ghost file-btn" for="file-input">Upload puzzles JSON
+              <input id="file-input" type="file" accept="application/json,.json" class="visually-hidden">
+            </label>
+            <button id="btn-reload" class="btn btn-ghost" type="button">Reload puzzles.json</button>
+          </div>
+          <p id="load-error" class="error-msg" role="alert"></p>
+        </div>
+
+        <button id="btn-start" class="btn btn-gold btn-big" type="button">Start game</button>
+      </div>
+    </section>
+
+    <!-- ===================== Game ===================== -->
+    <section id="screen-game" class="screen screen-game hidden">
+
+      <div class="board-wrap">
+        <div id="board" class="board" role="group" aria-label="Puzzle board"></div>
+        <p id="category" class="category"></p>
+      </div>
+
+      <p id="banner" class="banner" role="status" aria-live="polite"></p>
+
+      <div class="stage-lower">
+
+        <div class="wheel-col">
+          <svg id="wheel" class="wheel" viewBox="0 0 400 400" aria-hidden="false"></svg>
+          <p id="wedge-readout" class="wedge-readout" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="mid-col">
+          <div id="used-letters" class="used-letters" aria-label="Letters already called"></div>
+
+          <div id="keyboard-wrap" class="keyboard-wrap hidden">
+            <p id="keyboard-hint" class="keyboard-hint"></p>
+            <div id="keyboard" class="keyboard" role="group" aria-label="Letter keyboard"></div>
+          </div>
+
+          <div id="controls" class="controls">
+            <button id="btn-spin" class="btn btn-gold btn-big" type="button">Spin</button>
+            <button id="btn-vowel" class="btn btn-ghost" type="button">Buy a vowel</button>
+            <button id="btn-solve" class="btn btn-ghost" type="button">Solve&hellip;</button>
+            <button id="btn-next-player" class="btn btn-ghost btn-small" type="button">Next player</button>
+            <button id="btn-undo" class="btn btn-ghost btn-small" type="button">Undo</button>
+            <button id="btn-reveal" class="btn btn-ghost btn-small" type="button">Reveal all</button>
+            <button id="btn-next-round" class="btn btn-gold" type="button">Next round</button>
+          </div>
+
+          <!-- Toss-up controls -->
+          <div id="tossup-bar" class="tossup-bar hidden">
+            <button id="btn-tossup-start" class="btn btn-gold btn-big" type="button">Start reveal</button>
+            <p id="tossup-buzz" class="tossup-buzz"></p>
+            <div id="tossup-judge" class="judge-row hidden">
+              <button id="btn-tossup-right" class="btn btn-gold" type="button">Correct</button>
+              <button id="btn-tossup-wrong" class="btn btn-ghost" type="button">Wrong</button>
+            </div>
+            <p class="setup-hint">Or click a podium to name the solver.</p>
+          </div>
+
+          <!-- Bonus round -->
+          <div id="bonus-panel" class="bonus-panel hidden">
+            <p id="bonus-who" class="bonus-who"></p>
+            <p id="bonus-picks" class="bonus-picks"></p>
+            <div class="judge-row">
+              <button id="btn-bonus-clear" class="btn btn-ghost btn-small" type="button">Clear picks</button>
+              <button id="btn-bonus-reveal" class="btn btn-gold" type="button">Reveal letters</button>
+            </div>
+            <div id="bonus-timer" class="timer-bar hidden" aria-hidden="true"></div>
+            <div id="bonus-judge" class="judge-row hidden">
+              <button id="btn-bonus-right" class="btn btn-gold" type="button">Correct</button>
+              <button id="btn-bonus-wrong" class="btn btn-ghost" type="button">Time&rsquo;s up</button>
+            </div>
+            <p id="bonus-result" class="bonus-result"></p>
+          </div>
+
+          <!-- Phone-turn indicator -->
+          <div id="phone-turn" class="phone-turn hidden">
+            <span id="phone-turn-text"></span>
+            <button id="btn-take-over" class="btn btn-ghost btn-small" type="button">Take over</button>
+          </div>
+        </div>
+
+        <div id="podiums" class="podiums" aria-label="Players"></div>
+      </div>
+    </section>
+
+    <!-- ===================== Final standings ===================== -->
+    <section id="screen-final" class="screen screen-final hidden">
+      <h2 class="final-title">Final standings</h2>
+      <ol id="final-list" class="final-list"></ol>
+      <button id="btn-play-again" class="btn btn-gold btn-big" type="button">Play again</button>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden">
+      <div class="editor-head">
+        <h2 class="editor-title">Puzzle Editor</h2>
+        <div class="editor-actions">
+          <button id="btn-editor-blank" class="btn btn-ghost btn-small" type="button">Start blank</button>
+          <button id="btn-editor-reset" class="btn btn-ghost btn-small" type="button">Reset to current</button>
+          <button id="btn-editor-download" class="btn btn-ghost" type="button">Download JSON</button>
+          <button id="btn-editor-use" class="btn btn-gold" type="button">Use in game</button>
+          <button id="btn-editor-close" class="btn btn-ghost btn-small" type="button">Close</button>
+        </div>
+      </div>
+      <p id="editor-error" class="error-msg" role="alert"></p>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Game</h3>
+          <label class="editor-field">Title
+            <input id="ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <div class="editor-settings">
+            <label class="editor-field small">Vowel cost
+              <input id="ed-vowel-cost" type="number" min="50" step="50" inputmode="numeric">
+            </label>
+            <label class="editor-field small">Round minimum
+              <input id="ed-round-min" type="number" min="0" step="50" inputmode="numeric">
+            </label>
+            <label class="editor-field small">Bonus seconds
+              <input id="ed-bonus-seconds" type="number" min="0" max="60" step="1" inputmode="numeric">
+            </label>
+            <label class="editor-field small">Bonus prize
+              <input id="ed-bonus-prize" type="text" maxlength="40" autocomplete="off">
+            </label>
+            <label class="editor-field small">Toss-up values
+              <input id="ed-tossup-values" type="text" maxlength="60" autocomplete="off"
+                     placeholder="1000, 2000, 3000">
+            </label>
+            <label class="editor-check">
+              <input id="ed-auto-order" type="checkbox">
+              Auto-order rounds (toss-ups, regular, bonus)
+            </label>
+          </div>
+
+          <h3 class="setup-heading">Wheel</h3>
+          <div id="ed-wedges" class="wedge-chips" aria-label="Wheel wedges"></div>
+          <form id="ed-wedge-form" class="setup-row">
+            <label class="visually-hidden" for="ed-wedge-input">New wedge value</label>
+            <input id="ed-wedge-input" type="number" min="50" step="50" inputmode="numeric" placeholder="650">
+            <button class="btn btn-ghost btn-small" type="submit">+ Value</button>
+            <button id="btn-add-bankrupt" class="btn btn-ghost btn-small" type="button">+ BANKRUPT</button>
+            <button id="btn-add-lose" class="btn btn-ghost btn-small" type="button">+ LOSE A TURN</button>
+          </form>
+          <svg id="ed-wheel" class="wheel wheel-preview" viewBox="0 0 400 400" aria-label="Wheel preview"></svg>
+        </div>
+
+        <div class="editor-col">
+          <div class="editor-head-row">
+            <h3 class="setup-heading">Rounds</h3>
+            <button id="btn-add-round" class="btn btn-ghost btn-small" type="button">+ Add round</button>
+          </div>
+          <ol id="ed-rounds" class="ed-rounds"></ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== Solve dialog ===================== -->
+  <div id="solve-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="solve-title">
+    <div class="modal-card">
+      <h2 id="solve-title" class="modal-title">Solve the puzzle</h2>
+      <p id="solve-who" class="modal-sub"></p>
+      <label class="editor-field" for="solve-input">What they said (optional)
+        <input id="solve-input" type="text" maxlength="80" autocomplete="off" spellcheck="false">
+      </label>
+      <p class="setup-hint">The host judges &mdash; nothing is auto-compared.</p>
+      <div class="judge-row">
+        <button id="btn-solve-right" class="btn btn-gold btn-big" type="button">Correct</button>
+        <button id="btn-solve-wrong" class="btn btn-ghost btn-big" type="button">Wrong</button>
+        <button id="btn-solve-cancel" class="btn btn-ghost btn-small" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Phone (player mode) ===================== -->
+  <section id="player" class="player hidden">
+    <!-- The SDK renders its own join card here when there is no ?name=. -->
+    <div id="gsc-join"></div>
+
+    <header class="player-top">
+      <span id="p-name" class="p-name"></span>
+      <span id="p-money" class="p-money"></span>
+    </header>
+
+    <p id="p-banner" class="p-banner" role="status" aria-live="polite"></p>
+    <p id="p-category" class="p-category"></p>
+    <div id="p-board" class="p-board" aria-label="Puzzle board"></div>
+
+    <!-- wait -->
+    <div id="p-wait" class="p-screen hidden">
+      <p id="p-wait-text" class="p-wait-text"></p>
+    </div>
+
+    <!-- turn -->
+    <div id="p-turn" class="p-screen hidden">
+      <div class="p-actions">
+        <button id="p-btn-spin" class="btn btn-gold btn-big p-big" type="button">SPIN</button>
+        <button id="p-btn-vowel" class="btn btn-ghost p-big" type="button">Buy a vowel</button>
+        <button id="p-btn-solve" class="btn btn-ghost p-big" type="button">Solve</button>
+      </div>
+      <p id="p-wedge" class="p-wedge"></p>
+      <div id="p-keyboard" class="p-keyboard" role="group" aria-label="Letter keyboard"></div>
+    </div>
+
+    <!-- solve -->
+    <div id="p-solve" class="p-screen hidden">
+      <label class="editor-field" for="p-solve-input">Your answer
+        <input id="p-solve-input" type="text" maxlength="80" autocomplete="off" spellcheck="false">
+      </label>
+      <p id="p-note" class="p-note">The host will judge it.</p>
+      <button id="p-btn-solve-send" class="btn btn-gold btn-big p-big" type="button">Submit</button>
+      <button id="p-btn-solve-back" class="btn btn-ghost btn-small" type="button">Back</button>
+    </div>
+
+    <!-- toss-up -->
+    <div id="p-tossup" class="p-screen hidden">
+      <button id="p-btn-buzz" class="p-buzzer" type="button">WAIT</button>
+    </div>
+
+    <!-- bonus -->
+    <div id="p-bonus" class="p-screen hidden">
+      <p id="p-bonus-picks" class="p-bonus-picks"></p>
+      <div id="p-bonus-keys" class="p-keyboard" role="group" aria-label="Bonus letters"></div>
+      <button id="p-btn-bonus-send" class="btn btn-gold btn-big p-big" type="button">Send letters</button>
+      <button id="p-btn-bonus-clear" class="btn btn-ghost btn-small" type="button">Clear</button>
+      <div id="phone-bonus-timer" class="timer-bar timer-bar-phone hidden" aria-hidden="true"></div>
+    </div>
+
+    <!-- result -->
+    <div id="p-result" class="p-screen hidden">
+      <ol id="p-standings" class="final-list"></ol>
+    </div>
+  </section>
+
+  <script src="js/wheel-content.js"></script>
+  <script src="js/wheel-core.js"></script>
+  <script src="js/timer-core.js"></script>
+  <script src="js/wheel-timer.js"></script>
+  <script src="js/wheel-sound.js"></script>
+  <script src="js/wheel-draw.js"></script>
+  <script src="js/wheel-view.js"></script>
+  <script src="js/data.js"></script>
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/wheel-app.js"></script>
+  <script src="js/wheel-room.js"></script>
+  <script src="js/wheel-phone.js"></script>
+  <script src="js/wheel-editor.js"></script>
+</body>
+</html>
