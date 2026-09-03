@@ -268,7 +268,8 @@ const WheelApp = (function () {
     show($("btn-next-player"), isRound);
     $("btn-spin").disabled = !actions.spin || spinning;
     $("btn-vowel").disabled = !actions.buyVowel || spinning;
-    $("btn-solve").disabled = !actions.solve || spinning;
+    // W-D2: while a phone solve is pending (state.solving) the Solve button is the only way to judge it.
+    $("btn-solve").disabled = (!actions.solve && !state.solving) || spinning;
     $("btn-next-player").disabled = !isRound || state.roundDone || spinning || state.players.length < 2;
     $("btn-undo").disabled = state.history.length === 0 || spinning;
     $("btn-reveal").disabled = state.roundDone || spinning;

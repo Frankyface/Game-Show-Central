@@ -35,4 +35,6 @@ const DEFAULT_PUZZLES = {
   ]
 };
 
+// W-D1: classic-script `const` is not a window property; expose it explicitly for the offline fallback.
+if (typeof globalThis !== "undefined") globalThis.DEFAULT_PUZZLES = DEFAULT_PUZZLES;
 if (typeof module === "object" && module.exports) module.exports = DEFAULT_PUZZLES;
