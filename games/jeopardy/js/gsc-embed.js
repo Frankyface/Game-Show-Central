@@ -47,12 +47,31 @@ const GscEmbed = (function () {
   const ROOM_CODE = SDK && SDK.params ? SDK.params.room || null : null;
   /** Prefix for the scoreboard ids of manual (phone-less) lobby players. */
   const MANUAL_ID_PREFIX = "gsc-";
+  /**
+   * How long the phone waits for the auto-join before it gives the player the
+   * ordinary Jeopardy join card back (D5). Comfortably longer than the shell's
+   * own join deadline, so a slow-but-working connection is never interrupted.
+   */
+  const AUTOJOIN_GRACE_MS = 12000;
+  /** buzzer-player.js NAME_MAX / the #player-name maxlength. */
+  const NAME_MAX = 24;
 
   /* ============ Module state (never serialised) ============ */
 
   let room = null; // the GSC host handle, once GSC.host() resolves
   let lastReport = ""; // JSON of the last scores we reported (dedupe)
   let bootedHost = false;
+  /**
+   * D4 — pid memo. A phone that drops and returns keeps its shell pid, but its
+   * virtual connection is closed and re-announced, so for a moment
+   * BuzzerHost._roomState() knows nothing about it and a live-only lookup would
+   * report `pid:null` into the night standings. These two maps are written
+   * whenever a live connection is seen and are NEVER cleared on close, so the
+   * pid survives the gap. A later, genuinely different connection for the same
+   * player simply overwrites the entry.
+   */
+  const pidByPlayerId = new Map(); // Jeopardy scoreboard id → shell pid
+  const pidByName = new Map(); // lower-cased joined name → shell pid
 
   /* ============ App-global bridges (defensive) ============ */
   // app.js declares `state` / `setState` with let/function at top level, so they
@@ -82,15 +101,20 @@ const GscEmbed = (function () {
     return true;
   }
 
-  /** `gsc-embedded` gates every rule in css/gsc-embed.css. */
+  /**
+   * `gsc-embedded` gates every rule in css/gsc-embed.css. On a phone we also add
+   * `gsc-autojoin`, which is what actually hides the join card's fields — the
+   * watchdog drops it if the auto-join never lands, handing the player a working
+   * form back instead of a dead "Connecting…" card (D5).
+   */
   function markBody() {
-    if (document.body) {
+    const apply = () => {
+      if (!document.body) return;
       document.body.classList.add("gsc-embedded");
-      return;
-    }
-    document.addEventListener("DOMContentLoaded", () => {
-      if (document.body) document.body.classList.add("gsc-embedded");
-    });
+      if (IS_PLAYER) document.body.classList.add("gsc-autojoin");
+    };
+    if (document.body) apply();
+    else document.addEventListener("DOMContentLoaded", apply);
   }
 
   /**
@@ -176,16 +200,33 @@ const GscEmbed = (function () {
   }
 
   /**
-   * pid for a Jeopardy scoreboard player: the virtual connection's peer id IS
-   * the shell pid, and BuzzerHost's room state links peerId → playerId. Manual
-   * rows carry their pid in the id. Anything else (a player the host typed into
-   * Jeopardy's own setup list) reports with pid:null and its name.
+   * Learn pids from every virtual connection BuzzerHost currently holds. The
+   * connection's peer id IS the shell pid. Called before each report; entries
+   * are only ever added or overwritten, never removed (D4).
    */
-  function pidFor(playerId) {
+  function refreshPidMap() {
     const h = buzzerHost();
     const players = h && typeof h._roomState === "function" ? h._roomState().players : {};
     for (const peerId of Object.keys(players)) {
-      if (players[peerId].playerId === playerId) return peerId;
+      const p = players[peerId] || {};
+      if (p.playerId) pidByPlayerId.set(p.playerId, peerId);
+      if (p.name) pidByName.set(String(p.name).toLowerCase(), peerId);
+    }
+  }
+
+  /**
+   * pid for a Jeopardy scoreboard player, most reliable source first: the pid
+   * remembered for this scoreboard id, then the one remembered for this name
+   * (covers a rejoin that has not relinked yet), then the pid a manual row
+   * carries in its own id. Anything else — a player the host typed into
+   * Jeopardy's own setup list — reports with pid:null and its name.
+   */
+  function pidFor(playerId, name) {
+    const byId = pidByPlayerId.get(playerId);
+    if (byId) return byId;
+    if (name) {
+      const byName = pidByName.get(String(name).toLowerCase());
+      if (byName) return byName;
     }
     if (playerId.indexOf(MANUAL_ID_PREFIX) === 0) return playerId.slice(MANUAL_ID_PREFIX.length);
     return null;
@@ -196,7 +237,8 @@ const GscEmbed = (function () {
     if (!room || typeof room.reportScores !== "function") return;
     const s = appState();
     if (!s || !Array.isArray(s.players)) return;
-    const scores = s.players.map((p) => ({ pid: pidFor(p.id), name: p.name, score: p.score }));
+    refreshPidMap();
+    const scores = s.players.map((p) => ({ pid: pidFor(p.id, p.name), name: p.name, score: p.score }));
     const key = JSON.stringify(scores);
     if (key === lastReport) return; // every setState lands here; only real changes go out
     lastReport = key;
@@ -232,12 +274,69 @@ const GscEmbed = (function () {
       onStatus: () => {},
     }).catch((err) => console.warn("GSC: player handshake failed", err));
     whenReady(() => {
-      const title = document.querySelector("#player-join .player-join-title");
-      // The join card's fields and button are hidden by css/gsc-embed.css; the
-      // heading is all that shows during the (sub-frame) auto-join, and any
-      // failure text still surfaces underneath it.
-      if (title) title.textContent = "Connecting…";
+      // The fields and Join button are hidden by `body.gsc-autojoin` while the
+      // automatic join is still expected to work, so the heading is all the
+      // player sees — normally for a fraction of a frame.
+      relabelJoinCard("Connecting…");
+      prefillPlayerName();
+      buildStuckMessage();
+      setTimeout(revealJoinCardIfStuck, AUTOJOIN_GRACE_MS);
     });
+  }
+
+  function relabelJoinCard(text) {
+    const title = document.querySelector("#player-join .player-join-title");
+    if (title) title.textContent = text;
+  }
+
+  /**
+   * Fill the (hidden) name field from the lobby. buzzer-player.js's own
+   * gscAutoJoin() does this too, but it bails when there is no ?name=; doing it
+   * here as well means the revealed card is always ready to submit.
+   */
+  function prefillPlayerName() {
+    const field = document.getElementById("player-name");
+    const name = SDK && SDK.params && SDK.params.name ? String(SDK.params.name).trim() : "";
+    if (field && name && !field.value) field.value = name.slice(0, NAME_MAX);
+  }
+
+  /**
+   * Our own line of copy inside the join card. buzzer-player.js rewrites
+   * #player-error on every render, so a message parked there would be wiped;
+   * this node is ours alone and is revealed by `body.gsc-join-stuck`.
+   */
+  function buildStuckMessage() {
+    const card = document.getElementById("player-join");
+    if (!card || document.getElementById("gsc-join-stuck-msg")) return;
+    const note = document.createElement("p");
+    note.id = "gsc-join-stuck-msg";
+    note.className = "gsc-join-stuck-msg";
+    note.setAttribute("role", "status");
+    note.textContent =
+      "Couldn't reach the host's buzzer room. Your name and the room code are " +
+      "already filled in — tap Join to try again.";
+    const err = document.getElementById("player-error");
+    if (err && err.parentNode === card) card.insertBefore(note, err);
+    else card.appendChild(note);
+  }
+
+  /** buzzer-player.js's render() hides #player-join the moment it is joined. */
+  function stillOnJoinScreen() {
+    const card = document.getElementById("player-join");
+    return !!card && !card.classList.contains("hidden");
+  }
+
+  /**
+   * D5 — the auto-join never landed. Hand the player the ordinary Jeopardy join
+   * card, prefilled, plus a plain-English reason: a dead "Connecting…" card with
+   * no fields and no button is otherwise a trap that only a page reload escapes.
+   * We never re-arm `gsc-autojoin`; from here on the form stays available.
+   */
+  function revealJoinCardIfStuck() {
+    if (!stillOnJoinScreen() || !document.body) return;
+    document.body.classList.remove("gsc-autojoin");
+    document.body.classList.add("gsc-join-stuck");
+    relabelJoinCard("Buzz In");
   }
 
   /* ============ Hooks called from the upstream files ============ */
@@ -270,8 +369,9 @@ const GscEmbed = (function () {
     onStateChanged,
     // Test seams for tests/gsc-embed-harness.html.
     _room: () => room,
-    _pidFor: pidFor,
+    _pidFor: (playerId, name) => { refreshPidMap(); return pidFor(playerId, name); },
     _syncManualPlayers: syncManualPlayers,
+    _revealJoinCardIfStuck: revealJoinCardIfStuck,
   };
 })();
 

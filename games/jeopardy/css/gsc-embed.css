@@ -50,22 +50,44 @@ body.gsc-embedded .buzzer-join-note {
 
 /* ============ Phone: no join card, no code chip, no leaving ============ */
 
-/* gsc-embed.js auto-joins with the name the lobby already collected, so the
-   code + name fields and the Join button can never be usefully tapped. The
-   heading (relabelled "Connecting…") and #player-error stay visible, so a
-   failure is still readable instead of a blank screen. */
-body.gsc-embedded #player-join .player-field,
-body.gsc-embedded #player-join-btn,
+/* gsc-embed.js auto-joins with the name the lobby already collected, so while
+   that is still expected to work the code + name fields and the Join button
+   would only be noise. They are hidden by `gsc-autojoin`, NOT by
+   `gsc-embedded` — gsc-embed.js drops that class if the join has not landed
+   within ~12 s, which hands the player the ordinary, prefilled Jeopardy join
+   card back rather than a dead "Connecting…" screen. */
+body.gsc-embedded.gsc-autojoin #player-join .player-field,
+body.gsc-embedded.gsc-autojoin #player-join-btn {
+  display: none;
+}
+
+/* Standalone connectivity advice ("open this in Safari", "switch to Wi-Fi")
+   does not apply inside the hub — the shell owns the transport and shows its
+   own banner. Our own line below says the useful thing instead. */
 body.gsc-embedded #player-webview-hint,
 body.gsc-embedded #player-tips {
   display: none;
 }
 
-body.gsc-embedded #player-join {
+/* Bare heading while auto-joining; a real panel again once it is a real form. */
+body.gsc-embedded.gsc-autojoin #player-join {
   background: none;
   border: 0;
   box-shadow: none;
   gap: 0.6rem;
+}
+
+/* Shown only once the auto-join has given up (body.gsc-join-stuck). Built in
+   gsc-embed.js with textContent, and kept apart from #player-error because
+   buzzer-player.js rewrites that node on every render. */
+.gsc-join-stuck-msg { display: none; }
+
+body.gsc-join-stuck .gsc-join-stuck-msg {
+  display: block;
+  margin: 0;
+  color: var(--gold-text, #ffd35e);
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 /* The shell bar above this iframe already shows the room code, and leaving is

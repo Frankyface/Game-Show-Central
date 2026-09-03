@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jeopardy embed harness (E1–E6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #04062b; color: #f4f5ff; margin: 0; padding: 2rem; }
+    h1 { font-size: 1.2rem; }
+    p.lede { color: #aab0e0; max-width: 62rem; line-height: 1.5; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #51d88a; }
+    #summary.bad { color: #ff6b6b; }
+    #results { list-style: none; margin: 0 0 1.5rem; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); }
+    #results li[data-pass="true"] { border-left: 4px solid #51d88a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff6b6b; background: rgba(255,107,107,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #51d88a; }
+    li[data-pass="false"] .tag { color: #ff6b6b; }
+    .detail { color: #aab0e0; display: block; font-size: 0.85em; margin-top: 0.15rem; overflow-wrap: anywhere; }
+    #stage { display: flex; gap: 0.8rem; align-items: flex-start; }
+    #stage iframe { border: 1px solid rgba(170,176,224,0.3); border-radius: 8px; background: #03052e; }
+    #host-slot iframe { width: 640px; height: 420px; }
+    .phone-slot iframe { width: 210px; height: 420px; }
+  </style>
+</head>
+<body>
+  <h1>Jeopardy embed harness — E1 … E6</h1>
+  <p class="lede">
+    This page <strong>is the shell</strong>. It mounts the real
+    <code>games/jeopardy/index.html</code> as one <code>?embed=host</code> frame
+    and up to three <code>?embed=player</code> frames, and relays
+    between them with the real <code>GSCBridge</code> over the real bridge
+    protocol (<code>docs/00</code> §6): <code>init</code> / <code>msg</code> /
+    <code>send</code> / <code>player-status</code> / <code>conn-close</code>.
+    No PeerJS and no network: <code>shared/virtual-peer.js</code> is what the
+    game talks to. Open it and wait — it drives itself.
+  </p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div id="stage">
+    <div id="host-slot"></div>
+    <div class="phone-slot" id="phone-p1"></div>
+    <div class="phone-slot" id="phone-p2"></div>
+    <div class="phone-slot" id="phone-p9"></div>
+  </div>
+
+  <!-- The shell side of the bridge, exactly as index.html uses it. -->
+  <script src="../../../shared/room-protocol.js"></script>
+  <script src="../../../shared/bridge.js"></script>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const CODE = "TEST";
+      const STORAGE_KEY = "gh-jeopardy-state-v1";
+      const PAGE = "../index.html";
+      const ROSTER = [
+        { pid: "p1", name: "Rita", color: "#e69f00", avatar: "🦖", connected: true, manual: false },
+        { pid: "p2", name: "Sam", color: "#56b4e9", avatar: "🦊", connected: true, manual: false },
+      ];
+      // Deliberately NOT in the roster the host frame is initialised with, so the
+      // shim never announces a connection for it and its `join` is queued
+      // forever — the exact shape of the transport race that used to strand a
+      // phone on a dead "Connecting…" card (D5).
+      const STUCK = { pid: "p9", name: "Zed", color: "#cc79a7", avatar: "🐧" };
+
+      const results = [];
+      let uncaught = null;
+      window.addEventListener("error", (e) => { uncaught = uncaught || e.message; });
+
+      function check(label, pass, detail) {
+        results.push({ label, pass: !!pass, detail: detail || "" });
+      }
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      /** Poll `fn` until it returns truthy. Resolves to the value, or null. */
+      async function waitFor(fn, timeoutMs) {
+        const deadline = Date.now() + (timeoutMs || 8000);
+        for (;;) {
+          let value = null;
+          try { value = fn(); } catch (err) { value = null; }
+          if (value) return value;
+          if (Date.now() > deadline) return null;
+          await sleep(60);
+        }
+      }
+
+      /* ============ The shell: frames + relay ============ */
+
+      const phones = {}; // pid -> {frame, bridge, ready}
+      let hostFrame = null;
+      let hostBridge = null;
+      let hostReady = false;
+      let lastScores = null;
+      /**
+       * Phone intents that beat the host frame's `ready`. The real shell keeps
+       * exactly this queue (js/hub-host.js `pending`, flushed in
+       * frameApi().onReady) because a phone's one-shot Jeopardy `join` is
+       * otherwise lost when its frame loads first. Mirrored here so the harness
+       * models the shell rather than a friendlier version of it.
+       */
+      let hostPending = [];
+      const PENDING_MAX = 32;
+
+      function mountHost() {
+        const slot = document.getElementById("host-slot");
+        slot.replaceChildren();
+        hostFrame = document.createElement("iframe");
+        hostFrame.title = "Jeopardy host";
+        hostFrame.src = `${PAGE}?embed=host&room=${CODE}`;
+        slot.appendChild(hostFrame);
+        hostBridge = GSCBridge.attachHostFrame(hostFrame, {
+          onReady() {
+            hostReady = true;
+            hostBridge.postInit({ code: CODE, players: ROSTER.map((p) => ({ ...p })) });
+            const queued = hostPending;
+            hostPending = [];
+            for (const q of queued) hostBridge.postMsg(q.pid, q.m);
+          },
+          // docs/00 §6: a host game payload for one phone, or "*" for everyone.
+          onSend(pid, m) {
+            if (pid === "*") { for (const id of Object.keys(phones)) postToPhone(id, m); return; }
+            postToPhone(pid, m);
+          },
+          onClose(pid) {
+            const ph = phones[pid];
+            if (ph && ph.ready) ph.bridge.postConnClose();
+          },
+          onScores(scores) { lastScores = scores; },
+          onExit() {},
+          onTitle() {},
+        });
+      }
+
+      function postToPhone(pid, m) {
+        const ph = phones[pid];
+        if (ph && ph.ready) ph.bridge.postMsg(m);
+      }
+
+      function phoneUrl(p) {
+        return `${PAGE}?embed=player&room=${CODE}&pid=${p.pid}&name=${encodeURIComponent(p.name)}`;
+      }
+
+      function mountPhone(p) {
+        const slot = document.getElementById(`phone-${p.pid}`);
+        slot.replaceChildren();
+        const frame = document.createElement("iframe");
+        frame.title = `Phone ${p.name}`;
+        frame.src = phoneUrl(p);
+        slot.appendChild(frame);
+        const entry = { frame, bridge: null, ready: false };
+        phones[p.pid] = entry;
+        entry.bridge = GSCBridge.attachPlayerFrame(frame, {
+          onReady() {
+            entry.ready = true;
+            entry.bridge.postInit(
+              { pid: p.pid, name: p.name, color: p.color, avatar: p.avatar },
+              { code: CODE }
+            );
+            entry.bridge.postStatus(true);
+          },
+          onSend(m) {
+            if (hostReady && hostBridge) { hostBridge.postMsg(p.pid, m); return; }
+            hostPending.push({ pid: p.pid, m });
+            if (hostPending.length > PENDING_MAX) hostPending.shift();
+          },
+        });
+        return entry;
+      }
+
+      /**
+       * Remount one phone's game frame the way the shell does on a game swap:
+       * set the same src again. `iframe.contentWindow` is a live getter, so the
+       * existing bridge keeps matching after the reload and the frame's fresh
+       * `ready` is answered with a fresh `init`.
+       */
+      function remountPhone(p) {
+        const entry = phones[p.pid];
+        entry.ready = false;
+        entry.frame.src = phoneUrl(p);
+      }
+
+      /* ============ Reading the frames ============ */
+
+      const hostWin = () => hostFrame && hostFrame.contentWindow;
+      const hostDoc = () => hostFrame && hostFrame.contentDocument;
+      const phoneDoc = (pid) => phones[pid] && phones[pid].frame.contentDocument;
+
+      /** The host game's state — same origin, so read it back off localStorage. */
+      function hostState() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); }
+        catch (err) { return null; }
+      }
+
+      function scoreboardNames() {
+        const st = hostState();
+        return st && Array.isArray(st.players) ? st.players.map((p) => p.name) : [];
+      }
+
+      function clueBarText() {
+        const d = hostDoc();
+        const bar = d && d.getElementById("buzzer-clue-bar");
+        return bar ? bar.innerText.replace(/\s+/g, " ").trim() : "";
+      }
+
+      function buzzBtn(pid) {
+        const d = phoneDoc(pid);
+        return d ? d.getElementById("player-buzz") : null;
+      }
+
+      /** True while `body.gsc-autojoin` is suppressing the join form. */
+      function fieldsHidden(pid) {
+        const d = phoneDoc(pid);
+        const win = phones[pid] && phones[pid].frame.contentWindow;
+        const field = d && d.querySelector("#player-join .player-field");
+        if (!field || !win) return false;
+        return win.getComputedStyle(field).display === "none";
+      }
+
+      function joinCardShowing(pid) {
+        const d = phoneDoc(pid);
+        const card = d && d.getElementById("player-join");
+        if (!card) return true;
+        return !card.classList.contains("hidden");
+      }
+
+      /** Press the buzzer for real: pointerdown, not click (buzzer spec §9.8). */
+      function tapBuzzer(pid) {
+        const win = phones[pid].frame.contentWindow;
+        const btn = buzzBtn(pid);
+        if (!btn || !win) return false;
+        const Ctor = win.PointerEvent || win.MouseEvent;
+        btn.dispatchEvent(new Ctor("pointerdown", { bubbles: true, cancelable: true }));
+        return true;
+      }
+
+      async function openClueAndArm(cat, row) {
+        hostWin().openClue(cat, row);
+        await waitFor(() => hostState() && hostState().active, 4000);
+        await waitFor(() => /Arm buzzers/i.test(clueBarText()), 5000);
+        hostWin().BuzzerHost.arm();
+        return await waitFor(() => hostWin().BuzzerHost._roomState().armed, 4000);
+      }
+
+      /* ============ The run ============ */
+
+      async function run() {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* private mode */ }
+
+        mountHost();
+        for (const p of ROSTER) mountPhone(p);
+
+        /* ---- E1: both names on the scoreboard, no join card ---- */
+
+        const opened = await waitFor(
+          () => hostWin() && hostWin().BuzzerHost && hostWin().BuzzerHost.status() === "open",
+          12000
+        );
+        const bodyClass = hostDoc() ? hostDoc().body.className : "";
+        check("E1 the host frame boots embedded and adopts the shell's room code",
+          opened && bodyClass.indexOf("gsc-embedded") !== -1,
+          `status=${opened ? hostWin().BuzzerHost.status() : "never open"} body="${bodyClass}" ` +
+          `savedCode=${hostState() && hostState().buzzer ? hostState().buzzer.roomCode : "—"}`);
+
+        const bothOn = await waitFor(() => {
+          const names = scoreboardNames();
+          return names.indexOf("Rita") !== -1 && names.indexOf("Sam") !== -1 ? names : null;
+        }, 12000);
+        check("E1 both lobby players reach the Jeopardy scoreboard by themselves",
+          !!bothOn, `scoreboard=[${scoreboardNames().join(", ")}]`);
+
+        await waitFor(() => !joinCardShowing("p1") && !joinCardShowing("p2"), 8000);
+        const p1Btn = buzzBtn("p1");
+        const p2Btn = buzzBtn("p2");
+        check("E1 neither phone shows a join card — both are on the buzzer screen",
+          !joinCardShowing("p1") && !joinCardShowing("p2") &&
+          !!p1Btn && p1Btn.className.indexOf("mode-") !== -1 &&
+          !!p2Btn && p2Btn.className.indexOf("mode-") !== -1,
+          `p1 join=${joinCardShowing("p1")} btn="${p1Btn ? p1Btn.textContent : "—"}" · ` +
+          `p2 join=${joinCardShowing("p2")} btn="${p2Btn ? p2Btn.textContent : "—"}"`);
+
+        /* ---- E2: a buzz after arming reaches the host bar ---- */
+
+        hostWin().startGame();
+        await waitFor(() => hostState() && hostState().phase === "board", 6000);
+        const armed = await openClueAndArm(0, 0);
+        const sawArmed = await waitFor(() => {
+          const b = buzzBtn("p1");
+          return b && b.className.indexOf("mode-armed") !== -1;
+        }, 6000);
+        tapBuzzer("p1");
+        const won = await waitFor(() => /Rita/.test(clueBarText()), 6000);
+        check("E2 armed phone buzzes and the host bar names the winner",
+          armed && sawArmed && won,
+          `armed=${!!armed} phoneArmed=${!!sawArmed} hostBar="${clueBarText()}"`);
+
+        hostWin().closeClue();
+        await waitFor(() => hostState() && !hostState().active, 4000);
+
+        /* ---- E3/E4/E5: drop, return, remount ---- */
+
+        const st = hostState();
+        const samId = st.players.filter((p) => p.name === "Sam").map((p) => p.id)[0];
+        const rowsBefore = st.players.filter((p) => p.name === "Sam").length;
+
+        hostBridge.postPlayerStatus("p2", false);
+        await sleep(600);
+        const pidWhileDown = hostWin().GscEmbed._pidFor(samId, "Sam");
+        check("E3 the pid survives the drop (no pid:null in the night standings)",
+          pidWhileDown === "p2",
+          `_pidFor("${samId}","Sam") while disconnected = ${JSON.stringify(pidWhileDown)} ` +
+          `(roomState knows ${Object.keys(hostWin().BuzzerHost._roomState().players).join(",") || "nobody"})`);
+
+        hostBridge.postPlayerStatus("p2", true);
+        await sleep(400);
+        remountPhone(ROSTER[1]);
+
+        const rejoined = await waitFor(() => {
+          const s = hostState();
+          if (!s) return null;
+          const rows = s.players.filter((p) => p.name === "Sam");
+          const live = hostWin().BuzzerHost._roomState().players;
+          const back = Object.keys(live).some((k) => live[k].name === "Sam" && live[k].connected);
+          return rows.length === 1 && back ? rows : null;
+        }, 15000);
+        const rowsAfter = hostState() ? hostState().players.filter((p) => p.name === "Sam").length : -1;
+        check("E4 a dropped-and-returned phone leaves exactly ONE scoreboard row",
+          !!rejoined && rowsAfter === 1,
+          `rows named "Sam": before=${rowsBefore} after=${rowsAfter}; ` +
+          `full scoreboard=[${scoreboardNames().join(", ")}]`);
+
+        const armed2 = await openClueAndArm(0, 1);
+        const sawArmed2 = await waitFor(() => {
+          const b = buzzBtn("p2");
+          return b && b.className.indexOf("mode-armed") !== -1;
+        }, 8000);
+        tapBuzzer("p2");
+        const won2 = await waitFor(() => /Sam/.test(clueBarText()), 6000);
+        check("E5 that phone's buzzer still works after the remount",
+          armed2 && sawArmed2 && won2,
+          `armed=${!!armed2} phoneArmed=${!!sawArmed2} hostBar="${clueBarText()}"`);
+
+        check("E5 no uncaught errors in the harness", !uncaught, uncaught || "none");
+
+        /* ---- E6: a phone whose auto-join never lands can still retry ---- */
+
+        mountPhone(STUCK);
+        const stuckDoc = await waitFor(() => {
+          const d = phoneDoc("p9");
+          return d && d.getElementById("player-join") ? d : null;
+        }, 10000);
+        await waitFor(() => {
+          const w = phones.p9.frame.contentWindow;
+          return w && w.GscEmbed && typeof w.GscEmbed._revealJoinCardIfStuck === "function";
+        }, 10000);
+        await sleep(800);
+        const stuckWin = phones.p9.frame.contentWindow;
+        const strandedBefore = joinCardShowing("p9");
+        const hiddenBefore = fieldsHidden("p9");
+        // Fire the 12 s watchdog now instead of waiting it out.
+        stuckWin.GscEmbed._revealJoinCardIfStuck();
+        await sleep(200);
+        const nameField = stuckDoc ? stuckDoc.getElementById("player-name") : null;
+        const joinBtn = stuckDoc ? stuckDoc.getElementById("player-join-btn") : null;
+        const msg = stuckDoc ? stuckDoc.getElementById("gsc-join-stuck-msg") : null;
+        const msgShown = !!msg && stuckWin.getComputedStyle(msg).display !== "none";
+        check("E6 a stranded phone gets the join card, prefilled, plus a reason",
+          strandedBefore && hiddenBefore && !fieldsHidden("p9") &&
+          !!joinBtn && stuckWin.getComputedStyle(joinBtn).display !== "none" &&
+          !!nameField && nameField.value === STUCK.name && msgShown,
+          `stranded=${strandedBefore} fieldsHiddenBefore=${hiddenBefore} ` +
+          `fieldsHiddenAfter=${fieldsHidden("p9")} ` +
+          `name="${nameField ? nameField.value : "—"}" ` +
+          `code="${stuckDoc && stuckDoc.getElementById("player-code") ? stuckDoc.getElementById("player-code").value : "—"}" ` +
+          `msg="${msgShown && msg ? msg.textContent.slice(0, 70) + "…" : "not shown"}"`);
+      }
+
+      function report() {
+        const list = document.getElementById("results");
+        list.replaceChildren();
+        let passed = 0;
+        for (const r of results) {
+          const li = document.createElement("li");
+          li.setAttribute("data-pass", String(r.pass));
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = r.pass ? "PASS" : "FAIL";
+          li.appendChild(tag);
+          li.appendChild(document.createTextNode(r.label));
+          if (r.detail) {
+            const d = document.createElement("span");
+            d.className = "detail";
+            d.textContent = r.detail;
+            li.appendChild(d);
+          }
+          list.appendChild(li);
+          if (r.pass) passed += 1;
+        }
+        const summary = document.getElementById("summary");
+        summary.textContent = `${passed}/${results.length} checks passed`;
+        summary.className = passed === results.length && results.length > 0 ? "ok" : "bad";
+      }
+
+      run()
+        .catch((err) => {
+          check("harness ran to completion", false, String((err && err.message) || err));
+        })
+        .then(report);
+    })();
+  </script>
+</body>
+</html>

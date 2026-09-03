@@ -258,10 +258,11 @@ above the Jeopardy board with three tiles greyed out and the scoreboard
   phone players beyond 8 are refused by Jeopardy's own reducer with its usual
   room-full reject. A 9+-player lobby therefore cannot fully play Jeopardy —
   which is what the registry's `players: [1, 8]` hint already tells the host.
-- **No automated embed harness.** Real-network testing covered J-E1 … J-E9
-  end to end, so `games/jeopardy/tests/gsc-embed-harness.html` was not written.
-  There is consequently no scripted regression for the embedded path; re-running
-  it means repeating §4's walkthrough by hand.
+- ~~**No automated embed harness.**~~ **Closed in §9** —
+  `games/jeopardy/tests/gsc-embed-harness.html` now covers the embedded path
+  (E1 … E6). It does not replace §4's real-network walkthrough: it exercises the
+  bridge and the shim, not PeerJS, and it does not cover Daily Doubles, Final
+  Jeopardy, timers or ⌂ Lobby.
 - **The night scoreboard is deduped by value, not by round.** `reportScores()`
   skips a report identical to the previous one. A game that ends and restarts on
   exactly the same numbers would not re-report — harmless, since the recorded
@@ -295,3 +296,132 @@ harnesses were re-run green afterwards.
   `embed=host` check.
 - The upstream 800-line cap violations in `js/app.js` and `js/buzzer-host.js` are
   inherited from vendoring, not introduced here (deviation 6).
+
+---
+
+## 9. Fixes after verification
+
+The independent tester's review (`docs/reports/jeopardy-embed-verification.md`,
+verdict *fix-then-ship*) raised five defects. **D1–D3 were critical and none of
+them lived in `games/jeopardy/**`** — two in `shared/virtual-peer.js` and one in
+the hub shell; the orchestrator fixed those (commit `ef63e7f`). The two that were
+this component's own, **D4 and D5**, are fixed here, plus the embedded regression
+harness the tester asked for. Nothing outside `games/jeopardy/**` and this report
+was touched.
+
+### D4 (minor) — night-standings pids degraded to `null` around reconnects
+
+**Was:** `pidFor()` in `js/gsc-embed.js` looked the pid up **only** in
+`BuzzerHost._roomState()`. With the D1 fix in place a dropped phone now has its
+host-side virtual connection *closed* and re-announced, so between the drop and
+the rejoin that live lookup finds nothing and the player was reported to the hub
+as `{"pid":null,"name":"Rita",…}`. It self-healed on the next score change, but a
+game that ended inside that window recorded the wrong pids for the night.
+
+**Now:** two memo maps in `js/gsc-embed.js`, `pidByPlayerId` and `pidByName`,
+written by a new `refreshPidMap()` from every live connection and **never cleared
+on close**. `pidFor(playerId, name)` resolves most-reliable-first: remembered pid
+for that scoreboard id → remembered pid for that name (covers a rejoin that has
+not relinked yet) → the pid a manual row carries in its own `gsc-<pid>` id →
+`null`. A genuinely different later connection for the same player simply
+overwrites the entry, so the map cannot go stale in the harmful direction.
+`reportScores()` calls `refreshPidMap()` once per report and passes the name
+through. ~30 lines including comments.
+
+### D5 (minor) — an embedded phone whose auto-join failed had no way to retry
+
+**Was:** `css/gsc-embed.css` hid `#player-join .player-field` and
+`#player-join-btn` unconditionally under `body.gsc-embedded`. When a transport
+race left the phone on the join screen, the "Connecting…" card had no fields, no
+Join button and an empty `#player-error` — a dead end escapable only by reloading
+from browser chrome.
+
+**Now:** the fields and button are hidden by **`body.gsc-embedded.gsc-autojoin`**,
+not by `gsc-embedded` alone. `gsc-embed.js` adds `gsc-autojoin` in `markBody()`
+(so the fields never flash) and arms a **12 s** watchdog,
+`revealJoinCardIfStuck()`. If `#player-join` is still showing when it fires, the
+class comes off, `gsc-join-stuck` goes on, the heading reverts from "Connecting…"
+to "Buzz In", and a dedicated node reads:
+
+> Couldn't reach the host's buzzer room. Your name and the room code are already
+> filled in — tap Join to try again.
+
+The message lives in its own `#gsc-join-stuck-msg` element rather than
+`#player-error`, because `buzzer-player.js` rewrites `#player-error` on every
+render and would wipe it. `gsc-embed.js` also prefills `#player-name` itself, so
+the revealed card is always one tap from a retry even if `gscAutoJoin()` bailed.
+The class is never re-armed: once the form is back, it stays available. 12 s is
+comfortably longer than the shell's own join deadline, so a slow-but-working
+connection is never interrupted.
+
+### New: `games/jeopardy/tests/gsc-embed-harness.html` (416 lines)
+
+The lightweight embedded regression the tester asked for. The page **is** the
+shell: it mounts the real `games/jeopardy/index.html` as one
+`?embed=host&room=TEST` frame plus up to three `?embed=player` frames, and relays
+between them with the real `GSCBridge` over the real bridge protocol (`docs/00`
+§6: `init`, `msg`, `send`, `player-status`, `conn-close`). No PeerJS and no
+network; the game talks to `shared/virtual-peer.js`. It self-starts and writes
+PASS/FAIL into `#results li[data-pass]` with `#summary.ok` when green, matching
+the two existing harnesses.
+
+| Check | What it pins |
+|---|---|
+| **E1** (×3) | The host frame boots `gsc-embedded` and adopts the shell's code; **both** lobby names reach the Jeopardy scoreboard unaided; **neither** phone shows a join card — both are on the buzzer screen. |
+| **E2** | After `startGame()` → `openClue(0,0)` → `BuzzerHost.arm()`, a real `pointerdown` on a phone's buzz button reaches the host bar as the named winner. |
+| **E3** | **Regression guard for D4** — `_pidFor()` still returns `"p2"` while that phone is disconnected and `BuzzerHost._roomState()` knows nothing about it. |
+| **E4** | **Regression guard for D1** — `player-status false` → `true` → remount that phone's iframe leaves **exactly one** scoreboard row for the name. |
+| **E5** (×2) | That phone's buzzer still works after the remount; no uncaught errors. |
+| **E6** | **Regression guard for D5** — a fourth phone is mounted with a pid the host frame was never initialised with, so its `join` is queued forever and it strands on "Connecting…" exactly as the transport race used to. Firing the watchdog (`GscEmbed._revealJoinCardIfStuck()`, so the test does not sit out the 12 s) must un-hide the fields and the Join button, leave the name and room code prefilled, and show the plain-English reason. |
+
+### Verification after the fixes
+
+Run on `http://127.0.0.1:8631/` (`python -m http.server 8631 --bind 127.0.0.1`
+from the repo root), Node v24.16.0.
+
+| Gate | Result |
+|---|---|
+| `cd games/jeopardy && node --test` | **PASS** — `tests 49 / pass 49 / fail 0`, unchanged. |
+| `tests/gsc-embed-harness.html` (new) | **PASS** — `9/9 checks passed`, `#summary.ok`, green on two consecutive runs. |
+| `tests/harness.html` (upstream buzzer loopback) | **PASS** — `70/70 checks passed`. |
+| `tests/photo-harness.html` | **PASS** — `All 26 photo-clue checks passed.` |
+| Standalone unaffected by the D5 CSS change | **PASS** — `games/jeopardy/?room=WXYZ` opened directly: `GSC.mode="standalone-player"`, `GscEmbed.isEmbedded()=false`, `body.className="player-mode"` (no `gsc-embedded`, no `gsc-autojoin`), both `.player-field`s `display:flex`, Join button `display:block` reading "Join", heading "Buzz In", code prefilled `WXYZ`, `#gsc-join-stuck-msg` absent, `window.peerjs` undefined. |
+| Static gates | No `innerHTML` / `insertAdjacentHTML` / `outerHTML =` / `document.write` / `eval(` / `new Function` / `console.log` in any file this component owns (the one grep hit is the word "innerHTML" inside a comment). Every DOM node is `createElement` + `textContent`. |
+| Files | `js/gsc-embed.js` 278 → **378**, `css/gsc-embed.css` 83 → **105**, `tests/gsc-embed-harness.html` **416** — all well under the 800-line cap. |
+| Touch area | `git status --porcelain -- games/jeopardy` lists only `css/gsc-embed.css`, `js/gsc-embed.js` and the new `tests/gsc-embed-harness.html`. **No upstream file was edited in this pass**, so the `// GSC:` list in §2 is unchanged. |
+
+Harness evidence, per check:
+
+| Check | Detail line from the run |
+|---|---|
+| E1 | `status=open body="gsc-embedded" savedCode=TEST` |
+| E1 | `scoreboard=[Sam, Rita]` |
+| E1 | `p1 join=false btn="Wait for the host…" · p2 join=false btn="Wait for the host…"` |
+| E2 | `armed=true phoneArmed=true hostBar="🔔 Rita ✓ ✗"` |
+| E3 | `_pidFor("bz…-1","Sam") while disconnected = "p2" (roomState knows p1)` — i.e. the memo answered while the live map had only the other phone |
+| E4 | `rows named "Sam": before=1 after=1; full scoreboard=[Sam, Rita]` |
+| E5 | `armed=true phoneArmed=true hostBar="🔔 Sam ✓ ✗"` |
+| E5 | `no uncaught errors` |
+| E6 | `stranded=true fieldsHiddenBefore=true fieldsHiddenAfter=false name="Zed" code="TEST" msg="Couldn't reach the host's buzzer room. Your name and the room code are…"` |
+
+### Two things building the harness turned up
+
+1. **The shell's `pending` queue is load-bearing, and the harness has to have one
+   too.** The first green-path run failed E1/E2 with `scoreboard=[Sam]`: Rita's
+   phone frame finished loading *before* the host frame posted `ready`, so her
+   one-shot Jeopardy `join` — relayed by the harness the instant it arrived — was
+   dropped, and she stranded on "Connecting…" while Sam played normally. This is
+   exactly the race the tester filed as D2, reproduced from the shell side rather
+   than the shim side. The harness now mirrors `js/hub-host.js`'s `pending` queue
+   (buffer phone→host payloads until the host frame's `ready`, flush after
+   `postInit`, cap 32). Phone-bound payloads are still **dropped** when that
+   phone's frame is not ready, because that is what `js/hub-player.js` does — the
+   harness models the shell as built, not a friendlier version of it. Worth
+   knowing for the other three games: **a game whose phone sends a one-shot
+   handshake needs the shell's buffer to be working, or it loses players on the
+   first mount.**
+2. **A harness under `games/<id>/tests/` needs `../../../shared/`, not
+   `../../shared/`.** The first run died with `GSCBridge is not defined` because
+   the relative path that is correct from `games/jeopardy/index.html` is one
+   level short from `games/jeopardy/tests/`. Cheap to trip over; the 404s are
+   silent unless you read the network log.
