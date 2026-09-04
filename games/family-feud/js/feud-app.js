@@ -484,12 +484,14 @@ function renderStrikes() {
 function renderTeamPanel(team) {
   const panel = $(team === 0 ? "team-panel-a" : "team-panel-b");
   const info = state.teams[team];
-  panel.className = `team-panel ${team === 0 ? "team-a" : "team-b"}` +
-    (state.control === team ? " control" : "");
+  // `gsc-podium` / `is-active` are the design-system v2 names; the v1 class
+  // names stay exactly as they were (never remove a class).
+  panel.className = `team-panel gsc-podium ${team === 0 ? "team-a" : "team-b"}` +
+    (state.control === team ? " control is-active" : "");
   panel.replaceChildren();
-  panel.appendChild(el("h3", "team-name", info.name));
+  panel.appendChild(el("h3", "team-name gsc-podium-name", info.name));
 
-  const score = button("team-score", String(info.score), () => editScore(team),
+  const score = button("team-score gsc-podium-score", String(info.score), () => editScore(team),
     { label: `${info.name} score ${info.score}. Click to edit.` });
   panel.appendChild(score);
 
@@ -497,7 +499,7 @@ function renderTeamPanel(team) {
   if (state.phase === "steal" && state.steal.team === team) badge = "Stealing";
   else if (state.control === team) badge = "Control";
   else if (state.phase === "faceoff" && state.faceoff.buzzed === team) badge = "Buzzed in";
-  panel.appendChild(el("span", "team-badge", badge));
+  panel.appendChild(el("span", "team-badge gsc-podium-note", badge));
 
   panel.appendChild(teamRoster(team));
 }
@@ -627,11 +629,11 @@ function renderFinal() {
   const best = Math.max(state.teams[0].score, state.teams[1].score);
   const tied = state.teams[0].score === state.teams[1].score;
   state.teams.forEach((team, i) => {
-    const card = el("div", `final-team ${i === 0 ? "team-a" : "team-b"}` +
-      (!tied && team.score === best ? " winner" : ""));
-    card.appendChild(el("h3", "team-name", team.name));
-    card.appendChild(el("p", "team-score", String(team.score)));
-    card.appendChild(el("span", "team-badge", !tied && team.score === best ? "Winner" : ""));
+    const card = el("div", `final-team gsc-podium ${i === 0 ? "team-a" : "team-b"}` +
+      (!tied && team.score === best ? " winner is-active" : ""));
+    card.appendChild(el("h3", "team-name gsc-podium-name", team.name));
+    card.appendChild(el("p", "team-score gsc-podium-score", String(team.score)));
+    card.appendChild(el("span", "team-badge gsc-podium-note", !tied && team.score === best ? "Winner" : ""));
     host.appendChild(card);
   });
   const fm = state.fastMoney;

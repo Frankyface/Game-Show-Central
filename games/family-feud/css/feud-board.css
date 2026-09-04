@@ -1,0 +1,720 @@
+/* ============================================================
+   Family Feud — the survey board, the podiums and Fast Money
+   Split out of css/feud.css to stay under the 800-line house rule.
+
+   The board is a chrome-framed cabinet: a brushed metal bezel with
+   rivets, a dark inner well and bevelled answer slots. Revealed
+   slots read as lit glass. One slow light sweep crosses the whole
+   cabinet — it lives on the frame (which is static markup) rather
+   than on a tile, because renderTiles() rebuilds every tile on
+   every reducer event and a per-tile one-shot would replay each
+   time.
+
+   Host play screens (board / Fast Money / final) are sized to fit
+   1280×720 with no page scroll: <body> is a flex column, main takes
+   the rest, and each play screen is a fixed-height grid whose board
+   row is the only flexible one.
+
+   Motion rule: every @keyframes AND every animation: sits inside
+   @media (prefers-reduced-motion: no-preference).
+   ============================================================ */
+
+/* ============ Phase banner (a .gsc-banner) ============ */
+
+.phase-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.5rem 1rem 0.55rem 0.85rem;
+  /* flat colour under the gradient so a DOM contrast checker reads it */
+  background-color: #0c1a3d;
+  background-image: linear-gradient(90deg, rgba(228, 0, 43, 0.32) 0%, rgba(255, 255, 255, 0.05) 52%, transparent 100%);
+  border: 1px solid var(--panel-line);
+  border-left: 6px solid var(--red);
+  border-radius: var(--radius);
+}
+
+.phase-eyebrow {
+  margin: 0;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-mute);
+}
+
+.phase-banner {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 0.8rem + 1.2vw, 1.75rem);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--gold-text);
+  margin: 0;
+  min-height: 1.05em;
+  line-height: 1;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ============ Board screen ============ */
+
+.screen-board {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.round-question {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: clamp(1.05rem, 0.85rem + 1.15vw, 1.75rem);
+  text-align: center;
+  margin: 0 auto;
+  max-width: 62ch;
+  line-height: 1.2;
+}
+
+.stage-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(340px, 3.1fr) minmax(150px, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 0;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.stage-centre { display: flex; flex-direction: column; gap: 0.6rem; min-height: 0; }
+
+/* --- The chrome cabinet --- */
+
+.board-frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--chrome-hi) 0%, var(--chrome-mid) 22%, var(--chrome-lo) 62%, var(--chrome-mid) 100%);
+  box-shadow:
+    0 22px 50px rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Rivets in the four corners of the bezel — CSS only, no images. */
+.board-frame::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 13px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 6px 6px, rgba(255, 255, 255, 0.55) 0 1.6px, rgba(0, 0, 0, 0.45) 2px 3px, transparent 3.4px),
+    radial-gradient(circle at calc(100% - 6px) 6px, rgba(255, 255, 255, 0.55) 0 1.6px, rgba(0, 0, 0, 0.45) 2px 3px, transparent 3.4px),
+    radial-gradient(circle at 6px calc(100% - 6px), rgba(255, 255, 255, 0.55) 0 1.6px, rgba(0, 0, 0, 0.45) 2px 3px, transparent 3.4px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), rgba(255, 255, 255, 0.55) 0 1.6px, rgba(0, 0, 0, 0.45) 2px 3px, transparent 3.4px);
+}
+
+/* The light sweep across the cabinet glass. */
+.board-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  background-image: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.12) 50%, transparent 58%);
+  background-size: 240% 100%;
+  background-repeat: no-repeat;
+  background-position: -140% 0;
+}
+
+.board-frame-inner {
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
+  border-radius: 9px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(28, 74, 160, 0.55) 0%, transparent 70%),
+    linear-gradient(180deg, #06132f 0%, #030a1d 100%);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(140, 165, 210, 0.22);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+}
+
+.board.two-col { grid-template-columns: 1fr 1fr; }
+
+/* --- Slots: a flip card. The back is the gold number in a bevelled
+   slot, the face is the answer + count on lit glass. --- */
+
+.tile {
+  position: relative;
+  perspective: 900px;
+  min-height: 40px;
+}
+
+.tile-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  transform-style: preserve-3d;
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.tile.revealed .tile-inner { transform: rotateX(180deg); }
+
+.tile-back, .tile-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 7px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  padding: 0 clamp(0.5rem, 1.2vw, 1rem);
+  overflow: hidden;
+}
+
+/* Unrevealed: a recessed slot with a bevel and a top sheen. */
+.tile-back {
+  justify-content: center;
+  background-color: #12306e;
+  background-image: linear-gradient(180deg, var(--tile-top) 0%, #12306e 48%, var(--tile-bottom) 100%);
+  border: 1px solid rgba(242, 182, 50, 0.3);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.55),
+    inset 0 0 26px rgba(0, 0, 0, 0.35);
+}
+
+.tile-number {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 0.9rem + 1.9vw, 2.5rem);
+  color: var(--gold);
+  line-height: 1;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6), 0 0 22px rgba(242, 182, 50, 0.45);
+}
+
+/* Revealed: lit glass with a gold rail and a fixed specular highlight. */
+.tile-face {
+  transform: rotateX(180deg);
+  justify-content: space-between;
+  gap: 0.8rem;
+  color: #fff;
+  background-color: var(--tile-face);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 46%),
+    linear-gradient(180deg, #1a4da8 0%, var(--tile-face) 42%, var(--tile-bottom) 100%);
+  border: 1px solid rgba(242, 182, 50, 0.55);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.5),
+    0 0 22px rgba(242, 182, 50, 0.18);
+}
+
+.tile-text {
+  font-family: var(--font-display);
+  font-size: clamp(0.9rem, 0.65rem + 0.95vw, 1.55rem);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  text-align: left;
+  line-height: 1.05;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+/* The count sits in its own gold-railed box, like the TV board. */
+.tile-count {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 0.75rem + 1.15vw, 1.85rem);
+  color: var(--gold-text);
+  line-height: 1;
+  flex: 0 0 auto;
+  padding: 0.1em 0.45em;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(242, 182, 50, 0.45);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+button.tile { font: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+button.tile:disabled { cursor: default; }
+button.tile:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 8px; }
+button.tile:not(:disabled):hover .tile-back {
+  background: linear-gradient(180deg, #2a55ad 0%, #1a3f88 48%, #0e2358 100%);
+  border-color: rgba(242, 182, 50, 0.7);
+}
+
+/* --- Bank + strikes rail --- */
+
+.bank-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius);
+  background-color: #0a1734;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.42));
+  border: 1px solid var(--panel-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.bank { display: flex; align-items: baseline; gap: 0.6rem; }
+
+.bank-label {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+}
+
+.bank-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 1.1rem + 2.4vw, 3rem);
+  color: var(--gold-text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 26px rgba(242, 182, 50, 0.35);
+}
+
+.bank-mult {
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 0.75rem + 0.9vw, 1.5rem);
+  color: #2b1d00;
+  background: linear-gradient(180deg, #ffd06b, var(--gold));
+  border-radius: 6px;
+  padding: 0.05em 0.45em;
+  box-shadow: 0 3px 10px rgba(242, 182, 50, 0.4);
+}
+
+.strike-row { display: flex; gap: 0.45rem; }
+
+.strike-slot {
+  width: clamp(30px, 3.2vw, 44px);
+  height: clamp(30px, 3.2vw, 44px);
+  border: 3px solid rgba(228, 0, 43, 0.4);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 0.8rem + 1.2vw, 1.7rem);
+  line-height: 1;
+  color: transparent;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.strike-slot.on {
+  color: #ff5a72;
+  border-color: var(--red);
+  background: rgba(228, 0, 43, 0.28);
+  box-shadow: inset 0 0 14px rgba(228, 0, 43, 0.55), 0 0 16px rgba(228, 0, 43, 0.45);
+  text-shadow: 0 0 14px rgba(255, 60, 90, 0.9);
+}
+
+/* --- Team panels (a .gsc-podium each) --- */
+
+.team-panel {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.8rem 0.7rem 0.9rem;
+  text-align: center;
+  min-width: 0;
+  background-color: #0b1734;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.42));
+  border: 1px solid var(--panel-line);
+  border-top: 4px solid var(--team-a);
+  border-radius: var(--radius) var(--radius) 6px 6px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.team-panel.team-b { border-top-color: var(--team-b); }
+
+.team-panel.control {
+  transform: translateY(-5px);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 18px 44px rgba(242, 182, 50, 0.3);
+}
+
+.team-panel.team-a .team-name { color: var(--team-a); }
+.team-panel.team-b .team-name { color: var(--team-b); }
+
+.team-name {
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 0.75rem + 0.85vw, 1.4rem);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.15rem;
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: 1.05;
+}
+
+.team-score {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 1.3rem + 2.6vw, 3.2rem);
+  line-height: 1;
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.5);
+}
+
+.team-score:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+
+.team-badge {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-text);
+  margin-top: 0.25rem;
+  min-height: 1em;
+}
+
+.team-roster {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+  border-top: 1px solid rgba(169, 182, 216, 0.18);
+  width: 100%;
+}
+
+.team-roster:empty { display: none; }
+.team-roster li.podium { color: var(--gold-text); font-weight: 700; }
+
+/* --- Host controls --- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 0 auto;
+  max-width: 1200px;
+  width: 100%;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.controls .control-group {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.4rem 0.7rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(169, 182, 216, 0.2);
+  border-radius: var(--radius);
+}
+
+.control-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.controls select {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-height: 36px;
+  color: var(--ink);
+  background: rgba(4, 9, 28, 0.75);
+  border: 1px solid rgba(169, 182, 216, 0.4);
+  border-radius: 8px;
+  padding: 0.35em 0.5em;
+}
+
+.controls select:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(242, 182, 50, 0.28); }
+.controls select option { background: #0b1e4a; color: var(--ink); }
+
+/* Stands in for a control that would have nothing to do — e.g. a Fast Money
+   clock configured as 0 seconds. Never a disabled button. */
+.control-note { font-size: 0.85rem; color: var(--ink-dim); }
+
+.board-hint {
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 0.86rem;
+  margin: 0 auto;
+  max-width: 74ch;
+  min-height: 1.2em;
+}
+
+/* --- Strike overlay: three giant X's --- */
+
+.strike-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 50% at 50% 50%, rgba(228, 0, 43, 0.3) 0%, transparent 72%),
+    rgba(4, 9, 28, 0.42);
+  z-index: 40;
+  pointer-events: none;
+}
+
+.strike-overlay-marks {
+  font-family: var(--font-display);
+  font-size: clamp(5rem, 19vw, 15rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--red);
+  text-shadow:
+    0 0 70px rgba(228, 0, 43, 0.9),
+    0 0 24px rgba(255, 90, 114, 0.8),
+    4px 4px 0 rgba(0, 0, 0, 0.55),
+    -3px -3px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* ============ Fast Money — the answer sheet ============ */
+
+.screen-fm { display: flex; flex-direction: column; gap: 0.5rem; overflow: hidden; }
+
+.fm-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fm-head, .fm-row {
+  display: grid;
+  grid-template-columns: 2.2fr 1.3fr 1.6fr 0.6fr;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.fm-head {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 0 0.7rem;
+}
+
+.fm-row {
+  flex: 1 1 0;
+  min-height: 46px;
+  background-color: #0b1734;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.4));
+  border: 1px solid var(--panel-line);
+  border-left: 4px solid rgba(242, 182, 50, 0.5);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.7rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.fm-row.duplicate {
+  border-color: var(--red);
+  border-left-color: var(--red);
+  background-color: #3a0c1c;
+  background-image: linear-gradient(180deg, rgba(228, 0, 43, 0.3), rgba(228, 0, 43, 0.12));
+}
+
+.fm-row.hidden-col .fm-cell-hide { visibility: hidden; }
+.fm-question { font-weight: 600; font-size: 0.92rem; line-height: 1.25; }
+
+.fm-row input, .fm-row select {
+  font: inherit;
+  font-size: 0.92rem;
+  width: 100%;
+  min-height: 36px;
+  color: var(--ink);
+  background: rgba(4, 9, 28, 0.72);
+  border: 1px solid rgba(169, 182, 216, 0.35);
+  border-radius: 8px;
+  padding: 0.35em 0.55em;
+}
+
+.fm-row input:focus-visible, .fm-row select:focus-visible {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(242, 182, 50, 0.28);
+}
+
+.fm-row select option { background: #0b1e4a; color: var(--ink); }
+
+.fm-points {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  text-align: right;
+  color: var(--gold-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.fm-dup-flag {
+  color: #ffc9d2;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fm-cover { flex: 1 1 auto; display: grid; place-content: center; text-align: center; padding: 1.5rem 1rem; }
+
+.fm-cover-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 1.2rem + 4vw, 3.6rem);
+  color: var(--gold-text);
+  margin: 0;
+  text-transform: uppercase;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+.fm-cover-sub { color: var(--ink-dim); margin: 0.6rem 0 0; }
+
+/* --- The broadcast lower-third: total, target and the verdict --- */
+
+.fm-lower-third {
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1.1rem 0.55rem;
+  margin: 0 auto;
+  max-width: 1200px;
+  width: 100%;
+  border-radius: 6px;
+  background-color: #0a172f;
+  background-image:
+    linear-gradient(90deg, rgba(228, 0, 43, 0.55) 0%, rgba(11, 30, 74, 0.94) 32%, rgba(4, 9, 28, 0.94) 100%);
+  border: 1px solid var(--panel-line);
+  border-top: 3px solid var(--gold);
+  box-shadow: 0 -6px 26px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.fm-total-row { display: flex; align-items: baseline; gap: 0.7rem; }
+
+.fm-total-label {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.fm-total {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.4rem);
+  color: var(--gold-text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 26px rgba(242, 182, 50, 0.35);
+}
+
+.fm-target { color: var(--ink-dim); font-size: 0.9rem; }
+
+.fm-result {
+  flex: 1 1 14rem;
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 0.85rem + 1.3vw, 2rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-height: 1.2em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.fm-result.win { color: var(--green); }
+.fm-result.lose { color: var(--ink-dim); }
+
+/* ============ Responsive ============ */
+
+@media (max-width: 900px) {
+  .stage-row { grid-template-columns: 1fr; }
+  .team-panel { flex-direction: row; align-items: center; justify-content: space-between; gap: 1rem; text-align: left; }
+  .team-roster { display: none; }
+  .board.two-col { grid-template-columns: 1fr; }
+  .fm-head { display: none; }
+  .fm-row { grid-template-columns: 1fr; }
+  .screen-board, .screen-fm { overflow-y: auto; }
+}
+
+/* ============ Motion ============ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes feud-sweep {
+    0% { background-position: -140% 0; }
+    100% { background-position: 260% 0; }
+  }
+
+  /* A strike lands: the marks punch in, then the screen shakes once. */
+  @keyframes feud-strike-pop {
+    0% { transform: scale(0.3) rotate(-12deg); opacity: 0; }
+    55% { transform: scale(1.15) rotate(3deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  @keyframes feud-shake {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    12% { transform: translate3d(-14px, 4px, 0); }
+    26% { transform: translate3d(12px, -5px, 0); }
+    40% { transform: translate3d(-9px, 3px, 0); }
+    54% { transform: translate3d(7px, -3px, 0); }
+    70% { transform: translate3d(-4px, 2px, 0); }
+    86% { transform: translate3d(2px, -1px, 0); }
+  }
+
+  @keyframes feud-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  @keyframes feud-fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  .board-frame::after { animation: feud-sweep 7s var(--ease-out) infinite; }
+  .strike-overlay { animation: feud-fade-in 160ms var(--ease-out) both; }
+  /* Punch in, then shake. The shake is listed second with no fill so it
+     does nothing until its delay elapses and hands the transform back. */
+  .strike-overlay-marks {
+    animation: feud-strike-pop 400ms var(--ease-out) both,
+               feud-shake 520ms var(--ease-out) 380ms 1;
+  }
+  .fm-result.win { animation: feud-flash 700ms var(--ease-out) 3; }
+}

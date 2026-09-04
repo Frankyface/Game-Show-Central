@@ -12,13 +12,17 @@
        page is fully styled on its own if shared/theme.css is not there yet. -->
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/feud.css">
+  <link rel="stylesheet" href="css/feud-board.css">
   <link rel="stylesheet" href="css/feud-phone.css">
   <link rel="stylesheet" href="css/timer.css">
 </head>
 <body data-gsc-game="family-feud">
 
   <header class="topbar">
-    <h1 id="game-title" class="topbar-title">Family Feud</h1>
+    <div class="topbar-brand">
+      <span class="topbar-mark" aria-hidden="true"></span>
+      <h1 id="game-title" class="topbar-title">Family Feud</h1>
+    </div>
     <div class="topbar-actions">
       <span id="room-chip" class="room-chip hidden"></span>
       <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">&#8630; Undo</button>
@@ -34,77 +38,94 @@
     <!-- ===== Setup ===== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="setup-card">
-        <p class="setup-kicker">Survey says&hellip;</p>
-        <h2 id="setup-title" class="setup-title">Family Feud</h2>
-        <p id="source-note" class="source-note"></p>
-
-        <div class="setup-section">
-          <h3 class="setup-heading">Teams</h3>
-          <div class="team-name-row">
-            <label class="setup-field" for="team-a-name">Team A
-              <input id="team-a-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
-            </label>
-            <label class="setup-field" for="team-b-name">Team B
-              <input id="team-b-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
-            </label>
-          </div>
-          <ul id="roster-list" class="roster-list"></ul>
-          <form id="add-player-form" class="add-player-form">
-            <label class="visually-hidden" for="player-name-input">Player name</label>
-            <input id="player-name-input" type="text" maxlength="24" placeholder="Add a player by name"
-                   autocomplete="off" spellcheck="false">
-            <button class="btn btn-ghost" type="submit">+ Add player</button>
-          </form>
-          <p class="setup-hint">Players are optional &mdash; a host alone can run the whole
-            game. Phone players appear here automatically; the host&rsquo;s A / B / &ndash;
-            choice always wins.</p>
+        <div class="setup-head">
+          <p class="setup-kicker">Survey says&hellip;</p>
+          <h2 id="setup-title" class="setup-title">Family Feud</h2>
+          <p id="source-note" class="source-note"></p>
         </div>
 
-        <div class="setup-section">
-          <h3 class="setup-heading">Game</h3>
-          <div class="setup-grid">
-            <label class="setup-field" for="rounds-to-play">Rounds to play
-              <input id="rounds-to-play" type="number" min="1" step="1" inputmode="numeric" autocomplete="off">
-            </label>
-            <label class="setup-check">
-              <input id="fast-money-on" type="checkbox"> Play Fast Money
-            </label>
+        <div class="setup-cols">
+          <div class="setup-col">
+            <div class="setup-section setup-section-teams">
+              <h3 class="setup-heading">Teams</h3>
+              <div class="team-name-row">
+                <label class="setup-field" for="team-a-name">Team A
+                  <input id="team-a-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+                </label>
+                <label class="setup-field" for="team-b-name">Team B
+                  <input id="team-b-name" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+                </label>
+              </div>
+              <ul id="roster-list" class="roster-list"></ul>
+              <form id="add-player-form" class="add-player-form">
+                <label class="visually-hidden" for="player-name-input">Player name</label>
+                <input id="player-name-input" type="text" maxlength="24" placeholder="Add a player by name"
+                       autocomplete="off" spellcheck="false">
+                <button class="btn btn-ghost" type="submit">+ Add player</button>
+              </form>
+              <p class="setup-hint">Players are optional &mdash; a host alone can run the whole
+                game. Phone players appear here automatically; the host&rsquo;s A / B / &ndash;
+                choice always wins.</p>
+            </div>
           </div>
-          <p id="fast-money-note" class="setup-hint"></p>
+
+          <div class="setup-col">
+            <div class="setup-section">
+              <h3 class="setup-heading">Game</h3>
+              <div class="setup-grid">
+                <label class="setup-field" for="rounds-to-play">Rounds to play
+                  <input id="rounds-to-play" type="number" min="1" step="1" inputmode="numeric" autocomplete="off">
+                </label>
+                <label class="setup-check">
+                  <input id="fast-money-on" type="checkbox"> Play Fast Money
+                </label>
+              </div>
+              <p id="fast-money-note" class="setup-hint"></p>
+            </div>
+
+            <div class="setup-section">
+              <h3 class="setup-heading">Questions</h3>
+              <div class="setup-load">
+                <button id="btn-load-json" class="btn btn-ghost" type="button">Load custom questions (.json)</button>
+                <button id="btn-editor-setup" class="btn btn-ghost" type="button">Open question editor</button>
+                <input type="file" id="json-file-input" accept=".json,application/json" hidden>
+              </div>
+            </div>
+
+            <div class="setup-section standalone-only" id="room-section">
+              <h3 class="setup-heading">Phones (optional)</h3>
+              <div class="setup-load">
+                <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+                <button id="btn-close-room" class="btn btn-ghost hidden" type="button">Close room</button>
+              </div>
+              <p id="room-status" class="setup-hint"></p>
+              <p id="room-join" class="setup-hint"></p>
+            </div>
+          </div>
         </div>
 
-        <div class="setup-section">
-          <h3 class="setup-heading">Questions</h3>
-          <div class="setup-load">
-            <button id="btn-load-json" class="btn btn-ghost" type="button">Load custom questions (.json)</button>
-            <button id="btn-editor-setup" class="btn btn-ghost" type="button">Open question editor</button>
-            <input type="file" id="json-file-input" accept=".json,application/json" hidden>
-          </div>
+        <div class="setup-foot">
+          <p id="setup-error" class="error-msg" role="alert"></p>
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the Feud</button>
         </div>
-
-        <div class="setup-section standalone-only" id="room-section">
-          <h3 class="setup-heading">Phones (optional)</h3>
-          <div class="setup-load">
-            <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
-            <button id="btn-close-room" class="btn btn-ghost hidden" type="button">Close room</button>
-          </div>
-          <p id="room-status" class="setup-hint"></p>
-          <p id="room-join" class="setup-hint"></p>
-        </div>
-
-        <p id="setup-error" class="error-msg" role="alert"></p>
-        <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the Feud</button>
       </div>
     </section>
 
     <!-- ===== Board ===== -->
-    <section id="screen-board" class="screen hidden">
-      <p id="phase-banner" class="phase-banner" aria-live="polite"></p>
+    <section id="screen-board" class="screen screen-board hidden">
+      <div class="phase-bar gsc-banner">
+        <p class="phase-eyebrow gsc-eyebrow">Family Feud</p>
+        <p id="phase-banner" class="phase-banner gsc-banner-title" aria-live="polite"></p>
+      </div>
       <h2 id="round-question" class="round-question"></h2>
       <div class="stage-row">
         <div id="team-panel-a" class="team-panel"></div>
         <div class="stage-centre">
-          <div id="board" class="board" role="list" aria-label="Answer board"></div>
+          <div class="board-frame">
+            <div class="board-frame-inner">
+              <div id="board" class="board" role="list" aria-label="Answer board"></div>
+            </div>
+          </div>
           <div class="bank-row">
             <div class="bank">
               <span class="bank-label">Bank</span>
@@ -121,25 +142,30 @@
     </section>
 
     <!-- ===== Fast Money ===== -->
-    <section id="screen-fm" class="screen hidden">
-      <p id="fm-banner" class="phase-banner" aria-live="polite"></p>
+    <section id="screen-fm" class="screen screen-fm hidden">
+      <div class="phase-bar gsc-banner">
+        <p class="phase-eyebrow gsc-eyebrow">Fast Money</p>
+        <p id="fm-banner" class="phase-banner gsc-banner-title" aria-live="polite"></p>
+      </div>
       <div id="fm-cover" class="fm-cover hidden">
         <p class="fm-cover-title">Player 2 &mdash; cover your ears!</p>
         <p class="fm-cover-sub">Mute the call or step away. The host will bring you back in.</p>
       </div>
       <div id="fm-table" class="fm-table"></div>
-      <div id="fm-timer" class="timer-bar hidden" aria-hidden="true"></div>
-      <div class="fm-total-row">
-        <span class="fm-total-label">Total</span>
-        <span id="fm-total" class="fm-total" aria-live="polite">0</span>
-        <span id="fm-target" class="fm-target"></span>
+      <div id="fm-timer" class="timer-bar gsc-timer hidden" aria-hidden="true"></div>
+      <div class="fm-lower-third">
+        <div class="fm-total-row">
+          <span class="fm-total-label">Total</span>
+          <span id="fm-total" class="fm-total" aria-live="polite">0</span>
+          <span id="fm-target" class="fm-target"></span>
+        </div>
+        <p id="fm-result" class="fm-result"></p>
       </div>
-      <p id="fm-result" class="fm-result"></p>
       <div id="fm-controls" class="controls"></div>
     </section>
 
     <!-- ===== Final standings ===== -->
-    <section id="screen-final" class="screen hidden">
+    <section id="screen-final" class="screen screen-final hidden">
       <h2 class="final-heading">Final standings</h2>
       <div id="final-standings" class="final-standings"></div>
       <p id="final-note" class="final-note"></p>
@@ -153,6 +179,14 @@
   <!-- Big red X shown over the board on a strike; cue only. -->
   <div id="strike-overlay" class="strike-overlay hidden" aria-hidden="true">
     <span id="strike-overlay-marks" class="strike-overlay-marks"></span>
+  </div>
+
+  <!-- ============ Title card shown for 1.2 s when the game opens ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
   </div>
 
   <!-- ===== Question editor ===== -->
@@ -252,7 +286,7 @@
         <button id="player-fm-prev" class="btn btn-ghost btn-big" type="button">&#8592; Back</button>
         <button id="player-fm-next" class="btn btn-gold btn-big" type="button">Submit &#8594;</button>
       </div>
-      <div id="player-fm-timer" class="timer-bar timer-bar-phone hidden" aria-hidden="true"></div>
+      <div id="player-fm-timer" class="timer-bar timer-bar-phone gsc-timer hidden" aria-hidden="true"></div>
       <p id="player-fm-note" class="player-panel-note"></p>
     </div>
 
