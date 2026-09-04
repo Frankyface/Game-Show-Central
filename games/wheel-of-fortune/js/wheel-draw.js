@@ -81,24 +81,48 @@ const WheelDraw = (function () {
     return `$${value}`;
   }
 
-  /** One wedge label, set radially so it reads from the hub outwards. */
+  // Labels are stacked like the TV wheel: one upright glyph per row, running
+  // from the rim towards the hub along the wedge's centre line. Each glyph is
+  // rotated with the wedge, so it stays upright relative to the wedge itself.
+  const LABEL_R_START = R_OUTER - 14; // first glyph just inside the rim
+  const LABEL_R_END = R_INNER + 12; // last glyph just outside the hub
+  const LABEL_STEP_MONEY = 24; // px between stacked digits
+  const LABEL_STEP_WORD = 13; // px between stacked letters
+
+  /** Split a label into stacked glyphs: "$800" → ["$","8","0","0"], words joined by a gap. */
+  function labelGlyphs(value) {
+    if (value === "BANKRUPT" || value === "LOSE A TURN") {
+      return labelText(value).split("").map((ch) => (ch === " " ? "" : ch));
+    }
+    return labelText(value).split("");
+  }
+
+  /** One wedge label: glyphs stacked radially, rim → hub, each upright on the wedge. */
   function buildLabel(value, mid) {
-    const [lx, ly] = point(CX, CY, R_LABEL, mid);
-    const words = labelText(value).split(" ");
-    const node = el("text", {
-      x: lx.toFixed(2), y: ly.toFixed(2),
-      transform: `rotate(${(mid + 180).toFixed(2)} ${lx.toFixed(2)} ${ly.toFixed(2)})`,
-      "text-anchor": "middle",
-      "dominant-baseline": "middle",
+    const isWord = value === "BANKRUPT" || value === "LOSE A TURN";
+    const glyphs = labelGlyphs(value);
+    const wanted = isWord ? LABEL_STEP_WORD : LABEL_STEP_MONEY;
+    const span = LABEL_R_START - LABEL_R_END;
+    const step = Math.min(wanted, glyphs.length > 1 ? span / (glyphs.length - 1) : wanted);
+    const group = el("g", {
+      class: isWord ? "wedge-label wedge-label-word" : "wedge-label",
       fill: wedgeInk(value),
-      class: value === "BANKRUPT" || value === "LOSE A TURN" ? "wedge-label wedge-label-word" : "wedge-label",
+      "aria-label": labelText(value),
     });
-    words.forEach((word, i) => {
-      const line = el("tspan", { x: lx.toFixed(2), dy: i === 0 ? (words.length > 1 ? "-0.45em" : "0") : "1em" });
-      line.textContent = word;
-      node.appendChild(line);
+    glyphs.forEach((ch, i) => {
+      if (!ch) return; // a word gap: leave the slot empty
+      const r = LABEL_R_START - step * i;
+      const [gx, gy] = point(CX, CY, r, mid);
+      const glyph = el("text", {
+        x: gx.toFixed(2), y: gy.toFixed(2),
+        transform: `rotate(${mid.toFixed(2)} ${gx.toFixed(2)} ${gy.toFixed(2)})`,
+        "text-anchor": "middle",
+        "dominant-baseline": "central",
+      });
+      glyph.textContent = ch;
+      group.appendChild(glyph);
     });
-    return node;
+    return group;
   }
 
   /** Decorative bulb ring around the rim. Purely visual; nothing reads it. */

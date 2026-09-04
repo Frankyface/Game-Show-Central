@@ -332,6 +332,7 @@ function wlRenderRound(core) {
 function wlPeekAnswer() {
   wlPeeking = true;
   show($("wl-answer"), true);
+  show($("wl-final-answer"), true); // the head-to-head screen has its own answer line
   if (wlAnswerTimer) clearTimeout(wlAnswerTimer);
   wlAnswerTimer = setTimeout(() => { wlPeeking = false; wlRender(); }, WL_ANSWER_PEEK_MS);
 }

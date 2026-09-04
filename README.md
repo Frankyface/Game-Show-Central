@@ -4,7 +4,8 @@ Game shows for your video call. The host opens one page, shares their screen,
 and reads out a four-letter room code. Everyone else opens the same site on
 their phone, types the code and their name **once**, and stays connected while
 the host hops between games: Jeopardy, Family Feud, Wheel of Fortune,
-Weakest Link and Who Wants to Be a Millionaire.
+Weakest Link, Who Wants to Be a Millionaire, The Price Is Right, Pyramid and
+Deal or No Deal.
 
 No accounts. No server. No install. It is a folder of static files —
 HTML, CSS and plain JavaScript — that runs from GitHub Pages, from any web
@@ -97,6 +98,9 @@ Every game also works as its own page, with its own room, without the hub:
 - `games/wheel-of-fortune/`
 - `games/weakest-link/`
 - `games/millionaire/`
+- `games/price-is-right/`
+- `games/pyramid/`
+- `games/deal-or-no-deal/`
 
 Open one directly and it shows its own "Open room (phones)" button; the join
 link is that game's URL with `?room=CODE`. This is the mode to use if you only
@@ -121,6 +125,9 @@ each game's own README:
 - [`games/wheel-of-fortune/README.md`](games/wheel-of-fortune/README.md)
 - [`games/weakest-link/README.md`](games/weakest-link/README.md)
 - [`games/millionaire/README.md`](games/millionaire/README.md)
+- [`games/price-is-right/README.md`](games/price-is-right/README.md)
+- [`games/pyramid/README.md`](games/pyramid/README.md)
+- [`games/deal-or-no-deal/README.md`](games/deal-or-no-deal/README.md)
 
 ---
 
@@ -208,7 +215,8 @@ The Jeopardy game is vendored from
 [Frankyface/Jeopardy](https://github.com/Frankyface/Jeopardy) (see
 `games/jeopardy/UPSTREAM_COMMIT`); its buzzer stack is the field-tested code
 the hub's room transport is built from. Jeopardy!, Family Feud, Wheel of
-Fortune, The Weakest Link and Who Wants to Be a Millionaire are trademarks of
+Fortune, The Weakest Link, Who Wants to Be a Millionaire, The Price Is Right,
+The $100,000 Pyramid and Deal or No Deal are trademarks of
 their respective owners; this is
 an unaffiliated fan project for playing at home.
 

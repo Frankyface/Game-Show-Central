@@ -36,6 +36,21 @@ const GAME_REGISTRY = [
     tagline: "Fifteen questions. One hot seat.",
     phone: ["fastest finger", "hot seat", "ask the audience"], players: [1, 16],
   },
+  {
+    id: "price-is-right", name: "The Price Is Right", path: "games/price-is-right/", icon: "🏷️", accent: "#e63946",
+    tagline: "Come on down. Closest without going over.",
+    phone: ["secret bids", "plinko", "big wheel"], players: [1, 16],
+  },
+  {
+    id: "pyramid", name: "Pyramid", path: "games/pyramid/", icon: "🔺", accent: "#f4b400",
+    tagline: "Describe it. Guess it. Beat the clock.",
+    phone: ["secret words for the giver", "got it / pass"], players: [2, 16], teams: true,
+  },
+  {
+    id: "deal-or-no-deal", name: "Deal or No Deal", path: "games/deal-or-no-deal/", icon: "💼", accent: "#b5121b",
+    tagline: "Twenty-six cases. One banker.",
+    phone: ["pick cases", "deal or no deal", "audience advice"], players: [1, 16],
+  },
 ];
 
 const HubRegistry = (function () {
