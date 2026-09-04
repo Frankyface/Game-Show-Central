@@ -20,25 +20,28 @@ to exercise a masked bid, a Plinko slot pick and a wheel spin.
 | `prizes.json` | 112 | 12 One Bid items, 3 Cliff Hangers sets, 3 Plinko sets, 3 Lucky Seven cars, 4 showcases |
 | `js/tpir-content.js` | 432 | **Pure**: the JSON contract, `validateGame`, `normalizeGame`, `warningsFor`, `drawFrom` |
 | `js/tpir-select.js` | 466 | **Pure**: `plan`, `rowWinner`, `cliffClimb`, `plinkoPath`, `l7Cost`, `showdownWinner`, `showcaseResult`, `phoneView`, `validatePhoneMsg` |
-| `js/tpir-core.js` | 741 | **Pure**: the immutable reducer, `createState`, `legalActions`, `segmentDone`, undo |
+| `js/tpir-core.js` | 744 | **Pure**: the immutable reducer, `createState`, `legalActions`, `segmentDone`, undo |
 | `js/data.js` | 350 | Offline mirror of `prizes.json`; sets `globalThis.TPIR_DEFAULT_GAME` |
 | `js/tpir-sound.js` | 136 | WebAudio cues (no audio files), `gsc-sound` preference |
 | `js/tpir-wheel.js` | 266 | The big wheel drawn as a vertical drum, plus its spin animation |
-| `js/tpir-view.js` | 469 | Host screens + the shared `$` / `el` / `show` / `setText` helpers |
-| `js/tpir-games.js` | 464 | Cliff Hangers, Plinko and Lucky Seven stages, and the chip animation |
-| `js/tpir-app.js` | 581 | Host glue: app state, persistence, content loading, buttons, hotkeys, splash |
-| `js/tpir-editor.js` | 409 | The prize editor (tabs, add/remove/reorder, live validation, download/use) |
-| `js/tpir-room.js` | 243 | Host glue on `GSC.host`: phone intents in, masked views out |
+| `js/tpir-view.js` | 473 | Host screens + the shared `$` / `el` / `show` / `setText` helpers |
+| `js/tpir-games.js` | 471 | Cliff Hangers, Plinko and Lucky Seven stages, and the chip animation |
+| `js/tpir-app.js` | 694 | Host glue: app state, persistence, content loading, buttons, hotkeys, splash |
+| `js/tpir-editor.js` | 410 | The prize editor (tabs, add/remove/reorder, live validation, download/use) |
+| `js/tpir-room.js` | 244 | Host glue on `GSC.host`: phone intents in, masked views out |
 | `js/tpir-phone.js` | 232 | The phone controller |
-| `css/tpir.css` | 548 | Carnival stage, topbar, setup, row, showdown, showcase, standings, editor |
+| `css/tpir.css` | 552 | Carnival stage, topbar, setup, row, showdown, showcase, standings, editor |
 | `css/tpir-games.css` | 308 | The three pricing-game stages |
 | `css/tpir-phone.css` | 139 | The phone, 320 px and up |
 | `tests/helpers.mjs` | 123 | Shared unit-test fixtures |
 | `tests/tpir-core.test.mjs` | 396 | P-U1 … P-U5 |
 | `tests/tpir-show.test.mjs` | 410 | P-U6 … P-U10 |
-| `tests/harness.html` | 786 | The loopback harness, P-I1 … P-I6 (57 checks) |
+| `tests/adversarial-helpers.mjs` | 98 | Tester fixtures (added at verification) |
+| `tests/tpir-adversarial.test.mjs` | 573 | A1 … A6, the tester’s adversarial suite |
+| `tests/tpir-adversarial-show.test.mjs` | 449 | A7 … A10, the tester’s adversarial suite |
+| `tests/harness.html` | 798 | The loopback harness, P-I1 … P-I6 (60 checks) |
 | `tests/fixtures/harness-prizes.json` | 75 | A deterministic prize file for the harness |
-| `README.md` | 202 | How to host, the JSON schema table, phone features, layout, known limits |
+| `README.md` | 217 | How to host, the JSON schema table, phone features, layout, known limits |
 
 Every file is under the 800-line house limit; no function exceeds 50 lines
 (checked with a brace-depth scan over every `.js`/`.mjs`).
@@ -263,3 +266,175 @@ dollar”, and the Plinko value chips carry their slot number.
   `games/price-is-right/css/tpir.css` into `shared/theme.css` so all seven games
   are declared in one place (deviation 6 above).
 - Nothing outside `games/price-is-right/**` and this report was touched.
+
+---
+
+## 9. Fixes after verification (2026-09-04)
+
+The independent tester's report is `docs/reports/price-is-right-verification.md`
+(verdict **fix-then-ship**). They fixed **D1** (a phone's masked bid was mirrored
+into the host's `<input>` and readable on the shared screen), **D2** (the handler
+map needed a `hasOwnProperty` guard so `toString`/`valueOf` could not be called
+as reducers) and **D3** (a harness check hard-coded a prize value that the
+unseeded draw could change). Those fixes are kept exactly as they wrote them,
+including the regression guard they added to P-I1. Everything else is closed
+below.
+
+Re-verified after these changes, served from `python -m http.server 8691`:
+
+- `cd games/price-is-right && node --test` → **106 tests, 0 failures**
+  (46 implementer + 60 tester).
+- Root `node --test` → **754 tests, 0 failures** — no regression elsewhere.
+- `tests/harness.html` → **All 60 checks passed**, twice in a row
+  (57 before, plus one new regression check each for D4, D6 and D7).
+- Every file is still under 800 lines and no function exceeds 50.
+
+### D4 — one accent, owned by the design system · closed
+
+Deleted the six-line `body[data-gsc-game="price-is-right"]` block from
+`css/tpir.css`, so `shared/theme.css` is now the single source for
+`--accent` `#e63946`, `--accent-2` `#ffd23f`, `--accent-ink` `#1a0206` and
+`--stage-glow` `#123a86`. Measured live afterwards: the game's `body --accent`
+reads `#e63946`, the same value the hub shell bar and the game-switch splash
+read, so the disagreement the tester found is gone.
+
+Two follow-ons the deletion needed:
+
+- **The podiums keep their meaning.** `.gsc-podium` draws both its border and
+  its active glow from `--podium-accent`, so `.tpir-podium` / `.tpir-spinner`
+  now set *that* (blue by default, green for a winner, red for someone over)
+  rather than overriding `border-top-color` alone. Without it the border would
+  have said green while the glow said red.
+- **The stage was re-tuned for a blue glow.** `--stage-glow` is now the design
+  system's blue over what had been a flat brown base, so `--stage-deep` /
+  `--stage-night` / `--stage-card` moved to `#2d1a12` / `#120a07` / `#3a2114` —
+  still a warm studio, but one a blue spill sits on rather than fights. These
+  are the two tokens the design system explicitly says belong in a game's own
+  `:root`.
+
+The show's own yellow, red, blue and green are unchanged: they live in the
+`--tpir-*` tokens and are used directly by this component's rules.
+
+**Contrast re-checked for everything the accent now touches**, all at or above
+4.5:1: `.gsc-badge` `#1a0206` on `#e63946` **4.77**; banner title (`--ink`) over
+the 26%-red end of the banner gradient **10.60** and over its white-wash middle
+**11.43**; the row banner's yellow title on the red end **7.97**; banner sub
+(`--ink-dim`) **5.48 / 5.90**; splash title **13.08**, sub **6.76**, kicker
+**4.70**; `--ink` / `--ink-dim` / `--ink-mute` on the new stage **13.29 / 6.86 /
+4.77**. Nothing in the component paints white on the accent — the only
+`#ffffff` literal is `.btn-blue` on its own blue gradient (4.82 / 8.17).
+
+### D5 — the message now matches what happened · closed
+
+`tpirLoadContent` no longer guesses the outcome. It records `{url, reason}` and
+`tpirChooseContent` — which is where the decision is actually made — finishes
+the sentence:
+
+| Case | Banner |
+| --- | --- |
+| `?game=README.md`, a saved file present | *Could not load prizes from README.md: Unexpected token '#', "# The Pric"... is not valid JSON.* **Keeping the prizes already loaded.** |
+| `?game=README.md`, nothing saved | *… is not valid JSON.* **Using the built-in set instead.** |
+| `?game=../family-feud/questions.json` (valid JSON, wrong game) | *Could not load prizes from …: "oneBid" needs at least 4 items — one for every Contestants' Row.* **Using the built-in set instead.** |
+
+A `tpirTidy` helper strips trailing punctuation from `err.message`, so the
+double period the tester saw cannot come back whatever the error text ends with.
+All three rows above were read from the live banner.
+
+### D6 — no silent refusals · closed
+
+Three layers, so nothing a host does is swallowed:
+
+1. **`tpirTakeNumber`** replaces `tpirReadNumber` and reads the raw string, so
+   an empty box is caught before `Number("")` turns it into a legal `0`. It
+   reports an empty box, a non-whole number and an out-of-range number
+   separately, quoting the range the host can actually see (the Cliff Hangers
+   field passes its own `min`/`max`) and formatting dollar ranges as money.
+2. **`tpirDispatch` explains a refusal.** When the reducer returns the same
+   state the host is told why, from a per-event table (`TPIR_REFUSED`) filtered
+   by `TPIR_PHASE_EVENTS`, so an event that does not belong to the current phase
+   gets "That isn't part of this bit of the show." rather than a misleading
+   specific reason. A successful move clears the banner, and acting while an
+   animation runs says "Hold on — the board is still moving."
+3. **A phone's rejected tap stays silent.** `tpir-room.js` now dispatches with
+   `"phone"` as the source, so somebody's stray thumb never prints on the shared
+   screen. Verified: a phone `chGuess` after a take-over left the banner
+   untouched.
+
+Measured live on the host screen:
+
+| Action | Banner |
+| --- | --- |
+| Empty bid box, then **Bid** | Type a whole-dollar bid first. |
+| Bid `1000000` | A bid has to be between $1 and $999,999. |
+| Bid `12.5` | A bid has to be a whole number. |
+| Empty Cliff Hangers box, then **Lock the price** | Type a whole-dollar price first. (and no `chGuess` is dispatched) |
+| Cliff Hangers price `150` or `0` | A price has to be between $1 and $99. |
+| An event from the wrong phase | That isn't part of this bit of the show. |
+| **Come on down** before the row is decided | Finish this part of the show first. |
+| Any legal move afterwards | banner cleared |
+
+The empty-box case is now a harness check under P-I4 as well.
+
+### D7 — the showdown fits the hub frame · closed
+
+The drum was capped at `min(27rem, 57vh)`, tuned for a standalone 720 px window;
+inside the hub's 1280x676 game frame that left the screen 6 px over. The cap is
+now `min(27rem, calc(100vh - 316px))` — the subtraction is the showdown screen's
+fixed furniture (topbar, main padding, banner, the value line, the notice, the
+controls and the gaps), so it adapts to whatever height the frame has.
+
+Measured by walking a whole episode and recording the worst
+`documentElement.scrollHeight` per screen:
+
+| Viewport | row | game (pick / cliff / plinko / lucky 7) | showdown | showcase | standings |
+| --- | --- | --- | --- | --- | --- |
+| **1280x676** (hub frame) | 676 | 676 | **676** | 676 | 676 |
+| **1280x720** (standalone) | 720 | 720 | **720** | 720 | 720 |
+
+No screen scrolls vertically at either height.
+
+### Optional — the harness no longer writes to the real save · done
+
+`?store=NAME` namespaces the page's `localStorage` (`gsc-tpir-state-v1-NAME`,
+`gsc-tpir-draft-v1-NAME`; anything but letters, digits and hyphens is stripped,
+capped at 24 characters). `tests/harness.html` loads its frames with
+`?store=harness` and clears those keys, so the surprise the tester hit — a
+harness run leaving harness prizes and a half-played show in the real host
+page's save on the same origin — cannot happen. Confirmed after a full run:
+`gsc-tpir-state-v1` was untouched and only the `-harness` keys were written.
+
+### Harness changes made while closing these
+
+- **Three new regression checks** (57 → 60): the accent comes from
+  `shared/theme.css` with no local override (D4); an empty price box speaks
+  instead of failing silently (D6); the showdown fits its frame with no vertical
+  scroll (D7).
+- **The host frame is now 1280x676 with `flex: none`.** It was 960x640 *and
+  shrinkable*, so as a flex item it followed the pane width — the first run of
+  the new D7 check reported `739 in 676` because the topbar had wrapped to three
+  rows and the drum column had collapsed to 183 px. Every screen is now measured
+  at the size the hub actually gives a game.
+- **The gate list covers the tester's files.** `SOURCES` had not been updated
+  with `tests/adversarial-helpers.mjs`, `tests/tpir-adversarial.test.mjs` and
+  `tests/tpir-adversarial-show.test.mjs`, so those three were exempt from the
+  line-count, banned-API and debug-logging gates. They are in the list now, and
+  all three pass.
+- **`animateDrop` split.** The background-tab guard had pushed it to 51 lines; the chip-resting three-liner is now a `landChip` helper, so the longest function in the component is 49 lines again.
+- **One flaky check de-flaked.** "a phone that has not bid still sees who has"
+  read the fourth phone's view one `postMessage` hop too early; it now waits for
+  it.
+
+### Also updated
+
+`games/price-is-right/README.md`: the layout table's line counts and the new
+harness count, a note that the accent tokens come from `shared/theme.css`, the
+`?store=` namespace, the 106-test figure, and the tester's suggested known limit
+— a phone that joins mid-show watches until the next one, because Contestants'
+Row seats `min(4, players)` and a running show has no empty seat.
+
+### Still open
+
+Nothing in this component. The two items the tester raised that live elsewhere
+are unchanged and belong to the orchestrator: the hub shell bar keeps
+`data-gsc-game="price-is-right"` after Lobby (`js/hub-host.js`), and a check on
+two physical devices is still worth doing before a real game night.

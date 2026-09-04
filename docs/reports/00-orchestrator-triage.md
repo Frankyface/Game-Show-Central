@@ -103,7 +103,7 @@ stylesheets or they go ungated.
 |---|---|---|
 | deal-or-no-deal | fix-then-ship → fixed | tester fixed a validator deadlock (rounds vs case count) and the handler-map bug; implementer made audience advice live with a host toggle; whole-dollar small offers. 89 unit tests, harness 63/63, real-network run. |
 | pyramid | fix-then-ship → fixed | tester fixed a tiebreak bias (Team A could win on an unmatched word); implementer blocked phone marks while paused, added name adoption and End the night. 95 unit tests, harness 66/66, real-network run; secret words never reach the host DOM or non-giver phones. |
-| price-is-right | see `price-is-right-verification.md` | implementer fixed duplicate showcase finalists and a Plinko lock-up before handoff; tester report pending at time of writing. |
+| price-is-right | fix-then-ship → fixed | tester fixed a masked bid leaking into a host input (major), the handler-map guard and a flaky harness; implementer removed the local accent override, added plain-English messages for every rejected input, fixed the hub-frame overflow and namespaced harness storage. 106 unit tests, harness 60/60, real-network run; Plinko and the big wheel land where the core decides (18/18). |
 
 ## Verification pointers
 

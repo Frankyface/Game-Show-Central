@@ -12,9 +12,11 @@
 
 /* The stage: a warm, sunlit studio rather than the hub's midnight blue. */
 :root {
-  --stage-deep: #3d1d09;
-  --stage-night: #150a04;
-  --stage-card: #4a230d;
+  /* The shared sheet spills --stage-glow (#123a86, blue) over this base, so the
+     stage is a deep studio blue-brown rather than the flat brown it began as. */
+  --stage-deep: #2d1a12;
+  --stage-night: #120a07;
+  --stage-card: #3a2114;
 
   --tpir-yellow: #ffd23f;
   --tpir-yellow-deep: #f0a500;
@@ -25,15 +27,11 @@
   --tpir-ink-on-yellow: #2a1a00;
 }
 
-/* The per-game accent block lives in shared/theme.css for the shipped games;
-   this component owns only its own directory, so it sets the same three
-   variables here. This sheet loads after the theme, so it wins. */
-body[data-gsc-game="price-is-right"] {
-  --accent: #ffd23f;
-  --accent-2: #e63946;
-  --accent-ink: #2a1a00;
-  --stage-glow: #8a3d12;
-}
+/* --accent / --accent-2 / --accent-ink / --stage-glow are NOT set here.
+   `shared/theme.css` owns them for every game (design system §1.3), so the hub
+   shell bar, the game-switch splash and this page all wear the same carnival
+   red. The show's own colours live in the --tpir-* tokens above, and the one
+   shared component that would otherwise disagree reads --podium-accent. */
 
 body {
   min-height: 100vh;
@@ -252,14 +250,17 @@ body {
   align-items: stretch;
 }
 
+/* .gsc-podium draws its border and its active glow from --podium-accent, so
+   setting that (rather than border-top-color) keeps the two in step. */
 .tpir-podium {
+  --podium-accent: var(--tpir-blue);
   align-content: center;
   text-align: center;
-  border-top: 5px solid var(--tpir-blue);
+  border-top: 5px solid var(--podium-accent);
 }
 
-.tpir-podium.is-winner { border-top-color: var(--tpir-green); }
-.tpir-podium.is-out { border-top-color: var(--tpir-red); }
+.tpir-podium.is-winner { --podium-accent: var(--tpir-green); }
+.tpir-podium.is-out { --podium-accent: var(--tpir-red); }
 
 .tpir-podium-bid {
   font-family: var(--font-display);
@@ -334,11 +335,14 @@ body {
 
 /* Sized against the viewport rather than the flex row: an SVG with a viewBox
    reports an intrinsic height, which would otherwise stretch the grid row and
-   push the host screen past 720 px. */
+   push the host screen past the window. The subtraction is the showdown
+   screen's fixed furniture (topbar, main padding, banner, the value line, the
+   notice, the controls and the gaps), so the drum fits standalone at 720 AND
+   inside the hub's 1280x676 game frame, where 57vh used to overflow by 6 px. */
 .drum {
   width: 100%;
   min-height: 0;
-  max-height: min(27rem, 57vh);
+  max-height: min(27rem, calc(100vh - 316px));
   filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
 }
 
@@ -359,9 +363,9 @@ body {
   gap: 0.7rem;
 }
 
-.tpir-spinner { text-align: center; border-top: 5px solid var(--tpir-blue); }
-.tpir-spinner.is-winner { border-top-color: var(--tpir-green); }
-.tpir-spinner.is-out { border-top-color: var(--tpir-red); }
+.tpir-spinner { --podium-accent: var(--tpir-blue); text-align: center; border-top: 5px solid var(--podium-accent); }
+.tpir-spinner.is-winner { --podium-accent: var(--tpir-green); }
+.tpir-spinner.is-out { --podium-accent: var(--tpir-red); }
 .tpir-spinner .gsc-podium-score { font-family: var(--font-display); color: var(--tpir-yellow); font-size: 2rem; }
 
 /* ============ Showcase ============ */

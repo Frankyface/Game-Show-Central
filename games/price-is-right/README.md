@@ -26,7 +26,7 @@ same link, so a shared link never silently serves somebody's old prizes.
 Tests:
 
 ```bash
-cd games/price-is-right && node --test          # 46 unit tests (P-U1 … P-U10)
+cd games/price-is-right && node --test          # 106 unit tests (P-U1 … P-U10, A1 … A10)
 python -m http.server 8620                      # from the repo root, then open
 #   http://localhost:8620/games/price-is-right/tests/harness.html
 ```
@@ -167,12 +167,12 @@ next segment gives every phone its controls back.
 | `js/tpir-sound.js` | 136 | WebAudio cues, no audio files |
 | `js/tpir-wheel.js` | 266 | The big wheel drawn as a vertical drum, and its spin |
 | `js/tpir-view.js` | 473 | The host screens (and the shared `$`, `el`, `show`, `setText`) |
-| `js/tpir-games.js` | 464 | The three pricing-game stages and the Plinko chip animation |
-| `js/tpir-app.js` | 581 | Host glue: state, persistence, content loading, buttons, hotkeys |
-| `js/tpir-editor.js` | 409 | The prize editor |
-| `js/tpir-room.js` | 243 | Host glue on `GSC.host`: intents in, masked views out |
+| `js/tpir-games.js` | 471 | The three pricing-game stages and the Plinko chip animation |
+| `js/tpir-app.js` | 694 | Host glue: state, persistence, content loading, buttons, hotkeys |
+| `js/tpir-editor.js` | 410 | The prize editor |
+| `js/tpir-room.js` | 244 | Host glue on `GSC.host`: intents in, masked views out |
 | `js/tpir-phone.js` | 232 | The phone controller |
-| `css/tpir.css` | 548 | The carnival stage, the host furniture |
+| `css/tpir.css` | 552 | The carnival stage, the host furniture |
 | `css/tpir-games.css` | 308 | The three pricing-game stages |
 | `css/tpir-phone.css` | 139 | The phone, 320 px and up |
 | `tests/helpers.mjs` | 123 | Shared unit-test fixtures |
@@ -181,7 +181,12 @@ next segment gives every phone its controls back.
 | `tests/adversarial-helpers.mjs` | 98 | Shared fixtures for the two adversarial suites |
 | `tests/tpir-adversarial.test.mjs` | 573 | A1 … A6 (tester): row, cliff, plinko, Lucky Seven, wheel, showcase edges |
 | `tests/tpir-adversarial-show.test.mjs` | 449 | A7 … A10 (tester): plan, validator fuzz, phone fuzz, immutability, undo |
-| `tests/harness.html` | 789 | The loopback harness, P-I1 … P-I6 (57 checks) |
+| `tests/harness.html` | 798 | The loopback harness, P-I1 … P-I6 (60 checks) |
+
+The four accent tokens (`--accent`, `--accent-2`, `--accent-ink`,
+`--stage-glow`) come from `shared/theme.css`, so the hub shell bar, the
+game-switch splash and this page all wear the same carnival red; the show's own
+yellow, blue and green live in the `--tpir-*` tokens in `css/tpir.css`.
 
 The core is split across three files (`tpir-content.js` + `tpir-select.js` +
 `tpir-core.js`) and the unit suite across two, to stay under the 800-line house
@@ -190,7 +195,10 @@ The same split is used by Family Feud, Wheel of Fortune, Weakest Link and
 Millionaire.
 
 Saved show: `localStorage` key `gsc-tpir-state-v1`, scoped to the room code, so
-a new room never inherits the previous room's seats. Sound preference:
+a new room never inherits the previous room's seats. Editor draft:
+`gsc-tpir-draft-v1`. Adding `?store=NAME` to the URL moves both into their own
+namespace — `tests/harness.html` uses `?store=harness` so a test run never
+leaves harness prizes in the real host page's save. Sound preference:
 `gsc-sound`, shared with the rest of the hub.
 
 ---
@@ -203,3 +211,7 @@ a new room never inherits the previous room's seats. Sound preference:
 - Prizes are text only — there is no image hosting (spec 10 §1, non-goals).
 - With one or two players the Showcase Showdown can have a single spinner, who
   wins it by default; the show still reaches a showcase and a set of standings.
+- **A phone that joins mid-show watches until the next show.** Contestants' Row
+  seats `min(4, players)`, so a running show has no empty seat to put an
+  arrival in. The host is told, and the new phone gets a spectator screen with
+  no controls and no numbers.

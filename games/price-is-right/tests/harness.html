@@ -19,8 +19,9 @@
     li[data-pass="true"] .tag { color: #35d68a; }
     li[data-pass="false"] .tag { color: #ff5a66; }
     .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
-    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
-    #host { width: 960px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; overflow-x: auto; }
+    /* The hub's room for a game at 1280x720; `flex: none` pins it there. */
+    #host { flex: none; width: 1280px; height: 676px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
     .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
     .phones iframe { width: 232px; height: 470px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
   </style>
@@ -149,24 +150,22 @@
 
     /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
 
-    const SOURCES = [
-      "../index.html", "../prizes.json", "../README.md",
-      "../css/tpir.css", "../css/tpir-games.css", "../css/tpir-phone.css",
-      "../js/tpir-content.js", "../js/tpir-select.js", "../js/tpir-core.js", "../js/data.js",
-      "../js/tpir-sound.js", "../js/tpir-wheel.js", "../js/tpir-view.js", "../js/tpir-games.js",
-      "../js/tpir-app.js", "../js/tpir-editor.js", "../js/tpir-room.js", "../js/tpir-phone.js",
-      "../tests/helpers.mjs", "../tests/tpir-core.test.mjs", "../tests/tpir-show.test.mjs",
-      "../tests/harness.html", "../tests/fixtures/harness-prizes.json",
-    ];
-    const SHARED = [
-      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
-      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
-      "../../../shared/theme.css", "../../../shared/theme-components.css",
-    ];
+    // Every file the component ships, so the gates below cannot miss one.
+    const SOURCES = ["index.html", "prizes.json", "README.md", "css/tpir.css", "css/tpir-games.css",
+      "css/tpir-phone.css", "js/tpir-content.js", "js/tpir-select.js", "js/tpir-core.js", "js/data.js",
+      "js/tpir-sound.js", "js/tpir-wheel.js", "js/tpir-view.js", "js/tpir-games.js", "js/tpir-app.js",
+      "js/tpir-editor.js", "js/tpir-room.js", "js/tpir-phone.js", "tests/helpers.mjs",
+      "tests/adversarial-helpers.mjs", "tests/tpir-core.test.mjs", "tests/tpir-show.test.mjs",
+      "tests/tpir-adversarial.test.mjs", "tests/tpir-adversarial-show.test.mjs", "tests/harness.html",
+      "tests/fixtures/harness-prizes.json"].map((f) => `../${f}`);
+    const SHARED = ["room-protocol.js", "room-net.js", "room-host.js", "room-player.js",
+      "bridge.js", "theme.css", "theme-components.css"].map((f) => `../../../shared/${f}`);
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-prizes.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-tpir-state-v1", "gsc-tpir-draft-v1"];
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // leaves harness prizes in the real host page's save on the same origin.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-prizes.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-tpir-state-v1-harness", "gsc-tpir-draft-v1-harness"];
 
     async function refreshAssets() {
       await Promise.all(SOURCES.concat(SHARED).map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -264,8 +263,10 @@
         JSON.stringify(phoneView("p1")).indexOf("300") > 0
         && JSON.stringify(phoneView("p3")).indexOf("300") < 0,
         `p3 view: ${JSON.stringify(phoneView("p3").placed)}`);
-      check("P-I1 a phone that has not bid still sees who has",
-        phoneView("p4").placed.map((p) => (p.placed ? "1" : "0")).join("") === "1110");
+      await waitFor(() => phoneView("p4").placed
+        && phoneView("p4").placed.map((p) => (p.placed ? "1" : "0")).join("") === "1110", "p4 sees three bids");
+      check("P-I1 a phone that has not bid still sees who has", true,
+        phoneView("p4").placed.map((p) => (p.placed ? "in" : "—")).join(" "));
 
       click("btn-reveal-bids");
       await waitFor(() => core().row.revealed, "reveal");
@@ -306,6 +307,12 @@
       await waitFor(() => HD().querySelector("#tpir-game-controls .bid-input").disabled === false,
         "the field unlocks");
       check("P-I4 Take over hands the controls back to the host", true, "field enabled");
+
+      HD().querySelector("#tpir-guess-input").value = "";
+      HD().querySelector("#btn-guess").click();
+      check("P-I4 an empty price box says so rather than failing silently (D6)",
+        core().game.guesses.length === 0 && hostText("tpir-error").indexOf("Type a whole-dollar price") === 0,
+        hostText("tpir-error"));
 
       const first = core().game.items[0].price;
       HD().querySelector("#tpir-game-controls .bid-input").value = String(first);
@@ -432,6 +439,9 @@
         `core ${spin.index} (${spin.value}), pointer ${at}`);
       const bands = [...svg.querySelectorAll(".drum-band")];
       const under = bands[spin.index].childNodes[1];
+      const doc = HD().documentElement;
+      check("P-I3 the showdown fits its frame with no vertical scroll (D7)",
+        doc.scrollHeight <= doc.clientHeight + 1, `${doc.scrollHeight} in ${doc.clientHeight}`);
       check("P-I3 the value under the pointer is the value that was scored",
         Math.abs(Number(under.getAttribute("y")) - 210) < 0.6
         && under.textContent === HW().TpirWheel.label(spin.value),
@@ -653,18 +663,13 @@
        ============================================================ */
 
     const PHONE_VIEWS = [
-      ["a bid", { screen: "bid", headline: "A rather long prize name for wrapping", sub: "Whole dollars",
-        currency: "$", myBid: null, won: "$0",
-        placed: [{ name: "Ada", placed: false }, { name: "Ben", placed: true }] }],
-      ["a Lucky Seven digit", { screen: "guess", kind: "luckyseven", headline: "Digit 2 of 5",
-        sub: "You have 7 dollars left.", currency: "$", min: 0, max: 9, known: [2] }],
-      ["a Cliff Hangers price", { screen: "guess", kind: "cliffhangers", headline: "A small item",
-        sub: "25 steps left", currency: "$", min: 1, max: 99, prompt: "Your price" }],
+      ["a bid", { screen: "bid", headline: "A rather long prize name for wrapping", sub: "Whole dollars", currency: "$", myBid: null, won: "$0", placed: [{ name: "Ada", placed: false }, { name: "Ben", placed: true }] }],
+      ["a Lucky Seven digit", { screen: "guess", kind: "luckyseven", headline: "Digit 2 of 5", sub: "You have 7 dollars left.", currency: "$", min: 0, max: 9, known: [2] }],
+      ["a Cliff Hangers price", { screen: "guess", kind: "cliffhangers", headline: "A small item", sub: "25 steps left", currency: "$", min: 1, max: 99, prompt: "Your price" }],
       ["a Plinko answer", { screen: "plinko", stage: "answer", headline: "Bar soap", sub: "Shown at $3", chips: 2 }],
       ["a Plinko slot", { screen: "plinko", stage: "slot", headline: "Chip 1 of 3", sub: "Pick a slot", chips: 3, slots: 9 }],
       ["the wheel", { screen: "spin", headline: "Your spin", sub: "Closest to a dollar", total: "0¢" }],
-      ["a showcase bid", { screen: "showcase-bid", headline: "Your showcase", sub: "One bid", currency: "$",
-        myBid: null, prizes: [{ name: "A trip somewhere sunny", note: "Six nights" }, { name: "A car", note: "" }] }],
+      ["a showcase bid", { screen: "showcase-bid", headline: "Your showcase", sub: "One bid", currency: "$", myBid: null, prizes: [{ name: "A trip somewhere sunny", note: "Six nights" }, { name: "A car", note: "" }] }],
     ];
 
     async function scenarioPhoneSize() {
@@ -694,7 +699,6 @@
     }
 
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
-
     async function scenarioGates() {
       const texts = {};
       await Promise.all(SOURCES.map(async (u) => {
@@ -737,6 +741,11 @@
         HD().body.classList.contains("gsc-embedded")
         && H("gsc-splash").classList.contains("hidden"),
         HD().body.className);
+
+      const accent = HW().getComputedStyle(HD().body).getPropertyValue("--accent").trim();
+      check("P-I6 the accent comes from shared/theme.css, with no local override (D4)",
+        accent === "#e63946" && (texts["../css/tpir.css"] || "").indexOf('data-gsc-game="price-is-right"') < 0,
+        accent);
 
       const motion = ["../css/tpir.css", "../css/tpir-games.css", "../css/tpir-phone.css"]
         .filter((u) => texts[u] && animatesOutsideGuard(texts[u]));

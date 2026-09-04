@@ -14,7 +14,8 @@
 "use strict";
 
 const TpirEditor = (function () {
-  const DRAFT_KEY = "gsc-tpir-draft-v1";
+  // Namespaced by ?store= the same way the saved show is (tpir-app.js).
+  const DRAFT_KEY = `gsc-tpir-draft-v1${window.TpirApp.storeSuffix()}`;
   const core = () => window.TpirCore;
 
   let draft = null;

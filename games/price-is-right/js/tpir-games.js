@@ -147,9 +147,11 @@ const TpirGames = (function () {
     controls(state, controls, phone) {
       const g = state.game;
       const item = g.items[g.index];
+      // The app reads the field itself so an empty or out-of-range box gets a
+      // plain-English message instead of a silently ignored `chGuess` (D6).
       controls.appendChild(entry(item ? `${item.name} — your price` : "Your price",
         { min: 1, max: 99, disabled: phone, action: "Lock the price" },
-        (input) => window.TpirApp.submitGuess(Number(input.value))));
+        () => window.TpirApp.submitGuess("#tpir-guess-input", { min: 1, max: 99 })));
     },
   };
 
@@ -323,6 +325,13 @@ const TpirGames = (function () {
     });
   }
 
+  /** Rest the chip in its slot and take it off the board. */
+  function landChip(chip, drop) {
+    chip.setAttribute("cx", colX(drop.landing).toFixed(1));
+    chip.setAttribute("cy", String(BH - 16));
+    chip.setAttribute("opacity", "0");
+  }
+
   /**
    * Walk the chip down the path the CORE rolled, then into the slot.
    * `after.game.lastDrop.path` is authoritative — this only replays it.
@@ -333,7 +342,7 @@ const TpirGames = (function () {
     if (!drop || !chip) { dropping = false; done(); return; }
     const steps = drop.path.length;
     if (window.TpirWheel.prefersReducedMotion()) {
-      chip.setAttribute("opacity", "0");
+      landChip(chip, drop);
       dropping = false;
       done();
       return;
@@ -352,9 +361,7 @@ const TpirGames = (function () {
       finished = true;
       window.cancelAnimationFrame(frame);
       window.clearTimeout(guard);
-      chip.setAttribute("cx", colX(drop.landing).toFixed(1));
-      chip.setAttribute("cy", String(BH - 16));
-      chip.setAttribute("opacity", "0");
+      landChip(chip, drop);
       window.TpirSound.play(drop.value > 0 ? "land" : "dud");
       dropping = false;
       done();

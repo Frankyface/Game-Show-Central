@@ -100,8 +100,9 @@
     if (!build) return;
     const event = build(pid, msg, state);
     // Every one of these is checked again inside the reducer; nothing a phone
-    // sends can advance the show on its own.
-    if (event) window.TpirApp.dispatch(event);
+    // sends can advance the show on its own. Tagged "phone" so a rejected tap
+    // is dropped in silence instead of printing on the shared screen.
+    if (event) window.TpirApp.dispatch(event, "phone");
   }
 
   /* ============ Outbound: one masked view per phone ============ */

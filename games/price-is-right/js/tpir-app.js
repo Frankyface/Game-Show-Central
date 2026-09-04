@@ -12,7 +12,20 @@
 
 "use strict";
 
-const TPIR_STORAGE_KEY = "gsc-tpir-state-v1";
+/**
+ * `?store=NAME` moves this page's localStorage into its own namespace. The
+ * loopback harness uses `?store=harness` so a test run cannot leave harness
+ * prizes (or a half-played show) in the real host's save on the same origin.
+ * Anything but letters, digits and hyphens is stripped.
+ */
+function tpirStoreSuffix() {
+  if (typeof location === "undefined") return "";
+  const raw = new URLSearchParams(location.search).get("store") || "";
+  const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+  return clean ? `-${clean}` : "";
+}
+
+const TPIR_STORAGE_KEY = `gsc-tpir-state-v1${tpirStoreSuffix()}`;
 
 let tpirApp = tpirFreshApp();
 const tpirListeners = [];
@@ -55,12 +68,67 @@ const TPIR_ANIMATED = { spin: "wheel", plinkoDrop: "chip" };
 // Moving on hands every phone its controls back (see tpirTakeOver).
 const TPIR_CLEARS_TAKEOVER = new Set(["nextSegment", "rebid", "finish", "undo"]);
 
-/** Send an event to the pure core, with its sound cue and animation. */
-function tpirDispatch(event) {
+/**
+ * Why the core would refuse each host button, in the host's own words. House
+ * rule: every failure path surfaces a plain-English message.
+ */
+const TPIR_REFUSED = {
+  bid: "That bid can’t be used — whole dollars from 1 to 999,999, and only before the reveal.",
+  revealBids: "Nobody has bid yet.",
+  rebid: "There is nothing to bid again on.",
+  pickGame: "That pricing game isn’t available right now.",
+  chGuess: "That price can’t be used right now.",
+  plinkoAnswer: "That answer isn’t wanted right now.",
+  plinkoDrop: "There is no chip left to drop.",
+  l7Guess: "That digit can’t be used right now.",
+  spin: "It isn’t that contestant’s spin.",
+  spinAgain: "There is no second spin to take.",
+  stay: "There is nothing to stay on.",
+  showcasePass: "The showcases are already claimed.",
+  showcaseBid: "That showcase bid can’t be used — whole dollars, and only before the reveal.",
+  revealShowcase: "Both showcases need a bid before the reveal.",
+  nextSegment: "Finish this part of the show first.",
+  undo: "There is nothing left to undo.",
+  finish: "The show has already finished.",
+};
+
+/** Which events belong to which phase, so a refusal explains the real reason. */
+const TPIR_PHASE_EVENTS = {
+  setup: ["start"],
+  row: ["bid", "revealBids", "rebid", "nextSegment", "finish", "undo"],
+  game: ["pickGame", "chGuess", "plinkoAnswer", "plinkoDrop", "l7Guess", "nextSegment", "finish", "undo"],
+  showdown: ["spin", "spinAgain", "stay", "nextSegment", "finish", "undo"],
+  showcase: ["showcasePass", "showcaseBid", "revealShowcase", "nextSegment", "finish", "undo"],
+  standings: ["undo"],
+};
+
+/** The sentence to show when the core refuses a host action. */
+function tpirRefusal(state, type) {
+  const here = TPIR_PHASE_EVENTS[state.phase] || [];
+  if (here.indexOf(type) < 0) return "That isn’t part of this bit of the show.";
+  return TPIR_REFUSED[type] || "That isn’t a legal move right now.";
+}
+
+/**
+ * Send an event to the pure core, with its sound cue and animation.
+ * `source` is `"phone"` for an intent a player tapped: a phone's rejected tap
+ * is ignored in silence, because the shared screen is not the place to report
+ * somebody else's stray thumb.
+ */
+function tpirDispatch(event, source) {
   const state = tpirApp.core;
-  if (!state || tpirApp.busy) return;
+  if (!state) return;
+  const fromPhone = source === "phone";
+  if (tpirApp.busy) {
+    if (!fromPhone) tpirError("Hold on — the board is still moving.");
+    return;
+  }
   const next = window.TpirCore.reduce(state, event, Math.random);
-  if (next === state) return;
+  if (next === state) {
+    if (!fromPhone) tpirError(tpirRefusal(state, event.type));
+    return;
+  }
+  tpirError("");
   const kind = TPIR_ANIMATED[event.type];
   // Claimed BEFORE the state lands so the repaint does not reveal the result.
   if (kind === "wheel") window.TpirView.beginSpin();
@@ -189,6 +257,12 @@ function tpirError(message) {
 /* ============ Content loading ============ */
 
 let tpirLoadMessage = "";   // survives the tpirSet() in tpirBoot, which clears the banner
+let tpirLoadFailure = null; // {url, reason} when an explicit ?game= could not be loaded
+
+/** Trim trailing punctuation so a reason never lands as ".." in the banner. */
+function tpirTidy(text) {
+  return String(text === undefined || text === null ? "" : text).trim().replace(/[.\s]+$/, "");
+}
 
 async function tpirFetchContent(url, label, kind) {
   const res = await fetch(url, { cache: "no-store" });
@@ -204,7 +278,9 @@ async function tpirLoadContent() {
     try {
       return await tpirFetchContent(url, `Custom prizes from ${url}`, "fetch");
     } catch (err) {
-      tpirLoadMessage = `Could not load prizes from ${url}: ${err.message}. Using the built-in set instead.`;
+      // What happens next is not known yet: a saved file may still win. The
+      // sentence is finished in tpirChooseContent, once the decision is made.
+      tpirLoadFailure = { url, reason: tpirTidy(err.message) };
     }
   }
   try {
@@ -332,25 +408,58 @@ function tpirStart() {
 
 /* ============ Host entry: bids, guesses, chips ============ */
 
-function tpirReadNumber(selector) {
+/**
+ * Read a typed number and say plainly what is wrong with it. Returns null and
+ * shows the message when the box is empty or the number is out of range —
+ * `Number("")` is 0, which is finite, so an empty box must be caught here.
+ */
+function tpirTakeNumber(selector, range) {
   const input = document.querySelector(selector);
-  if (!input) return null;
-  const value = Math.round(Number(input.value));
-  return Number.isFinite(value) && String(input.value).trim() !== "" ? value : null;
+  const raw = input ? String(input.value).trim() : "";
+  if (!raw) { tpirError(`Type ${range.what} first.`); return null; }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || !Number.isInteger(value)) {
+    tpirError(`${range.What} has to be a whole number.`);
+    return null;
+  }
+  if (value < range.min || value > range.max) {
+    const show = (n) => (range.money ? tpirMoney(n) : String(n));
+    tpirError(`${range.What} has to be between ${show(range.min)} and ${show(range.max)}.`);
+    return null;
+  }
+  return value;
+}
+
+/** `$999,999` in whatever currency the loaded file uses. */
+function tpirMoney(amount) {
+  const currency = tpirApp.content && tpirApp.content.settings
+    ? tpirApp.content.settings.currency : "$";
+  return window.TpirCore.money(currency, amount);
 }
 
 function tpirSubmitBid(pid, kind) {
-  const form = kind === "showcase" ? "tpir-sc-bids" : "tpir-bid-form";
-  const amount = tpirReadNumber(`#${form} .bid-input[data-pid="${pid}"]`);
-  if (amount === null || amount < 1) { tpirError("Type a whole-dollar bid first."); return; }
-  tpirError("");
-  tpirDispatch({ type: kind === "showcase" ? "showcaseBid" : "bid", pid, amount });
+  const showcase = kind === "showcase";
+  const form = showcase ? "tpir-sc-bids" : "tpir-bid-form";
+  const amount = tpirTakeNumber(`#${form} .bid-input[data-pid="${pid}"]`, {
+    what: "a whole-dollar bid", What: "A bid", money: true,
+    min: 1, max: showcase ? window.TpirCore.MAX_PRICE : window.TpirCore.MAX_BID,
+  });
+  if (amount === null) return;
+  tpirDispatch({ type: showcase ? "showcaseBid" : "bid", pid, amount });
 }
 
-function tpirSubmitGuess(value) {
-  if (!Number.isFinite(value)) { tpirError("Type a whole-dollar price first."); return; }
-  tpirError("");
-  tpirDispatch({ type: "chGuess", amount: Math.round(value) });
+/**
+ * The Cliff Hangers price box. `range` comes from the field itself, so the
+ * message always quotes the range the host can actually see.
+ */
+function tpirSubmitGuess(selector, range) {
+  const limits = range || { min: 1, max: 99 };
+  const amount = tpirTakeNumber(selector, {
+    what: "a whole-dollar price", What: "A price", money: true,
+    min: limits.min, max: limits.max,
+  });
+  if (amount === null) return;
+  tpirDispatch({ type: "chGuess", amount });
 }
 
 function tpirDropChip(slot) {
@@ -519,7 +628,10 @@ function tpirChooseContent(saved, loaded) {
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (saved && Array.isArray(saved.takeover)) patch.takeover = saved.takeover;
   if (useSaved && saved.core) patch.core = saved.core;
-  if (!useSaved && saved && saved.core && !tpirLoadMessage) {
+  if (tpirLoadFailure) {
+    tpirLoadMessage = `Could not load prizes from ${tpirLoadFailure.url}: ${tpirLoadFailure.reason}. `
+      + (useSaved ? "Keeping the prizes already loaded." : "Using the built-in set instead.");
+  } else if (!useSaved && saved && saved.core) {
     tpirLoadMessage = "Loaded the prizes from the link, so the show in progress was cleared.";
   }
   return patch;
@@ -572,6 +684,7 @@ window.TpirApp = {
   showSplash: tpirShowSplash,
   start: tpirStart,
   STORAGE_KEY: TPIR_STORAGE_KEY,
+  storeSuffix: tpirStoreSuffix,
 };
 
 if (document.readyState === "loading") {
