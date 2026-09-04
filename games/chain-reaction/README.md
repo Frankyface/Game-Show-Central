@@ -146,11 +146,21 @@ played. The Speed Chain uses `speedChains[(number of chains − 1) % length]`.
 | `css/cr.css`, `css/cr-phone.css` | host and phone styling on the v2 design system |
 | `tests/cr-core.test.mjs` | 57 unit tests (C-U1 … C-U10) |
 | `tests/cr-adversarial*.test.mjs` | 62 adversarial tests added by the tester (A1 … A16) |
+| `tests/cr-regression.test.mjs` | 7 tests pinning the clock and tiebreak fixes (CR-2, CR-6) |
 | `tests/harness.html` | the loopback harness (C-I1 … C-I6) |
 
 State lives in one serialisable object under `gsc-cr-state-v1`, scoped to the
 room code: opening a **new** room clears a game whose teams were made of the
 old room's phones, because shell player ids restart at `p1` in every room.
+Add `?store=NAME` to put this page's `localStorage` in its own namespace
+(`gsc-cr-state-v1-NAME`, `gsc-cr-draft-v1-NAME`) — the harness runs with
+`?store=harness`, so a test run can never touch a real save on the same origin.
+
+The Speed Chain clock is stored as **time left**, never as an absolute
+deadline: a save, a reload or an undo pauses it, and the host presses
+**Resume the clock** to carry on with exactly the seconds that were left. A
+tab that was closed for ten minutes comes back to a paused round, not to one
+that ended while nobody was watching.
 
 ### Deviation from the spec
 
@@ -165,7 +175,7 @@ Link made. `CrCore` re-exports all of it, so the API in the spec is unchanged.
 ## Testing
 
 ```bash
-cd games/chain-reaction && node --test        # 119 unit tests
+cd games/chain-reaction && node --test        # 126 unit tests
 python -m http.server 8620                    # from the repo root, then:
 #   http://localhost:8620/games/chain-reaction/tests/harness.html
 #   http://localhost:8620/games/chain-reaction/            (host, standalone)
@@ -186,3 +196,10 @@ means everything passed.
   spectator until the next game.
 - The sudden-death winner is credited the **last chain's value** so the
   standings show a clear leader; the show simply awards the tiebreak.
+- The tiebreak word is drawn from a chain nobody played and is never one the
+  teams have already had on the board. If a file is set up so that every chain
+  gets played (six values, six chains) nothing unseen is left, and it falls
+  back to a word they have seen.
+- A paused Speed Chain clock is only as accurate as the last save. The page
+  saves on every action and on unload, so it is normally exact; a browser
+  killed without running `beforeunload` can leave a few seconds on it.

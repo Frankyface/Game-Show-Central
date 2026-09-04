@@ -146,7 +146,9 @@
    */
   function paintClock(node) {
     const core = window.CrCore;
-    const fallback = view.over ? 0 : view.seconds;   // "Time!" must not show the round length again
+    // Not running: 0 once the round is over ("Time!" must not show the round
+    // length again), otherwise whatever the host says is left.
+    const fallback = view.over ? 0 : (Number.isFinite(view.remaining) ? view.remaining : view.seconds);
     const left = Number.isFinite(view.deadline) && core ? core.secondsLeft(view.deadline, Date.now()) : fallback;
     node.textContent = String(left);
     node.classList.toggle("danger", Number.isFinite(view.deadline) && left > 0 && left <= 10);
@@ -158,7 +160,12 @@
     node.setAttribute("role", "timer");
     box.appendChild(node);
     paintClock(node);
-    if (Number.isFinite(view.deadline)) clockTicker = setInterval(() => paintClock(node), CLOCK_TICK_MS);
+    // A disconnected phone cannot know whether the host still has the clock
+    // running, so it freezes on the last number it was told rather than
+    // counting down against a deadline that may already have been paused.
+    if (Number.isFinite(view.deadline) && connected) {
+      clockTicker = setInterval(() => paintClock(node), CLOCK_TICK_MS);
+    }
   }
 
   /* ============ Screens ============ */

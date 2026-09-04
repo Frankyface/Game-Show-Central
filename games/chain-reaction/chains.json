@@ -14,7 +14,7 @@
     ["FIRE", "WORKS", "SHOP", "FRONT", "DOOR", "BELL", "BOY", "BAND"],
     ["SUN", "FLOWER", "POT", "HOLE", "PUNCH", "LINE", "UP", "GRADE"],
     ["BUTTER", "FLY", "PAPER", "BACK", "PACK", "RAT", "RACE", "TRACK"],
-    ["HORSE", "SHOE", "LACE", "CURTAIN", "CALL", "BACK", "FIRE", "PLACE"],
+    ["COLD", "SHOWER", "CURTAIN", "CALL", "BACK", "FIRE", "PLACE", "MAT"],
     ["MOON", "LIGHT", "HOUSE", "HOLD", "UP", "RIGHT", "HAND", "BAG"],
     ["RAIN", "BOW", "TIE", "BREAK", "FAST", "FOOD", "CHAIN", "SAW"],
     ["SNOW", "BALL", "PARK", "BENCH", "MARK", "DOWN", "TOWN", "HOUSE"],
@@ -27,7 +27,7 @@
     ["FOOT", "BALL", "ROOM", "SERVICE", "STATION", "WAGON", "WHEEL", "CHAIR"],
     ["SUN", "SET", "SAIL", "BOAT", "HOUSE", "PLANT", "FOOD", "POISONING"],
     ["KEY", "BOARD", "GAME", "NIGHT", "LIFE", "GUARD", "DOG", "HOUSE"],
-    ["STOP", "WATCH", "DOG", "TAG", "TEAM", "SPIRIT", "ANIMAL", "CRACKER"]
+    ["STOP", "WATCH", "DOG", "TAG", "ALONG", "SIDE", "WALK", "OUT"]
   ],
   "speedChains": [
     ["CHAIN", "REACTION", "TIME", "OUT", "SIDE", "STEP", "FATHER", "LAND"],

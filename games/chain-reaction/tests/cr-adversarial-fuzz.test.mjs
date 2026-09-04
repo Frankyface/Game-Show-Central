@@ -661,18 +661,31 @@ test("A16 a team name is cleaned, capped and must be unique; pids cannot be shar
   assert.deepEqual(duped.teams[0].pids, ["p1"], "a pid listed twice is only seated once");
 });
 
-test("A16 KNOWN GAP: with no spare chain the tiebreak word comes from a played one", () => {
-  // Six chains, six rounds: pickSudden() has nothing unplayed left to draw from
-  // and falls back to chain 1, whose words the teams have already solved.
-  // Reported as a minor defect; this test pins the current behaviour so a fix
-  // is visible when it lands.
+test("A16 (was KNOWN GAP, fixed CR-6) with no spare chain the tiebreak still lands on a real word", () => {
+  // Six chains, six rounds: there is nothing unplayed left to draw from and
+  // every word in the file has been on the board. pickSudden() must still hand
+  // back a playable tiebreak rather than nothing - it falls back to the first
+  // word it drew, and the round is playable exactly as normal.
   const g = game({ values: [100, 100, 100, 100, 100, 100] });
   const tied = toChainsDone(g);
   assert.equal(Core.leader(tied), null, "six chains, alternating openers, ties");
   assert.equal(tied.chainOrder.length, 6);
-  const s = Core.reduce(tied, { type: "suddenDeath" }, rng0, 0);
-  const played = tied.chainOrder.slice(0, tied.chainIndex + 1).map((i) => g.chains[i]);
-  const fromPlayed = played.some((chain) => chain.indexOf(s.sudden.word) >= 0);
-  assert.equal(fromPlayed, true,
-    "if this now fails, pickSudden() learned to avoid played chains — update this test");
+  [rng0, () => 0.5, () => 0.999999].forEach((rng) => {
+    const s = Core.reduce(tied, { type: "suddenDeath" }, rng, 0);
+    assert.equal(s.phase, "sudden");
+    const from = g.chains.findIndex((c) => {
+      const at = c.indexOf(s.sudden.word);
+      return at >= 1 && at <= 6 && c[at - 1] === s.sudden.before && c[at + 1] === s.sudden.after;
+    });
+    assert.ok(from >= 0, `${s.sudden.word} is not a hidden word of any chain in the file`);
+    assert.equal(s.sudden.revealed.length, s.sudden.word.length);
+    assert.equal(s.sudden.revealed.some(Boolean), false, "it starts blank");
+    assert.equal(s.sudden.winner, null);
+    // And it is still a playable round: a letter, then the first correct call.
+    const lit = Core.reduce(s, { type: "reveal", direction: "top" }, rng, 0);
+    assert.equal(lit.sudden.revealed.filter(Boolean).length, 1);
+    const won = Core.reduce(lit, { type: "judge", correct: true }, rng, 0);
+    assert.equal(won.phase, "chainDone");
+    assert.notEqual(Core.leader(won), null, "the tie is broken");
+  });
 });

@@ -438,18 +438,22 @@ test("A8 the sudden-death word is drawn from a chain nobody played (when one is 
   });
 });
 
-test("A8 KNOWN GAP: the tiebreak word can be a word the teams already solved", () => {
-  // pickSudden() picks an unplayed CHAIN, but not an unseen WORD: with this rng
-  // the tiebreak is "UP", which chain 1 (SPACE SHIP SHAPE UP TOWN …) already put
-  // on the board. Reported as a minor defect; pinned so a fix is visible.
+test("A8 (was KNOWN GAP, fixed CR-6) the tiebreak word is never one the teams already solved", () => {
+  // pickSudden() used to pick an unplayed CHAIN but not an unseen WORD: with
+  // rng9 the tiebreak was "UP", which chain 1 (SPACE SHIP SHAPE UP TOWN …) had
+  // already put on the board. It now skips anything the teams have seen.
   const g = game({ values: [100, 100] });
   const tied = toChainsDone(g);
-  const s = Core.reduce(tied, { type: "suddenDeath" }, rng9, 0);
-  const solvedAlready = tied.chainOrder.slice(0, tied.chainIndex + 1)
-    .some((i) => g.chains[i].indexOf(s.sudden.word) >= 0);
-  assert.equal(s.sudden.word, "UP");
-  assert.equal(solvedAlready, true,
-    "if this now fails, pickSudden() learned to avoid words already seen — update this test");
+  const seen = new Set();
+  tied.chainOrder.slice(0, tied.chainIndex + 1)
+    .forEach((i) => g.chains[i].forEach((w) => seen.add(w)));
+  [rng0, rng9, () => 0.5, () => 0.17, () => 0.83, () => 0.34, () => 0.66].forEach((rng) => {
+    const s = Core.reduce(tied, { type: "suddenDeath" }, rng, 0);
+    assert.equal(seen.has(s.sudden.word), false,
+      `the tiebreak word "${s.sudden.word}" was already on the board this game`);
+    assert.equal(seen.has(s.sudden.before) && seen.has(s.sudden.after), false,
+      "and the clue is not a pair they have just built either");
+  });
 });
 
 /* ============================================================

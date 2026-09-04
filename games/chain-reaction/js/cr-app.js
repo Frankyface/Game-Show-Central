@@ -11,7 +11,20 @@
 
 "use strict";
 
-const CR_STORAGE_KEY = "gsc-cr-state-v1";
+/**
+ * `?store=NAME` moves this page's localStorage into its own namespace. The
+ * loopback harness uses `?store=harness` so a test run cannot leave harness
+ * chains (or a half-played game) in the real host's save on the same origin.
+ * Anything but letters, digits and hyphens is stripped.
+ */
+function crStoreSuffix() {
+  if (typeof location === "undefined") return "";
+  const raw = new URLSearchParams(location.search).get("store") || "";
+  const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+  return clean ? `-${clean}` : "";
+}
+
+const CR_STORAGE_KEY = `gsc-cr-state-v1${crStoreSuffix()}`;
 
 let crApp = crFreshApp();
 const crListeners = [];
@@ -85,9 +98,21 @@ function crDispatch(event) {
 
 /* ============ Persistence ============ */
 
+/**
+ * The state as it goes to localStorage. A RUNNING Speed Chain clock is written
+ * PAUSED, with the time that was left at the moment of the save: an absolute
+ * deadline would keep burning while the tab is closed, so a reload two minutes
+ * later would come back to a round that had already ended (CR-2). The live
+ * state is untouched — saving never stops the host's clock — and `beforeunload`
+ * / `visibilitychange` both save, so the frozen time is accurate.
+ */
 function crSerialise() {
+  const core = crApp.core;
+  const frozen = core && core.speed && core.speed.started && !core.speed.over
+    ? Object.assign({}, core, { speed: window.CrCore.pauseSpeed(core.speed, Date.now()) })
+    : core;
   return {
-    core: crApp.core, game: crApp.game, setup: crApp.setup, source: crApp.source,
+    core: frozen, game: crApp.game, setup: crApp.setup, source: crApp.source,
     sourceKind: crApp.sourceKind, sourceUrl: crApp.sourceUrl, roomCode: crApp.roomCode,
   };
 }
@@ -136,6 +161,14 @@ function crLoadSaved() {
       console.warn("Ignoring a saved game with a damaged state object.");
       return Object.assign({}, saved, { core: null });
     }
+    // Belt and braces for CR-2: crSerialise already freezes a running clock, but
+    // a save written by an older build (or by hand) can still carry one. Pause
+    // it here so a restored deadline can never expire on the first paint.
+    if (saved.core && saved.core.speed && saved.core.speed.started && !saved.core.speed.over) {
+      saved.core = Object.assign({}, saved.core, {
+        speed: window.CrCore.pauseSpeed(saved.core.speed, Date.now()),
+      });
+    }
     return saved;
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
@@ -168,7 +201,9 @@ async function crLoadContent() {
     try {
       return await crFetchGame(url, `Custom chains from ${url}`, "fetch");
     } catch (err) {
-      crLoadMessage = `Could not load chains from ${url}: ${err.message}. Using the built-in set instead.`;
+      // The inner message usually ends in a full stop of its own.
+      const why = String(err.message || "").replace(/\.\s*$/, "");
+      crLoadMessage = `Could not load chains from ${url}: ${why}. Using the built-in set instead.`;
     }
   }
   try {
@@ -302,18 +337,28 @@ function crBindRoom(code) {
 
 /* ============ Speed Chain clock ============ */
 
+/**
+ * The clock only runs while the round is running. A restored save is paused
+ * (`started: false`, no deadline), so `speedExpired` can never fire on the
+ * first paint after a reload — the host presses Start again and resumes.
+ */
 function crSpeedDeadline() {
   const state = crApp.core;
   if (!state || state.phase !== "speed" || !state.speed) return null;
-  return Number.isFinite(state.speed.deadline) ? state.speed.deadline : null;
+  const sp = state.speed;
+  if (!sp.started || sp.over) return null;
+  return Number.isFinite(sp.deadline) ? sp.deadline : null;
 }
 
+/** What the clock shows when it is NOT running: 0 once the round is over, and
+    otherwise whatever is left — the round length before it has ever started. */
 function crSpeedSeconds() {
   const state = crApp.core;
   if (!state || !state.speed) return 0;
-  // Once the round is over the deadline is cleared, so the clock falls back to
-  // this. It must read 0, not the round length, or "Time!" shows "60".
-  return state.speed.over ? 0 : state.speed.seconds;
+  const sp = state.speed;
+  if (sp.over) return 0;
+  const left = Number.isFinite(sp.remainingMs) ? sp.remainingMs : sp.seconds * 1000;
+  return Math.ceil(left / 1000);
 }
 
 function crStartClock() {
@@ -581,6 +626,7 @@ window.CrApp = {
   bindRoom: crBindRoom,
   showSplash: crShowSplash,
   clock: () => crClock,
+  storeSuffix: crStoreSuffix,
   STORAGE_KEY: CR_STORAGE_KEY,
 };
 

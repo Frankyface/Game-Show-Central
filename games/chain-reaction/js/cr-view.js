@@ -252,7 +252,16 @@ const CrView = (function () {
 
   function renderSpeedButtons(app, sp) {
     const live = sp.started && !sp.over;
-    show($("btn-speed-start"), !sp.started && !sp.over);
+    const start = $("btn-speed-start");
+    show(start, !sp.started && !sp.over);
+    // A save or an undo pauses the clock rather than losing it, so the button
+    // has to say which of the two it is doing (CR-2).
+    const paused = Number.isFinite(sp.remainingMs) && sp.remainingMs < sp.seconds * 1000;
+    start.replaceChildren();
+    start.appendChild(document.createTextNode(paused
+      ? `Resume the clock (${Math.ceil(sp.remainingMs / 1000)}s) `
+      : "Start the clock "));
+    start.appendChild(el("kbd", "gsc-kbd", "S"));
     $("btn-speed-got").disabled = !live;
     $("btn-speed-pass").disabled = !live;
     show($("btn-speed-done"), sp.over);

@@ -105,10 +105,30 @@
     if (!room || !state) return;
     if (room.setTitle) room.setTitle(titleFor(state));
     if (room.reportScores && (state.phase === "result" || state.phase === "chainDone")) {
-      room.reportScores(state.teams.map((team, i) => ({
-        pid: team.pids[0] || `team${i}`, name: team.name, score: state.scores[i],
-      })));
+      room.reportScores(nightScores(state));
     }
+  }
+
+  /**
+   * One row per team MEMBER, each carrying the team's score — the convention
+   * family-feud and pyramid use. Reporting only `pids[0]` made the hub's night
+   * board show that one player's name instead of the team's and credited the
+   * rest of the team nothing (CR-4). A team with no phones goes on the board
+   * under its own name (`hub-night.js` keys a null pid off the name).
+   */
+  function nightScores(state) {
+    const names = new Map((room.players ? room.players() : []).map((p) => [p.pid, p.name]));
+    const rows = [];
+    state.teams.forEach((team, i) => {
+      if (!team.pids.length) {
+        rows.push({ pid: null, name: team.name, score: state.scores[i] });
+        return;
+      }
+      team.pids.forEach((pid) => {
+        rows.push({ pid, name: names.get(pid) || team.name, score: state.scores[i] });
+      });
+    });
+    return rows;
   }
 
   function titleFor(state) {

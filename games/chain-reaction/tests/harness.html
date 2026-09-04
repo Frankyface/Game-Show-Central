@@ -160,9 +160,11 @@
       "fixtures/harness-game.json",
     ];
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-cr-state-v1", "gsc-cr-draft-v1"];
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // touches the real host's saved game or editor draft on the same origin.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-cr-state-v1-harness", "gsc-cr-draft-v1-harness"];
 
     async function refreshAssets() {
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -445,6 +447,26 @@
         core().speed.marks.filter((m) => m === "got").length === 0,
         core().speed.marks.join(","));
 
+      // CR-2: a reload mid-round must come back PAUSED with the time it had,
+      // and must never fire speedExpired on the first paint.
+      const leftBefore = core().speed.deadline - Date.now();
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "speed", "the Speed Chain comes back");
+      check("C-I4 a reload mid-Speed-Chain comes back paused, with the time it had",
+        core().speed.started === false && core().speed.deadline === null
+        && core().speed.over === false
+        && Math.abs(core().speed.remainingMs - leftBefore) < 2500,
+        `${Math.round(leftBefore / 1000)}s before, ${Math.round(core().speed.remainingMs / 1000)}s after`);
+      await sleep(400);
+      check("C-I4 the restored clock does not expire itself on the first paint",
+        core().speed.over === false && H("cr-speed-clock").textContent !== "0",
+        `clock reads ${H("cr-speed-clock").textContent}`);
+      click("btn-speed-start");
+      await waitFor(() => Number.isFinite(core().speed.deadline), "the clock resumes");
+      check("C-I4 Start resumes from the remaining time, not the whole round",
+        core().speed.deadline - Date.now() < 60000 - 500,
+        `${Math.round((core().speed.deadline - Date.now()) / 1000)}s left`);
+
       const before = core().scores[team];
       for (let i = 0; i < 6; i += 1) click("btn-speed-got");
       await waitFor(() => core().speed.over, "the bonus");
@@ -542,7 +564,7 @@
       "../js/cr-editor.js", "../js/cr-room.js", "../js/cr-phone.js",
       "../css/cr.css", "../css/cr-phone.css",
       "../tests/cr-core.test.mjs", "../tests/cr-adversarial.test.mjs",
-      "../tests/cr-adversarial-fuzz.test.mjs",
+      "../tests/cr-adversarial-fuzz.test.mjs", "../tests/cr-regression.test.mjs",
       "../tests/harness.html", "../tests/fixtures/harness-game.json",
       "../README.md",
     ];

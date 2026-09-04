@@ -146,8 +146,30 @@
     return copy;
   }
 
-  function withHistory(before, next) {
-    const history = before.history.concat([snapshot(before)]);
+  /**
+   * Stop a running Speed Chain clock and keep what is left of it. An absolute
+   * deadline is meaningless once the page (or the undo stack) has been away
+   * from the wall clock, so every path that STORES a clock stores it paused:
+   * the history snapshot below, `undo`, and cr-app.js's save.
+   * @param {object} speed @param {number} now
+   */
+  function pauseSpeed(speed, now) {
+    if (!speed || !speed.started || speed.over || !Number.isFinite(speed.deadline)) return speed;
+    return Object.assign({}, speed, {
+      started: false,
+      deadline: null,
+      remainingMs: Math.max(0, speed.deadline - now),
+    });
+  }
+
+  function withHistory(before, next, now) {
+    // The snapshot is taken at the moment of the event, so `now` is exactly the
+    // right clock reading: undo hands the round back with the time it had, and
+    // a stale deadline can never re-expire the instant it is restored.
+    const frozen = before.speed && before.speed.started && !before.speed.over
+      ? Object.assign({}, before, { speed: pauseSpeed(before.speed, now) })
+      : before;
+    const history = before.history.concat([snapshot(frozen)]);
     return Object.assign({}, next, {
       history: history.length > MAX_HISTORY ? history.slice(history.length - MAX_HISTORY) : history,
     });
@@ -316,15 +338,16 @@
 
   /* ============ Sudden death ============ */
 
-  /** A word from a chain nobody has played, with its two neighbours as the clue. */
-  function pickSudden(state, rng) {
-    const played = new Set(state.chainOrder.slice(0, state.chainIndex + 1));
-    let from = 0;
-    for (let i = 0; i < state.game.chains.length; i += 1) {
-      if (!played.has(i)) { from = i; break; }
-    }
-    const chain = state.game.chains[from];
-    const at = 1 + Math.min(HIDDEN_COUNT - 1, Math.floor(rng() * HIDDEN_COUNT));
+  /** Every word that has been on the board this game. */
+  function wordsSeen(state) {
+    const seen = new Set();
+    state.chainOrder.slice(0, state.chainIndex + 1).forEach((i) => {
+      state.game.chains[i].forEach((word) => seen.add(word));
+    });
+    return seen;
+  }
+
+  function suddenFrom(chain, at) {
     return {
       before: chain[at - 1],
       word: chain[at],
@@ -332,6 +355,39 @@
       revealed: blankMask(chain[at]),
       winner: null,
     };
+  }
+
+  function rotate(list, by) {
+    if (!list.length) return list;
+    const at = ((by % list.length) + list.length) % list.length;
+    return list.slice(at).concat(list.slice(0, at));
+  }
+
+  /**
+   * A tiebreak word with its two neighbours as the clue. The teams must not
+   * have seen it: a chain nobody played is searched first, then the played
+   * ones, and only if EVERY candidate has already been on the board does it
+   * fall back to the first word drawn - there still has to be a word.
+   */
+  function pickSudden(state, rng) {
+    const played = new Set(state.chainOrder.slice(0, state.chainIndex + 1));
+    const seen = wordsSeen(state);
+    const fresh = [];
+    const used = [];
+    state.game.chains.forEach((chain, i) => (played.has(i) ? used : fresh).push(i));
+    const from = Math.floor(rng() * Math.max(1, fresh.length || used.length));
+    const first = Math.min(HIDDEN_COUNT - 1, Math.floor(rng() * HIDDEN_COUNT));
+    const order = fresh.length ? rotate(fresh, from).concat(used) : rotate(used, from);
+    let fallback = null;
+    for (let c = 0; c < order.length; c += 1) {
+      const chain = state.game.chains[order[c]];
+      for (let w = 0; w < HIDDEN_COUNT; w += 1) {
+        const found = suddenFrom(chain, 1 + ((first + w) % HIDDEN_COUNT));
+        if (!fallback) fallback = found;
+        if (!seen.has(found.word)) return found;
+      }
+    }
+    return fallback;
   }
 
   /** `suddenDeath` — only when the chains are done and the scores are level. */
@@ -398,6 +454,10 @@
       marks: words.map(() => null),
       queue,
       seconds: state.game.settings.speedSeconds,
+      // The clock lives as "how much is left" and only becomes an absolute
+      // deadline while it is actually running - the same shape Weakest Link,
+      // Pyramid and Password use, so a save or a reload never burns the round.
+      remainingMs: state.game.settings.speedSeconds * 1000,
       deadline: null,
       started: false,
       over: false,
@@ -424,12 +484,16 @@
     });
   }
 
+  /** `speedStart` - start, or resume a clock a save or an undo paused. */
   function evSpeedStart(state, event, rng, now) {
     if (state.phase !== "speed" || !state.speed || state.speed.started || state.speed.over) return state;
+    const left = Number.isFinite(state.speed.remainingMs)
+      ? state.speed.remainingMs : state.speed.seconds * 1000;
     return Object.assign({}, state, {
       speed: Object.assign({}, state.speed, {
         started: true,
-        deadline: now + state.speed.seconds * 1000,
+        remainingMs: null,
+        deadline: now + left,
       }),
     });
   }
@@ -444,7 +508,7 @@
     return Object.assign({}, state, {
       scores,
       speed: Object.assign({}, speed, {
-        over: true, deadline: null, got, award, allClear,
+        over: true, deadline: null, remainingMs: 0, started: false, got, award, allClear,
         queue: [],
       }),
       notice: reason,
@@ -494,11 +558,15 @@
     });
   }
 
-  function evUndo(state) {
+  function evUndo(state, event, rng, now) {
     if (!state.history.length) return state;
     const previous = state.history[state.history.length - 1];
     return Object.assign({}, previous, {
       game: state.game,
+      // Snapshots are stored paused, but a save written by an older build (or
+      // hand-edited) may still carry a running clock: pause that too, so undo
+      // can never hand back a deadline that expires on the next paint.
+      speed: pauseSpeed(previous.speed, now),
       history: state.history.slice(0, -1),
     });
   }
@@ -544,7 +612,7 @@
     const next = handler(state, event, typeof rng === "function" ? rng : Math.random, at);
     if (!next || next === state) return state;
     if (NO_HISTORY.has(event.type)) return next;
-    return withHistory(state, next);
+    return withHistory(state, next, at);
   }
 
   // Representative payloads so legalActions can probe payload-carrying events.
@@ -575,7 +643,7 @@
     NAME_MAX, GUESS_MAX, PID_MAX, DEFAULT_SETTINGS,
     PHASES, DIRECTIONS, TOP, BOTTOM, MAX_HISTORY,
     // reducer
-    createState, reduce, legalActions,
+    createState, reduce, legalActions, pauseSpeed,
     // selectors
     frontier, eligibleWords, chainComplete, chainValue, chainsLeft, leader,
     speedCurrent, columnRows, maskedColumn, speedColumn, standings,

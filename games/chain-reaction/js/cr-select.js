@@ -248,6 +248,10 @@
         column: speedColumn(state),
         deadline: sp ? sp.deadline : null,
         seconds: sp ? sp.seconds : 0,
+        // What a paused clock shows: the round has not started, or a save or an
+        // undo stopped it and this is what is left.
+        remaining: sp ? Math.ceil((Number.isFinite(sp.remainingMs)
+          ? sp.remainingMs : sp.seconds * 1000) / 1000) : 0,
         over: !!(sp && sp.over),
         award: sp && sp.over ? formatMoney(state, sp.award) : "",
         mine,

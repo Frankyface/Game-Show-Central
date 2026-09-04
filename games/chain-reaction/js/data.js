@@ -65,14 +65,14 @@ const CR_DEFAULT_GAME = {
       "TRACK"
     ],
     [
-      "HORSE",
-      "SHOE",
-      "LACE",
+      "COLD",
+      "SHOWER",
       "CURTAIN",
       "CALL",
       "BACK",
       "FIRE",
-      "PLACE"
+      "PLACE",
+      "MAT"
     ],
     [
       "MOON",
@@ -199,10 +199,10 @@ const CR_DEFAULT_GAME = {
       "WATCH",
       "DOG",
       "TAG",
-      "TEAM",
-      "SPIRIT",
-      "ANIMAL",
-      "CRACKER"
+      "ALONG",
+      "SIDE",
+      "WALK",
+      "OUT"
     ]
   ],
   "speedChains": [

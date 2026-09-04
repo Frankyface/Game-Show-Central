@@ -12,7 +12,8 @@
 
 "use strict";
 
-const CR_DRAFT_KEY = "gsc-cr-draft-v1";
+// Same `?store=NAME` namespace as the saved game (cr-app.js crStoreSuffix).
+const CR_DRAFT_KEY = `gsc-cr-draft-v1${window.CrApp.storeSuffix()}`;
 
 let crDraft = null;
 let crEdTab = "chains";          // "chains" | "speedChains"

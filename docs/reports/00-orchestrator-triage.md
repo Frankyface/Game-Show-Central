@@ -117,7 +117,7 @@ the start: game agents declare no local palette override, the hub agent adds the
 | Component | Tester verdict | Notes |
 |---|---|---|
 | password | **ship** | tester fixed PW-D1 (marks allowed while the Lightning clock was paused); minors (harness storage namespace, damaged-save message, 12 px floor) sent back. | 54 unit tests, harness 74/74, real-network run; both givers' phones carry the password and the host DOM never does; 200 words. |
-| chain-reaction | fix-then-ship | tester fixed a harness that silently stopped at 29 of 52 checks and a clock jump; CR-2 (Speed Chain clock not frozen on save) plus minors sent back. | 57 unit tests, harness 29/29, real-network run; 18 chains + 4 speed chains re-read pair by pair by the implementer. |
+| chain-reaction | fix-then-ship → fixed | tester fixed a harness that silently stopped at 29 of 52 checks and a clock jump; CR-2 (Speed Chain clock not frozen on save) plus minors sent back. | 57 unit tests, harness 29/29, real-network run; 18 chains + 4 speed chains re-read pair by pair by the implementer. |
 
 ## Verification pointers
 

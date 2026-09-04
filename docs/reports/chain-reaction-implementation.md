@@ -281,10 +281,161 @@ Environment: Windows 11, Node v24.16.0, Chromium via the in-app browser,
   `games/chain-reaction/index.html`; the game reports `setTitle` ("Chain 2 of
   3", "Speed Chain", "Sudden death", "Standings") and `reportScores` (two team
   rows) to the shell.
-- `shared/theme.css` needs the accent block for `chain-reaction`. The game
-  deliberately declares none. Suggested, matching spec §3 and checked for
-  contrast: `--accent: #0f3bd9; --accent-2: #ff2e88; --accent-ink: #ffffff;
-  --stage-glow: #16205e;` (white on `#0f3bd9` is 7.93:1). Until it lands the
-  game falls back to the `:root` gold accent, which looks fine but is not the
-  Chain Reaction palette.
-- One row for `tests/core-prototype-guard.test.mjs` (snippet in §6).
+- `shared/theme.css` already carries the canonical `chain-reaction` accent
+  block (`--accent #ff2e88`, `--accent-2 #4d7bff`, `--accent-ink #2a0213`,
+  `--stage-glow #10276e`) and the game inherits it with no local override —
+  verified by the tester on the live page. Nothing further is needed here.
+- `tests/core-prototype-guard.test.mjs` already carries the chain-reaction row
+  and passes.
+
+---
+
+# Fixes after verification
+
+Round two, against `docs/reports/chain-reaction-verification.md`
+(verdict **fix-then-ship**). The tester had already fixed **CR-1** (the harness
+cleared `localStorage` before unloading the old page, so `beforeunload` wrote
+the finished game straight back and the run silently stopped at 29 of 52
+checks) and **CR-3** (the giant clock jumped back to the round length at
+"Time!"). Both of those are kept exactly as they left them. Everything below
+is mine.
+
+## CR-2 — the Speed Chain clock is frozen on save · **major** · fixed
+
+The clock was an absolute `deadline` timestamp written verbatim to
+`localStorage`, so it kept burning while the tab was closed: a reload cost the
+team the time it was away, and a tab reopened after the round length had passed
+came back to a Speed Chain that had already ended and paid out — with Undo
+unable to recover, because the restored state re-expired on the next paint.
+
+It now works the way Password, Pyramid and Weakest Link work: **the clock is
+stored as time left, never as a deadline.**
+
+| Where | What changed |
+| --- | --- |
+| `js/cr-core.js` | new `speed.remainingMs`, set to the whole round by `buildSpeed`. New pure helper `pauseSpeed(speed, now)` → `{started:false, deadline:null, remainingMs: max(0, deadline - now)}`, exported on `CrCore`. `evSpeedStart` starts **or resumes**: `deadline = now + remainingMs`. `finishSpeed` clears both. |
+| `js/cr-core.js` | `withHistory(before, next, now)` snapshots a running clock **paused**, using the `now` of the event that caused it — so undo hands the round back with the time it actually had, and a stale deadline can never be restored live. `evUndo` pauses defensively as well, for saves written by the old build. |
+| `js/cr-app.js` | `crSerialise()` freezes a running clock into the saved copy (the **live** state keeps running — a save never stops the host's clock). `crLoadSaved()` pauses anything that still comes back running, so a pre-fix save cannot expire on the first paint either. |
+| `js/cr-app.js` | `crSpeedDeadline()` returns a deadline only while `started && !over`, so `speedExpired` structurally cannot fire on a restored round. `crSpeedSeconds()` shows the remaining time when paused (keeping the tester's CR-3 "0 at Time!" behaviour). |
+| `js/cr-view.js` | the button reads **“Resume the clock (47s)”** instead of “Start the clock” when a save or an undo paused it. |
+| `js/cr-select.js`, `js/cr-phone.js` | the phone view carries `remaining`, so a phone shows the paused time rather than the round length; a **disconnected** phone now freezes its clock instead of counting down against a deadline the host may already have paused. |
+
+Measured on the live page (standalone, 1280×720):
+
+- Mid-round with 57 s showing, the save on disk read
+  `{started:false, deadline:null, remainingMs:57000}` while the on-screen clock
+  kept running — the freeze is in the copy, not in the game.
+- Reload mid-round → `phase speed`, `over:false`, scores unchanged, clock
+  paused at 47 s, button **“Resume the clock (47s)”**, ✓/Pass disabled until
+  the host restarts. Resuming gave 46 s, not 60.
+- A hand-crafted **pre-fix** save (`started:true`, deadline five minutes in the
+  past, no `remainingMs`), loaded under `?store=stale` so the live page could
+  not overwrite it: restored `started:false`, `deadline:null`,
+  `remainingMs:0`, `over:false`, scores unchanged — it did **not** fire
+  `speedExpired`, and the host still decides what happens next.
+
+Pinned by 6 new unit tests (`tests/cr-regression.test.mjs`) and 3 new harness
+checks folded into C-I4 (reload mid-round → paused with the time it had; no
+expiry on the first paint; Start resumes from the remainder, not the round).
+
+## CR-4 — one night-scoreboard row per team member · **minor** · fixed
+
+`js/cr-room.js` reported `pids[0]` for each team, so the hub's night board
+showed the first phone's name instead of the team's and credited everyone else
+on the team nothing. It now emits **one row per member**, each carrying the
+team's score, with a `pid: null` row under the team's own name for a team with
+no phones — the `family-feud` / `pyramid` convention, which `js/hub-night.js`
+keys off the name. Verified live over a real PeerJS room:
+`[{pid:"p1", name:"Ada", score:600}, {pid:null, name:"Team Pink", score:0}]`.
+
+## CR-5 — the letter column is the centrepiece · **minor** · fixed
+
+`--cr-tile` was 34 px at 720 and 30 px at 676, leaving ~285 px of empty stage
+under a board that is the whole point of the format.
+
+- `--cr-tile` 40 → **64 px** base, **58 px** under `max-height: 780px`,
+  **51 px** under `max-height: 690px`; row gaps up accordingly.
+- The rail narrows 22rem → **19rem**, the per-row tag column 9.5rem → 8rem, the
+  row cap 44rem → 56rem, and the grid centres rather than top-aligns.
+- Tile tracks are now `minmax(0, var(--cr-tile))` with `aspect-ratio: 1` and a
+  `min()` font size, so a 12-letter word squeezes to fit instead of overflowing.
+- The rail, not the column, sets the page height at 676, so that breakpoint
+  also tightens the rail's gaps and drops its big buttons to 46 px (host
+  buttons on a shared screen — the ≥ 56 px rule is a phone rule).
+
+Measured: **1280×720** tiles 58 px, glyphs 36 px, column 506 px (was 300),
+`scrollHeight === 720` on setup, chain, mid-turn, interstitial, sudden death,
+Speed Chain and result. **1280×676** tiles 51 px, `scrollHeight === 676` on all
+of the same. No horizontal scroll at either size.
+
+## CR-6 — the tiebreak word is one nobody has seen · **minor** · fixed
+
+`pickSudden` chose an unplayed *chain* but not an unseen *word*, so a tiebreak
+could land on a word the teams had just solved; and with as many values as
+chains it fell back to chain 1, which had definitely been played. It now
+collects every word that has been on the board, searches the unplayed chains
+first (from an rng-drawn offset) and then the played ones, and only falls back
+to the first word drawn if literally every candidate has been seen.
+
+The tester's two "KNOWN GAP" tests said *"if this now fails, pickSudden()
+learned to avoid words already seen — update this test"*, so both were updated
+in place to pin the fixed behaviour: A8 now asserts across seven rng values
+that the word (and its clue) was never on the board, and A16 asserts the
+no-spare-chain case still yields a real, blank, playable tiebreak. A new test
+does the same across the shipped 18-chain file.
+
+## CR-7 — double full stop · **nit** · fixed
+
+`js/cr-app.js` strips a trailing full stop from the inner error before building
+*"Could not load chains from …: "chains" is missing. Using the built-in set
+instead."*
+
+## Cross-cutting — `?store=NAME`
+
+`crStoreSuffix()` (the `games/price-is-right` pattern) suffixes both keys —
+`gsc-cr-state-v1-NAME` and `gsc-cr-draft-v1-NAME` — and is exported on
+`CrApp.storeSuffix` for `cr-editor.js`. The harness now loads both frames with
+`?store=harness` and clears the suffixed keys. Confirmed after a full harness
+run: the only Chain Reaction keys written were `gsc-cr-state-v1-harness` and
+`gsc-cr-draft-v1-harness`, and a real `gsc-cr-state-v1` sitting on the same
+origin was untouched.
+
+## Content — the two borderline pairs swapped
+
+The tester flagged `LACE → CURTAIN` and `ANIMAL → CRACKER` as thin (both
+singulars of phrases people say in the plural). Both chains were replaced
+rather than patched, so every pair in them stands on its own:
+
+| Chain | Was | Now |
+| --- | --- | --- |
+| 5 | `HORSE SHOE LACE CURTAIN CALL BACK FIRE PLACE` | `COLD SHOWER CURTAIN CALL BACK FIRE PLACE MAT` |
+| 18 | `STOP WATCH DOG TAG TEAM SPIRIT ANIMAL CRACKER` | `STOP WATCH DOG TAG ALONG SIDE WALK OUT` |
+
+That is cold shower · shower curtain · curtain call · callback · backfire ·
+fireplace · placemat, and stopwatch · watchdog · dog tag · tag along ·
+alongside · sidewalk · walkout. All 154 pairs in the file were re-read and are
+now also **all distinct** — no pair appears in two chains. `js/data.js` was
+regenerated from `chains.json`; the mirror test still passes.
+
+## Test counts after this round
+
+| Suite | Before | After |
+| --- | --- | --- |
+| `cd games/chain-reaction && node --test` | 119 | **126 / 126** |
+| root `node --test` | 989 | **996 / 996** |
+| `tests/harness.html` | 52 | **55 / 55** (`#summary.ok`, three consecutive runs) |
+
+The seven new unit tests are `tests/cr-regression.test.mjs` (6 for CR-2, 1 for
+CR-6 across the shipped file) — a new file because folding them into
+`cr-core.test.mjs` pushed it to 861 lines, over the V2 gate. It is named in the
+harness's `SOURCES`, so V2/V3/V4 cover it. The three new harness checks are the
+CR-2 reload checks inside C-I4. The tester's two adversarial files are intact
+apart from the two "KNOWN GAP" tests they explicitly asked to be updated when
+the fix landed.
+
+Static gates re-run after every change: largest file 744 lines
+(`cr-core.test.mjs`), zero `innerHTML` / `document.write` / `eval` /
+`new Function`, zero `console.log`, no local `body[data-gsc-game]` override,
+every `@keyframes` and `animation:` still inside
+`@media (prefers-reduced-motion: no-preference)`, phone targets ≥ 56 px with no
+horizontal scroll at 320 px.

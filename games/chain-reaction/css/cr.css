@@ -28,8 +28,8 @@
   --cr-tile-ink: #0a0d20;
   --cr-tile-empty: rgba(255, 255, 255, 0.07);
   --cr-tile-line: rgba(255, 255, 255, 0.22);
-  --cr-tile: 40px;             /* one letter tile; the column scales from this */
-  --cr-row-gap: 5px;
+  --cr-tile: 64px;             /* one letter tile; the column scales from this */
+  --cr-row-gap: 7px;
 }
 
 /* ============ Chrome ============ */
@@ -154,9 +154,9 @@
 
 .play-grid, .speed-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 22rem;
-  gap: 1.2rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+  gap: 1rem;
+  align-items: center;
 }
 
 /* The Speed Chain board is shorter than the chain board (no per-row tags), so
@@ -177,16 +177,16 @@
 
 .column .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 9.5rem;
+  grid-template-columns: minmax(0, 1fr) 8rem;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.6rem;
   width: 100%;
-  max-width: 44rem;
+  max-width: 56rem;
 }
 
 .row-tiles {
   display: grid;
-  grid-template-columns: repeat(var(--len, 5), var(--cr-tile));
+  grid-template-columns: repeat(var(--len, 5), minmax(0, var(--cr-tile)));
   gap: 4px;
   justify-content: center;
 }
@@ -195,9 +195,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: var(--cr-tile);
+  aspect-ratio: 1;
   font-family: var(--font-display);
-  font-size: calc(var(--cr-tile) * 0.62);
+  font-size: min(calc(var(--cr-tile) * 0.62), 4.4vw);
   line-height: 1;
   border-radius: var(--radius-sm);
   background: var(--cr-tile-empty);
@@ -411,19 +411,24 @@ body.gsc-embedded #cr-room-chip { display: none !important; }
 /* ============ Fitting 1280x720 (and the hub's 1280x676 frame) ============ */
 
 @media (max-height: 780px) {
-  :root { --cr-tile: 34px; --cr-row-gap: 4px; }
+  :root { --cr-tile: 58px; --cr-row-gap: 6px; }
   .topbar { padding: 0.3rem 1rem; }
   .topbar-title { font-size: 1.15rem; }
-  #cr-main { padding: 0.5rem 1rem 0.6rem; }
+  #cr-main { padding: 0.4rem 1rem 0.5rem; }
   .speed-clock { font-size: clamp(72px, 9vw, 118px); }
-  .column .row { grid-template-columns: minmax(0, 1fr) 8.5rem; }
+  .column .row { grid-template-columns: minmax(0, 1fr) 7.5rem; }
 }
 
 @media (max-height: 690px) {
-  :root { --cr-tile: 30px; --cr-row-gap: 3px; }
+  :root { --cr-tile: 51px; --cr-row-gap: 5px; }
   .kicker { margin-bottom: 0.15rem; }
   .guess-box { padding: 0.35rem 0.5rem; }
   .speed-clock { font-size: clamp(64px, 8vw, 100px); }
+  /* The rail, not the column, is what sets the height here; these are host
+     buttons on a shared screen, not phone targets, so they may go under 56px. */
+  .play-rail { gap: 0.4rem; }
+  .play-rail .controls { gap: 0.4rem; margin-top: 0.4rem; }
+  .play-rail .btn-big { min-height: 46px; }
 }
 
 @media (max-width: 1100px) {
