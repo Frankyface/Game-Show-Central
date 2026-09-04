@@ -1,0 +1,27 @@
+{
+  "title": "Wheel of Fortune — Movies & TV",
+  "settings": {
+    "vowelCost": 250,
+    "roundMinimum": 1000,
+    "bonusSeconds": 10,
+    "bonusPrize": "$25,000",
+    "tossUpValues": [1000, 2000, 3000],
+    "autoOrder": false,
+    "wedges": [
+      800, "BANKRUPT", 650, 500, 900, 700, 600, 650, 500, 700, "LOSE A TURN", 800,
+      500, 650, 600, 700, 900, "BANKRUPT", 500, 600, 550, 700, 2500, 650
+    ]
+  },
+  "rounds": [
+    { "type": "tossup",  "category": "Thing",              "puzzle": "THE SILVER SCREEN" },
+    { "type": "regular", "category": "Thing",              "puzzle": "THE OPENING CREDITS" },
+    { "type": "regular", "category": "What Are You Doing?", "puzzle": "GRAB THE POPCORN AND SIT DOWN" },
+    { "type": "regular", "category": "Place",              "puzzle": "THE RED CARPET PREMIERE" },
+    { "type": "tossup",  "category": "Person",             "puzzle": "THE EVENING NEWS ANCHOR" },
+    { "type": "regular", "category": "Before & After",     "puzzle": "MOVIE NIGHT LIGHT SHOW" },
+    { "type": "regular", "category": "Phrase",             "puzzle": "COMING SOON TO A THEATER NEAR YOU" },
+    { "type": "regular", "category": "TV Show",            "puzzle": "THE LATE NIGHT TALK SHOW" },
+    { "type": "regular", "category": "Character",          "puzzle": "THE MASKED SUPERHERO" },
+    { "type": "bonus",   "category": "Thing",              "puzzle": "THE FINAL EPISODE" }
+  ]
+}

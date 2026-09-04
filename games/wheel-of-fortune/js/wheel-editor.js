@@ -12,7 +12,10 @@
 "use strict";
 
 (function () {
-  const DRAFT_KEY = "gsc-wheel-draft-v1";
+  // Namespaced by ?store= the same way the saved game is (wheel-app.js), so a
+  // harness run cannot overwrite the real host's draft on the same origin.
+  const DRAFT_KEY = `gsc-wheel-draft-v1${
+    window.WheelApp && window.WheelApp.storeSuffix ? window.WheelApp.storeSuffix() : ""}`;
   const $ = (id) => document.getElementById(id);
   const show = (node, visible) => { if (node) node.classList.toggle("hidden", !visible); };
   const core = () => window.WheelCore;
@@ -263,11 +266,13 @@
       core().validateGame(draft);
       setError("");
       $("btn-editor-download").disabled = false;
+      $("btn-editor-library").disabled = false;
       $("btn-editor-use").disabled = false;
       return true;
     } catch (err) {
       setError(err.message);
       $("btn-editor-download").disabled = true;
+      $("btn-editor-library").disabled = true;
       $("btn-editor-use").disabled = true;
       return false;
     }
@@ -306,17 +311,82 @@
     if (window.WheelApp) window.WheelApp.render();
   }
 
-  function download() {
-    if (!validateNow()) return;
+  /** Push `draft` to the browser as a download called `filename`. */
+  function saveAs(filename) {
     const blob = new Blob([`${JSON.stringify(draft, null, 2)}\n`], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "puzzles.json";
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function download() {
+    if (!validateNow()) return;
+    saveAs("puzzles.json");
+  }
+
+  /** A title turned into a bare, safe `*.json` file name for sets/. */
+  function setFileName(title) {
+    const stem = String(title || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "my-set";
+    return `${stem}.json`;
+  }
+
+  /** The counts the picker's Preview line shows for this draft. */
+  function setCounts() {
+    const types = draft.rounds.map((r) => r.type || "regular");
+    const counts = { rounds: draft.rounds.length };
+    const tossups = types.filter((t) => t === "tossup").length;
+    const bonus = types.filter((t) => t === "bonus").length;
+    if (tossups) counts["toss-ups"] = tossups;
+    if (bonus) counts.bonus = bonus;
+    return counts;
+  }
+
+  /**
+   * "Download for the library" (docs/19 §2). Static hosting cannot write into
+   * the repo, so this is the honest workflow: download the file, then show the
+   * exact path to commit it to and the exact manifest line to paste.
+   */
+  function downloadForLibrary() {
+    if (!validateNow()) return;
+    const file = setFileName(draft.title);
+    saveAs(file);
+    const entry = {
+      file,
+      name: (draft.title || "My set").slice(0, 60),
+      description: `${draft.rounds.length} rounds.`,
+      by: "",
+      counts: setCounts(),
+    };
+    $("editor-library-step1").textContent =
+      `1. Commit the downloaded file as games/wheel-of-fortune/sets/${file}`;
+    $("editor-library-line").value = `${JSON.stringify(entry, null, 2)},`;
+    $("editor-library-copied").textContent = "";
+    show($("editor-library-help"), true);
+    $("editor-library-line").focus();
+    $("editor-library-line").select();
+  }
+
+  async function copyLibraryLine() {
+    const box = $("editor-library-line");
+    box.focus();
+    box.select();
+    try {
+      await navigator.clipboard.writeText(box.value);
+      $("editor-library-copied").textContent = "Copied — paste it into sets/index.json.";
+    } catch (err) {
+      console.warn("Clipboard unavailable:", err);
+      $("editor-library-copied").textContent =
+        "This browser blocked the clipboard — the line is selected, press Ctrl/Cmd+C.";
+    }
   }
 
   function useInGame() {
@@ -339,6 +409,9 @@
     $("btn-editor").addEventListener("click", open);
     $("btn-editor-close").addEventListener("click", close);
     $("btn-editor-download").addEventListener("click", download);
+    $("btn-editor-library").addEventListener("click", downloadForLibrary);
+    $("btn-library-copy").addEventListener("click", copyLibraryLine);
+    $("btn-library-dismiss").addEventListener("click", () => show($("editor-library-help"), false));
     $("btn-editor-use").addEventListener("click", useInGame);
     $("btn-editor-blank").addEventListener("click", () => { draft = blankDraft(); saveDraft(); render(); });
     $("btn-editor-reset").addEventListener("click", () => { draft = draftFromGame(); saveDraft(); render(); });
@@ -389,7 +462,10 @@
   function boot() {
     if (document.body.classList.contains("player-mode")) return;
     wire();
-    window.WheelEditor = { open, close, getDraft: () => draft, setDraft(next) { draft = next; render(); }, DRAFT_KEY };
+    window.WheelEditor = {
+      open, close, download, downloadForLibrary, setFileName, setCounts,
+      getDraft: () => draft, setDraft(next) { draft = next; render(); }, DRAFT_KEY,
+    };
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

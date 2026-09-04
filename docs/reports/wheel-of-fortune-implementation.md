@@ -376,3 +376,139 @@ Re-verified live in the browser after the changes:
   T3 run; nothing further is outstanding from the verification report.
 - The two-phone-tabs-in-one-profile artefact the tester noted is a shell/test
   environment matter, not a wheel defect.
+
+---
+
+## 9. Cross-cutting round (docs/19)
+
+Third pass, against `docs/19-cross-cutting-round.md`. §3's three game fixes are
+other games' work; everything below is §1, §2 and the `?store=` item, in
+`games/wheel-of-fortune/**`. `js/wheel-draw.js` was **not** touched — the
+recent TV-style stacked wedge labels are intact (`git status` clean for that
+file, `labelGlyphs` / `LABEL_STEP_WORD` still in place).
+
+### 9.1 §1 — the Game lobby control (X-1)
+
+`index.html` gains `#btn-game-lobby` ("⟲ Game lobby") in the host toolbar,
+between Sound and Puzzle Editor — the same slot every game uses. It is hidden
+on setup (it is the way *back* to setup) and shown from every other phase. It
+opens `#lobby-dialog`, a `role="dialog"` confirm naming where you are
+("You are on round 2 of 10 — Ana, Ben, Cid.") with three controls:
+
+- **Keep this game** — parks a deep copy of the state in `resumable` and shows
+  setup. Setup then offers **Resume game** plus a hint line naming the parked
+  round. Resume restores the snapshot **byte-for-byte** (the harness asserts
+  `JSON.stringify` equality against the pre-park state).
+- **Start over** — drops the parked game and starts fresh; roster, content and
+  settings all survive, totals reset.
+- **Cancel** (and `Escape`) — closes, changes nothing.
+
+`resumable` rides in the saved envelope, not in the core state, so undo history
+is untouched and the reducer is unchanged — exactly what §1 asks for. A new
+`halt()` runs before either choice: it stops the toss-up interval, cancels an
+in-flight spin, clears the bonus timer and closes the solve dialog. That makes
+**mid-spin** safe, and the harness pins it: park mid-spin, wait longer than a
+whole spin, and the game is still parked (the cancelled spin never resurrects
+it). Works embedded and standalone; the harness drives the embedded case.
+
+### 9.2 §2 — the saved-set library (X-2, X-3)
+
+**Content.** `sets/index.json` plus two themed sets built to the same bar as
+`puzzles.json` — 10 rounds each, 2 toss-ups / 7 regular / 1 bonus, original
+phrases, every puzzle verified against `layoutPuzzle`:
+
+| File | Name |
+|---|---|
+| `sets/movies-and-tv.json` | **Movies & TV** — THE SILVER SCREEN, THE RED CARPET PREMIERE, COMING SOON TO A THEATER NEAR YOU, THE FINAL EPISODE |
+| `sets/around-the-house.json` | **Around the House** — THE SQUEAKY FLOORBOARD, FOLDING A FITTED SHEET, A DRAWER FULL OF TAKEOUT MENUS, UNDER THE COUCH CUSHIONS |
+
+**The picker.** `index.html` loads `shared/library.js` and provides
+`#puzzles-library` inside the existing Puzzles section; `wheel-app.js`
+`mountLibrary()` calls `GSCLibrary.mountPicker` with `gameDir: ""`,
+`label: "Saved puzzle sets"`, `validate: (json) => WheelCore.validateGame(json)`
+and an `onPick` that swaps the content and sets the source note to
+`set: <name>`. Because the validator is the game's own, a set is checked for
+board fit too — the harness proves a set with an unfittable puzzle is refused
+with `does not fit the board` and never loads. `css/wheel.css` dresses the
+shared `.gsc-library*` classes in this game's palette (teal rail, gold
+**Load set**, 44 px targets).
+
+**The editor.** A **Download for the library** button beside Download JSON.
+It downloads `<title-slug>.json` and reveals a help block with (1) the exact
+path to commit the file to and (2) the exact manifest line — with `file`,
+`name`, `description` and a `counts` map — in a read-only textarea plus a
+**Copy the line** button. Both download buttons are disabled while the draft
+fails validation, so nothing invalid can reach the library.
+
+### 9.3 §3 item — `?store=NAME` namespacing
+
+`wheel-app.js` gained `storeSuffix()` (the `games/price-is-right` pattern:
+strip to `[A-Za-z0-9-]`, cap 24) feeding `STORAGE_KEY`; `wheel-editor.js`'s
+`DRAFT_KEY` uses the same suffix via `WheelApp.storeSuffix()`. The harness now
+loads all three frames with `&store=harness`, and a check writes a canary into
+the un-suffixed `gsc-wheel-state-v1`, runs a state change, and proves the
+canary is untouched while the `-harness` key was written.
+
+### 9.4 Files changed
+
+| File | Change |
+|---|---|
+| `index.html` | `#btn-game-lobby`, `#lobby-dialog`, `#btn-resume` + `#resume-note`, `#puzzles-library`, the editor's library button and help block, `shared/library.js` |
+| `js/wheel-app.js` | `storeSuffix`, `resumable` in the envelope, `halt`/`keepGame`/`startOver`/`resumeGame`/`describe`, `mountLibrary`, `openLobbyDialog`, wiring, new public surface |
+| `js/wheel-editor.js` | namespaced `DRAFT_KEY`, `saveAs`/`setFileName`/`setCounts`/`downloadForLibrary`/`copyLibraryLine`, gating |
+| `css/wheel.css` | `.gsc-library*` skin, `.editor-library-help`, `.setup-start` |
+| `sets/index.json`, `sets/movies-and-tv.json`, `sets/around-the-house.json` | **new** — the library content |
+| `tests/harness-x.js` | **new** — X-1, X-2, X-3, the store checks and X-5's static gates |
+| `tests/harness.html` | loads `harness-x.js`, `&store=harness` on every frame, runs the X scenarios; the gates moved into `harness-x.js` to stay under 800 lines |
+| `README.md` | Game lobby, the library and how to add a set, `?store=` |
+
+### 9.5 Results
+
+```
+cd games/wheel-of-fortune && node --test
+ℹ tests 71     ℹ pass 71     ℹ fail 0
+```
+
+`tests/harness.html` on `python -m http.server 8643 --bind 127.0.0.1`:
+**`#summary.ok` = "All 91 checks passed."** — the 63 from the previous pass plus
+**28 new** (11 × X-1, 8 × X-2, 5 × X-3, 4 × store), with W-I7's six gate checks
+relabelled X-5 where they now live. Evidence from the run:
+
+- X-1 — label `↺ Game lobby`; confirm reads *"You are on round 2 of 10 — …"*;
+  Keep → *"Resume picks up where you left off: round 2 of 10 — …"*; Resume →
+  *state is byte-identical to the parked snapshot*; Start over → *roster kept,
+  totals cleared, no Resume offered*; mid-spin → *spin cancelled, game parked*
+  and *still idle after the spin would have landed*; Cancel → *state untouched*;
+  embedded → `body: gsc-embedded`.
+- X-2 — picker mounted into `#puzzles-library`; lists *Movies & TV / Around the
+  House*; Preview shows *"… — 10 rounds · 2 toss-ups · 1 bonus"*; loading gives
+  *"Puzzles: set: Around the House — 10 rounds."*; **both shipped sets pass
+  `validateGame` with every puzzle fitting the board**; a bad set is refused
+  with *"…does not fit the board…"*; no manifest → the picker hides with
+  *"Saved sets need a web server…"*.
+- X-3 — downloads `office-party.json`; step 1 names
+  `games/wheel-of-fortune/sets/office-party.json`; the manifest line parses and
+  `GSCLibrary.parseManifest` accepts it (*Office Party — 10 rounds. — 10 rounds
+  · 2 toss-ups · 1 bonus*); an invalid draft disables both download buttons.
+- Store — `gsc-wheel-state-v1-harness` / `gsc-wheel-draft-v1-harness`; the
+  un-suffixed key still holds the canary after a full run; `"../evil key!"` →
+  `"evilkey"`.
+- X-5 — 24 files scanned: no HTML-string/`document.write`/`eval`/Function
+  APIs, no `console.log` in `js/`, every file under 800 lines, no stray
+  external URLs, `data-gsc-game` + `#gsc-join`, body classes wired.
+
+Two defects were found and fixed while wiring this up, both mine:
+
+- The X-2 checks called the host frame's `GSCLibrary.fetchSet` with
+  `gameDir: "../"`, which resolves against the host document (already in
+  `games/wheel-of-fortune/`) — it fetched `games/sets/…`. Corrected to `""`.
+- `W-D9` began failing intermittently: the harness asserted right after the
+  frame's bridge `ready`, but the room adopt happens later (after
+  `GSC.host()` resolves). The check now waits for `WheelApp.roomCode()` to
+  become the new code — which also makes the adopt itself an assertion.
+
+### 9.6 Not done here
+
+- §3's three game fixes (Price Is Right photos, Deal or No Deal case
+  animation, Chain Reaction phone column) belong to those games.
+- **X-4** is not applicable to this component.

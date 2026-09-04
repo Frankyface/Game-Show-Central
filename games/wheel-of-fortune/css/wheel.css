@@ -569,6 +569,75 @@ body {
 .ed-fit-bad { color: var(--red); }
 .ed-fit-ok { color: var(--green); }
 
+.editor-library-help {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--stage-line);
+  border-left: 4px solid var(--teal);
+  border-radius: var(--radius);
+  padding: 0.8rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  max-width: 46rem;
+}
+
+.editor-library-step { margin: 0; font-size: 0.85rem; color: var(--ink); }
+.editor-library-help code { color: var(--gold-text); font-size: 0.82rem; }
+
+.editor-library-help textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem; line-height: 1.45;
+  padding: 0.5em 0.7em; color: var(--ink);
+  background: rgba(8, 2, 18, 0.65);
+  border: 1px solid var(--stage-line); border-radius: var(--radius);
+  resize: vertical;
+}
+
+/* ============ The saved-set picker (shared/library.js) ============ */
+
+.gsc-library {
+  margin-top: 0.7rem; padding: 0.6rem 0.8rem;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--stage-line);
+  border-left: 4px solid var(--teal);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+
+.gsc-library-label {
+  font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--teal);
+}
+
+.gsc-library-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+
+.gsc-library-select {
+  flex: 1 1 14rem; min-height: 44px;
+  padding: 0.45em 0.6em; font: inherit; color: var(--ink);
+  background: rgba(8, 2, 18, 0.65);
+  border: 1px solid var(--stage-line); border-radius: var(--radius);
+}
+
+.gsc-library-select:focus-visible {
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 204, 77, 0.25);
+}
+
+/* The picker ships its own .gsc-btn classes; dress them as this game's buttons. */
+.gsc-library .gsc-btn {
+  font-family: var(--font-ui); font-weight: 700; font-size: 0.95rem;
+  min-height: 44px; padding: 0.5em 1.2em;
+  border-radius: var(--radius); border: 2px solid transparent; cursor: pointer;
+  background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%);
+  color: #2b1d00;
+}
+
+.gsc-library .gsc-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.gsc-library .gsc-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.gsc-library-preview { margin: 0; font-size: 0.82rem; color: var(--ink-dim); }
+.gsc-library-error { margin: 0; font-size: 0.82rem; color: var(--red); }
+.gsc-library-off .gsc-library-error { color: var(--ink-dim); }
+
+.setup-start { gap: 0.6rem; }
+
 /* ============ Player mode / embedded chrome ============ */
 
 body.player-mode .topbar,

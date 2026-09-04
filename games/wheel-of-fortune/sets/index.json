@@ -1,0 +1,16 @@
+[
+  {
+    "file": "movies-and-tv.json",
+    "name": "Movies & TV",
+    "description": "A night at the pictures: the silver screen, the red carpet and the final episode.",
+    "by": "GSC",
+    "counts": { "rounds": 10, "toss-ups": 2, "bonus": 1 }
+  },
+  {
+    "file": "around-the-house.json",
+    "name": "Around the House",
+    "description": "Squeaky floorboards, fitted sheets and whatever is under the couch cushions.",
+    "by": "GSC",
+    "counts": { "rounds": 10, "toss-ups": 2, "bonus": 1 }
+  }
+]

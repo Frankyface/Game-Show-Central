@@ -1,0 +1,27 @@
+{
+  "title": "Wheel of Fortune — Around the House",
+  "settings": {
+    "vowelCost": 250,
+    "roundMinimum": 1000,
+    "bonusSeconds": 10,
+    "bonusPrize": "$25,000",
+    "tossUpValues": [1000, 2000, 3000],
+    "autoOrder": false,
+    "wedges": [
+      800, "BANKRUPT", 650, 500, 900, 700, 600, 650, 500, 700, "LOSE A TURN", 800,
+      500, 650, 600, 700, 900, "BANKRUPT", 500, 600, 550, 700, 2500, 650
+    ]
+  },
+  "rounds": [
+    { "type": "tossup",  "category": "Around the House",   "puzzle": "THE KITCHEN SINK" },
+    { "type": "regular", "category": "Thing",              "puzzle": "THE SQUEAKY FLOORBOARD" },
+    { "type": "regular", "category": "Food & Drink",       "puzzle": "LEFTOVERS IN THE FRIDGE" },
+    { "type": "regular", "category": "What Are You Doing?", "puzzle": "FOLDING A FITTED SHEET" },
+    { "type": "tossup",  "category": "Phrase",             "puzzle": "A PLACE FOR EVERYTHING" },
+    { "type": "regular", "category": "Person",             "puzzle": "THE NEIGHBOR WITH THE LADDER" },
+    { "type": "regular", "category": "Place",              "puzzle": "THE GARDEN SHED" },
+    { "type": "regular", "category": "Before & After",     "puzzle": "LAUNDRY BASKET CASE" },
+    { "type": "regular", "category": "Thing",              "puzzle": "A DRAWER FULL OF TAKEOUT MENUS" },
+    { "type": "bonus",   "category": "Around the House",   "puzzle": "UNDER THE COUCH CUSHIONS" }
+  ]
+}

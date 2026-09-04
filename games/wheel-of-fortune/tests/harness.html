@@ -37,6 +37,7 @@
     <figure style="margin:0"><figcaption>phone p2 (Ben)</figcaption><iframe id="p2" class="phone" title="phone two"></iframe></figure>
   </div>
 
+  <script src="harness-x.js"></script>
   <script>
   (function () {
     "use strict";
@@ -54,23 +55,22 @@
       report();
     }
 
+    const span = (cls, txt) => {
+      const node = document.createElement("span");
+      node.className = cls;
+      node.textContent = txt;
+      return node;
+    };
+
     function report() {
       const list = document.getElementById("results");
       list.replaceChildren();
       for (const r of results) {
         const li = document.createElement("li");
         li.dataset.pass = String(r.pass);
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = r.pass ? "PASS" : "FAIL";
-        li.appendChild(tag);
+        li.appendChild(span("tag", r.pass ? "PASS" : "FAIL"));
         li.appendChild(document.createTextNode(r.label));
-        if (r.detail) {
-          const d = document.createElement("span");
-          d.className = "detail";
-          d.textContent = r.detail;
-          li.appendChild(d);
-        }
+        if (r.detail) li.appendChild(span("detail", r.detail));
         list.appendChild(li);
       }
       const failed = results.filter((r) => !r.pass).length;
@@ -164,12 +164,15 @@
       "../../../shared/bridge.js", "../../../shared/room-protocol.js",
       "../../../shared/room-net.js", "../../../shared/room-host.js",
       "../../../shared/room-player.js", "../../../shared/theme.css",
+      "../../../shared/library.js",
     ];
 
+    // ?store=harness keeps a test run out of the real host's saved game on
+    // this origin; the store check proves the canary survives a whole run.
     const SRC = {
-      host: "../index.html?embed=host&harness=1",
-      p1: "../index.html?embed=player&harness=1&pid=p1&name=Ana",
-      p2: "../index.html?embed=player&harness=1&pid=p2&name=Ben",
+      host: "../index.html?embed=host&harness=1&store=harness",
+      p1: "../index.html?embed=player&harness=1&store=harness&pid=p1&name=Ana",
+      p2: "../index.html?embed=player&harness=1&store=harness&pid=p2&name=Ben",
     };
 
     async function loadFrame(key) {
@@ -182,8 +185,8 @@
 
     async function bootAll(clearStorage) {
       if (clearStorage !== false) {
-        localStorage.removeItem("gsc-wheel-state-v1");
-        localStorage.removeItem("gsc-wheel-draft-v1");
+        localStorage.removeItem("gsc-wheel-state-v1-harness");
+        localStorage.removeItem("gsc-wheel-draft-v1-harness");
       }
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" })));
       await loadFrame("host");
@@ -636,6 +639,9 @@
       PLAYERS[0].name = "Pia";
       await loadFrame("host");
       await waitFor(() => W("host").WheelApp && W("host").WheelApp.getState(), "host restored");
+      // The adopt runs after GSC.host() resolves, which is later than the
+      // frame's bridge `ready`; wait for it rather than racing it.
+      await waitFor(() => W("host").WheelApp.roomCode() === "ZZZZ", "the new room adopted");
       await waitFor(() => hostState().players.some((p) => p.pid === "p1"), "roster re-applied");
       const pia = hostState().players.find((p) => p.pid === "p1");
       const keptHal = hostState().players.find((p) => p.name === "Hal");
@@ -696,68 +702,13 @@
         `${hostState().game.rounds.length} rounds, source = ${W("host").WheelApp.sourceInfo().text}`);
     }
 
-    /* ============ W-I7 — static gates ============ */
-
     // Everything this component owns: its own assets (not shared/) plus the
     // tests and this page, because the house gates cover tests too (06 §4).
+    // W-I7 / X-5 themselves live in harness-x.js (line limit).
     const SOURCE_FILES = ASSETS.filter((u) => u.indexOf("shared/") < 0)
-      .concat(["../README.md", "./wheel-core.test.mjs",
-        "./wheel-adversarial.test.mjs", "./harness.html"]);
-
-    async function testGates() {
-      // Assembled from fragments so this gate's own source never trips the
-      // repo-wide grep the tester runs (06 §4 V3).
-      const banned = new RegExp([
-        "inner" + "HTML", "insertAdjacent" + "HTML", "outer" + "HTML\\s*=",
-        "document\\." + "write", "[^.\\w]" + "eval\\(", "new " + "Function",
-      ].join("|"));
-      const bad = [];
-      const logged = [];
-      const tooLong = [];
-      const external = [];
-      for (const path of SOURCE_FILES) {
-        const res = await fetch(path, { cache: "reload" });
-        const text = await res.text();
-        if (banned.test(text)) bad.push(path);
-        const noisy = new RegExp("console\." + "log");
-        if (path.indexOf("/js/") >= 0 && noisy.test(text)) logged.push(path);
-        const lines = text.split("\n").length;
-        if (lines >= 800) tooLong.push(`${path} (${lines})`);
-        // Documentation prose may cite example/localhost URLs; this gate is
-        // about what the BROWSER would actually fetch, so scan loaded assets only.
-        const loaded = /\.(html|js|mjs|css|json)$/.test(path);
-        for (const url of (loaded ? text.match(/https?:\/\/[^\s"'<>)]+/g) : null) || []) {
-          const ok = url.indexOf("https://fonts.googleapis.com") === 0
-            || url.indexOf("https://fonts.gstatic.com") === 0
-            || url.indexOf("https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/") === 0
-            || url.indexOf("http://www.w3.org/2000/svg") === 0; // the SVG XML namespace, never fetched
-          if (!ok) external.push(`${path}: ${url}`);
-        }
-      }
-      check("W-I7 no HTML-string, document-write, eval or Function-constructor APIs anywhere",
-        bad.length === 0, bad.join(", ") || `${SOURCE_FILES.length} files scanned`);
-      check("W-I7 no console." + "log calls in js/", logged.length === 0,
-        logged.join(", ") || "console.warn only");
-      check("W-I7 every file is under 800 lines", tooLong.length === 0,
-        tooLong.join(", ") || `${SOURCE_FILES.length} files under the limit`);
-      check("W-I7 the only external URLs in loaded assets are Google Fonts and the pinned PeerJS CDN",
-        external.length === 0, external.join(", ") || "no stray external URLs");
-
-      const html = await (await fetch("../index.html", { cache: "reload" })).text();
-      const css = await (await fetch("../css/wheel.css", { cache: "reload" })).text();
-      check("W-I7 the page declares data-gsc-game and provides #gsc-join",
-        html.indexOf('data-gsc-game="wheel-of-fortune"') >= 0
-          && html.indexOf('id="gsc-join"') >= 0
-          && D("p1").getElementById("gsc-join") !== null,
-        "body attribute + join container present");
-      check("W-I7 player-mode and gsc-embedded body classes are wired",
-        css.indexOf("body.player-mode") >= 0 && css.indexOf("body.gsc-embedded") >= 0
-          && D("host").body.classList.contains("gsc-embedded")
-          && !D("host").body.classList.contains("player-mode")
-          && D("p1").body.classList.contains("player-mode")
-          && D("p1").body.classList.contains("gsc-embedded"),
-        `host classes: ${D("host").body.className || "(none)"} · phone: ${D("p1").body.className}`);
-    }
+      .concat(["../README.md", "../sets/index.json", "./wheel-core.test.mjs",
+        "./wheel-fixes.test.mjs", "./wheel-adversarial.test.mjs",
+        "./harness-x.js", "./harness.html"]);
 
     /* ============ Run ============ */
 
@@ -781,7 +732,17 @@
         await testBonus();
         await testEditor();
         await testNewRoom();
-        await testGates();
+        // The cross-cutting round (docs/19): X-1 game lobby, X-2 library,
+        // X-3 the editor's library export, and ?store= namespacing.
+        const X = window.WheelHarnessX({
+          check, waitFor, sleep, W, D, $, loadFrame, hostState, HC, spinTo,
+          SOURCE_FILES,
+        });
+        await X.testGameLobby();
+        await X.testLibrary();
+        await X.testEditorLibrary();
+        await X.testStoreNamespacing();
+        await X.testGates();
       } catch (err) {
         uncaught = uncaught || (err && err.message) || String(err);
         check("Harness run completed", false, uncaught);

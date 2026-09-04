@@ -20,6 +20,7 @@
     <div class="topbar-actions">
       <span id="room-chip" class="room-chip gsc-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; Sound</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small hidden" type="button">&#8634; Game lobby</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Puzzle Editor</button>
       <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
@@ -68,11 +69,17 @@
             </label>
             <button id="btn-reload" class="btn btn-ghost" type="button">Reload puzzles.json</button>
           </div>
+          <!-- GSCLibrary.mountPicker renders the saved-set picker in here. -->
+          <div id="puzzles-library"></div>
           <p id="load-error" class="error-msg" role="alert"></p>
         </div>
         </div>
 
-        <button id="btn-start" class="btn btn-gold btn-big" type="button">Start game</button>
+        <div class="setup-row setup-start">
+          <button id="btn-resume" class="btn btn-gold btn-big hidden" type="button">Resume game</button>
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start game</button>
+        </div>
+        <p id="resume-note" class="setup-hint hidden"></p>
       </div>
     </section>
 
@@ -166,11 +173,26 @@
           <button id="btn-editor-blank" class="btn btn-ghost btn-small" type="button">Start blank</button>
           <button id="btn-editor-reset" class="btn btn-ghost btn-small" type="button">Reset to current</button>
           <button id="btn-editor-download" class="btn btn-ghost" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-ghost" type="button">Download for the library</button>
           <button id="btn-editor-use" class="btn btn-gold" type="button">Use in game</button>
           <button id="btn-editor-close" class="btn btn-ghost btn-small" type="button">Close</button>
         </div>
       </div>
       <p id="editor-error" class="error-msg" role="alert"></p>
+      <!-- Filled by "Download for the library": the path to commit and the
+           exact manifest line to paste into sets/index.json. -->
+      <div id="editor-library-help" class="editor-library-help hidden">
+        <p id="editor-library-step1" class="editor-library-step"></p>
+        <label class="editor-field" for="editor-library-line">2. Paste this line into
+          <code>games/wheel-of-fortune/sets/index.json</code>
+          <textarea id="editor-library-line" rows="6" readonly spellcheck="false"></textarea>
+        </label>
+        <div class="setup-row">
+          <button id="btn-library-copy" class="btn btn-ghost btn-small" type="button">Copy the line</button>
+          <button id="btn-library-dismiss" class="btn btn-ghost btn-small" type="button">Done</button>
+        </div>
+        <p id="editor-library-copied" class="setup-hint"></p>
+      </div>
 
       <div class="editor-grid">
         <div class="editor-col">
@@ -238,6 +260,21 @@
         <button id="btn-solve-wrong" class="btn btn-ghost btn-big" type="button">Wrong</button>
         <button id="btn-solve-cancel" class="btn btn-ghost btn-small" type="button">Cancel</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===================== Game lobby confirm (docs/19 §1) ===================== -->
+  <div id="lobby-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lobby-title">
+    <div class="modal-card">
+      <h2 id="lobby-title" class="modal-title">Back to the game lobby</h2>
+      <p id="lobby-sub" class="modal-sub"></p>
+      <div class="judge-row">
+        <button id="btn-lobby-keep" class="btn btn-gold btn-big" type="button">Keep this game</button>
+        <button id="btn-lobby-reset" class="btn btn-ghost btn-big" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost btn-small" type="button">Cancel</button>
+      </div>
+      <p class="setup-hint">Keep this game returns to setup with a Resume button.
+        Start over clears the board but keeps your players, puzzles and settings.</p>
     </div>
   </div>
 
@@ -322,6 +359,7 @@
   <script src="../../shared/room-net.js"></script>
   <script src="../../shared/room-host.js"></script>
   <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/library.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="js/wheel-app.js"></script>
   <script src="js/wheel-room.js"></script>

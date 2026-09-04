@@ -13,7 +13,20 @@
 "use strict";
 
 const WheelApp = (function () {
-  const STORAGE_KEY = "gsc-wheel-state-v1";
+  /**
+   * `?store=NAME` moves this page's localStorage into its own namespace. The
+   * loopback harness uses `?store=harness` so a test run cannot leave harness
+   * puzzles (or a half-played game) in the real host's save on the same origin.
+   * Anything but letters, digits and hyphens is stripped.
+   */
+  function storeSuffix() {
+    if (typeof location === "undefined") return "";
+    const raw = new URLSearchParams(location.search).get("store") || "";
+    const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+    return clean ? `-${clean}` : "";
+  }
+
+  const STORAGE_KEY = `gsc-wheel-state-v1${storeSuffix()}`;
   const TOSSUP_MS = 1200; // one letter every ~1.2 s (spec §1)
   const SPLASH_MS = 1200; // the game-switch title card (design system v2 §3)
   const MAX_PLAYERS = 6;
@@ -30,6 +43,9 @@ const WheelApp = (function () {
   let phonePids = new Set(); // pids that came from the roster (transport-owned)
   let takenOverPid = null;   // the one phone player the host is acting for (W-D8)
   let roomCode = null;       // the room this saved game belongs to (W-D9)
+  // A game parked by "Keep this game" (docs/19 §1). It rides in the saved
+  // envelope, never inside the core state, so undo history is untouched.
+  let resumable = null;
   let listeners = [];
   let spinning = false;
   let cancelSpin = null;
@@ -40,6 +56,7 @@ const WheelApp = (function () {
   // Resolves once init() has restored (or fetched) a game, so wheel-room.js can
   // bind the room code without racing the restore (W-D9).
   let markReady = null;
+  let library = null;
   const ready = new Promise((resolve) => { markReady = resolve; });
 
   /* ============ State plumbing ============ */
@@ -58,7 +75,7 @@ const WheelApp = (function () {
     if (!state) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        state, source, roomCode, phonePids: [...phonePids],
+        state, source, roomCode, phonePids: [...phonePids], resumable,
       }));
       warn("");
     } catch (err) {
@@ -243,6 +260,61 @@ const WheelApp = (function () {
       { sound: sound() ? sound().isOn() : true }));
   }
 
+  /* ============ Game lobby: keep / start over / resume (docs/19 §1) ============ */
+
+  /** Stop anything mid-flight before leaving a game screen. */
+  function halt() {
+    stopTossup();
+    if (cancelSpin) cancelSpin();
+    cancelSpin = null;
+    spinning = false;
+    bonusPicks = [];
+    if (window.WheelTimer) window.WheelTimer.stop("bonus");
+    show($("solve-dialog"), false);
+  }
+
+  /** A one-line description of the parked game, for the Resume hint. */
+  function describe(snapshot) {
+    if (!snapshot || !snapshot.round) return "a game in progress";
+    const kind = snapshot.round.type === "tossup" ? "toss-up"
+      : snapshot.round.type === "bonus" ? "bonus round" : "round";
+    const names = snapshot.players.map((p) => p.name).join(", ");
+    return `${kind} ${snapshot.roundIndex + 1} of ${snapshot.game.rounds.length}`
+      + (names ? ` — ${names}` : "");
+  }
+
+  /**
+   * "Keep this game": park the in-progress game and show setup. The parked
+   * snapshot is a deep copy, so playing a fresh game cannot disturb it.
+   */
+  function keepGame() {
+    if (!state || state.phase === "idle") return false;
+    halt();
+    resumable = JSON.parse(JSON.stringify(state));
+    setState(core().createState(state.game, state.players.map((p) => ({ pid: p.pid, name: p.name })),
+      { sound: sound() ? sound().isOn() : true }));
+    return true;
+  }
+
+  /** "Start over": drop the in-progress game; roster, content and settings stay. */
+  function startOver() {
+    if (!state) return false;
+    halt();
+    resumable = null;
+    newGame();
+    return true;
+  }
+
+  /** Put the parked game back exactly as it was. */
+  function resumeGame() {
+    if (!resumable) return false;
+    halt();
+    const snapshot = resumable;
+    resumable = null;
+    setState(snapshot);
+    return true;
+  }
+
   /* ============ Toss-up reveal loop (ephemeral timer) ============ */
 
   function syncTossupLoop() {
@@ -269,6 +341,12 @@ const WheelApp = (function () {
     show($("screen-game"), !setup && !final && !isEditorOpen());
     show($("screen-final"), final && !isEditorOpen());
     show($("btn-new-game"), !setup);
+    show($("btn-game-lobby"), !setup);
+    show($("btn-resume"), setup && !!resumable);
+    show($("resume-note"), setup && !!resumable);
+    if (setup && resumable) {
+      $("resume-note").textContent = `Resume picks up where you left off: ${describe(resumable)}.`;
+    }
     $("setup-title").textContent = state.game.title;
     const n = state.game.rounds.length;
     $("source-note").textContent = `Puzzles: ${source.text} — ${n} round${n === 1 ? "" : "s"}.`;
@@ -458,6 +536,15 @@ const WheelApp = (function () {
     }
   }
 
+  function openLobbyDialog() {
+    if (!state) return;
+    $("lobby-sub").textContent = state.phase === "idle"
+      ? "This game has not started yet."
+      : `You are on ${describe(state)}.`;
+    show($("lobby-dialog"), true);
+    $("btn-lobby-keep").focus();
+  }
+
   function openSolve() {
     if (!state) return;
     const who = state.players[state.turn];
@@ -486,6 +573,11 @@ const WheelApp = (function () {
       dispatch({ type: "start" });
     });
     $("btn-new-game").addEventListener("click", newGame);
+    $("btn-game-lobby").addEventListener("click", openLobbyDialog);
+    $("btn-lobby-keep").addEventListener("click", () => { show($("lobby-dialog"), false); keepGame(); });
+    $("btn-lobby-reset").addEventListener("click", () => { show($("lobby-dialog"), false); startOver(); });
+    $("btn-lobby-cancel").addEventListener("click", () => show($("lobby-dialog"), false));
+    $("btn-resume").addEventListener("click", resumeGame);
     $("btn-play-again").addEventListener("click", newGame);
     $("btn-spin").addEventListener("click", doSpin);
     $("btn-vowel").addEventListener("click", () => dispatch({ type: "buyVowel" }));
@@ -522,7 +614,7 @@ const WheelApp = (function () {
   }
 
   function onKeydown(e) {
-    if (e.key === "Escape") show($("solve-dialog"), false);
+    if (e.key === "Escape") { show($("solve-dialog"), false); show($("lobby-dialog"), false); }
     if (!state || state.phase !== "round" || spinning) return;
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     const letter = String(e.key || "").toUpperCase();
@@ -565,6 +657,29 @@ const WheelApp = (function () {
     e.target.value = "";
   }
 
+  /* ============ The set library (docs/19 §2) ============ */
+
+  /**
+   * Mount the shared picker under the Puzzles section. A set goes through the
+   * game's own validateGame — which includes layoutPuzzle, so a set whose
+   * puzzle cannot fit the board is refused with the same message the editor
+   * and the upload path show. The picker hides itself with a plain-English
+   * line when there is no manifest (opened from disk, or no sets/ folder).
+   */
+  function mountLibrary() {
+    const host = $("puzzles-library");
+    if (!host || !window.GSCLibrary) return null;
+    return window.GSCLibrary.mountPicker(host, {
+      gameDir: "",
+      label: "Saved puzzle sets",
+      validate: (json) => { core().validateGame(json); },
+      onPick(json, meta) {
+        $("load-error").textContent = "";
+        useGame(json, { text: `set: ${meta.name}`, kind: "upload", url: null });
+      },
+    });
+  }
+
   /* ============ Boot ============ */
 
   async function init() {
@@ -585,6 +700,7 @@ const WheelApp = (function () {
       $("btn-sound").setAttribute("aria-pressed", String(sound().isOn()));
     }
 
+    library = mountLibrary();
     const gameParam = params.get("game");
     const saved = load();
     const savedMatches = !!saved && (!gameParam || saved.source.url === gameParam);
@@ -592,6 +708,7 @@ const WheelApp = (function () {
       source = saved.source;
       roomCode = saved.roomCode || null;
       phonePids = new Set(Array.isArray(saved.phonePids) ? saved.phonePids : []);
+      resumable = saved.resumable || null;
       setState(saved.state);
       return; // a game in progress wins over a re-fetch (reload-resume)
     }
@@ -599,6 +716,7 @@ const WheelApp = (function () {
       source = saved.source;
       roomCode = saved.roomCode || null;
       phonePids = new Set(Array.isArray(saved.phonePids) ? saved.phonePids : []);
+      resumable = saved.resumable || null;
       state = saved.state;
       playerSeq = saved.state.players.length;
     }
@@ -622,6 +740,12 @@ const WheelApp = (function () {
     phonePids: () => new Set(phonePids),
     adoptRoom,
     ready,
+    keepGame,
+    startOver,
+    resumeGame,
+    hasResumable: () => !!resumable,
+    library: () => library,
+    storeSuffix,
     roomCode: () => roomCode,
     takenOverPid: () => takenOverPid,
     isSpinning: () => spinning,

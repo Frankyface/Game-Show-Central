@@ -35,7 +35,11 @@ cd games/wheel-of-fortune && node --test
 Browser loopback harness (serve the repo root first):
 `http://127.0.0.1:8643/games/wheel-of-fortune/tests/harness.html` — it is its
 own shell, so it needs no hub and no PeerJS. Green when `#summary` reads
-"All 63 checks passed."
+"All 91 checks passed."
+
+`?store=NAME` puts a page's `localStorage` in its own namespace — the harness
+runs on `?store=harness`, so a test run can never overwrite the real host's
+saved game or editor draft on the same origin.
 
 ## Playing it
 
@@ -68,10 +72,49 @@ runs as a cue while they guess out loud. The host judges with **Correct** /
 The countdown's deadline is part of the saved game, so a reload mid-round
 resumes the bar where it was rather than handing out a fresh ten seconds.
 
+**Game lobby.** The toolbar's **⟲ Game lobby** returns to this game's own start
+screen from any phase, mid-spin included. It asks first:
+
+- **Keep this game** — parks the game and shows setup with a **Resume** button
+  that puts it back exactly as it was.
+- **Start over** — clears the board but keeps your players, puzzles and settings.
+
 **Host escape hatches, always available:** **Next player** (skip), **Undo**
 (exact, one step at a time), **Reveal all**, **Next round** (skip a round),
 clicking a podium to hand someone the turn, and the sound toggle.
 Typing a letter on the physical keyboard calls it too.
+
+## The saved-set library
+
+`sets/` holds extra puzzle files committed beside the game, listed in
+`sets/index.json`. The setup screen mounts the shared picker
+(`shared/library.js`) under **Puzzles**: choose a set, press **Load set**, and
+it becomes the current content (source note `set: Movies & TV`). A set goes
+through the same `validateGame` as every other route, board layout included, so
+a set that cannot fit the board is refused with the same plain-English message.
+
+Shipped sets:
+
+| File | Name | What's in it |
+|---|---|---|
+| `sets/movies-and-tv.json` | Movies & TV | 10 rounds — the silver screen, the red carpet, the final episode |
+| `sets/around-the-house.json` | Around the House | 10 rounds — squeaky floorboards, fitted sheets, the couch cushions |
+
+Opened straight from disk (`file://`) the picker hides itself and says why —
+saved sets need a web server.
+
+### Adding your own set
+
+Static hosting cannot write files, so the editor gives you the two steps:
+
+1. Build the set in the **Puzzle Editor**, then press **Download for the
+   library**. It downloads `your-title.json` and shows the exact path to commit
+   it to (`games/wheel-of-fortune/sets/your-title.json`).
+2. It also prints the exact manifest line — copy it into
+   `games/wheel-of-fortune/sets/index.json`.
+
+Both buttons are disabled until the draft validates, so a set can never reach
+the library in a state the game would reject.
 
 ## Content JSON
 
@@ -147,10 +190,12 @@ js/wheel-sound.js          WebAudio sounds behind the shared gsc-sound toggle
 js/wheel-timer.js          bonus-round red-block countdown (DOM half)
 js/timer-core.js           the countdown maths (copied from games/jeopardy)
 js/data.js                 offline mirror of puzzles.json
+sets/index.json            the saved-set manifest; sets/*.json the sets themselves
 css/wheel.css              host styles; css/wheel-phone.css; css/timer.css
 tests/wheel-core.test.mjs  node:test suite (W-U1 ... W-U10)
 tests/wheel-fixes.test.mjs node:test regressions for the reviewed defects
 tests/harness.html         browser loopback harness (W-I1 ... W-I7, W-D fixes)
+tests/harness-x.js         the cross-cutting scenarios (X-1 ... X-3, X-5)
 ```
 
 A saved game is bound to the room it was played in: open a **different** room
