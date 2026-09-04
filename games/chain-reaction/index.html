@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chain Reaction</title>
+  <meta name="description" content="Chain Reaction for game night: two teams build a column of eight linked words a letter at a time, then the leaders play the Speed Chain against the clock. Bring your own chains as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/cr.css">
+  <link rel="stylesheet" href="css/cr-phone.css">
+</head>
+<body data-gsc-game="chain-reaction">
+
+  <header class="topbar">
+    <h1 id="cr-title" class="topbar-title">Chain Reaction</h1>
+    <div class="topbar-actions">
+      <span id="cr-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Chain editor</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="cr-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="cr-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card gsc-card">
+        <p class="kicker gsc-eyebrow">Eight words. One chain. Two teams.</p>
+        <h2 class="card-title">Chain Reaction</h2>
+        <p id="cr-source" class="source-note">Loading chains&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Teams</h3>
+            <div class="team-fields">
+              <label class="field">Team 1
+                <input id="cr-team-0" type="text" maxlength="24" autocomplete="off" spellcheck="false" value="Team Blue">
+              </label>
+              <label class="field">Team 2
+                <input id="cr-team-1" type="text" maxlength="24" autocomplete="off" spellcheck="false" value="Team Pink">
+              </label>
+            </div>
+            <h3 class="setup-heading">Phones on each team <span id="cr-roster-count" class="count-badge"></span></h3>
+            <p class="hint">Optional. Everyone can play off the shared screen &mdash; phones only pick a
+              direction and type a guess for the host to judge.</p>
+            <ul id="cr-roster" class="roster"></ul>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="cr-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="cr-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="cr-join-note" class="hint hidden">Players open <span id="cr-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <label class="field">Chain values (comma separated)
+              <input id="cr-set-values" type="text" autocomplete="off" spellcheck="false" inputmode="numeric">
+            </label>
+            <p id="cr-set-values-note" class="hint-inline"></p>
+            <div class="setting-row">
+              <label class="field">Speed Chain seconds
+                <input id="cr-set-seconds" type="number" min="10" max="300" step="1" inputmode="numeric">
+              </label>
+              <label class="field">Per word
+                <input id="cr-set-per-word" type="number" min="0" max="1000000" step="1" inputmode="numeric">
+              </label>
+              <label class="field">All six
+                <input id="cr-set-all-clear" type="number" min="0" max="1000000" step="1" inputmode="numeric">
+              </label>
+            </div>
+            <label class="check"><input id="cr-set-reveal-wrong" type="checkbox"> A wrong guess also reveals the next letter for the other team</label>
+
+            <h3 class="setup-heading">Chains</h3>
+            <div class="inline-form">
+              <button id="btn-load-json" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Load chains (.json)</button>
+              <input id="cr-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="cr-chain-count" class="hint"></p>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-start" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Chain ===================== -->
+    <section id="screen-chain" class="screen hidden">
+      <div class="play-grid">
+        <div class="board-side">
+          <div class="board-head">
+            <p id="cr-chain-kicker" class="kicker gsc-eyebrow">Chain 1 of 3</p>
+            <span id="cr-chain-value" class="gsc-badge value-badge">$100</span>
+          </div>
+          <ol id="cr-column" class="column" aria-label="The chain"></ol>
+        </div>
+
+        <aside class="play-rail" aria-label="Scores and controls">
+          <div id="cr-teams" class="teams"></div>
+          <p id="cr-notice" class="notice" role="status" aria-live="polite"></p>
+
+          <div class="guess-box">
+            <label class="field" for="cr-guess">Their guess</label>
+            <input id="cr-guess" type="text" maxlength="24" autocomplete="off" spellcheck="false"
+                   placeholder="Type what they said">
+            <p id="cr-guess-from" class="hint-inline" aria-live="polite"></p>
+            <p id="cr-guess-hint" class="hint-inline"></p>
+          </div>
+
+          <div class="controls controls-stack">
+            <div class="judge-row">
+              <button id="btn-reveal-top" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">
+                Reveal from top <kbd class="gsc-kbd">T</kbd>
+              </button>
+              <button id="btn-reveal-bottom" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">
+                Reveal from bottom <kbd class="gsc-kbd">B</kbd>
+              </button>
+            </div>
+            <div class="judge-row">
+              <button id="btn-correct" class="btn btn-gold btn-big gsc-btn gsc-btn-big" type="button">
+                Correct <kbd class="gsc-kbd">Y</kbd>
+              </button>
+              <button id="btn-wrong" class="btn btn-ghost btn-big gsc-btn gsc-btn-danger gsc-btn-big" type="button">
+                Wrong <kbd class="gsc-kbd">N</kbd>
+              </button>
+            </div>
+            <div class="minor-row">
+              <button id="btn-peek" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="false">Peek</button>
+              <button id="btn-pass" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Pass control</button>
+              <button id="btn-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
+              <button id="btn-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End the night</button>
+            </div>
+            <p id="cr-peek-word" class="peek-word" role="status" aria-live="polite"></p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== Sudden death ===================== -->
+    <section id="screen-sudden" class="screen hidden">
+      <p class="kicker gsc-eyebrow">Sudden death &mdash; the scores are level</p>
+      <div class="sudden-stage">
+        <p id="cr-sudden-before" class="sudden-neighbour">&nbsp;</p>
+        <ol id="cr-sudden-word" class="column column-single" aria-label="The tiebreak word"></ol>
+        <p id="cr-sudden-after" class="sudden-neighbour">&nbsp;</p>
+      </div>
+      <div id="cr-sudden-teams" class="teams teams-row"></div>
+      <p id="cr-sudden-notice" class="notice" role="status" aria-live="polite"></p>
+      <div class="controls">
+        <button id="btn-sudden-reveal" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Reveal a letter</button>
+        <button id="btn-sudden-pass" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Other team buzzed</button>
+        <button id="btn-sudden-correct" class="btn btn-gold btn-big gsc-btn gsc-btn-big" type="button">Correct</button>
+        <button id="btn-sudden-wrong" class="btn btn-ghost btn-big gsc-btn gsc-btn-danger gsc-btn-big" type="button">Wrong</button>
+        <button id="btn-sudden-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+      </div>
+    </section>
+
+    <!-- ===================== Speed Chain ===================== -->
+    <section id="screen-speed" class="screen hidden">
+      <div class="speed-grid">
+        <div class="board-side">
+          <p id="cr-speed-kicker" class="kicker gsc-eyebrow">Speed Chain</p>
+          <ol id="cr-speed-column" class="column" aria-label="The Speed Chain"></ol>
+        </div>
+        <aside class="play-rail" aria-label="Clock and controls">
+          <p id="cr-speed-team" class="speed-team">&nbsp;</p>
+          <p id="cr-speed-clock" class="speed-clock" role="timer" aria-live="off">0:60</p>
+          <p id="cr-speed-progress" class="speed-progress" aria-live="polite">&nbsp;</p>
+          <p id="cr-speed-result" class="notice" role="status" aria-live="polite"></p>
+          <div class="controls controls-stack">
+            <button id="btn-speed-start" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">
+              Start the clock <kbd class="gsc-kbd">S</kbd>
+            </button>
+            <div class="judge-row">
+              <button id="btn-speed-got" class="btn btn-gold btn-big gsc-btn gsc-btn-big" type="button">
+                Got it <kbd class="gsc-kbd">Y</kbd>
+              </button>
+              <button id="btn-speed-pass" class="btn btn-ghost btn-big gsc-btn gsc-btn-ghost gsc-btn-big" type="button">
+                Pass <kbd class="gsc-kbd">P</kbd>
+              </button>
+            </div>
+            <div class="minor-row">
+              <button id="btn-speed-done" class="btn btn-blue gsc-btn gsc-btn-primary" type="button">Standings</button>
+              <button id="btn-speed-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="cr-result-kicker" class="kicker gsc-eyebrow">&nbsp;</p>
+      <h2 id="cr-result-winner" class="winner-name">&nbsp;</h2>
+      <ol id="cr-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-play-again" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Play again</button>
+        <button id="btn-result-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Chain editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Chain editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue gsc-btn gsc-btn-primary" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold gsc-btn" type="button">Download JSON</button>
+          <button id="btn-editor-reset" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="cr-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="cr-editor-warn" class="notice"></p>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="cr-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="cr-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Chain values (comma separated)
+            <input id="cr-ed-values" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">Speed Chain seconds
+            <input id="cr-ed-seconds" type="number" min="10" max="300" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Speed Chain per word
+            <input id="cr-ed-per-word" type="number" min="0" max="1000000" step="1" inputmode="numeric">
+          </label>
+          <label class="field">All six bonus
+            <input id="cr-ed-all-clear" type="number" min="0" max="1000000" step="1" inputmode="numeric">
+          </label>
+          <label class="field">All six label
+            <input id="cr-ed-all-clear-label" type="text" maxlength="16" autocomplete="off">
+          </label>
+          <label class="check"><input id="cr-ed-reveal-wrong" type="checkbox"> A wrong guess reveals the next letter</label>
+          <p class="hint">Every adjacent pair should be a phrase people say: <span class="mono">JELLY&nbsp;BEAN</span>,
+            <span class="mono">BEAN&nbsp;BAG</span>, <span class="mono">BAG&nbsp;PIPE</span>&hellip;</p>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <div class="editor-tabs" role="tablist" aria-label="Which chains">
+            <button id="btn-ed-tab-chains" class="btn btn-ghost btn-small gsc-btn gsc-btn-sm" type="button" role="tab" aria-selected="true">Chains</button>
+            <button id="btn-ed-tab-speed" class="btn btn-ghost btn-small gsc-btn gsc-btn-sm" type="button" role="tab" aria-selected="false">Speed chains</button>
+            <span id="cr-ed-count" class="count-badge"></span>
+            <button id="btn-ed-add" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">+ Add a chain</button>
+          </div>
+          <div id="cr-ed-rows" class="ed-rows"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="cr-phone-card" class="phone-card">
+        <p id="cr-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="cr-phone-headline" class="phone-headline" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="cr-phone-sub" class="phone-sub">&nbsp;</p>
+        <ol id="cr-phone-column" class="phone-column" aria-label="The chain"></ol>
+        <div id="cr-phone-actions" class="phone-actions"></div>
+        <p id="cr-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Chain complete interstitial ============ -->
+  <div id="cr-interstitial" class="overlay hidden" role="dialog" aria-modal="false" aria-label="Chain complete">
+    <div class="overlay-card gsc-modal">
+      <p id="cr-inter-kicker" class="kicker gsc-eyebrow">Chain complete</p>
+      <p id="cr-inter-title" class="overlay-title gsc-modal-title">&nbsp;</p>
+      <ol id="cr-inter-chain" class="inter-chain"></ol>
+      <ol id="cr-inter-standings" class="standings standings-small"></ol>
+      <p id="cr-inter-sub" class="overlay-sub">&nbsp;</p>
+      <div class="controls gsc-modal-actions">
+        <button id="btn-next-chain" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Next chain</button>
+        <button id="btn-sudden" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Sudden death</button>
+        <button id="btn-to-speed" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Speed Chain</button>
+        <button id="btn-inter-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+        <button id="btn-inter-end" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">End the night</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============
+       Same node, ids and classes as the hub's own splash (js/hub-host.js):
+       decorative, pointer-events:none, skipped under prefers-reduced-motion and
+       when embedded (the hub shows its own). ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/cr-content.js"></script>
+  <script src="js/cr-select.js"></script>
+  <script src="js/cr-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/cr-sound.js"></script>
+  <script src="js/cr-clock.js"></script>
+  <script src="js/cr-view.js"></script>
+  <script src="js/cr-app.js"></script>
+  <script src="js/cr-editor.js"></script>
+  <script src="js/cr-room.js"></script>
+  <script src="js/cr-phone.js"></script>
+</body>
+</html>

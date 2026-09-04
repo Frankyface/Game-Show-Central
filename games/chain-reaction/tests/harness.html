@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chain Reaction harness (C-I1–C-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 62rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 940px; height: 620px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 240px; height: 520px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Chain Reaction — loopback harness (success states C-I1 … C-I6, spec 14 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus three embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
+    no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.
+    The static gates are folded into C-I6, as spec 14 §6 lists them.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__CR_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+    ];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/cr-content.js", "../js/cr-select.js", "../js/cr-core.js", "../js/data.js",
+      "../js/cr-sound.js", "../js/cr-clock.js", "../js/cr-view.js", "../js/cr-app.js",
+      "../js/cr-editor.js", "../js/cr-room.js", "../js/cr-phone.js",
+      "../css/cr.css", "../css/cr-phone.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../../../shared/theme.css", "../../../shared/theme-components.css",
+      "fixtures/harness-game.json",
+    ];
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1";
+    const KEYS = ["gsc-cr-state-v1", "gsc-cr-draft-v1"];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    /** `new WIN().Event(...)` binds `new` to the call, so the window goes in a
+        local first. One helper for every field the scenarios type into. */
+    function typeInto(win, node, value) {
+      node.value = value;
+      node.dispatchEvent(new win.Event("input", { bubbles: true }));
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().CrApp.core();
+    const click = (id) => H(id).click();
+    const dispatch = (event) => HW().CrApp.dispatch(event);
+
+    async function bootHost(clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().CrApp && HW().CrApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.CrPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).CrPhone.view();
+    const phoneButtons = (pid) => [...PD(pid).querySelectorAll("#cr-phone-actions .btn")];
+    const phoneButton = (pid, text) => phoneButtons(pid).find((b) => b.textContent.indexOf(text) >= 0);
+    const phoneRows = (pid) => [...PD(pid).querySelectorAll("#cr-phone-column .row")];
+    const phoneRowText = (pid, i) =>
+      [...phoneRows(pid)[i].querySelectorAll(".tile")].map((t) => t.textContent || "_").join("");
+
+    /** Assign the phones to teams the way a host does: by clicking the roster. */
+    function assignTeams() {
+      const rows = [...HD().querySelectorAll("#cr-roster .roster-row")];
+      rows[0].querySelector(".team-pick.team-0").click();
+      rows[1].querySelector(".team-pick.team-1").click();
+    }
+
+    /** Which phone plays for the team currently in control. */
+    function pidForTeam(team) {
+      const state = core();
+      const pids = state.teams[team].pids;
+      return pids.length ? pids[0] : null;
+    }
+
+    /* ============================================================
+       C-I1 — a phone picks a direction and types a guess;
+              neither one judges anything
+       ============================================================ */
+
+    async function scenarioPhoneIntent() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().CrApp.state().players.length === 3, "roster from the shell");
+      check("C-I1 the shell roster reaches the setup screen",
+        HW().CrApp.state().players.map((p) => p.name).join(",") === "Ada,Ben,Cleo",
+        HW().CrApp.state().players.map((p) => p.name).join(","));
+
+      assignTeams();
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "chain", "the chain screen");
+      // The room resolves after boot; binding it must never throw the host's
+      // team assignment (or a game in progress) away.
+      check("C-I1 the teams keep the phones the host put on them",
+        core().teams[0].pids.join(",") === "p1" && core().teams[1].pids.join(",") === "p2",
+        core().teams.map((t) => `${t.name}:${t.pids.join("/")}`).join(" "));
+      await waitFor(() => phoneView("p1").screen === "control", "Ada gets the control screen");
+
+      check("C-I1 only the team in control gets the control screen",
+        phoneView("p1").screen === "control" && phoneView("p2").screen === "watch"
+        && phoneView("p3").screen === "watch",
+        `${phoneView("p1").screen}/${phoneView("p2").screen}/${phoneView("p3").screen}`);
+
+      const top = phoneButton("p1", "Build from the top");
+      check("C-I1 the controlling phone offers both ends", !!top && !!phoneButton("p1", "Build from the bottom"));
+      top.click();
+      await waitFor(() => core().target === 1, "the host reveals the top word's next letter");
+      check("C-I1 the phone's direction reveals exactly one letter, on the host's board",
+        core().target === 1 && HW().CrCore.columnRows(core().chain)[1].shown === 1
+        && H("cr-column").children[1].querySelectorAll(".tile.is-lit").length === 1,
+        `target ${core().target}, ${HW().CrCore.columnRows(core().chain)[1].shown} letter(s)`);
+
+      await waitFor(() => PD("p1").getElementById("cr-phone-guess"), "the guess field");
+      typeInto(PW("p1"), PD("p1").getElementById("cr-phone-guess"), "ship");
+      await waitFor(() => core().guessText === "ship", "the guess reaches the host");
+      check("C-I1 a typed guess appears on the host screen with the phone's name",
+        H("cr-guess").value === "ship" && H("cr-guess-from").textContent.indexOf("Ada") >= 0,
+        `"${H("cr-guess").value}" — ${H("cr-guess-from").textContent}`);
+      check("C-I1 the guess is NOT judged: nothing is solved and nobody scored",
+        core().chain.solved[1] === false && core().scores[0] === 0 && core().scores[1] === 0,
+        `solved=${core().chain.solved[1]} scores=${core().scores}`);
+
+      // A phone that is not in control cannot move the board at all.
+      const before = JSON.stringify(core().chain);
+      PW("p2").CrPhone.me.send({ t: "direction", dir: "bottom" });
+      PW("p3").CrPhone.me.send({ t: "guess", text: "cheat" });
+      await sleep(150);
+      check("C-I1 a phone that is not in control cannot reveal or type",
+        JSON.stringify(core().chain) === before && core().guessText === "ship",
+        `guess is still "${core().guessText}"`);
+    }
+
+    /* ============================================================
+       C-I2 — the host judges
+       ============================================================ */
+
+    async function scenarioHostJudges() {
+      click("btn-correct");
+      await waitFor(() => core().chain.solved[1], "the word goes up");
+      check("C-I2 Correct scores the chain value and keeps control",
+        core().scores[0] === 100 && core().control === 0 && core().guessText === "",
+        `scores ${core().scores}, control ${core().control}`);
+      check("C-I2 the solved word wears the team's colour on the board",
+        H("cr-column").children[1].className.indexOf("owner-0") >= 0,
+        H("cr-column").children[1].className);
+
+      click("btn-reveal-bottom");
+      await waitFor(() => core().target === 6, "the bottom word is in play");
+      click("btn-wrong");
+      await waitFor(() => core().control === 1, "control moves");
+      check("C-I2 Wrong passes control and leaves the letter given",
+        core().control === 1 && core().chain.solved[6] === false
+        && HW().CrCore.columnRows(core().chain)[6].shown === 1,
+        `control ${core().control}, ${HW().CrCore.columnRows(core().chain)[6].shown} letter(s) shown`);
+      await waitFor(() => phoneView("p2").screen === "control", "the other phone takes over");
+      check("C-I2 control moves to the other team's phone",
+        phoneView("p2").screen === "control" && phoneView("p1").screen === "watch",
+        `${phoneView("p1").screen}/${phoneView("p2").screen}`);
+
+      click("btn-undo");
+      await waitFor(() => core().control === 0, "undo");
+      check("C-I2 Undo puts the turn back", core().control === 0 && core().target === 6,
+        `control ${core().control}, target ${core().target}`);
+      click("btn-correct");
+      await waitFor(() => core().chain.solved[6], "the bottom word goes up");
+    }
+
+    /* ============================================================
+       C-I3 — the column renders as revealed, and only as revealed
+       ============================================================ */
+
+    async function scenarioColumn() {
+      const state = core();
+      const rows = [...H("cr-column").children];
+      check("C-I3 the host board is the eight-word column",
+        rows.length === 8 && rows[0].querySelectorAll(".tile").length === state.chain.words[0].length,
+        `${rows.length} rows`);
+      const topText = [...rows[0].querySelectorAll(".tile")].map((t) => t.textContent).join("");
+      const bottomText = [...rows[7].querySelectorAll(".tile")].map((t) => t.textContent).join("");
+      check("C-I3 the top and bottom words are given from the start",
+        topText === state.chain.words[0] && bottomText === state.chain.words[7],
+        `${topText} … ${bottomText}`);
+
+      await waitFor(() => phoneRows("p1").length === 8, "the phone column");
+      const shown = HW().CrCore.columnRows(state.chain).map((r) => r.shown);
+      const phoneCount = (pid) => phoneRows(pid).map((row) =>
+        [...row.querySelectorAll(".tile")].filter((t) => t.textContent).length);
+      await waitFor(() => JSON.stringify(phoneCount("p1")) === JSON.stringify(shown),
+        "the phones catch up with the host's board");
+      check("C-I3 the phone draws the same solved word, letter for letter",
+        phoneRowText("p1", 1) === state.chain.words[1], phoneRowText("p1", 1));
+      const hidden = state.chain.words.filter((w, i) => !state.chain.solved[i]);
+      const leaked = [];
+      phoneFrames.forEach((frame, pid) => {
+        // The phone page is the same document as the host page, so only what the
+        // phone actually SHOWS is scanned — the hidden host markup is not on screen.
+        const text = PD(pid).getElementById("screen-phone").textContent;
+        const payload = JSON.stringify(phoneView(pid));
+        hidden.forEach((word) => {
+          if (text.indexOf(word) >= 0) leaked.push(`${pid} DOM:${word}`);
+          if (payload.indexOf(word) >= 0) leaked.push(`${pid} payload:${word}`);
+        });
+      });
+      check("C-I3 no phone holds a letter of an unrevealed word — not in the DOM, not in the payload",
+        leaked.length === 0, leaked.join(", ") || `${hidden.length} words still hidden`);
+
+      const phoneShown = phoneCount("p1");
+      check("C-I3 every phone tile that carries a letter is one the host has revealed",
+        JSON.stringify(shown) === JSON.stringify(phoneShown), `${shown} vs ${phoneShown}`);
+    }
+
+    /* ============================================================
+       C-I4 — the Speed Chain, and its clock on the phones
+       ============================================================ */
+
+    /** Sweep whatever is left of the current chain from the host side. */
+    function sweepChain() {
+      let guard = 0;
+      while (core().phase === "chain" && guard < 200) {
+        guard += 1;
+        dispatch({ type: "reveal", direction: guard % 2 ? "top" : "bottom" });
+        if (core().target !== null) dispatch({ type: "judge", correct: true });
+      }
+    }
+
+    async function scenarioSpeed() {
+      sweepChain();
+      await waitFor(() => core().phase === "chainDone", "the interstitial");
+      check("C-I4 a finished chain shows the interstitial with the whole chain",
+        !H("cr-interstitial").classList.contains("hidden")
+        && H("cr-inter-chain").children.length === 8,
+        H("cr-inter-title").textContent);
+      click("btn-next-chain");
+      await waitFor(() => core().phase === "chain" && core().chainIndex === 1, "chain two");
+      check("C-I4 the next chain is worth more",
+        H("cr-chain-value").textContent.indexOf("200") >= 0, H("cr-chain-value").textContent);
+      sweepChain();
+      await waitFor(() => core().phase === "chainDone" && HW().CrCore.chainsLeft(core()) === 0, "the last chain");
+
+      if (HW().CrCore.leader(core()) === null) {
+        click("btn-sudden");
+        await waitFor(() => core().phase === "sudden", "sudden death");
+        dispatch({ type: "judge", correct: true });
+        await waitFor(() => core().phase === "chainDone", "the tie is broken");
+      }
+      click("btn-to-speed");
+      await waitFor(() => core().phase === "speed", "the Speed Chain");
+      const team = core().speed.team;
+      const mine = pidForTeam(team);
+      await waitFor(() => phoneView(mine).screen === "speed", "the phones follow");
+      check("C-I4 the Speed Chain board shows the first letter of every hidden word",
+        HW().CrCore.speedColumn(core()).slice(1, 7).every((r) => r.shown === 1),
+        HW().CrCore.speedColumn(core()).map((r) => r.shown).join(","));
+      check("C-I4 the Speed Chain goes to the leading team's phone",
+        phoneView(mine).mine === true && phoneView(pidForTeam(team === 0 ? 1 : 0)).mine === false,
+        `team ${team} (${mine})`);
+
+      click("btn-speed-start");
+      await waitFor(() => Number.isFinite(core().speed.deadline), "the clock starts");
+      const hostClock = Number(H("cr-speed-clock").textContent);
+      await waitFor(() => PD(mine).querySelector(".phone-clock"), "the phone clock");
+      const first = Number(PD(mine).querySelector(".phone-clock").textContent);
+      check("C-I4 the phone shows the same countdown as the host",
+        Math.abs(first - hostClock) <= 1 && first > 0 && first <= 60, `host ${hostClock}, phone ${first}`);
+      await sleep(1300);
+      const later = Number(PD(mine).querySelector(".phone-clock").textContent);
+      check("C-I4 the phone clock counts down", later < first, `${first} → ${later}`);
+
+      // A phone may pass; only the host can bank a word.
+      const currentBefore = HW().CrCore.speedCurrent(core());
+      const pass = phoneButton(mine, "Pass");
+      check("C-I4 the Speed Chain phone offers Pass and nothing that scores",
+        !!pass && !phoneButton(mine, "Got"), phoneButtons(mine).map((b) => b.textContent).join(" | "));
+      pass.click();
+      await waitFor(() => HW().CrCore.speedCurrent(core()) !== currentBefore, "the pass moves on");
+      check("C-I4 a passed word goes to the back of the queue and scores nothing",
+        core().speed.queue[core().speed.queue.length - 1] === currentBefore
+        && core().speed.marks.filter((m) => m === "got").length === 0,
+        core().speed.queue.join(","));
+      PW(mine).CrPhone.me.send({ t: "speed", result: "got" });
+      await sleep(150);
+      check("C-I4 a phone can never bank a word itself",
+        core().speed.marks.filter((m) => m === "got").length === 0,
+        core().speed.marks.join(","));
+
+      const before = core().scores[team];
+      for (let i = 0; i < 6; i += 1) click("btn-speed-got");
+      await waitFor(() => core().speed.over, "the bonus");
+      check("C-I4 all six pays the all-clear bonus",
+        core().speed.allClear && core().scores[team] === before + 1000,
+        `${before} → ${core().scores[team]}`);
+      click("btn-speed-done");
+      await waitFor(() => core().phase === "result", "the standings");
+      await waitFor(() => phoneView("p3").screen === "result", "the phones see the standings");
+      check("C-I4 every phone ends on the standings",
+        H("cr-standings").children.length === 2 && phoneView("p3").standings.length === 2,
+        H("cr-result-winner").textContent);
+    }
+
+    /* ============================================================
+       C-I5 — a reload mid-chain
+       ============================================================ */
+
+    async function scenarioReload() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().CrApp.state().players.length === 3, "roster");
+      assignTeams();
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "chain", "the chain");
+      dispatch({ type: "reveal", direction: "top" });
+      dispatch({ type: "judge", correct: true });
+      dispatch({ type: "reveal", direction: "bottom" });
+      const before = { scores: core().scores.slice(), target: core().target, words: core().chain.words.join(",") };
+
+      await bootHost(false);            // reload WITHOUT clearing localStorage
+      await waitFor(() => core(), "the saved game comes back");
+      check("C-I5 a reload mid-chain restores the phase, the board and the scores",
+        core().phase === "chain" && core().chain.words.join(",") === before.words
+        && JSON.stringify(core().scores) === JSON.stringify(before.scores) && core().target === before.target,
+        `${core().phase} ${core().scores} target ${core().target}`);
+      check("C-I5 the restored board still shows exactly the revealed letters",
+        HW().CrCore.columnRows(core().chain)[1].shown === core().chain.words[1].length
+        && HW().CrCore.columnRows(core().chain)[6].shown === 1,
+        HW().CrCore.columnRows(core().chain).map((r) => r.shown).join(","));
+      await waitFor(() => phoneView("p1").column && phoneView("p1").column.length === 8,
+        "the phones are pushed a view again after the host reloads");
+      check("C-I5 the phones are pushed a fresh view after the host reloads",
+        phoneView("p1").column.length === 8 && phoneView("p1").screen !== "wait",
+        phoneView("p1").screen);
+    }
+
+    /* ============================================================
+       C-I6 — the editor round-trip, and the static gates
+       ============================================================ */
+
+    async function scenarioEditor() {
+      click("btn-editor");
+      await waitFor(() => HW().CrApp.state().editorOpen, "the editor opens");
+      const cards = [...HD().querySelectorAll("#cr-ed-rows .ed-chain")];
+      check("C-I6 the editor lists every chain as eight stacked fields",
+        cards.length === 6 && cards[0].querySelectorAll("input").length === 8,
+        `${cards.length} chains, ${cards[0].querySelectorAll("input").length} fields each`);
+
+      const field = cards[0].querySelectorAll("input")[1];
+      const original = field.value;
+      typeInto(HW(), field, "SH1P");
+      await sleep(60);
+      check("C-I6 a bad word is flagged on the field as it is typed",
+        cards[0].querySelectorAll(".ed-word-problem")[1].textContent.indexOf("letters only") >= 0
+        && field.classList.contains("is-bad")
+        && H("cr-editor-msg").textContent.indexOf("Not playable") >= 0,
+        cards[0].querySelectorAll(".ed-word-problem")[1].textContent);
+      typeInto(HW(), field, cards[0].querySelectorAll("input")[0].value);
+      await sleep(60);
+      check("C-I6 a repeat inside the chain is flagged too",
+        cards[0].querySelectorAll(".ed-word-problem")[1].textContent.length > 0,
+        cards[0].querySelectorAll(".ed-word-problem")[1].textContent);
+      typeInto(HW(), field, original);
+      await sleep(60);
+      check("C-I6 fixing the word clears the message",
+        cards[0].querySelectorAll(".ed-word-problem")[1].textContent === ""
+        && H("cr-editor-warn").textContent.indexOf("ready to play") >= 0,
+        H("cr-editor-warn").textContent);
+
+      typeInto(HW(), H("cr-ed-title"), "Harness edit");
+      click("btn-editor-use");
+      await waitFor(() => !HW().CrApp.state().editorOpen, "the editor closes");
+      check("C-I6 Use in game adopts the edited chains and clears the game in progress",
+        HW().CrApp.state().game.title === "Harness edit" && HW().CrApp.state().core === null,
+        HW().CrApp.state().source);
+      check("C-I6 the edited game still validates through the one validator",
+        HW().CrCore.validateGame(HW().CrApp.state().game) === true);
+    }
+
+    const SOURCES = [
+      "../index.html", "../chains.json",
+      "../js/cr-content.js", "../js/cr-select.js", "../js/cr-core.js", "../js/data.js",
+      "../js/cr-sound.js", "../js/cr-clock.js", "../js/cr-view.js", "../js/cr-app.js",
+      "../js/cr-editor.js", "../js/cr-room.js", "../js/cr-phone.js",
+      "../css/cr.css", "../css/cr-phone.css",
+      "../tests/cr-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
+      "../README.md",
+    ];
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("C-I6 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("C-I6 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      // Comments that merely name the rule are allowed; real calls are not.
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("C-I6 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("C-I6 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("C-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("C-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="chain-reaction"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("C-I6 the splash markup is in the page and boot calls showSplash()",
+        html.indexOf('id="gsc-splash"') > 0
+        && (texts["../js/cr-app.js"] || "").indexOf("crShowSplash();") > 0);
+      check("C-I6 no local body[data-gsc-game] palette override (the theme block is canonical)",
+        (texts["../css/cr.css"] || "").indexOf("body[data-gsc-game") < 0);
+      check("C-I6 every @keyframes and animation sits inside prefers-reduced-motion: no-preference",
+        motionIsGuarded(texts["../css/cr.css"]) && motionIsGuarded(texts["../css/cr-phone.css"]));
+      check("C-I6 V8 chains.json validates through validateGame",
+        HW().CrCore.validateGame(JSON.parse(texts["../chains.json"])) === true);
+      check("C-I6 js/data.js mirrors chains.json and reaches globalThis",
+        JSON.stringify(HW().CR_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../chains.json"])),
+        HW().CR_DEFAULT_GAME ? "globalThis.CR_DEFAULT_GAME is set" : "MISSING");
+      check("C-I6 the shipped file carries 18 chains and 4 speed chains of eight words",
+        JSON.parse(texts["../chains.json"]).chains.length === 18
+        && JSON.parse(texts["../chains.json"]).speedChains.length === 4);
+      check("C-I6 the embedded page hides the standalone room controls",
+        HD().body.classList.contains("gsc-embedded"), HD().body.className);
+      check("C-I6 the host reported a title and standings to the shell",
+        shellLog.some((d) => d.t === "title") && shellLog.some((d) => d.t === "scores"),
+        shellLog.map((d) => d.t).join(","));
+    }
+
+    /** Every `animation:` and `@keyframes` must be inside a no-preference block. */
+    function motionIsGuarded(css) {
+      if (!css) return false;
+      let depth = 0;
+      let guarded = 0;
+      let ok = true;
+      css.split("\n").forEach((line) => {
+        if (line.indexOf("prefers-reduced-motion: no-preference") >= 0) { guarded = depth + 1; }
+        if (/(^|\s)animation:|@keyframes/.test(line) && !guarded) ok = false;
+        depth += (line.match(/\{/g) || []).length;
+        depth -= (line.match(/\}/g) || []).length;
+        if (guarded && depth < guarded) guarded = 0;
+      });
+      return ok;
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioPhoneIntent();
+        await scenarioHostJudges();
+        await scenarioColumn();
+        await scenarioSpeed();
+        await scenarioReload();
+        await scenarioEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

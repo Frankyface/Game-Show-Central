@@ -1,0 +1,24 @@
+{
+  "title": "Harness chains",
+  "settings": {
+    "currency": "$",
+    "values": [100, 200],
+    "speedSeconds": 60,
+    "speedPerWord": 100,
+    "speedAllClear": 1000,
+    "speedAllClearLabel": "$1,000",
+    "revealOnWrong": false
+  },
+  "chains": [
+    ["SPACE", "SHIP", "SHAPE", "UP", "TOWN", "HALL", "WAY", "OUT"],
+    ["KEY", "BOARD", "GAME", "NIGHT", "LIFE", "GUARD", "DOG", "HOUSE"],
+    ["SNOW", "BALL", "PARK", "BENCH", "MARK", "DOWN", "TOWN", "HOUSE"],
+    ["CAR", "POOL", "TABLE", "TOP", "HAT", "BOX", "OFFICE", "PARTY"],
+    ["GOLD", "MINE", "FIELD", "DAY", "DREAM", "TEAM", "WORK", "OUT"],
+    ["SUN", "SET", "SAIL", "BOAT", "HOUSE", "PLANT", "FOOD", "POISONING"]
+  ],
+  "speedChains": [
+    ["CHAIN", "REACTION", "TIME", "OUT", "SIDE", "STEP", "FATHER", "LAND"],
+    ["HIGH", "SCHOOL", "BUS", "STOP", "LIGHT", "WEIGHT", "ROOM", "MATE"]
+  ]
+}
