@@ -1,0 +1,734 @@
+/* ============================================================
+   Jeopardy — Game Show Central broadcast look (docs/09 §4)
+
+   CSS ONLY. This sheet is linked LAST in index.html and contains every
+   visual upgrade, so no upstream stylesheet grows and no upstream rule
+   is edited. Nothing here changes behaviour: no ids, no classes, no
+   display:none on anything a script or a harness reads, and
+   `.modal-card { overflow-y: auto }` is preserved (photo-harness P14).
+
+   Token source: ../../shared/theme.css is linked BEFORE Jeopardy's own
+   sheets, so its v2 tokens (--panel, --fs-*, --dur*, --ease-spring,
+   --radius-*, --shadow-*, --tap, --ink-mute) are available while every
+   Jeopardy value in styles.css:root still wins (it is declared later).
+
+   Motion rule (docs/09 §1): every `@keyframes` AND every `animation:`
+   added here lives inside `@media (prefers-reduced-motion: no-preference)`.
+   ============================================================ */
+
+:root {
+  /* Jeopardy's v2 accent pair, matching shared/theme.css's
+     [data-gsc-game="jeopardy"] block. Declared here instead of putting a
+     data attribute on <body>, so index.html keeps to link tags only. */
+  --accent: #2b34ff;
+  --accent-2: #ffcc4d;
+  --accent-ink: #ffffff;
+
+  /* Board furniture */
+  --j-tile-top: #1c27ee;
+  --j-tile-bottom: #060cae;
+  --j-tile-lip: rgba(255, 255, 255, 0.3);
+  --j-tile-floor: rgba(0, 0, 0, 0.55);
+  --j-tile-inner: rgba(120, 150, 255, 0.34);
+  --j-gutter: #05061f;
+  --j-rim: rgba(146, 168, 255, 0.35);
+
+  /* Show blue — the colour the clue and Final cards are cut from */
+  --j-show-blue-top: #2431e6;
+  --j-show-blue: #060ce9;
+  --j-show-blue-deep: #03076f;
+
+  --j-ink-mute: #c3c8f0; /* 8.6:1 on the navy stage; labels + metadata */
+}
+
+/* ============================================================
+   1. Top bar — a slim broadcast strip with a gold rule
+   ============================================================ */
+
+.topbar {
+  padding: 0.65rem 1.4rem 0.6rem;
+  border-bottom: 1px solid rgba(146, 168, 255, 0.22);
+  background: linear-gradient(180deg, rgba(10, 17, 88, 0.72), rgba(3, 5, 46, 0));
+  position: relative;
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold-deep) 18%, var(--gold) 50%, var(--gold-deep) 82%, transparent);
+  opacity: 0.75;
+}
+
+.topbar-title {
+  letter-spacing: 0.09em;
+  text-shadow: 0 2px 0 #6e530f, 0 3px 12px rgba(0, 0, 0, 0.7);
+}
+
+/* ============================================================
+   2. Setup screen — one clean two-column card
+   ============================================================ */
+
+.screen-setup { padding: 1.1rem 1rem 1.5rem; }
+
+.setup-card {
+  border: 1px solid rgba(146, 168, 255, 0.28);
+  border-radius: var(--radius-lg, 18px);
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(43, 52, 255, 0.28), transparent 62%),
+    linear-gradient(180deg, rgba(20, 28, 96, 0.9), rgba(6, 10, 46, 0.97));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.setup-kicker { color: var(--j-ink-mute); }
+.source-note { color: var(--j-ink-mute); }
+
+.setup-heading {
+  color: var(--gold-text);
+  letter-spacing: 0.18em;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.setup-heading::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 204, 77, 0.5), transparent);
+}
+
+.setup-section {
+  background: rgba(3, 5, 46, 0.42);
+  border: 1px solid rgba(146, 168, 255, 0.16);
+  border-radius: 14px;
+  padding: 0.8rem 1rem 0.95rem;
+  margin-bottom: 0.9rem;
+}
+
+.setup-title { margin: 0.05em 0 0.12em; }
+
+.player-list li {
+  background: linear-gradient(180deg, rgba(43, 52, 255, 0.3), rgba(6, 12, 233, 0.16));
+  border-color: rgba(146, 168, 255, 0.26);
+}
+
+.timer-hint,
+.buzzer-hint,
+.buzzer-join-note,
+.timer-field { color: var(--j-ink-mute); }
+
+#btn-start {
+  margin-top: 0.2rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Two columns once there is room. Below this the upstream single column
+   (which is what the 1024px-wide harness iframe gets) is untouched. */
+@media (min-width: 880px) {
+  .setup-card {
+    width: min(960px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr);
+    column-gap: 1.9rem;
+    align-items: start;
+    padding: 1.5rem 2.1rem 1.5rem;
+  }
+
+  .setup-kicker,
+  .setup-title,
+  .source-note,
+  #setup-error,
+  #btn-start { grid-column: 1 / -1; }
+
+  .source-note { margin-bottom: 1rem; }
+
+  /* Players (with the buzzer-room panel) on the left, the two short
+     sections stacked on the right. */
+  .setup-section:nth-of-type(1) { grid-column: 1; grid-row: 4 / span 2; }
+  .setup-section:nth-of-type(2) { grid-column: 2; grid-row: 4; }
+  .setup-section:nth-of-type(3) { grid-column: 2; grid-row: 5; }
+  .setup-section:nth-of-type(3) { margin-bottom: 0; }
+}
+
+/* ============================================================
+   3. Board — bevelled tiles, inner glow, gold money
+   ============================================================ */
+
+.board {
+  background: var(--j-gutter);
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--j-rim);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.board-cell { border-radius: 4px; }
+
+.cell-category {
+  background: linear-gradient(180deg, #101a9e 0%, #04073f 100%);
+  letter-spacing: 0.07em;
+  color: #fff;
+  border-bottom: 2px solid rgba(255, 204, 77, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -18px 26px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.85);
+}
+
+.cell-clue {
+  background: linear-gradient(180deg, var(--j-tile-top) 0%, var(--j-tile-bottom) 100%);
+  color: var(--gold-text);
+  letter-spacing: 0.01em;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 2px 0 var(--j-tile-lip),
+    inset 0 -3px 0 var(--j-tile-floor),
+    inset 0 0 30px var(--j-tile-inner),
+    0 2px 0 rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 0 #4a3406, 0 4px 6px rgba(0, 0, 0, 0.8);
+}
+
+.cell-clue:hover,
+.cell-clue:focus-visible {
+  filter: none;
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, #2c37ff 0%, #0a12cf 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -3px 0 var(--j-tile-floor),
+    inset 0 0 34px rgba(150, 175, 255, 0.5),
+    0 0 0 2px rgba(255, 204, 77, 0.85),
+    0 10px 26px rgba(6, 12, 233, 0.7);
+}
+
+.cell-clue:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+
+.cell-clue.used {
+  background: linear-gradient(180deg, #070b3c 0%, #04062a 100%);
+  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.75), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.cell-empty { background: #04062a; }
+
+.board-done p { color: var(--gold-text); }
+
+/* --- Fit 1280×720 with no vertical scroll on the board screen ---------
+   Only while the board is the live screen (`:has()`), only on host-sized
+   viewports, and never in phone mode. Setup and the editor keep their
+   normal document flow and may scroll, as docs/09 §1 allows. */
+@media (min-width: 900px) and (min-height: 560px) {
+  body:not(.player-mode):has(#screen-board:not(.hidden)) {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body:not(.player-mode):has(#screen-board:not(.hidden)) > main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #screen-board:not(.hidden) {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* A column flex item with `margin: 0 auto` (styles.css) would otherwise
+       shrink to fit instead of stretching to the 1240px cap. */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.5rem 1.2rem 0.9rem;
+  }
+
+  #screen-board:not(.hidden) .board-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    padding-bottom: 0;
+  }
+
+  #screen-board:not(.hidden) .board {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  /* Clue rows give up their 76px floor so the grid can shrink to fit; the
+     category strip keeps its floor so long category names still wrap
+     rather than spill. `.board-wrap` already has overflow-x:auto, which
+     makes its overflow-y `auto` too, so even a pathological board scrolls
+     inside the wrap instead of scrolling the page. */
+  #screen-board:not(.hidden) .cell-clue,
+  #screen-board:not(.hidden) .cell-empty { min-height: 0; }
+  #screen-board:not(.hidden) .scoreboard { margin-top: 0; flex: 0 0 auto; }
+  #screen-board:not(.hidden) .board-done { margin: 0.2rem 0 0; }
+}
+
+/* ============================================================
+   4. Scoreboard — podiums
+   ============================================================ */
+
+.scoreboard { gap: 0.8rem; align-items: flex-end; }
+
+.podium {
+  position: relative;
+  min-width: 158px;
+  padding: 0.85rem 1.1rem 0.75rem;
+  border: 1px solid rgba(146, 168, 255, 0.3);
+  border-top: 0;
+  border-radius: 12px 12px 6px 6px;
+  background:
+    linear-gradient(180deg, rgba(43, 52, 255, 0.34) 0%, rgba(10, 16, 63, 0.95) 62%, rgba(4, 6, 40, 0.98) 100%);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -10px 22px rgba(0, 0, 0, 0.45);
+  transition: box-shadow var(--dur, 220ms) var(--ease-out),
+              transform var(--dur, 220ms) var(--ease-out);
+}
+
+/* The gold rail across the top of the plinth. */
+.podium::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold) 50%, var(--gold-deep));
+  box-shadow: 0 0 12px rgba(255, 204, 77, 0.45);
+}
+
+.podium:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -10px 22px rgba(0, 0, 0, 0.4);
+}
+
+.podium .podium-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--j-ink-mute);
+}
+
+.podium .podium-score {
+  font-size: 1.95rem;
+  letter-spacing: 0.02em;
+  color: var(--gold-text);
+  text-shadow: 0 2px 0 #5b430c, 0 4px 10px rgba(0, 0, 0, 0.7);
+}
+
+.podium .podium-score.negative { color: #ff8f8f; text-shadow: 0 2px 0 #4a0d0d; }
+
+.score-hint { color: var(--j-ink-mute); margin-top: 0.15rem; }
+
+/* ============================================================
+   5. Clue modal — category ribbon + big centred clue
+   ============================================================ */
+
+.modal { background: rgba(1, 1, 20, 0.86); }
+
+.clue-card {
+  background:
+    radial-gradient(150% 130% at 50% -8%, var(--j-show-blue-top) 0%, var(--j-show-blue) 42%, var(--j-show-blue-deep) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  padding: 0 0 1.8rem;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* The ribbon: a full-width plate across the top of the card. */
+.clue-header {
+  align-items: center;
+  padding: 0.85rem 1.9rem 0.8rem;
+  margin-bottom: 0.4rem;
+  border-radius: 17px 17px 0 0;
+  border-bottom: 3px solid var(--gold-deep);
+  background: linear-gradient(180deg, rgba(4, 7, 90, 0.94), rgba(2, 4, 56, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 22px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.1em;
+}
+
+.clue-cat { color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8); }
+
+.clue-val {
+  color: var(--gold-text);
+  text-shadow: 0 2px 0 #5b430c, 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
+.clue-text {
+  font-size: clamp(1.6rem, 1.1rem + 2.7vw, 3.1rem);
+  line-height: 1.22;
+  letter-spacing: 0.005em;
+  padding: 0 1.8rem;
+  margin: 1.4rem 0 1.2rem;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.65);
+}
+
+.answer-text {
+  color: var(--gold-text);
+  letter-spacing: 0.05em;
+  padding: 0 1.8rem;
+  text-shadow: 0 3px 0 #5b430c, 0 5px 12px rgba(0, 0, 0, 0.7);
+}
+
+.clue-actions,
+.dd-splash,
+#clue-image,
+#answer-image,
+#buzzer-clue-bar,
+#clue-timer { padding-left: 1.8rem; padding-right: 1.8rem; }
+
+.judge-chip {
+  background: rgba(1, 2, 32, 0.6);
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+.judge-btn.correct { background: #35c47c; color: #04220f; }
+.judge-btn.wrong { background: #ff7a7a; color: #3d0606; }
+
+.dd-note { color: #e6eaff; }
+
+/* Upstream paints this with a gradient clipped to the glyphs, which makes
+   `color` literally `transparent` — every DOM contrast sampler reads it as
+   1.05:1. Solid gold with an emboss reads the same on screen and measures
+   honestly (6.6:1 on the show blue). */
+.dd-title {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: var(--gold-text);
+  filter: none;
+  text-shadow: 0 3px 0 #6b4f0d, 0 6px 0 #4a3609, 0 10px 24px rgba(0, 0, 0, 0.65);
+}
+
+.buzzer-bar { background: rgba(1, 2, 32, 0.5); }
+
+/* ============================================================
+   6. Final Jeopardy + standings — the show's blue
+   ============================================================ */
+
+.final-card {
+  background:
+    radial-gradient(150% 120% at 50% -6%, var(--j-show-blue-top) 0%, var(--j-show-blue) 46%, var(--j-show-blue-deep) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.final-heading {
+  padding-bottom: 0.9rem;
+  border-bottom: 3px solid var(--gold-deep);
+  letter-spacing: 0.1em;
+}
+
+.final-category { color: #fff; letter-spacing: 0.1em; }
+
+.final-clue {
+  font-size: clamp(1.3rem, 1rem + 1.4vw, 2rem);
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+.wager-list li,
+.final-judge-list li,
+.standings-list li {
+  background: rgba(1, 2, 32, 0.5);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.wager-list .wager-meta { color: #d5daff; }
+
+.standings-list li { padding: 0.8rem 1.15rem; }
+
+/* The leader, lit. `.winner` is the one leader marker upstream puts in the
+   DOM (app.js adds it to the top standings row); the board scoreboard has
+   no such hook and JS may not be touched, so the lit treatment lives here. */
+.standings-list li.winner {
+  background: linear-gradient(180deg, rgba(255, 204, 77, 0.3), rgba(217, 164, 55, 0.12));
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(255, 204, 77, 0.35), 0 14px 34px rgba(255, 204, 77, 0.2);
+}
+
+.standings-list li.winner .standings-name { color: #fff; }
+.standings-list .rank { color: var(--j-ink-mute); }
+.standings-list .standings-score.negative { color: #ff8f8f; }
+
+/* ============================================================
+   7. Question editor — a tidy form
+   ============================================================ */
+
+/* The action row stays put while a long board scrolls under it. */
+.editor { padding-top: 0; }
+
+.editor-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 -1.2rem;
+  padding: 1.1rem 1.2rem 0.85rem;
+  background: linear-gradient(180deg, #03052e 0%, #03052e 78%, rgba(3, 5, 46, 0.92) 100%);
+  border-bottom: 1px solid rgba(146, 168, 255, 0.22);
+  box-shadow: 0 10px 22px rgba(3, 5, 46, 0.85);
+}
+
+.editor-hint,
+.editor-image-meter,
+.editor-clue-labels,
+.editor-field { color: var(--j-ink-mute); }
+
+.editor-cat {
+  background:
+    linear-gradient(180deg, rgba(20, 28, 96, 0.82), rgba(6, 10, 46, 0.94));
+  border: 1px solid rgba(146, 168, 255, 0.22);
+  border-left: 3px solid rgba(255, 204, 77, 0.55);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.editor-final {
+  background: rgba(3, 5, 46, 0.45);
+  border: 1px solid rgba(146, 168, 255, 0.22);
+}
+
+.editor-final legend { color: var(--gold-text); }
+
+.editor-field input,
+.editor-field textarea,
+.editor-clue-row input,
+.editor-clue-row textarea,
+.add-player-form input,
+.timer-field input,
+.dd-field input,
+.dd-field select,
+.wager-list input,
+.player-field input {
+  background: rgba(1, 1, 23, 0.72);
+  border-color: rgba(146, 168, 255, 0.4);
+}
+
+/* ============================================================
+   8. Phone — join card and the buzzer
+   ============================================================ */
+
+.player-join,
+.player-form {
+  border: 1px solid rgba(146, 168, 255, 0.3);
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(43, 52, 255, 0.3), transparent 60%),
+    linear-gradient(180deg, rgba(20, 28, 96, 0.92), rgba(6, 10, 46, 0.97));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.player-join-title { letter-spacing: 0.08em; }
+
+.player-field { color: var(--j-ink-mute); }
+
+.player-field input {
+  min-height: var(--tap, 56px);
+  font-size: 1.2rem;
+}
+
+.player-field input#player-code { font-size: 2.1rem; min-height: 68px; }
+
+#player-join-btn,
+#player-wager-submit,
+#player-answer-submit {
+  min-height: var(--tap, 56px);
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#player-leave { min-height: var(--tap, 56px); padding-inline: 1.4rem; }
+
+.player-head-code,
+.player-head-name { font-size: 1.05rem; }
+
+.player-form-cat,
+.player-form-meta { color: var(--j-ink-mute); }
+
+/* --- the buzzer itself: a deeper, more saturated stop/go --- */
+
+.player-buzz-btn {
+  font-size: clamp(2rem, 1.1rem + 7.2vw, 3.4rem);
+  letter-spacing: 0.06em;
+  border-width: 8px;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+.player-buzz-btn.mode-idle,
+.player-buzz-btn.mode-taken {
+  color: #ced4ff;
+  background: radial-gradient(circle at 50% 38%, #16205e 0%, #050827 72%);
+  border-color: rgba(146, 168, 255, 0.22);
+}
+
+.player-buzz-btn.mode-locked {
+  color: #ffe0e0;
+  background: radial-gradient(circle at 50% 38%, #6b1010 0%, #250505 74%);
+  border-color: rgba(255, 122, 122, 0.55);
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.75);
+}
+
+/* reading = the live trap. Deeper and far more saturated than upstream's
+   pink; white on the mid stop is 4.8:1. */
+.player-buzz-btn.mode-reading {
+  color: #fff;
+  background: radial-gradient(circle at 50% 34%, #ff7b73 0%, #e01b1b 46%, #8d0d0d 100%);
+  border-color: #ffb3b3;
+  box-shadow:
+    0 0 0 8px rgba(224, 27, 27, 0.28),
+    inset 0 -14px 40px rgba(0, 0, 0, 0.4),
+    0 20px 54px rgba(224, 27, 27, 0.5);
+}
+
+/* armed = go. Deep bottle green under a bright dome; dark ink is 5.4:1. */
+.player-buzz-btn.mode-armed {
+  color: #032013;
+  background: radial-gradient(circle at 50% 34%, #9ef3c1 0%, #1faa5f 46%, #0a5c31 100%);
+  border-color: #d6ffe7;
+  box-shadow:
+    0 0 0 8px rgba(31, 170, 95, 0.3),
+    inset 0 -14px 40px rgba(0, 0, 0, 0.25),
+    0 22px 60px rgba(31, 170, 95, 0.5);
+  text-shadow: 0 2px 6px rgba(255, 255, 255, 0.35);
+  /* Replaced (with matching colours) inside the no-preference block below. */
+  animation: none;
+}
+
+.player-buzz-btn.mode-won {
+  color: #fff;
+  background: radial-gradient(circle at 50% 36%, #7fbcff 0%, #1a5fe6 46%, #08359b 100%);
+  border-color: #bcdcff;
+  box-shadow:
+    0 0 0 8px rgba(31, 107, 255, 0.3),
+    inset 0 -14px 40px rgba(0, 0, 0, 0.3),
+    0 22px 60px rgba(31, 107, 255, 0.5);
+}
+
+.player-buzz-note { font-size: 1.15rem; color: var(--gold-text); }
+
+.player-message-title { letter-spacing: 0.06em; }
+.player-message-sub { color: #e6eaff; }
+
+/* 320 px phones: keep the round buzzer big but never wider than the screen. */
+@media (max-width: 360px) {
+  .player-buzz-btn {
+    width: min(84vw, 60vh);
+    height: min(84vw, 60vh);
+    border-width: 6px;
+  }
+  .screen-player { padding-left: 0.7rem; padding-right: 0.7rem; }
+  .player-join, .player-form { padding: 1.3rem 1rem 1.5rem; }
+}
+
+/* ============================================================
+   9. Embedded (inside the hub shell)
+   ============================================================ */
+
+body.gsc-embedded .topbar { padding-top: 0.5rem; padding-bottom: 0.45rem; }
+
+/* ============================================================
+   10. Flat background-colour under every gradient surface
+
+   A gradient set with the `background:` shorthand resets
+   `background-color` to transparent, so a DOM contrast sampler walks past
+   the real surface and up to the page. Declaring the gradient's mid tone
+   as a flat colour underneath changes nothing on screen (the gradient
+   paints over it) but makes every sampled pair the true pair. Same trick
+   shared/theme.css uses for .gsc-btn-primary.
+   ============================================================ */
+
+.btn-gold,
+.buzzer-chip { background-color: var(--gold-deep); }
+
+.cell-clue { background-color: #0b13c4; }            /* gold text 7.8:1 */
+.cell-category { background-color: #0a1170; }        /* white 12.6:1 */
+.cell-clue.used { background-color: #05082f; }
+
+.setup-card,
+.player-join,
+.player-form { background-color: #0b1247; }
+
+.podium { background-color: #0a1040; }
+.clue-card,
+.final-card { background-color: var(--j-show-blue); } /* white 9.4:1, gold 6.6:1 */
+
+.player-buzz-btn.mode-idle,
+.player-buzz-btn.mode-taken { background-color: #0a1140; }
+.player-buzz-btn.mode-locked { background-color: #4a0e0e; }
+.player-buzz-btn.mode-reading { background-color: #e01b1b; }
+.player-buzz-btn.mode-armed { background-color: #1faa5f; }
+.player-buzz-btn.mode-won { background-color: #1a5fe6; }
+
+/* ============================================================
+   11. Motion — everything below is decorative and opt-in
+   ============================================================ */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Opening a tile plays a flip reveal: the category ribbon turns over on
+     its top edge while the card itself opens from the middle. Runs once
+     per clue because #clue-modal goes display:none in between.
+
+     Deliberately NOT a transform on .clue-card. photo-harness P14
+     measures the card and the judge row with getBoundingClientRect, and
+     a transform would move those rects while the animation is in flight
+     (or, in a tab that is not painting, indefinitely). `clip-path` and a
+     transform on the ribbon are both layout-neutral, so every geometry
+     check reads exactly the same numbers it read before. */
+  #clue-modal:not(.hidden) .clue-card {
+    animation: gsc-j-open 360ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  }
+
+  @keyframes gsc-j-open {
+    from { clip-path: inset(46% 0 46% 0 round 18px); }
+    to   { clip-path: inset(0 0 0 0 round 18px); }
+  }
+
+  #clue-modal:not(.hidden) .clue-header {
+    transform-origin: 50% 0;
+    animation: gsc-j-flip 460ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  }
+
+  @keyframes gsc-j-flip {
+    from { transform: perspective(900px) rotateX(-88deg); }
+    to   { transform: perspective(900px) rotateX(0deg); }
+  }
+
+  /* Final Jeopardy opens the same way, without the ribbon flip. */
+  #final-modal:not(.hidden) .final-card {
+    animation: gsc-j-open 320ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  }
+
+  /* Restates upstream's armed pulse in the deeper green above. */
+  .player-buzz-btn.mode-armed {
+    animation: gsc-j-armed 1.05s ease-in-out infinite;
+  }
+
+  @keyframes gsc-j-armed {
+    0%, 100% {
+      box-shadow:
+        0 0 0 8px rgba(31, 170, 95, 0.3),
+        inset 0 -14px 40px rgba(0, 0, 0, 0.25),
+        0 22px 60px rgba(31, 170, 95, 0.45);
+    }
+    50% {
+      box-shadow:
+        0 0 0 16px rgba(31, 170, 95, 0.16),
+        inset 0 -14px 40px rgba(0, 0, 0, 0.25),
+        0 28px 72px rgba(31, 170, 95, 0.62);
+    }
+  }
+}

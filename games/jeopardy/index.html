@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- GSC: shared design-system v2 tokens, linked FIRST so Jeopardy's own
+       sheets below keep precedence on every value they declare. -->
+  <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/buzzer.css">
   <link rel="stylesheet" href="css/media.css">
@@ -16,6 +19,8 @@
        body.gsc-embedded, a class that only exists inside the hub, so this
        file is inert when index.html is opened standalone. -->
   <link rel="stylesheet" href="css/gsc-embed.css">
+  <!-- GSC: broadcast look (docs/09 §4). Linked last; CSS only. -->
+  <link rel="stylesheet" href="css/gsc-look.css">
 </head>
 <body>
 
