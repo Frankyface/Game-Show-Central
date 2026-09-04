@@ -162,7 +162,6 @@ body {
 .landing-games {
   list-style: none;
   display: grid;
-  /* ten games still land on one row at 1280 */
   grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   gap: 0.5rem;
   margin: 0;
@@ -182,6 +181,16 @@ body {
 }
 
 .landing-game::before { height: clamp(44px, 6.2vh, 62px); }
+
+/* Fourteen games: auto-fit would leave a ragged 11 + 3. Pin the line-up to a
+   clean 7 x 2 on a projector and 5 x 3 on a laptop. */
+@media (min-width: 1140px) {
+  .landing-games { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
+
+@media (min-width: 860px) and (max-width: 1139px) {
+  .landing-games { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
 
 .landing-game-icon {
   position: absolute;
@@ -464,8 +473,10 @@ body {
   margin: 0;
   padding: 2px;
   display: grid;
-  /* ten cards: three up at 1280 (4 rows inside the panel), two at ~1000,
-     one on a phone */
+  /* Fourteen cards: three up at 1280. Five rows do not fit the panel, so
+     this grid is the one place in the hub that scrolls — inside its own
+     bounded panel, with a visible thin scrollbar (.gsc-scroll). The PAGE
+     never scrolls. Two up around 1000px, one on a phone. */
   grid-template-columns: repeat(auto-fit, minmax(262px, 1fr));
   gap: 0.35rem;
   align-content: start;

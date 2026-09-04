@@ -248,6 +248,20 @@ loading the CDN. In embedded mode the adapter installs
 10. `tests/<id>-core.test.mjs` + `tests/harness.html` (loopback with a fake
     `GSC` — see 06-verification-plan.md §3).
 11. `README.md` — how to host, JSON schema table, phone features, layout.
+12. `sets/index.json` + `sets/*.json` — the **question-set library**: extra
+    content files committed beside the default one, listed in a manifest
+    (`[{ "file": "kids.json", "name": "…", "description": "…", "by": "…",
+    "counts": { … } }]`, `file` a bare `*.json` name, ≤ 50 entries). The setup
+    screen mounts the shared picker under its Questions/content section with
+    `GSCLibrary.mountPicker(el, { gameDir, validate, onPick })` from
+    `shared/library.js`; a loaded set goes through the game's own `validate*`
+    and becomes the current content with the source note `set: <name>`. The
+    picker hides itself with a plain-English note when the manifest cannot be
+    fetched (opened from disk, or no library yet), so it is safe to mount
+    before any sets exist. Ship at least two extra sets per game. The editor's
+    **Download for the library** button prints the manifest line to paste and
+    the path to commit — static hosting cannot write files. See
+    docs/19-cross-cutting-round.md §2 and docs/design-system.md §3.
 
 Phone screens are **thin**: they render what the host tells them and send
 intents. The host never trusts phone state.

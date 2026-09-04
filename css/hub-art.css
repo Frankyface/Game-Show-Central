@@ -140,3 +140,48 @@
       #ffffff 0 13%, rgba(255, 255, 255, 0.75) 13% 14%, transparent 14% 20%) 50% 0 / 74% 100%,
     linear-gradient(180deg, #0f3bd9 0%, #06103a 55%, #03040f 100%);
 }
+
+/* The Chase — the seven-step board, chaser marker above, contestant below. */
+[data-game="the-chase"] {
+  --art:
+    linear-gradient(180deg, #ff4141, #d10000) 80% 20% / min(30%, 22px) min(14%, 14px),
+    linear-gradient(180deg, #8fc9ff, #2f7fd6) 20% 66% / min(30%, 22px) min(14%, 14px),
+    repeating-linear-gradient(180deg,
+      rgba(255, 255, 255, 0.26) 0 8%, transparent 8% 14.28%),
+    linear-gradient(180deg, #0b2a63 0%, #04143a 60%, #01060f 100%);
+}
+
+/* 1 vs 100 — the mob grid, a few seats already dark, the gold bank below. */
+[data-game="one-vs-100"] {
+  --art:
+    linear-gradient(180deg, #ffcc4d, #d9a437) 50% 100% / 100% min(12%, 10px),
+    linear-gradient(#03060c, #03060c) 24.4% 17.2% / 18% 13%,
+    linear-gradient(#03060c, #03060c) 73.2% 51.7% / 18% 13%,
+    linear-gradient(#03060c, #03060c) 97.6% 86.2% / 18% 13%,
+    repeating-linear-gradient(90deg, transparent 0 18%, #03060c 18% 20%),
+    repeating-linear-gradient(180deg, transparent 0 13%, #03060c 13% 15%),
+    linear-gradient(180deg, #4ae0ff 0%, #0f8fc0 100%);
+}
+
+/* Press Your Luck — the ring of prize squares with one dark Whammy on top. */
+[data-game="press-your-luck"] {
+  --art:
+    linear-gradient(180deg, #1a0330, #0d0119) 30% 0 / min(16%, 14px) min(22%, 17px),
+    repeating-linear-gradient(90deg, #ffe14d 0 12%, transparent 12% 20%) 0 0 / 100% min(22%, 17px),
+    repeating-linear-gradient(90deg, #3ae0ff 0 12%, transparent 12% 20%) 0 100% / 100% min(22%, 17px),
+    repeating-linear-gradient(180deg, #ff3ea5 0 20%, transparent 20% 33%) 0 50% / min(24%, 17px) 100%,
+    repeating-linear-gradient(180deg, #ff3ea5 0 20%, transparent 20% 33%) 100% 50% / min(24%, 17px) 100%,
+    linear-gradient(180deg, #5a1690 0%, #2a0b45 60%, #120420 100%);
+}
+
+/* Match Game — the six-panel wall, every card with a blank to fill in. */
+[data-game="match-game"] {
+  --art:
+    linear-gradient(180deg, #f7ead3 0 58%, #6b8e23 58% 72%, #f7ead3 72%) 6% 20% / min(28%, 26px) min(38%, 34px),
+    linear-gradient(180deg, #f7ead3 0 58%, #6b8e23 58% 72%, #f7ead3 72%) 50% 20% / min(28%, 26px) min(38%, 34px),
+    linear-gradient(180deg, #f7ead3 0 58%, #6b8e23 58% 72%, #f7ead3 72%) 94% 20% / min(28%, 26px) min(38%, 34px),
+    linear-gradient(180deg, #f7ead3 0 58%, #e6b800 58% 72%, #f7ead3 72%) 6% 80% / min(28%, 26px) min(38%, 34px),
+    linear-gradient(180deg, #f7ead3 0 58%, #e6b800 58% 72%, #f7ead3 72%) 50% 80% / min(28%, 26px) min(38%, 34px),
+    linear-gradient(180deg, #f7ead3 0 58%, #e6b800 58% 72%, #f7ead3 72%) 94% 80% / min(28%, 26px) min(38%, 34px),
+    linear-gradient(180deg, #ff8c1a 0%, #b4560c 45%, #3b1f0e 100%);
+}

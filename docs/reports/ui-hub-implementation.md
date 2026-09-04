@@ -10,12 +10,14 @@ harness selects on, and every message in the protocol are untouched.
 
 | File | Status | Lines | What |
 | --- | --- | --- | --- |
-| `shared/theme.css` | rewritten (additive) | 365 | v1 tokens/classes kept verbatim; v2 tokens, per-game accents, the layered stage, type utilities, a shared focus ring |
-| `shared/theme-components.css` | **new** | 700 | the `.gsc-*` component kit + the motion vocabulary; `@import`ed by `theme.css` |
+| `shared/theme.css` | rewritten (additive) | 387 | v1 tokens/classes kept verbatim; v2 tokens, per-game accents, the layered stage, type utilities, a shared focus ring |
+| `shared/theme-components.css` | **new** | 774 | the `.gsc-*` component kit, the motion vocabulary and the `.gsc-library` picker; `@import`ed by `theme.css` |
+| `shared/library.js` | **new** | 329 | the question-set library: `GSCLibrary.load` / `fetchSet` / `mountPicker` (docs/19 §2) |
+| `tests/library.test.mjs` | **new** | 475 | 29 unit tests over a fake fetch and a fake DOM |
 | `docs/design-system.md` | **new** | — | the reference: every token and class with a usage example, plus "adopting v2 in three steps" |
 | `index.html` | restructured | 159 | landing hero + line-up strip, lobby join-steps, phone copy, the `.gsc-splash` node, `data-gsc-game="hub"` |
-| `css/hub.css` | rewritten | 688 | landing, lobby, game cards, shell bar, dialogs |
-| `css/hub-art.css` | **new** | 142 | the CSS-drawn game art, one `--art` gradient stack per registry id |
+| `css/hub.css` | rewritten | 699 | landing, lobby, game cards, shell bar, dialogs |
+| `css/hub-art.css` | **new** | 187 | the CSS-drawn game art, one `--art` gradient stack per registry id (all fourteen) |
 | `css/hub-phone.css` | **new** | 217 | the phone controller (split out only to stay under the 800-line rule) |
 | `js/hub-registry.js` | +5 lines | 112 | the Millionaire entry from `docs/08-millionaire-spec.md` §7 (the three later games were added by the coordinator) |
 | `js/hub-host.js` | +26 lines | 732 | `showSplash()` + 3 styling-hook attributes |
@@ -69,8 +71,9 @@ Full detail with a usage example each: **`docs/design-system.md`**. Summary:
 on `body`, so the shell bar and the splash card can wear another game's accent
 inside the hub page. Blocks exist for `hub`, `jeopardy`, `family-feud`,
 `wheel-of-fortune`, `weakest-link`, `millionaire`, `price-is-right`,
-`pyramid`, `deal-or-no-deal`, `password`, `chain-reaction` — ten in all, and
-the **only** source of those games' accents (no game declares local overrides). `--accent-ink` is picked for contrast, not
+`pyramid`, `deal-or-no-deal`, `password`, `chain-reaction`, `the-chase`,
+`one-vs-100`, `press-your-luck`, `match-game` — fourteen in all, and the
+**only** source of those games' accents (no game declares local overrides). `--accent-ink` is picked for contrast, not
 convention: Price Is Right's `#e63946` fails with white (4.2:1) so its ink is a
 near-black `#1a0206` (4.8:1); Pyramid's and Password's gold use `#241a02`
 (9.3:1 / 10.8:1); Chain Reaction's hot pink takes `#2a0213` (5.4:1) because
@@ -140,9 +143,14 @@ night scoreboard is a leaderboard: a CSS-counter rank, gold/silver/bronze rails
 on the top three, tabular-numeral totals. Game cards are horizontal — the art
 as a full-height left rail, name in Anton, tagline, capability chips, the soft
 player hint, and Play — with an accent-tinted wash, a hover lift and an accent
-glow. The grid is `repeat(auto-fit, minmax(262px, 1fr))`: **ten** games land as
-3×4 inside the panel at 1280×720 with no scroll at all (two-up around 1000px,
-one-up on a phone). To buy the fourth row the card was compressed to 155px —
+glow. The grid is `repeat(auto-fit, minmax(262px, 1fr))`: at **fourteen** games
+it lays out 3×5 at 1280×720. Five rows of 155px do not fit the 648px panel, so
+**the game grid is the one place in the hub that scrolls** — inside its own
+bounded panel, with the visible thin `.gsc-scroll` scrollbar. The page itself
+still never scrolls. (Four columns were tried and rejected: at ~211px a
+horizontal card leaves ~119px of text column, which pushes every card to two
+title lines and makes the grid taller, not shorter.) The card was compressed
+to 155px for the ten-game round —
 the tagline is clamped to two lines and each capability chip to one line with
 an ellipsis, so a very long `phones:` list is now truncated on the card. That
 is the one piece of information the density costs; the full list is still in
@@ -172,17 +180,17 @@ screen and every phone at the moment the frame mounts.
 
 | Check | Result |
 | --- | --- |
-| `node --test` at root | **754/754 pass**, 0 fail (390 at the start of this work; each game that landed since brings its own suites and parameterised cases) |
+| `node --test` at root | **1025/1025 pass**, 0 fail (390 at the start of this work; each game that landed since brings its own suites, plus 29 new `tests/library.test.mjs` cases) |
 | `tests/hub-harness.html` on `http://127.0.0.1:8671` | **16/16 pass**, including L-I10 (no banned DOM sinks, every gated file < 800 lines) |
-| Landing at 1280×720, **10 games** | `scrollHeight == 720`, `scrollWidth == 1280` — no scroll; the line-up strip keeps all ten cards on one row |
-| Lobby at 1280×720, room open, manual player, **10 games** | `scrollHeight == 720`; the game grid is 3 columns × 4 rows with `scrollHeight == clientHeight == 648` — everything fits, no inner scroll either |
+| Landing at 1280×720, **14 games** | `scrollHeight == 720`, `scrollWidth == 1280` — no scroll; the line-up strip is pinned to a clean 7 x 2 above 1140px (5 x 3 on a laptop) |
+| Lobby at 1280×720, room open, manual player, **14 games** | page `scrollHeight == 720` — the page does not scroll. The game grid is 3 columns × 5 rows and scrolls inside its panel (`scrollHeight 801` in a `clientHeight 648` box), by design |
 | Host in a game at 1280×720 | bar 44px + frame 676px = 720; page `scrollHeight == 720` |
 | Phone join at 320×640 | `scrollWidth == 320`, `scrollHeight == 640`; all 13 controls measure ≥ 56px tall (12 avatars 65×56, Join 278×56) |
 | Phone waiting at 320×640 | `scrollWidth == 320`, `scrollHeight == 640`; Leave 56px |
 | Splash | fires on `pickGame`, carries `data-gsc-game`, auto-hides after 1.2s, `pointer-events:none` |
 | Contrast | worst real pair on the hub is `--ink-mute` on a panel at **5.91:1**; `--ink-dim` 8.5:1, `--ink` 16.5:1, gold code 11.9:1, `--red` 6.4:1, `--green` 9.8:1, gold-button ink 11.4:1. All ≥ 4.5:1. |
 | Reduced motion | static gate: a scan of all four sheets finds **zero** `animation:` / `@keyframes` outside a `prefers-reduced-motion: no-preference` block, so under `reduce` no animation object is created at all |
-| No `innerHTML` / files < 800 lines | all shell and CSS files clean; largest is `shared/theme-components.css` at 700 |
+| No `innerHTML` / files < 800 lines | all shell and CSS files clean; largest is `shared/theme-components.css` at 774 |
 
 Note for the tester on contrast tooling: `.btn-gold` and `.gsc-btn-primary` now
 declare a flat `background-color` under their gradient, so a DOM sampler reads
@@ -212,7 +220,40 @@ Surfaces the UI tester should capture as `ui-after-hub-*.png`:
 
 ---
 
-## 6. What the game agents need to know
+## 6. The question-set library (`shared/library.js`)
+
+Built to docs/19 §2 and documented in `docs/design-system.md` §3 and
+`docs/00-architecture.md` §9.12, because fourteen game agents code against it.
+
+- `GSCLibrary.load(gameDir)` → `{ok, sets, url}` / `{ok:false, error, url}`
+- `GSCLibrary.fetchSet(gameDir, file)` → `{ok, json, url}` / `{ok:false, error, url}`
+- `GSCLibrary.mountPicker(container, {gameDir, onPick, validate, label})` →
+  `{el, ready, destroy()}`
+
+Nothing rejects and nothing throws: a page opened from `file://` and a game
+with no `sets/` folder are normal states, so both come back as `ok:false` with
+a plain-English sentence and the picker hides itself. The manifest is validated
+hard — at most 50 entries, `file` must be a bare `*.json` name (no slashes, no
+`..`, no query, no scheme), `name` ≤ 60, `description` ≤ 200, control
+characters stripped, duplicates collapsed; junk rows are dropped rather than
+failing the whole library. Both fetches use `cache: "no-store"`.
+
+The picker is built node by node (no HTML strings) as a `.gsc-library` well
+with a `<label>` bound to the `<select>`, a `.gsc-btn.gsc-btn-primary`
+**Load set** button, a `role="status"` Preview line (name — by — description —
+counts) and a `role="alert"` error line; on a phone both controls go full
+width at `--tap` height.
+
+`validate` may throw, return a string, return `{ok:false,error}` or return
+`false`; anything else passes. A rejection lands in the error line and
+`onPick` is never called — all six shapes are pinned by tests.
+
+29 unit tests in `tests/library.test.mjs` cover manifest shapes, the 50-entry
+cap, bad file names (including `../`, `sets/`, backslash, query, scheme,
+non-`.json`), fetch failure (throwing = file://, and 404), bad JSON, gameDir
+normalisation, and the whole picker over a small fake DOM.
+
+## 7. What the game agents need to know
 
 1. **Link nothing new.** `shared/theme.css` `@import`s the component kit, so
    your existing `<link rel="stylesheet" href="../../shared/theme.css">`
@@ -235,5 +276,8 @@ Surfaces the UI tester should capture as `ui-after-hub-*.png`:
    harnesses and tests select on the v1 names. If you would rather not touch
    markup, alias `.btn` to the `.gsc-btn` declarations in your own sheet, the
    way `css/hub.css` does (your sheet loads after the theme, so it wins).
-7. `docs/design-system.md` §4 is the three-step adoption checklist; §2 lists
-   every component with a copy-pasteable example.
+7. `docs/design-system.md` §5 is the three-step adoption checklist; §2 lists
+   every component with a copy-pasteable example; §3 is the library picker.
+8. **Mount the library picker** under your Questions/content section even
+   before you have a `sets/` folder — it hides itself with a one-line note
+   until a manifest exists. Do not re-implement the fetch or the validation.

@@ -153,6 +153,28 @@
   --accent: #ff2e88; --accent-2: #4d7bff; --accent-ink: #2a0213;
   --stage-glow: #10276e;
 }
+[data-gsc-game="the-chase"] {
+  /* chaser red on a cold blue-black stage. White on the red is 5.7:1.
+     The red itself is 3.4:1 on the stage — fine for rails, bars and fills
+     (the >=3:1 non-text threshold), never for body text. */
+  --accent: #d10000; --accent-2: #6aa8ff; --accent-ink: #ffffff;
+  --stage-glow: #04143a;
+}
+[data-gsc-game="one-vs-100"] {
+  /* electric cyan mob, gold bank, black stage. White on the cyan is 1.9:1. */
+  --accent: #19c9ff; --accent-2: #ffcc4d; --accent-ink: #04161d;
+  --stage-glow: #062a3d;
+}
+[data-gsc-game="press-your-luck"] {
+  /* hot pink on deep purple. White on the pink is 3.2:1. */
+  --accent: #ff3ea5; --accent-2: #ffe14d; --accent-ink: #2b0217;
+  --stage-glow: #2a0b45;
+}
+[data-gsc-game="match-game"] {
+  /* 70s orange and mustard on chocolate. White on the orange is 2.3:1. */
+  --accent: #ff8c1a; --accent-2: #e6b800; --accent-ink: #2a1403;
+  --stage-glow: #3b1f0e;
+}
 
 /* ============================================================
    Base

@@ -662,7 +662,81 @@ button.gsc-chip:hover { border-color: var(--accent); color: var(--ink); }
 }
 
 /* ============================================================
-   13. Small shared helpers
+   13. Library picker — the shared question-set chooser
+   Built by shared/library.js (GSCLibrary.mountPicker); every game
+   mounts it under its own "Questions" / content section.
+   ============================================================ */
+
+.gsc-library {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem 0.9rem 0.9rem;
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.gsc-library-label {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--ink-mute);
+}
+
+.gsc-library-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gsc-library-select {
+  flex: 1 1 12rem;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.4em 0.6em;
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-sm);
+}
+
+.gsc-library-select:focus-visible { border-color: var(--accent); }
+.gsc-library-load { flex: 0 0 auto; }
+
+.gsc-library-preview {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--ink-dim);
+}
+
+.gsc-library-error {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--amber);
+}
+
+.gsc-library-error:empty { display: none; }
+
+/* The manifest could not be fetched (file://, or no sets/ yet): the picker
+   hides itself and the message is all that is left, so it reads as a note. */
+.gsc-library-off { border-left-color: var(--ink-faint); }
+.gsc-library-off .gsc-library-error { color: var(--ink-dim); }
+
+/* Phones: the select and the button each get a full-size tap target. */
+@media (max-width: 480px) {
+  .gsc-library-select { flex: 1 1 100%; min-height: var(--tap); }
+  .gsc-library-load { width: 100%; min-height: var(--tap); }
+}
+
+/* ============================================================
+   14. Small shared helpers
    ============================================================ */
 
 /* A hairline that fades out at both ends — a section rule that does not

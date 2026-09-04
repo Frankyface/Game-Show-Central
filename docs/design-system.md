@@ -88,6 +88,10 @@ splash card do exactly that):
 | `deal-or-no-deal` | `#b5121b` | `#f2c14e` case gold | `#4a0810` |
 | `password` | `#f2c94c` gold | `#7aa2ff` | `#0d1b4b` midnight blue |
 | `chain-reaction` | `#ff2e88` hot pink | `#4d7bff` | `#10276e` |
+| `the-chase` | `#d10000` chaser red | `#6aa8ff` contestant blue | `#04143a` |
+| `one-vs-100` | `#19c9ff` electric cyan | `#ffcc4d` bank gold | `#062a3d` |
+| `press-your-luck` | `#ff3ea5` hot pink | `#ffe14d` | `#2a0b45` deep purple |
+| `match-game` | `#ff8c1a` 70s orange | `#e6b800` mustard | `#3b1f0e` chocolate |
 
 ```html
 <body data-gsc-game="family-feud">          <!-- whole page wears Feud red -->
@@ -99,7 +103,16 @@ white: on Price Is Right's `#e63946` white reaches only 4.2:1, so that block
 uses a near-black `#1a0206` (4.8:1); Pyramid's and Password's gold use
 `#241a02` (9.3:1 / 10.8:1); Chain Reaction's hot pink takes `#2a0213` (5.4:1)
 because white on it is only 3.5:1. Check any accent you change with a contrast
-calculator before you ship it.
+calculator before you ship it. Of the fourteen, only Jeopardy, Family Feud,
+Wheel of Fortune, Weakest Link, Millionaire, Deal or No Deal and The Chase take
+white ink; the seven bright accents all take a near-black.
+
+One accent is deliberately below 4.5:1 against the stage: The Chase's
+`#d10000` measures 3.4:1. It is a **fill** colour — rails, bars, markers,
+buttons with `--accent-ink` white on top (5.7:1) — and clears the 3:1
+threshold that applies to non-text. Never set it as a text colour directly;
+`color-mix(in srgb, var(--accent) 60%, var(--ink))` is how the shell bar
+lightens an accent for type.
 
 `--accent-2` is a *UI* colour and sometimes has to be a lifted version of a
 brand colour: Chain Reaction's electric blue `#0f3bd9` measures 2.5:1 on the
@@ -270,7 +283,79 @@ reads without colour.
 
 ---
 
-## 3. The splash (`.gsc-splash`)
+## 3. Library picker (`shared/library.js` + `.gsc-library`)
+
+Every game ships `games/<id>/sets/index.json`, a manifest of the extra content
+files committed beside it (docs/19 §2, docs/00-architecture.md §9.12). One
+shared module reads it and mounts one shared picker, so all fourteen games get
+the same control:
+
+```html
+<script src="../../shared/library.js"></script>
+```
+
+```js
+GSCLibrary.mountPicker(document.getElementById("questions-library"), {
+  gameDir: "",                       // "" = this game's own folder
+  validate: validateChase,           // the game's existing validator
+  onPick(json, meta) { useContent(json, `set: ${meta.name}`); },
+});
+```
+
+### The manifest
+
+`sets/index.json` is a plain array (an object with a `sets` array is also
+accepted). At most **50** entries are kept; junk rows are dropped, not fatal.
+
+```json
+[{ "file": "kids.json", "name": "Kids' night",
+   "description": "Nothing after 2005.", "by": "GSC",
+   "counts": { "rounds": 3, "questions": 30 } }]
+```
+
+- `file` — **required**, a bare `*.json` name that sits in `sets/`. No slashes,
+  no `..`, no query, no scheme; anything else drops the row.
+- `name` — capped at 60 characters; falls back to the file's stem.
+- `description` — capped at 200. `by` — capped at 60. Both optional.
+- `counts` — optional flat map of label → number; up to 6 are shown in Preview.
+
+### The API
+
+All three calls **resolve, never reject and never throw**, because a page
+opened from disk and a game with no `sets/` folder are normal states.
+
+| Call | Resolves to |
+| --- | --- |
+| `GSCLibrary.load(gameDir)` | `{ ok: true, sets, url }` or `{ ok: false, error, url }` |
+| `GSCLibrary.fetchSet(gameDir, file)` | `{ ok: true, json, url }` or `{ ok: false, error, url }` |
+| `GSCLibrary.mountPicker(container, options)` | returns `{ el, ready, destroy() }` synchronously; `ready` is the `load()` result |
+
+`gameDir` is a path prefix: `""`, `"."` and `"games/x"` all work; the module
+adds the single slash. Both fetches use `cache: "no-store"`.
+
+`mountPicker` options: `gameDir`, `onPick(json, meta)`, `validate` (optional),
+`label` (optional, default "Saved sets"), `fetch` (optional, tests only).
+
+`validate` may **throw**, return a **string** error, return `{ok:false,error}`
+or return `false`. Anything else — `true`, `undefined`, an object — passes. On
+a rejection the message lands in the picker's error line and `onPick` is never
+called.
+
+### What it renders
+
+`.gsc-library` — a well with an accent rail holding `.gsc-library-label`
+(a `<label>` bound to the select), `.gsc-library-row` (`.gsc-library-select` +
+a `.gsc-btn.gsc-btn-primary.gsc-library-load` "Load set" button),
+`.gsc-library-preview` (`role="status"`: name — by — description — counts) and
+`.gsc-library-error` (`role="alert"`). On a phone the select and the button
+each go full width at `--tap` height.
+
+When the manifest cannot be fetched — `file://`, or no `sets/` folder yet — the
+label, row and preview get `.hidden`, the box gets `.gsc-library-off`, and the
+error line carries a plain-English sentence. Nothing else on the setup screen
+changes, so a game that ships no sets simply shows a one-line note.
+
+## 4. The splash (`.gsc-splash`)
 
 A 1.2 s title card on a game switch, on the host screen and on every phone.
 
@@ -297,7 +382,7 @@ The hub's implementation is `showSplash()` in `js/hub-host.js` and
 
 ---
 
-## 4. Adopting v2 in three steps
+## 5. Adopting v2 in three steps
 
 1. **Link the theme and name your game.**
    `<link rel="stylesheet" href="../../shared/theme.css">` and
