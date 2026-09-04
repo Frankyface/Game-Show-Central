@@ -260,7 +260,11 @@ const TpirView = (function () {
     show(take, phone && !revealed);
     wrap.classList.toggle("is-placed", placed);
     wrap.classList.toggle("is-phone", phone);
-    if (placed && document.activeElement !== input) input.value = String(bids[pid]);
+    // A phone's bid is masked on the HOST screen too (the podium shows dots),
+    // so the mirror field must stay blank until the reveal.
+    if (placed && document.activeElement !== input) {
+      input.value = phone && !revealed ? "" : String(bids[pid]);
+    }
     if (!placed && !revealed && document.activeElement !== input && input.dataset.cleared !== "1") {
       input.value = "";
       input.dataset.cleared = "1";

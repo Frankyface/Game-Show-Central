@@ -254,9 +254,12 @@
       await waitFor(() => Object.keys(core().row.bids).length === 3, "three bids");
 
       const podiums = [...HD().querySelectorAll("#tpir-podiums .tpir-podium-bid")].map((n) => n.textContent);
+      // Input values are NOT in body.textContent, so the mirror fields are checked too.
+      const fieldValues = [...HD().querySelectorAll("#tpir-bid-form .bid-input")].map((n) => n.value);
       check("P-I1 the host screen masks every bid until the reveal",
-        podiums.filter((t) => t === "•••").length === 3 && HD().body.textContent.indexOf("$300") < 0,
-        podiums.join(" | "));
+        podiums.filter((t) => t === "•••").length === 3 && HD().body.textContent.indexOf("$300") < 0
+        && fieldValues.every((v) => v === ""),
+        `${podiums.join(" | ")} · fields [${fieldValues.join(",")}]`);
       check("P-I1 one phone never sees another phone's bid",
         JSON.stringify(phoneView("p1")).indexOf("300") > 0
         && JSON.stringify(phoneView("p3")).indexOf("300") < 0,
@@ -325,8 +328,8 @@
         await sleep(40);
       }
       check("P-I4 three exact prices keep the climber on the mountain and win the prize",
-        core().game.done && core().game.won && core().winnings.p2 > 4000,
-        `steps ${core().game.steps}, won ${core().game.won}`);
+        core().game.done && core().game.won && core().winnings.p2 > core().game.prize.price,
+        `steps ${core().game.steps}, won ${core().game.won}, banked ${core().winnings.p2} on a ${core().game.prize.price} prize`);
     }
 
     /* ============================================================

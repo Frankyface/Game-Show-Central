@@ -162,11 +162,11 @@ next segment gives every phone its controls back.
 | `prizes.json` | 112 | The shipped prizes |
 | `js/tpir-content.js` | 432 | **Pure**: the JSON contract, validation, normalisation, the draw |
 | `js/tpir-select.js` | 466 | **Pure**: the plan, One Bid, the climb, the bounce, the wheel, the showcase, `phoneView` |
-| `js/tpir-core.js` | 741 | **Pure**: the immutable reducer, `legalActions`, undo |
+| `js/tpir-core.js` | 744 | **Pure**: the immutable reducer, `legalActions`, undo |
 | `js/data.js` | 350 | The offline copy of `prizes.json` |
 | `js/tpir-sound.js` | 136 | WebAudio cues, no audio files |
 | `js/tpir-wheel.js` | 266 | The big wheel drawn as a vertical drum, and its spin |
-| `js/tpir-view.js` | 469 | The host screens (and the shared `$`, `el`, `show`, `setText`) |
+| `js/tpir-view.js` | 473 | The host screens (and the shared `$`, `el`, `show`, `setText`) |
 | `js/tpir-games.js` | 464 | The three pricing-game stages and the Plinko chip animation |
 | `js/tpir-app.js` | 581 | Host glue: state, persistence, content loading, buttons, hotkeys |
 | `js/tpir-editor.js` | 409 | The prize editor |
@@ -178,7 +178,10 @@ next segment gives every phone its controls back.
 | `tests/helpers.mjs` | 123 | Shared unit-test fixtures |
 | `tests/tpir-core.test.mjs` | 396 | P-U1 … P-U5: content, the row, the three games |
 | `tests/tpir-show.test.mjs` | 410 | P-U6 … P-U10: the wheel, the showcase, the plan, undo, phones |
-| `tests/harness.html` | 786 | The loopback harness, P-I1 … P-I6 (57 checks) |
+| `tests/adversarial-helpers.mjs` | 98 | Shared fixtures for the two adversarial suites |
+| `tests/tpir-adversarial.test.mjs` | 573 | A1 … A6 (tester): row, cliff, plinko, Lucky Seven, wheel, showcase edges |
+| `tests/tpir-adversarial-show.test.mjs` | 449 | A7 … A10 (tester): plan, validator fuzz, phone fuzz, immutability, undo |
+| `tests/harness.html` | 789 | The loopback harness, P-I1 … P-I6 (57 checks) |
 
 The core is split across three files (`tpir-content.js` + `tpir-select.js` +
 `tpir-core.js`) and the unit suite across two, to stay under the 800-line house
