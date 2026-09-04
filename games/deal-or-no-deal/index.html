@@ -118,8 +118,6 @@
         </aside>
       </div>
 
-      <p id="dond-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
-
       <div class="controls">
         <button id="btn-banker" class="btn btn-gold btn-big" type="button">The banker is calling</button>
         <button id="btn-swap-yes" class="btn btn-gold btn-big" type="button">Swap the cases</button>
@@ -238,7 +236,8 @@
           <div id="dond-advice-no" class="advice-fill advice-no"><span id="dond-advice-no-label">No deal</span></div>
         </div>
         <p id="dond-advice-count" class="overlay-sub" aria-live="polite">No votes yet.</p>
-        <button id="btn-advice-close" class="btn btn-ghost btn-small" type="button">Close the vote</button>
+        <button id="btn-advice-toggle" class="btn btn-ghost btn-small" type="button"
+                aria-pressed="false">Close the vote</button>
       </div>
 
       <div class="controls">

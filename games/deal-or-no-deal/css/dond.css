@@ -22,15 +22,12 @@
   --board-high: #e4572e;
 }
 
-/* The accent, on the other hand, must sit at the same specificity as the
-   shared per-game block (which does not yet carry an entry for this game) —
-   this sheet loads after shared/theme.css, so this wins either way. */
-body[data-gsc-game="deal-or-no-deal"] {
-  --accent: #f5c542;
-  --accent-2: #c81d3a;
-  --accent-ink: #2a0209;
-  --stage-glow: #5a0a1a;
-}
+/* --accent / --accent-2 / --accent-ink / --stage-glow are deliberately NOT
+   declared here: shared/theme.css owns the per-game accent map
+   (design-system.md §1.3), and a local override made the hub's shell bar and
+   splash disagree with the .gsc-* components inside the game (tester N-D5).
+   Nothing in this sheet reads var(--accent*); the game's identity is
+   --case-gold and the curtain --stage-* above. */
 
 /* ============ Chrome ============ */
 

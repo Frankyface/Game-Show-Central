@@ -184,22 +184,30 @@ test("A1 nice-number bands, including both edges of each band", () => {
   });
 });
 
-test("A1 DEVIATION: offers the spec would round to zero keep cent precision", () => {
+test("A1 DEVIATION: offers the spec would round to zero go to the nearest dollar", () => {
   // Spec 12 §1.3 says "nearest 100 under 10k" full stop, so anything under $50
-  // is $0. The implementation falls back to cents instead. This test PINS the
-  // shipped behaviour; the deviation itself is reported in the verification.
-  assert.equal(Content.niceOffer(49.99), 49.99, "spec says 0, code says 49.99");
-  assert.equal(Content.niceOffer(0.005), 0.01);
-  assert.equal(Content.niceOffer(3.146), 3.15);
+  // is $0. The implementation rounds to the nearest WHOLE DOLLAR instead, with
+  // a floor of one cent (revised after this tester's note that cent precision
+  // was not a "nice" number in any sense the spec would recognise). This test
+  // PINS the shipped behaviour; the deviation is reported in the verification.
+  assert.equal(Content.niceOffer(49.99), 50, "spec says 0, code says 50");
+  assert.equal(Content.niceOffer(49.4), 49);
+  assert.equal(Content.niceOffer(0.005), 0.01, "the cent floor");
+  assert.equal(Content.niceOffer(0.49), 0.01);
+  assert.equal(Content.niceOffer(3.146), 3);
   assert.equal(Content.niceOffer(0), 0);
   assert.equal(Content.niceOffer(-1), 0);
   assert.equal(Content.niceOffer(NaN), 0);
-  // The fallback is never a whole nice number, so the banker can say a value
-  // like $0.38 out loud. That is the cosmetic cost of not offering zero.
+  // Below $50 every offer is now a whole number of dollars (or the one-cent
+  // floor), so the banker never reads out a value like $3.15.
+  for (let raw = 0.5; raw < 50; raw += 0.37) {
+    const v = Content.niceOffer(raw);
+    assert.ok(Number.isInteger(v) || v === 0.01, `niceOffer(${raw}) = ${v} is not a whole dollar`);
+  }
   const s = finishRound(seated(PENNY_BOARD, 1, fixed(0.5)));
   const offer = Core.offerFor(s, fixed(0.5));
   assert.ok(offer > 0, "a penny board still gets a real offer");
-  assert.equal(offer, Math.round(Core.ev(s) * 0.12 * 100) / 100);
+  assert.equal(offer, Math.max(0.01, Math.round(Core.ev(s) * 0.12)));
   assert.ok(offer < 50, "and it is under $50, where the guard applies");
 });
 

@@ -125,7 +125,6 @@ const DondView = (function () {
     setText("dond-toopen", counterText(state));
     show($("dond-own-chip"), state.own !== null);
     setText("dond-own-number", state.own === null ? "—" : state.own);
-    setText("dond-notice", state.notice || " ");
     renderCases(state);
     renderBoard(state);
     renderPlayControls(state);
@@ -210,7 +209,9 @@ const DondView = (function () {
     show($("btn-reveal-own"), state.phase === "reveal");
     $("btn-undo").disabled = legal.indexOf("undo") < 0;
     const own = core().caseByN(state, state.own);
-    $("btn-reveal-own").textContent = own && own.opened ? "Case opened" : `Open case ${state.own}`;
+    $("btn-reveal-own").textContent = own && own.opened
+      ? "Case opened"
+      : `Open case ${state.own === null ? "" : state.own}`.trim();
     $("btn-reveal-own").disabled = !!(own && own.opened);
   }
 
@@ -225,7 +226,7 @@ const DondView = (function () {
     setText("dond-offer-sub", offerSub(state));
     renderRequest(state);
     renderEv(app, state);
-    renderAdvice(state);
+    renderAdvice(app, state);
   }
 
   /**
@@ -260,18 +261,30 @@ const DondView = (function () {
     value.textContent = `Board average ${core().formatMoney(state, Math.round(ev))} — the offer is ${pct}% of it.`;
   }
 
-  function renderAdvice(state) {
+  /**
+   * The room's advice, live. The ballot is whatever the reducer says it is —
+   * the board's own setting decides whether the banker's call opens it, and the
+   * host can open or close it by hand at any point during an offer. Whether
+   * anyone is HERE to vote is a rendering question and only a rendering
+   * question (N-D3): the panel appears the moment a phone is connected — the
+   * ballot is already open, so that phone gets it on this offer, not the next —
+   * and stays hidden for a host playing alone, who would only see an empty bar.
+   */
+  function renderAdvice(app, state) {
     const box = $("dond-advice-box");
-    const wanted = !!state.game.settings.audienceAdvice;
-    show(box, wanted);
-    if (!wanted) return;
     const chart = core().adviceChart(state);
+    const anyone = app.phoneCount > 0;
+    show(box, anyone || chart.total > 0);
+    if (box.classList.contains("hidden")) return;
     setBar("dond-advice-deal", chart.pcts[0]);
     setBar("dond-advice-no", chart.pcts[1]);
     setText("dond-advice-deal-label", `Deal ${chart.pcts[0]}%`);
     setText("dond-advice-no-label", `No deal ${chart.pcts[1]}%`);
     setText("dond-advice-count", adviceCountText(state, chart));
-    show($("btn-advice-close"), state.advice.open);
+    const toggle = $("btn-advice-toggle");
+    toggle.textContent = state.advice.open ? "Close the vote" : "Open the vote";
+    toggle.setAttribute("aria-pressed", String(state.advice.open));
+    toggle.disabled = !state.advice.open && !anyone;
   }
 
   function setBar(id, pct) {
@@ -281,7 +294,9 @@ const DondView = (function () {
 
   function adviceCountText(state, chart) {
     if (!chart.total) {
-      return state.advice.open ? "Waiting for the room to vote…" : "Nobody voted.";
+      return state.advice.open
+        ? "Waiting for the room to vote…"
+        : "The room has not voted — open the vote to ask them.";
     }
     const votes = `${chart.total} vote${chart.total === 1 ? "" : "s"}`;
     const split = `${chart.counts[0]} deal / ${chart.counts[1]} no deal`;

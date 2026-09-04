@@ -82,8 +82,11 @@
     if (!msg) return;                       // junk frame: ignored, never thrown
     const state = window.DondApp.core();
     if (!state) return;
-    const build = INTENTS[msg.t];
-    if (!build) return;
+    // hasOwnProperty, not a bare lookup: `t` is already narrowed by
+    // validatePhoneMsg, but an inherited Object.prototype member must never be
+    // reachable as an intent builder (same shape as the core's guard).
+    const build = Object.prototype.hasOwnProperty.call(INTENTS, msg.t) ? INTENTS[msg.t] : null;
+    if (typeof build !== "function") return;
     const event = build(pid, msg, state);
     // Every one of these is checked again inside the reducer; nothing a phone
     // sends can open a case out of turn or take the banker's money.

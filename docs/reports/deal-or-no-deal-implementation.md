@@ -181,19 +181,10 @@ and that every phone is pushed a fresh view afterwards.
 
 1. **The registry entry** in `js/hub-registry.js` — id `deal-or-no-deal`, path
    `games/deal-or-no-deal/index.html`. Not touched by this agent.
-2. **A per-game accent block in `shared/theme.css`**, if you want the hub's
-   shell bar and splash card to wear this game's colours:
-   ```css
-   [data-gsc-game="deal-or-no-deal"] {
-     --accent: #f5c542; --accent-2: #c81d3a; --accent-ink: #2a0209;
-     --stage-glow: #5a0a1a;
-   }
-   ```
-   Until then the same values are declared in `css/dond.css` on
-   `body[data-gsc-game="deal-or-no-deal"]`, so the game itself already looks
-   right standalone and embedded. Adding the block above is additive — the
-   game's own sheet loads later and declares the same values, so nothing
-   changes visually either way.
+2. ~~A per-game accent block in `shared/theme.css`.~~ **Done** — `shared/theme.css:139`
+   now carries `[data-gsc-game="deal-or-no-deal"]` with `--accent #b5121b`,
+   `--accent-2 #f2c14e`, `--accent-ink #ffffff`, `--stage-glow #4a0810`, and the
+   game's local override has been deleted (§9, N-D5). Nothing further is needed.
 3. Nothing else. `shared/**`, `js/**`, `css/**`, `index.html` and every other
    game are untouched.
 
@@ -215,3 +206,107 @@ and that every phone is pushed a fresh view afterwards.
   viewport was emulated, so the 1280×720 checks were made by measurement and
   by real DOM `click()` calls on the real buttons; every click-driven scenario
   was additionally run at the pane's own size, where synthetic clicks work.
+
+---
+
+## 9. Fixes after verification (2026-09-04)
+
+Answering `docs/reports/deal-or-no-deal-verification.md` (verdict *fix-then-ship*).
+The tester's own fixes for **N-D1** (the default round schedule is now validated
+against the file's real case count), **N-D2** (`hasOwnProperty` on the handler
+map) and **N-D4** (the board title is capped and ellipsised in the topbar) are
+kept as they were. Everything below is this agent's work, again confined to
+`games/deal-or-no-deal/**` and this report. No git.
+
+### N-D3 (major) — audience advice is live again
+
+The rule and the room were conflated: `dondSettingOn("audienceAdvice")` returned
+`fromFile !== false && phoneCount > 0`, and `dondStart()` baked that into the
+state, so a host who pressed **Start** before the phones had reported got a
+board with advice off for its whole life.
+
+- `js/dond-app.js` — `dondSettingOn` now returns the host toggle, then the file,
+  then the default, and **never looks at `phoneCount`**. Whether the banker's
+  call opens a ballot is a rule; whether anyone is here to answer it is not.
+- `js/dond-core.js` — new event **`adviceOpen`**, legal only while an offer is on
+  the table. It keeps the votes already cast and drops the frozen split, so a
+  closed vote can be re-opened without losing anything.
+- `js/dond-view.js` — `renderAdvice(app, state)` draws the panel when a phone is
+  connected or a vote has been cast, and hides it for a host playing alone (the
+  "no empty bar" concern the old rule was trying to serve, now solved where it
+  belongs). The ballot is open in the state regardless, so a phone that arrives
+  *after* the banker has called gets the ballot on **that** offer, not the next.
+- `index.html` / `js/dond-app.js` — `#btn-advice-close` became
+  **`#btn-advice-toggle`**: "Close the vote" ⇄ "Open the vote", with
+  `aria-pressed`. It also lets the host put a board whose file switched advice
+  off to the room anyway.
+
+Live re-run of the tester's exact repro (real broker, room `N9J2`): host started
+and reached an offer with `phoneCount 0` → `audienceAdvice true`,
+`advice.open true`, panel hidden. "Eve" then joined mid-offer → the host banner
+"Eve joined — they can advise now…" is now true: her phone showed
+`{screen:"advice", offer:"$11,000"}` with both buttons, she voted, and the host
+bar read "1 vote so far — 0 deal / 1 no deal."
+
+This also removes the harness flake the tester saw (1 run in 5): the loopback
+suite now passes **63/63 on three consecutive cold runs**.
+
+### N-D5 (minor) — the shared accent map wins
+
+Deleted the `body[data-gsc-game="deal-or-no-deal"]` block from `css/dond.css`
+and left a comment in its place saying why. The game now resolves
+`--accent #b5121b`, `--accent-2 #f2c14e`, `--accent-ink #ffffff`,
+`--stage-glow #4a0810` from `shared/theme.css`, in agreement with the hub's
+shell bar and splash. Verified live: `getComputedStyle(body)` on the game page
+returns exactly those values, and the curtain/gold identity is untouched because
+nothing in either sheet reads `var(--accent*)` — the game's colours are
+`--case-gold` and the `--stage-*` block, both still local. §7 of this report and
+the README's known-issues entry are updated accordingly. Gate added to the
+harness: the sheet must contain no `--accent:` declaration **and** the body must
+resolve to `#b5121b`.
+
+### N-D6 / N-D7 (minors)
+
+| Ref | Fix |
+|---|---|
+| N-D6 | `beforeunload` and `visibilitychange` now call `dondSaveOnExit()`, which skips the write when `gsc-dond-state-v1` has been deleted while the page was open. Clear-then-reload works; the README's known limits explain it and point at **Reset to shipped** / **Play again** as the tidy route. |
+| N-D7a | `state.notice` is gone — from `createState`, from all fourteen handler writes, from `dond-view.js` and from `index.html`. It was never set to anything but `""`, and the spec's state list never had it. |
+| N-D7b | `legalActions` probes `adviceVote` against every contestant who is not the current one, the same per-candidate treatment `seat`/`pickCase`/`openCase` already had. It now appears while the ballot is open and disappears when it closes or everyone has voted. |
+| N-D7c | The contestant's phone disables its case grid when `toOpen === 0`; the sub-line already said the banker was about to call. |
+| N-D7e | `dond-room.js` looks its `INTENTS` builder up with `hasOwnProperty` and checks it is a function, matching the core's N-D2 guard. |
+| N-D7f | `btn-reveal-own` no longer builds the string "Open case null" when `own` is null. |
+
+N-D7d (a spectator's empty `name` in `phoneView`) was left alone: it is not
+rendered on any screen a spectator sees, and inventing a name for someone the
+host has not seated would be worse than an empty string.
+
+### Offer rounding under $50 (tester's D-1 caveat)
+
+`niceOffer` no longer falls back to cent precision. Below $50 — where the spec's
+bands round to zero — the offer is now the **nearest whole dollar, floored at one
+cent**, so the banker never says "$3.15" and never says "$0". Every value at or
+above $50 still follows the spec exactly. `js/dond-content.js`, the README §3 and
+both pinning tests (`N-U4` and the tester's `A1 DEVIATION`, retitled) are
+updated; the adversarial test now sweeps 0.5 → 50 and asserts every result is a
+whole dollar or the one-cent floor.
+
+### Tests and gates after the fixes
+
+- `cd games/deal-or-no-deal && node --test` → **89 tests, 89 pass** (38 mine +
+  46 the tester's + 5 new). Repo root → **751/751**.
+- New file `tests/dond-advice.test.mjs` (142 lines) holds the five new cases —
+  `adviceOpen` in and out of phase, close-and-re-open keeping votes, a board with
+  advice off opened by hand, `adviceVote` in `legalActions` (including a
+  "everything it names really changes the state" sweep), and the absence of
+  `notice`. Split out only to keep `tests/dond-core.test.mjs` under the 800-line
+  cap, the same reason the tester split theirs.
+- `tests/harness.html` → **63/63**, three consecutive runs on
+  `python -m http.server 8693`. Four checks added: the N-D3 regression, the
+  in-play toggle closing and re-opening the ballot with votes intact, the phone's
+  dead case grid at `toOpen === 0`, and the N-D5 accent gate. The static-gate
+  scenario now also line-counts the tester's two adversarial files.
+- Static gates re-run: largest shipped file `js/dond-core.js` 750, largest file
+  overall `tests/harness.html` 761 — all under 800. No `innerHTML`/`eval`/
+  `console.log`; three external URLs, all Google Fonts; `data-gsc-game` and
+  `#gsc-join` present; host play screen still fits 1280×720 with no scroll in
+  either axis (banker overlay card 328 px, centred).

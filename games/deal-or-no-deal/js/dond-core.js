@@ -111,7 +111,6 @@
       roster,
       contestants: roster.map((p) => ({ pid: p.pid, name: p.name, won: 0, out: false, reason: null })),
       current: null,
-      notice: "",
       history: [],
     }, blankBoard());
   }
@@ -308,6 +307,7 @@
     deal: evDeal,
     noDeal: evNoDeal,
     adviceVote: evAdviceVote,
+    adviceOpen: evAdviceOpen,
     adviceClose: evAdviceClose,
     request: evRequest,
     clearRequest: evClearRequest,
@@ -363,6 +363,12 @@
       if (type === "pickCase" || type === "openCase") {
         return (state.cases || []).some((c) => HANDLERS[type](state, { type, n: c.n }, () => 0) !== state);
       }
+      // Same reason: a null pid is always refused, so probe the people who
+      // could actually be voting right now (N-D7b).
+      if (type === "adviceVote") {
+        return (state.contestants || []).some((c) => c.pid !== state.current
+          && evAdviceVote(state, { type, pid: c.pid, choice: ADVICE_CHOICES[0] }) !== state);
+      }
       if (type === "seat") {
         return waitingContestants(state).some((c) => evSeat(state, { type, pid: c.pid }, () => 0) !== state);
       }
@@ -376,7 +382,7 @@
   function evStart(state) {
     if (state.phase !== "setup") return state;
     if (!waitingContestants(state).length) return state;
-    return Object.assign({}, state, { phase: "seat", notice: "" });
+    return Object.assign({}, state, { phase: "seat" });
   }
 
   /** Seat a contestant and deal a fresh, shuffled board of cases. */
@@ -387,7 +393,7 @@
     const amounts = shuffle(settingsOf(state).amounts, rng);
     const cases = amounts.map((amount, i) => ({ n: i + 1, amount, opened: false }));
     return Object.assign({}, state, blankBoard(), {
-      phase: "pick", current: pid, cases, notice: "",
+      phase: "pick", current: pid, cases,
     });
   }
 
@@ -400,7 +406,7 @@
     const rounds = settingsOf(state).rounds;
     return Object.assign({}, state, {
       phase: "round", own: target.n, round: 0, toOpen: rounds[0] || 0,
-      lastOpened: null, notice: "",
+      lastOpened: null,
     });
   }
 
@@ -412,7 +418,6 @@
       cases: openOne(state.cases, target.n),
       toOpen: state.toOpen - 1,
       lastOpened: target.n,
-      notice: "",
     });
   }
 
@@ -428,8 +433,7 @@
       offers: state.offers.concat([{ round: state.round, offer, ev: ev(state) }]),
       advice: {
         open: !!settingsOf(state).audienceAdvice, votes: {}, chart: null, round: state.round,
-      },
-      notice: "",
+      }
     });
   }
 
@@ -447,7 +451,6 @@
       deal: { offer: state.offer, round: state.round },
       advice: closedAdvice(state),
       request: null,
-      notice: "",
     });
   }
 
@@ -459,12 +462,12 @@
     if (more) {
       return Object.assign({}, state, {
         phase: "round", round: state.round + 1, toOpen: rounds[state.round + 1],
-        offer: null, advice, request: null, notice: "",
+        offer: null, advice, request: null,
       });
     }
     const swappable = settingsOf(state).allowSwap && otherCases(state).length === 1;
     return Object.assign({}, state, {
-      phase: swappable ? "swap" : "reveal", offer: null, advice, request: null, notice: "",
+      phase: swappable ? "swap" : "reveal", offer: null, advice, request: null,
     });
   }
 
@@ -482,6 +485,20 @@
     const votes = Object.assign({}, a.votes);
     votes[pid] = event.choice;
     return Object.assign({}, state, { advice: Object.assign({}, a, { votes }) });
+  }
+
+  /**
+   * The host opens the ballot by hand while an offer is on the table — for a
+   * board whose file switched advice off, or for phones that arrived after the
+   * banker had already called. Votes already cast are kept; the frozen split is
+   * dropped so the bar goes live again.
+   */
+  function evAdviceOpen(state) {
+    const a = state.advice;
+    if (state.phase !== "offer" || !a || a.open) return state;
+    return Object.assign({}, state, {
+      advice: Object.assign({}, a, { open: true, chart: null, round: state.round }),
+    });
   }
 
   function evAdviceClose(state) {
@@ -517,9 +534,9 @@
     const others = otherCases(state);
     if (others.length !== 1) return state;
     if (event.yes !== true) {
-      return Object.assign({}, state, { phase: "reveal", swapped: false, notice: "" });
+      return Object.assign({}, state, { phase: "reveal", swapped: false });
     }
-    return Object.assign({}, state, { phase: "reveal", own: others[0].n, swapped: true, notice: "" });
+    return Object.assign({}, state, { phase: "reveal", own: others[0].n, swapped: true });
   }
 
   function evRevealRest(state) {
@@ -527,7 +544,7 @@
     const next = revealOrder(state)[0];
     if (next === undefined) return state;
     return Object.assign({}, state, {
-      cases: openOne(state.cases, next), lastOpened: next, notice: "",
+      cases: openOne(state.cases, next), lastOpened: next,
     });
   }
 
@@ -560,9 +577,9 @@
     if (state.phase !== "result") return state;
     const waiting = waitingContestants(state);
     if (!waiting.length) {
-      return Object.assign({}, state, blankBoard(), { phase: "standings", current: null, notice: "" });
+      return Object.assign({}, state, blankBoard(), { phase: "standings", current: null });
     }
-    return Object.assign({}, state, blankBoard(), { phase: "seat", current: null, notice: "" });
+    return Object.assign({}, state, blankBoard(), { phase: "seat", current: null });
   }
 
   /**
@@ -582,7 +599,7 @@
         swapped: state.swapped,
       });
     }
-    return Object.assign({}, next, { phase: "standings", current: null, notice: "" });
+    return Object.assign({}, next, { phase: "standings", current: null });
   }
 
   /* ============ Undo ============ */

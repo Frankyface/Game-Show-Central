@@ -150,6 +150,21 @@ function dondLoadSaved() {
   }
 }
 
+/**
+ * Save on the way out — unless the saved game has been deleted while this page
+ * was open. Without that check, clearing `gsc-dond-state-v1` from devtools and
+ * reloading brought the old game straight back, because the page rewrote the
+ * key on its own unload (tester N-D6).
+ */
+function dondSaveOnExit() {
+  try {
+    if (localStorage.getItem(DOND_STORAGE_KEY) === null) return;
+  } catch (err) {
+    console.warn("Could not check the saved game on the way out:", err);
+  }
+  dondSave();
+}
+
 function dondError(message) {
   const node = $("dond-error");
   if (!node) return;
@@ -251,15 +266,20 @@ function dondRemovePlayer(pid) {
 
 /**
  * A rule the game will actually play with: the host's toggle first, then the
- * file, then the default. Audience advice additionally defaults OFF when no
- * phone is connected — an empty vote bar helps nobody (spec 12 §1.6).
+ * file, then the default.
+ *
+ * This deliberately does NOT look at how many phones are connected. Baking
+ * "nobody is here yet" into the state at Start froze audience advice off for a
+ * whole board, so a phone that joined a minute later never got a ballot even
+ * though the host's own banner promised one (tester N-D3). Whether anyone can
+ * vote is a rendering question, answered in DondView.renderAdvice; whether the
+ * banker's call opens a ballot at all is this rule.
  */
 function dondSettingOn(key) {
   const override = dondApp.setup[key];
   if (typeof override === "boolean") return override;
   const settings = dondApp.game && dondApp.game.settings;
   const fromFile = settings ? settings[key] : undefined;
-  if (key === "audienceAdvice") return fromFile !== false && dondApp.phoneCount > 0;
   return fromFile === undefined ? true : !!fromFile;
 }
 
@@ -395,7 +415,11 @@ function dondWireBanker() {
   dondWireButton("btn-deal", () => dondDispatch({ type: "deal" }));
   dondWireButton("btn-no-deal", () => dondDispatch({ type: "noDeal" }));
   dondWireButton("btn-offer-undo", () => dondDispatch({ type: "undo" }));
-  dondWireButton("btn-advice-close", () => dondDispatch({ type: "adviceClose" }));
+  dondWireButton("btn-advice-toggle", () => {
+    const state = dondApp.core;
+    if (!state) return;
+    dondDispatch({ type: state.advice.open ? "adviceClose" : "adviceOpen" });
+  });
   dondWireButton("btn-ev", dondToggleEv);
 }
 
@@ -415,8 +439,8 @@ function dondWireChrome() {
   sound.addEventListener("click", () => { window.DondSound.toggle(); paint(); });
   paint();
   document.addEventListener("keydown", dondOnKey);
-  window.addEventListener("beforeunload", dondSave);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) dondSave(); });
+  window.addEventListener("beforeunload", dondSaveOnExit);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) dondSaveOnExit(); });
 }
 
 /* ============ Splash ============ */

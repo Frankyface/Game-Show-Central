@@ -20,6 +20,8 @@
 
   /* ============ Small builders ============ */
 
+  /** `onPick` is null when the round's counter has run out: the reducer would
+      refuse the tap anyway, so the button reads as dead rather than live. */
   function caseButton(c, onPick) {
     const btn = el("button", "phone-case");
     btn.type = "button";
@@ -69,8 +71,10 @@
     },
 
     pick(v, box) {
+      const live = v.mode === "own" || v.toOpen > 0;
+      const onPick = live ? (n) => me.send({ t: "pick", n }) : null;
       const grid = el("div", "phone-cases");
-      (v.cases || []).forEach((c) => grid.appendChild(caseButton(c, (n) => me.send({ t: "pick", n }))));
+      (v.cases || []).forEach((c) => grid.appendChild(caseButton(c, onPick)));
       box.appendChild(grid);
       return {
         kicker: v.mode === "own" ? "Your case" : `Round ${v.round} of ${v.rounds}`,

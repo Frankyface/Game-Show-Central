@@ -253,12 +253,23 @@
 
     async function scenarioPicks() {
       await bootHost();
+      // N-D3 regression: the board the reducer will play must say advice is on
+      // even when not one phone is connected. Baking "nobody is here yet" into
+      // the state at Start is what left late joiners without a ballot for a
+      // whole board — and what made this harness flaky on a slow cold load.
+      const realCount = HW().DondApp.state().phoneCount;
+      HW().DondApp.setPhoneCount(0);
+      const aloneAdvice = HW().DondApp.effectiveBoard().settings.audienceAdvice;
+      HW().DondApp.setPhoneCount(realCount);
+      check("N-I1 audience advice does not depend on who was connected at Start",
+        aloneAdvice === true && HW().DondApp.state().phoneCount === realCount,
+        `with 0 phones the board says audienceAdvice ${aloneAdvice}`);
       await bootPhones();
       await waitFor(() => HW().DondApp.state().setup.players.length === 3, "roster from the shell");
       check("N-I1 the shell roster becomes the contestant list",
         HW().DondApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo",
         HW().DondApp.state().setup.players.map((p) => p.name).join(","));
-      check("N-I1 audience advice switches itself on because phones are connected",
+      check("N-I1 the setup screen reflects the board's own advice setting",
         H("dond-advice").checked === true && HW().DondApp.state().phoneCount === 3,
         `${HW().DondApp.state().phoneCount} phones`);
       check("N-I1 the harness board loaded over the shipped one",
@@ -302,6 +313,10 @@
       check("N-I1 four phone taps open four cases and end the round",
         core().toOpen === 0 && core().cases.filter((c) => c.opened).length === 4,
         `${core().cases.filter((c) => c.opened).length} open`);
+      check("N-I1 the phone's cases go dead once the round's counter runs out",
+        phoneCases("p1").every((b) => b.disabled) && phoneView("p1").toOpen === 0
+        && phoneText("p1", "dond-phone-sub").indexOf("banker") > 0,
+        phoneText("p1", "dond-phone-sub"));
       check("N-I1 the amount board strikes out exactly what was opened",
         HD().querySelectorAll(".amount-row.is-open").length === 4,
         [...HD().querySelectorAll(".amount-row.is-open .amount-label")].map((n) => n.textContent).join(" "));
@@ -347,6 +362,26 @@
       check("N-I2 the contestant is not in their own audience",
         phoneChoices("p1").every((b) => b.dataset.choice === "deal" || b.dataset.choice === "no")
         && core().advice.votes.p1 === undefined);
+
+      // The host's in-play toggle closes and re-opens the ballot (N-D3).
+      const toggle = H("btn-advice-toggle");
+      check("N-I2 the offer screen carries a live Close-the-vote toggle",
+        toggle.textContent === "Close the vote" && toggle.disabled === false
+        && toggle.getAttribute("aria-pressed") === "true", toggle.textContent);
+      toggle.click();
+      await waitFor(() => phoneView("p2").screen === "wait", "the ballot closes on the phones");
+      check("N-I2 closing the vote freezes the split and takes the ballot off the phones",
+        core().advice.open === false && phoneChoices("p2").length === 0
+        && H("btn-advice-toggle").textContent === "Open the vote"
+        && H("dond-advice-count").textContent.indexOf("Vote closed") === 0,
+        H("dond-advice-count").textContent);
+      H("btn-advice-toggle").click();
+      await waitFor(() => phoneView("p2").screen === "advice", "the ballot comes back");
+      check("N-I2 re-opening it keeps the votes already cast and goes live again",
+        core().advice.open === true && core().advice.chart === null
+        && phoneView("p2").myVote === "deal" && phoneView("p3").myVote === "no"
+        && H("dond-advice-count").textContent.indexOf("2 votes so far") === 0,
+        H("dond-advice-count").textContent);
 
       // The contestant says DEAL from their phone: a request, nothing more.
       phoneChoice("p1", "deal").click();
@@ -593,7 +628,9 @@
       "../js/dond-content.js", "../js/dond-core.js", "../js/data.js", "../js/dond-sound.js",
       "../js/dond-view.js", "../js/dond-app.js", "../js/dond-editor.js",
       "../js/dond-room.js", "../js/dond-phone.js",
-      "../tests/dond-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-board.json",
+      "../tests/dond-core.test.mjs", "../tests/dond-advice.test.mjs",
+      "../tests/dond-adversarial.test.mjs", "../tests/dond-adversarial-state.test.mjs",
+      "../tests/harness.html", "../tests/fixtures/harness-board.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
 
@@ -641,6 +678,11 @@
       const css = `${texts["../css/dond.css"]}\n${texts["../css/dond-phone.css"]}`;
       check("N-I6 every @keyframes and animation: sits inside a no-preference block",
         motionIsGuarded(css), motionIsGuarded(css) ? "all guarded" : "an animation escapes the media query");
+
+      const accent = HW().getComputedStyle(HD().body).getPropertyValue("--accent").trim();
+      check("N-I6 N-D5 the accent comes from shared/theme.css, not a local override",
+        (texts["../css/dond.css"] || "").indexOf("--accent:") < 0 && accent === "#b5121b",
+        `body --accent resolves to ${accent}`);
 
       check("N-I6 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded")

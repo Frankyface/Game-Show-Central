@@ -290,10 +290,11 @@
 
   /**
    * The "nice" number the banker actually says out loud: nearest 100 under
-   * 10k, nearest 1k under 100k, nearest 5k above. GUARD: when that rounding
-   * would land on nothing at all (a board whose last amounts are pennies) the
-   * offer is given to the cent instead — the banker never offers zero while
-   * there is money on the board.
+   * 10k, nearest 1k under 100k, nearest 5k above. GUARD: below $50 that band
+   * rounds to nothing at all (a board whose amounts are pennies), and an offer
+   * of zero is not a game. Such an offer is rounded to the nearest WHOLE
+   * DOLLAR instead, floored at a cent — still a number the banker can say out
+   * loud, and never zero while there is money on the board.
    * @param {number} raw @returns {number}
    */
   function niceOffer(raw) {
@@ -303,7 +304,7 @@
     else if (raw < 100000) v = Math.round(raw / 1000) * 1000;
     else v = Math.round(raw / 5000) * 5000;
     if (v > 0) return v;
-    return Math.round(raw * 100) / 100;
+    return Math.max(0.01, Math.round(raw));
   }
 
   /**

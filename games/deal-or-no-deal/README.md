@@ -44,7 +44,11 @@ python -m http.server 8620                 # then open
    left in the round.
 5. **The banker.** When the round is done, press **The banker is calling**. The
    phone rings, the offer lands huge on screen, and the room's phones vote Deal
-   or No Deal as a live split. **Show the odds (host only)** reveals the board
+   or No Deal as a live split. **Close the vote** freezes the split; the same
+   button then reads **Open the vote** and re-opens it — so a phone that joined
+   after the banker had already called still gets a ballot, and a board whose
+   file switched advice off can still be put to the room. Votes already cast
+   survive a close and re-open. **Show the odds (host only)** reveals the board
    average and what percentage of it the banker is offering — for the host's
    eyes, on the shared screen, so use it when you want the drama of a bad offer.
 6. **Deal** ends the board: the remaining cases open one by one for the
@@ -71,9 +75,11 @@ back exactly one move.
 - **jitter** is a random ±5 % so two identical boards never get identical
   offers. Set `jitter: 0` for a repeatable game.
 - **round** is a *nice* number: nearest 100 below 10,000, nearest 1,000 below
-  100,000, nearest 5,000 above. One guard beyond the spec: if that rounding
-  would land on **zero** (a board played down to pennies), the offer is given to
-  the cent instead — the banker never offers nothing while money is on the board.
+  100,000, nearest 5,000 above. One guard beyond the spec: below $50 that
+  rounding lands on **zero**, and an offer of nothing is not a game, so such an
+  offer goes to the nearest **whole dollar** instead, floored at one cent. The
+  banker never offers nothing while money is on the board, and never reads out
+  a value like "$3.15".
 
 The offer is **not** guaranteed to rise round on round. It tracks the board, and
 the board gets worse when the top amounts go. That is the game.
@@ -104,7 +110,7 @@ the board gets worse when the top amounts go. That is the game.
 | `settings.offerFactors` | no | one per round, each 0–1.5. Omitted, a rising ramp is generated |
 | `settings.jitter` | no | 0–0.2 (default 0.05) |
 | `settings.allowSwap` | no | boolean, default true |
-| `settings.audienceAdvice` | no | boolean, default true — and switched off automatically when no phone is connected, so no empty vote bar appears |
+| `settings.audienceAdvice` | no | boolean, default true. It decides whether the banker's call opens a ballot; the host can open or close one by hand at any offer regardless. The panel is simply not drawn when nobody is connected and nobody has voted |
 
 Everything in the file is configuration: there is no question text to write.
 The **Board editor** edits exactly these fields, previews the amounts as the two
@@ -163,6 +169,13 @@ tests/harness.html       the loopback harness, N-I1 … N-I6
   host presses it; any cases still sealed simply stay sealed, except that a
   single lone remaining case is opened with it so the board is never left with
   one mystery.
-- **The accent colours** for this game are declared in `css/dond.css` on
-  `body[data-gsc-game="deal-or-no-deal"]` rather than in `shared/theme.css`,
-  because this component does not own that file.
+- **A saved game is rewritten on the way out.** The page saves on `beforeunload`,
+  so deleting `gsc-dond-state-v1` from devtools *while the tab is open* used to
+  bring the game straight back on reload. The unload save now skips itself when
+  the key has been deleted, so clear-then-reload works — but the tidy way to
+  start over is still the editor's **Reset to shipped** → **Use in game**, or
+  **Play again** on the standings screen.
+- **The accent colours** come from the per-game block in `shared/theme.css`
+  (`--accent #b5121b`, `--accent-2 #f2c14e`), so the hub's shell bar and splash
+  match the `.gsc-*` components inside the game. This sheet declares none of
+  its own; the game's identity is `--case-gold` and the curtain `--stage-*`.

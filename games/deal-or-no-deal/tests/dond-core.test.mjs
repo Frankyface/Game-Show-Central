@@ -305,8 +305,12 @@ test("N-U4 nice-number rounding uses the three bands", () => {
   assert.equal(Content.niceOffer(1000000), 1000000);
   assert.equal(Content.niceOffer(0), 0);
   assert.equal(Content.niceOffer(-5), 0);
-  // The guard: a board down to pennies still gets a real offer, to the cent.
-  assert.equal(Content.niceOffer(0.505), 0.51);
+  // The guard: below $50 the band rounds to nothing, so the banker names the
+  // nearest whole dollar instead, floored at a cent — never zero.
+  assert.equal(Content.niceOffer(49.99), 50);
+  assert.equal(Content.niceOffer(3.146), 3);
+  assert.equal(Content.niceOffer(0.505), 1);
+  assert.equal(Content.niceOffer(0.005), 0.01);
   assert.equal(Content.niceOffer(3), 3);
 });
 
