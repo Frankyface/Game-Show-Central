@@ -93,6 +93,18 @@ UI rules learned: both stops of a gradient under text must clear contrast; every
 CSS `filter` cannot transition from `none`; harness asset lists must name new
 stylesheets or they go ungated.
 
+## Phase 3 (2026-09-04): fixes + three more games
+
+- Wheel of Fortune labels are now stacked TV-style (one glyph per row down the wedge, `wheel-draw.js buildLabel`); Weakest Link's Show answer works in the head-to-head.
+- Cross-cutting: unguarded `HANDLERS[event.type]` lookups let prototype-shaped event types (`toString`, `__proto__`) reach or corrupt state; guarded in every core, pinned by `tests/core-prototype-guard.test.mjs`.
+- Cross-cutting: games declared their own `body[data-gsc-game]` token overrides that disagreed with `shared/theme.css`; decision: the theme block is canonical, local palette overrides are deleted (a game may still override `--stage-bg` for contrast, as Pyramid does).
+
+| Component | Tester verdict | Notes |
+|---|---|---|
+| deal-or-no-deal | fix-then-ship → fixed | tester fixed a validator deadlock (rounds vs case count) and the handler-map bug; implementer made audience advice live with a host toggle; whole-dollar small offers. 89 unit tests, harness 63/63, real-network run. |
+| pyramid | fix-then-ship → fixed | tester fixed a tiebreak bias (Team A could win on an unmatched word); implementer blocked phone marks while paused, added name adoption and End the night. 95 unit tests, harness 66/66, real-network run; secret words never reach the host DOM or non-giver phones. |
+| price-is-right | see `price-is-right-verification.md` | implementer fixed duplicate showcase finalists and a Plinko lock-up before handoff; tester report pending at time of writing. |
+
 ## Verification pointers
 
 - `node --test` at the repo root runs every suite (shell, shared, all games).
