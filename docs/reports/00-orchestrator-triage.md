@@ -71,6 +71,21 @@ and what is left. Per-component detail lives in the sibling reports.
 - Testers ran real-network tiers from one browser profile; a check on two
   physical devices is still worth doing before a big game night.
 
+## Phase 2 (same day): Millionaire + UI upgrade
+
+Same process: spec first (`docs/08-millionaire-spec.md`, `docs/09-ui-upgrade-brief.md`),
+one implementer per surface, independent testers, defects back to owners.
+
+| Component | Tester verdict | Notes |
+|---|---|---|
+| millionaire | **ship** | 67 unit tests (34 adversarial), harness 55/55, real-network hub run incl. Fastest Finger and Ask the Audience; all 45 questions fact-checked; six minors closed afterwards (phone vote countdown, Switch-the-Question notice, docs). Safe-haven rule clarified to the TV rule: a haven counts once its question is answered correctly. |
+| ui-upgrade (hub + 5 games) | see `ui-upgrade-verification.md` | Design system v2 in `shared/theme.css` + `shared/theme-components.css` (`docs/design-system.md`); CSS-only upgrade per game (Jeopardy via a new `gsc-look.css`, no JS); every game harness green before and after; game-switch splash (games skip theirs when embedded). |
+
+UI rules learned: both stops of a gradient under text must clear contrast; every
+`@keyframes`/`animation:` lives inside `prefers-reduced-motion: no-preference`;
+CSS `filter` cannot transition from `none`; harness asset lists must name new
+stylesheets or they go ungated.
+
 ## Verification pointers
 
 - `node --test` at the repo root runs every suite (shell, shared, all games).
