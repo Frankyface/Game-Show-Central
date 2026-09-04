@@ -17,6 +17,12 @@ const WheelDraw = (function () {
   const R_OUTER = 192;
   const R_INNER = 62; // hub
   const R_LABEL = 132;
+  // Styling only: the viewBox is inset so the rim lights and the pointer flap
+  // have room outside the wedge ring. Wedge geometry, the rotor transform and
+  // wedgeAtPointer()/rotationForIndex() are all unchanged by this.
+  const PAD = 26;
+  const R_RIM = R_OUTER + 13; // the bulb ring
+  const RIM_LIGHTS = 24;
 
   // Saturated TV-wheel colours. 6 entries divide 24 evenly, so wedge 23 and
   // wedge 0 still differ where the ring closes.
@@ -95,6 +101,43 @@ const WheelDraw = (function () {
     return node;
   }
 
+  /** Decorative bulb ring around the rim. Purely visual; nothing reads it. */
+  function buildRim() {
+    const group = el("g", { class: "wheel-rim", "aria-hidden": "true" });
+    for (let i = 0; i < RIM_LIGHTS; i += 1) {
+      const [x, y] = point(CX, CY, R_RIM, (360 / RIM_LIGHTS) * i + 180 / RIM_LIGHTS);
+      const halo = el("circle", { cx: x.toFixed(2), cy: y.toFixed(2), r: 8.5, fill: "rgba(255,214,120,0.16)" });
+      const bulb = el("circle", {
+        cx: x.toFixed(2), cy: y.toFixed(2), r: 4.2,
+        fill: "#fff3cf", stroke: "rgba(120,70,10,0.55)", "stroke-width": 1,
+        class: i % 2 === 0 ? "wheel-bulb wheel-bulb-a" : "wheel-bulb wheel-bulb-b",
+      });
+      group.appendChild(halo);
+      group.appendChild(bulb);
+    }
+    return group;
+  }
+
+  /** The chunky pointer flap over 12 o'clock. Purely visual. */
+  function buildPointer() {
+    const group = el("g", { class: "wheel-pointer", "aria-hidden": "true" });
+    const tipY = CY - R_OUTER + 30;
+    const topY = CY - R_OUTER - 20;
+    group.appendChild(el("path", {
+      d: `M ${CX} ${tipY} L ${CX - 21} ${topY} L ${CX + 21} ${topY} Z`,
+      fill: "#f0c24b", stroke: "#1b0838", "stroke-width": 4, "stroke-linejoin": "round",
+    }));
+    group.appendChild(el("path", {
+      d: `M ${CX} ${tipY - 9} L ${CX - 11} ${topY + 7} L ${CX} ${topY + 7} Z`,
+      fill: "rgba(255,255,255,0.55)",
+    }));
+    group.appendChild(el("rect", {
+      x: CX - 25, y: topY - 11, width: 50, height: 13, rx: 6,
+      fill: "#1b0838", stroke: "#f0c24b", "stroke-width": 3,
+    }));
+    return group;
+  }
+
   /**
    * (Re)build the wheel inside `svg` for `wedges`. Returns the rotating group.
    * Longer than 50 lines because it lays out one self-contained SVG scene
@@ -104,7 +147,7 @@ const WheelDraw = (function () {
   function build(svg, wedges) {
     if (!svg) return null;
     svg.replaceChildren();
-    svg.setAttribute("viewBox", `0 0 ${SIZE} ${SIZE}`);
+    svg.setAttribute("viewBox", `${-PAD} ${-PAD} ${SIZE + PAD * 2} ${SIZE + PAD * 2}`);
     svg.setAttribute("role", "img");
     const list = Array.isArray(wedges) && wedges.length ? wedges : [];
     svg.setAttribute("aria-label", `Wheel with ${list.length} wedges`);
@@ -131,14 +174,15 @@ const WheelDraw = (function () {
     rotor.appendChild(el("circle", { cx: CX, cy: CY, r: R_INNER, fill: "#1b0838", stroke: "#f0c24b", "stroke-width": 4 }));
     rotor.appendChild(el("circle", { cx: CX, cy: CY, r: R_INNER - 14, fill: "#2a0a4a", stroke: "rgba(255,255,255,0.18)", "stroke-width": 2 }));
 
-    svg.appendChild(el("circle", { cx: CX, cy: CY, r: R_OUTER + 6, fill: "#120425", stroke: "#f0c24b", "stroke-width": 5 }));
+    // Bezel behind the wedges: a dark ring carrying the rim lights.
+    svg.appendChild(el("circle", { cx: CX, cy: CY, r: R_OUTER + PAD - 4, fill: "#170533", stroke: "rgba(0,0,0,0.55)", "stroke-width": 2, class: "wheel-bezel" }));
+    svg.appendChild(buildRim());
+    svg.appendChild(el("circle", { cx: CX, cy: CY, r: R_OUTER + 4, fill: "none", stroke: "#f0c24b", "stroke-width": 4, class: "wheel-ring" }));
     svg.appendChild(rotor);
 
-    // Pointer flap at 12 o'clock; it never rotates.
-    svg.appendChild(el("path", {
-      d: `M ${CX} ${CY - R_OUTER + 26} L ${CX - 15} ${CY - R_OUTER - 16} L ${CX + 15} ${CY - R_OUTER - 16} Z`,
-      fill: "#ffffff", stroke: "#12122a", "stroke-width": 3, class: "wheel-pointer",
-    }));
+    // Pointer flap at 12 o'clock; it never rotates. Chunkier than the wedge
+    // ring so it reads from the back of the room.
+    svg.appendChild(buildPointer());
 
     setRotation(rotor, 0);
     return rotor;

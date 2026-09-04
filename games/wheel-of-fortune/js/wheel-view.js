@@ -72,7 +72,8 @@ const WheelView = (function () {
     if (node.children.length !== ALPHABET.length) {
       node.replaceChildren();
       for (const letter of ALPHABET) {
-        const chip = el("span", VOWELS.includes(letter) ? "used-chip used-vowel" : "used-chip", letter);
+        const chip = el("span", VOWELS.includes(letter)
+          ? "used-chip used-vowel gsc-kbd" : "used-chip gsc-kbd", letter);
         chip.dataset.letter = letter;
         node.appendChild(chip);
       }
@@ -120,17 +121,20 @@ const WheelView = (function () {
   /* ============ Podiums ============ */
 
   function podiumCard(player, phone, onClick) {
-    const card = el("button", "podium");
+    // The v1 class names are kept verbatim (scripts and the harness select on
+    // them); the gsc-* names beside them bring the shared design-system look.
+    const card = el("button", "podium gsc-podium");
     card.type = "button";
     card.dataset.pid = player.pid;
     card.classList.toggle("podium-active", player.active);
+    card.classList.toggle("is-active", player.active);
     card.classList.toggle("podium-locked", player.locked);
     card.classList.toggle("podium-buzzed", player.buzzed);
-    const name = el("span", "podium-name", player.name);
+    const name = el("span", "podium-name gsc-podium-name", player.name);
     if (phone) name.appendChild(el("span", "podium-phone", " \u{1F4F1}"));
     card.appendChild(name);
-    card.appendChild(el("span", "podium-round", money(player.round)));
-    const total = el("span", "podium-total");
+    card.appendChild(el("span", "podium-round gsc-podium-score", money(player.round)));
+    const total = el("span", "podium-total gsc-podium-note");
     total.appendChild(el("span", "podium-total-label", "Total "));
     total.appendChild(el("span", "podium-total-value", money(player.total)));
     card.appendChild(total);
@@ -158,7 +162,7 @@ const WheelView = (function () {
       return;
     }
     for (const player of players) {
-      const row = el("li", "player-row");
+      const row = el("li", "player-row gsc-well");
       const phone = phonePids.has(player.pid);
       row.appendChild(el("span", "player-row-name", player.name + (phone ? " \u{1F4F1}" : "")));
       if (!phone) {
@@ -179,7 +183,7 @@ const WheelView = (function () {
     if (!node) return;
     node.replaceChildren();
     standings.forEach((player, i) => {
-      const row = el("li", i === 0 ? "final-row final-win" : "final-row");
+      const row = el("li", i === 0 ? "final-row final-win gsc-well" : "final-row gsc-well");
       row.appendChild(el("span", "final-name", player.name));
       row.appendChild(el("span", "final-money", money(player.total)));
       node.appendChild(row);

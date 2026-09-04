@@ -18,7 +18,7 @@
   <header class="topbar">
     <h1 id="game-title" class="topbar-title">Wheel of Fortune</h1>
     <div class="topbar-actions">
-      <span id="room-chip" class="room-chip hidden"></span>
+      <span id="room-chip" class="room-chip gsc-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; Sound</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Puzzle Editor</button>
       <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
@@ -37,7 +37,8 @@
         <h2 id="setup-title" class="setup-title">Wheel of Fortune</h2>
         <p id="source-note" class="source-note">Loading puzzles&hellip;</p>
 
-        <div class="setup-section">
+        <div class="setup-grid">
+        <div class="setup-section setup-section-players">
           <h3 class="setup-heading">Players</h3>
           <ul id="player-list" class="player-list"></ul>
           <form id="add-player-form" class="add-player-form">
@@ -69,6 +70,7 @@
           </div>
           <p id="load-error" class="error-msg" role="alert"></p>
         </div>
+        </div>
 
         <button id="btn-start" class="btn btn-gold btn-big" type="button">Start game</button>
       </div>
@@ -79,16 +81,18 @@
 
       <div class="board-wrap">
         <div id="board" class="board" role="group" aria-label="Puzzle board"></div>
-        <p id="category" class="category"></p>
+        <p id="category" class="category gsc-lozenge gsc-lozenge-sm"></p>
       </div>
 
-      <p id="banner" class="banner" role="status" aria-live="polite"></p>
+      <div class="banner-wrap gsc-banner">
+        <p id="banner" class="banner gsc-banner-title" role="status" aria-live="polite"></p>
+        <p id="wedge-readout" class="wedge-readout gsc-banner-end" role="status" aria-live="polite"></p>
+      </div>
 
       <div class="stage-lower">
 
         <div class="wheel-col">
           <svg id="wheel" class="wheel" viewBox="0 0 400 400" aria-hidden="false"></svg>
-          <p id="wedge-readout" class="wedge-readout" role="status" aria-live="polite"></p>
         </div>
 
         <div class="mid-col">
@@ -128,7 +132,7 @@
               <button id="btn-bonus-clear" class="btn btn-ghost btn-small" type="button">Clear picks</button>
               <button id="btn-bonus-reveal" class="btn btn-gold" type="button">Reveal letters</button>
             </div>
-            <div id="bonus-timer" class="timer-bar hidden" aria-hidden="true"></div>
+            <div id="bonus-timer" class="timer-bar gsc-timer hidden" aria-hidden="true"></div>
             <div id="bonus-judge" class="judge-row hidden">
               <button id="btn-bonus-right" class="btn btn-gold" type="button">Correct</button>
               <button id="btn-bonus-wrong" class="btn btn-ghost" type="button">Time&rsquo;s up</button>
@@ -221,9 +225,9 @@
   </main>
 
   <!-- ===================== Solve dialog ===================== -->
-  <div id="solve-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="solve-title">
-    <div class="modal-card">
-      <h2 id="solve-title" class="modal-title">Solve the puzzle</h2>
+  <div id="solve-dialog" class="modal gsc-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="solve-title">
+    <div class="modal-card gsc-modal">
+      <h2 id="solve-title" class="modal-title gsc-modal-title">Solve the puzzle</h2>
       <p id="solve-who" class="modal-sub"></p>
       <label class="editor-field" for="solve-input">What they said (optional)
         <input id="solve-input" type="text" maxlength="80" autocomplete="off" spellcheck="false">
@@ -248,7 +252,7 @@
     </header>
 
     <p id="p-banner" class="p-banner" role="status" aria-live="polite"></p>
-    <p id="p-category" class="p-category"></p>
+    <p id="p-category" class="p-category gsc-lozenge gsc-lozenge-sm"></p>
     <div id="p-board" class="p-board" aria-label="Puzzle board"></div>
 
     <!-- wait -->
@@ -288,7 +292,7 @@
       <div id="p-bonus-keys" class="p-keyboard" role="group" aria-label="Bonus letters"></div>
       <button id="p-btn-bonus-send" class="btn btn-gold btn-big p-big" type="button">Send letters</button>
       <button id="p-btn-bonus-clear" class="btn btn-ghost btn-small" type="button">Clear</button>
-      <div id="phone-bonus-timer" class="timer-bar timer-bar-phone hidden" aria-hidden="true"></div>
+      <div id="phone-bonus-timer" class="timer-bar timer-bar-phone gsc-timer hidden" aria-hidden="true"></div>
     </div>
 
     <!-- result -->
@@ -296,6 +300,15 @@
       <ol id="p-standings" class="final-list"></ol>
     </div>
   </section>
+
+  <!-- ===================== Game-switch splash (1.2 s title card) ===================== -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite"
+       data-gsc-game="wheel-of-fortune">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title">Wheel of Fortune</p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub">Spin, call a letter, solve the puzzle.</p>
+  </div>
 
   <script src="js/wheel-content.js"></script>
   <script src="js/wheel-core.js"></script>

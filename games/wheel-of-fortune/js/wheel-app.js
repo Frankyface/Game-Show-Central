@@ -15,6 +15,7 @@
 const WheelApp = (function () {
   const STORAGE_KEY = "gsc-wheel-state-v1";
   const TOSSUP_MS = 1200; // one letter every ~1.2 s (spec §1)
+  const SPLASH_MS = 1200; // the game-switch title card (design system v2 §3)
   const MAX_PLAYERS = 6;
 
   const $ = (id) => document.getElementById(id);
@@ -341,6 +342,7 @@ const WheelApp = (function () {
       if (state.wedge) window.WheelDraw.showIndex(svg, state.wedge.index, wedges.length);
     }
     svg.classList.toggle("wheel-idle", state.phase !== "round");
+    svg.classList.toggle("wheel-spinning", spinning); // styling hook only
     const readout = $("wedge-readout");
     if (spinning) readout.textContent = "…";
     else if (state.wedge && state.phase === "round") {
@@ -412,6 +414,20 @@ const WheelApp = (function () {
   }
 
   const isEditorOpen = () => !$("screen-editor").classList.contains("hidden");
+
+  /**
+   * The 1.2 s game-switch title card (design system v2 §3) — a copy of
+   * showSplash() in js/hub-host.js. Presentation only: the node is
+   * pointer-events:none, nothing waits on it, and it is skipped entirely
+   * under prefers-reduced-motion.
+   */
+  function showSplash() {
+    const node = $("gsc-splash");
+    if (!node) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    node.classList.remove("hidden");
+    window.setTimeout(() => node.classList.add("hidden"), SPLASH_MS);
+  }
 
   /* ============ Button wiring ============ */
 
@@ -561,6 +577,7 @@ const WheelApp = (function () {
     }
     if (mode === "embed-host") document.body.classList.add("gsc-embedded");
     booted = true;
+    showSplash();
     wire();
     if (sound()) {
       $("btn-sound").textContent = sound().isOn() ? "\u{1F50A} Sound" : "\u{1F507} Muted";
