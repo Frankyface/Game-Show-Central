@@ -1,0 +1,610 @@
+{
+  "title": "Millionaire — Movies & TV",
+  "settings": {
+    "currency": "$",
+    "moneyTree": [
+      100,
+      200,
+      300,
+      500,
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      125000,
+      250000,
+      500000,
+      1000000
+    ],
+    "safeHavens": [
+      5,
+      10
+    ],
+    "lifelines": {
+      "fifty": true,
+      "phone": true,
+      "audience": true,
+      "switch": false
+    },
+    "phoneSeconds": 30,
+    "audienceSeconds": 20,
+    "fastestFinger": true
+  },
+  "questions": [
+    {
+      "level": 1,
+      "category": "Film",
+      "q": "In The Lion King, what kind of animal is Simba?",
+      "options": [
+        "A tiger",
+        "A lion",
+        "A bear",
+        "A wolf"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 1,
+      "category": "Film",
+      "q": "Which Pixar film is about toys that come to life?",
+      "options": [
+        "Up",
+        "Toy Story",
+        "Brave",
+        "Cars"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 1,
+      "category": "Film",
+      "q": "What colour is the ogre Shrek?",
+      "options": [
+        "Red",
+        "Purple",
+        "Green",
+        "Blue"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 2,
+      "category": "Film",
+      "q": "Which film features a shark terrorising Amity Island?",
+      "options": [
+        "Moby Dick",
+        "Jaws",
+        "Free Willy",
+        "Finding Nemo"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 2,
+      "category": "Sci-fi",
+      "q": "In Star Wars, what is the name of Han Solo's ship?",
+      "options": [
+        "The X-wing",
+        "The Millennium Falcon",
+        "The Star Destroyer",
+        "The Death Star"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 2,
+      "category": "TV",
+      "q": "Which cartoon family is yellow and lives in Springfield?",
+      "options": [
+        "The Simpsons",
+        "The Belchers",
+        "The Flintstones",
+        "The Griffins"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 3,
+      "category": "Film",
+      "q": "Who plays Captain Jack Sparrow in Pirates of the Caribbean?",
+      "options": [
+        "Brad Pitt",
+        "Tom Cruise",
+        "Orlando Bloom",
+        "Johnny Depp"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 3,
+      "category": "Film",
+      "q": "In which film does a boy befriend an alien he calls E.T.?",
+      "options": [
+        "Short Circuit",
+        "E.T. the Extra-Terrestrial",
+        "Flight of the Navigator",
+        "Explorers"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 3,
+      "category": "Film",
+      "q": "What is the name of the wizarding school in Harry Potter?",
+      "options": [
+        "Beauxbatons",
+        "Durmstrang",
+        "Hogwarts",
+        "Ilvermorny"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 4,
+      "category": "Film",
+      "q": "Which animated film features the song Let It Go?",
+      "options": [
+        "Tangled",
+        "Frozen",
+        "Encanto",
+        "Moana"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 4,
+      "category": "TV",
+      "q": "In Friends, what is the name of Ross's pet monkey?",
+      "options": [
+        "Coco",
+        "Milo",
+        "Marcel",
+        "Bongo"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 4,
+      "category": "Film",
+      "q": "Who directed Jurassic Park?",
+      "options": [
+        "George Lucas",
+        "James Cameron",
+        "Steven Spielberg",
+        "Ridley Scott"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 5,
+      "category": "Film",
+      "q": "Which film won the first Academy Award for Best Animated Feature?",
+      "options": [
+        "Shrek",
+        "Monsters, Inc.",
+        "Spirited Away",
+        "Toy Story"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 5,
+      "category": "Film",
+      "q": "In The Matrix, which colour pill does Neo take?",
+      "options": [
+        "The red one",
+        "The green one",
+        "The white one",
+        "The blue one"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 5,
+      "category": "TV",
+      "q": "Which sitcom is set around a New York coffee house called Central Perk?",
+      "options": [
+        "Cheers",
+        "Frasier",
+        "Seinfeld",
+        "Friends"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 6,
+      "category": "Film",
+      "q": "Who directed Pulp Fiction?",
+      "options": [
+        "Paul Thomas Anderson",
+        "Martin Scorsese",
+        "Quentin Tarantino",
+        "Spike Lee"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 6,
+      "category": "TV",
+      "q": "In Breaking Bad, what alias does Walter White use?",
+      "options": [
+        "Heisenberg",
+        "Schrodinger",
+        "Bohr",
+        "Fermi"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 6,
+      "category": "Film",
+      "q": "Which film contains the line “Here's looking at you, kid”?",
+      "options": [
+        "Gone with the Wind",
+        "Citizen Kane",
+        "The Maltese Falcon",
+        "Casablanca"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 7,
+      "category": "Film",
+      "q": "Which actor played the Joker in The Dark Knight?",
+      "options": [
+        "Joaquin Phoenix",
+        "Jared Leto",
+        "Jack Nicholson",
+        "Heath Ledger"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 7,
+      "category": "TV",
+      "q": "In Game of Thrones, what is the Stark family's home called?",
+      "options": [
+        "Riverrun",
+        "Winterfell",
+        "Casterly Rock",
+        "Highgarden"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 7,
+      "category": "Film",
+      "q": "Which 1994 film follows a man named Forrest across three decades?",
+      "options": [
+        "Forrest Gump",
+        "The Shawshank Redemption",
+        "Philadelphia",
+        "Speed"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 8,
+      "category": "Sci-fi",
+      "q": "Which film series features the character Ellen Ripley?",
+      "options": [
+        "Alien",
+        "The Terminator",
+        "Blade Runner",
+        "Predator"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 8,
+      "category": "Music",
+      "q": "Who composed the scores for Star Wars, Jaws and Indiana Jones?",
+      "options": [
+        "Ennio Morricone",
+        "Danny Elfman",
+        "Hans Zimmer",
+        "John Williams"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 8,
+      "category": "TV",
+      "q": "In the US version of The Office, what is the paper company called?",
+      "options": [
+        "Vance Refrigeration",
+        "Dunder Mifflin",
+        "Wernham Hogg",
+        "Sabre"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 9,
+      "category": "Film",
+      "q": "Which was Walt Disney's first feature-length animated film?",
+      "options": [
+        "Pinocchio",
+        "Snow White and the Seven Dwarfs",
+        "Fantasia",
+        "Bambi"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 9,
+      "category": "Film",
+      "q": "Who directed the 1960 film Psycho?",
+      "options": [
+        "Orson Welles",
+        "Billy Wilder",
+        "John Huston",
+        "Alfred Hitchcock"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 9,
+      "category": "Film",
+      "q": "Which film features a hotel called the Overlook?",
+      "options": [
+        "Rosemary's Baby",
+        "The Exorcist",
+        "The Shining",
+        "Psycho"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 10,
+      "category": "Film",
+      "q": "Which film won 11 Academy Awards in 1998?",
+      "options": [
+        "Shakespeare in Love",
+        "Titanic",
+        "Gladiator",
+        "Braveheart"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 10,
+      "category": "Film",
+      "q": "Who played Vito Corleone in the 1972 film The Godfather?",
+      "options": [
+        "Al Pacino",
+        "Marlon Brando",
+        "Robert De Niro",
+        "James Caan"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 10,
+      "category": "Film",
+      "q": "Which country's film industry is nicknamed Nollywood?",
+      "options": [
+        "India",
+        "South Korea",
+        "Brazil",
+        "Nigeria"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 11,
+      "category": "Film",
+      "q": "Which film was the first in a language other than English to win Best Picture?",
+      "options": [
+        "Amour",
+        "Life Is Beautiful",
+        "Roma",
+        "Parasite"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 11,
+      "category": "Sci-fi",
+      "q": "In 2001: A Space Odyssey, what is the ship's computer called?",
+      "options": [
+        "Deep Thought",
+        "HAL 9000",
+        "Mother",
+        "Skynet"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 11,
+      "category": "Film",
+      "q": "Which actress has won four competitive acting Academy Awards?",
+      "options": [
+        "Meryl Streep",
+        "Katharine Hepburn",
+        "Bette Davis",
+        "Ingrid Bergman"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 12,
+      "category": "Film",
+      "q": "Who directed Seven Samurai?",
+      "options": [
+        "Yasujiro Ozu",
+        "Kenji Mizoguchi",
+        "Hayao Miyazaki",
+        "Akira Kurosawa"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 12,
+      "category": "TV",
+      "q": "Which series is set in the fictional town of Hawkins, Indiana?",
+      "options": [
+        "Twin Peaks",
+        "Wayward Pines",
+        "Stranger Things",
+        "Riverdale"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 12,
+      "category": "Film",
+      "q": "What is the last word Charles Foster Kane speaks in Citizen Kane?",
+      "options": [
+        "Snowfall",
+        "Rosebud",
+        "Mother",
+        "Xanadu"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 13,
+      "category": "Film",
+      "q": "Which studio made Spirited Away?",
+      "options": [
+        "Studio Ghibli",
+        "Toei Animation",
+        "Madhouse",
+        "Studio Pierrot"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 13,
+      "category": "Film",
+      "q": "Who was the first African American actor to win Best Actor?",
+      "options": [
+        "Denzel Washington",
+        "Morgan Freeman",
+        "James Earl Jones",
+        "Sidney Poitier"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 13,
+      "category": "Film",
+      "q": "Which 1927 film is credited as the first feature-length talkie?",
+      "options": [
+        "Sunrise",
+        "Wings",
+        "The Jazz Singer",
+        "Metropolis"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 14,
+      "category": "Film",
+      "q": "Which film festival awards the Palme d'Or?",
+      "options": [
+        "Sundance",
+        "Cannes",
+        "Venice",
+        "Berlin"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 14,
+      "category": "Film",
+      "q": "Who directed The Good, the Bad and the Ugly?",
+      "options": [
+        "Sergio Leone",
+        "Sam Peckinpah",
+        "John Ford",
+        "Sergio Corbucci"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 14,
+      "category": "Film",
+      "q": "In which decade was the first three-strip Technicolor feature released?",
+      "options": [
+        "The 1920s",
+        "The 1940s",
+        "The 1950s",
+        "The 1930s"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 15,
+      "category": "Film",
+      "q": "Who was the cinematographer on Citizen Kane?",
+      "options": [
+        "Gordon Willis",
+        "Vittorio Storaro",
+        "Gregg Toland",
+        "James Wong Howe"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 15,
+      "category": "Film",
+      "q": "Which sequel was the first to win the Academy Award for Best Picture?",
+      "options": [
+        "Aliens",
+        "The Godfather Part II",
+        "Rocky II",
+        "French Connection II"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 15,
+      "category": "Film",
+      "q": "In the Lumiere brothers' famous 1895 film, what arrives at La Ciotat?",
+      "options": [
+        "A train",
+        "A carriage",
+        "A ship",
+        "A tram"
+      ],
+      "answer": 0
+    }
+  ],
+  "fastestFinger": [
+    {
+      "q": "Put these films in order of release, earliest first.",
+      "options": [
+        "Jurassic Park",
+        "Star Wars: A New Hope",
+        "Toy Story",
+        "Titanic"
+      ],
+      "order": [
+        1,
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "q": "Put these Best Picture winners in order, earliest first.",
+      "options": [
+        "Parasite",
+        "The Godfather",
+        "Titanic",
+        "Gladiator"
+      ],
+      "order": [
+        1,
+        2,
+        3,
+        0
+      ]
+    }
+  ]
+}

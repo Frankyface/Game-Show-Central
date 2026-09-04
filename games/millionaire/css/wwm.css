@@ -618,3 +618,57 @@ body.gsc-embedded .topbar-actions .room-chip { display: none; }
 
 body.player-mode .topbar, body.player-mode #wwm-main > .screen:not(#screen-phone) { display: none; }
 body.player-mode .overlay { display: none; }
+
+/* ============ Game lobby + library + editor manifest (docs/19) ============ */
+
+/* Above the lifeline overlays: the host can reach the lobby mid-Ask-the-Audience,
+   and the confirm must be the only thing to read at that moment. */
+#wwm-lobby-confirm { z-index: 40; background: rgba(2, 3, 16, 0.92); }
+#wwm-lobby-confirm .overlay-card { max-width: 34rem; }
+
+#wwm-resume-note { text-align: center; margin-top: 0.4rem; }
+
+/* The picker itself is styled by shared/theme-components.css (.gsc-library);
+   this only gives it room under the Questions block. */
+#wwm-library { margin-top: 0.6rem; }
+
+.manifest-line {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.manifest-head { margin: 0 0 0.5rem; font-size: 0.88rem; color: var(--ink-dim); }
+
+.manifest-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.manifest-label {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+
+.manifest-code {
+  flex: 1 1 20rem;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--gold-text);
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+  padding: 0.4em 0.6em;
+}

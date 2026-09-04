@@ -85,6 +85,7 @@ const WwmView = (function () {
     setText("wwm-player-count", `${app.setup.players.length}/16`);
     setText("wwm-source", app.source);
     renderSetupRules(app);
+    renderResume(app);
     $("btn-start").disabled = app.setup.players.length < 1 || !app.game;
   }
 
@@ -101,6 +102,32 @@ const WwmView = (function () {
       const node = $(`wwm-ll-${key}`);
       if (node) node.checked = window.WwmApp.lifelineOn(key);
     });
+  }
+
+  /**
+   * The game parked by "Keep this game" (docs/19 §1). Start is still there and
+   * still starts fresh; Resume puts the parked game back exactly as it was.
+   */
+  function renderResume(app) {
+    const parked = app.resumable;
+    show($("btn-resume"), !!parked);
+    show($("wwm-resume-note"), !!parked);
+    if (!parked) return;
+    const C = core();
+    $("btn-resume").textContent = "Resume the game";
+    setText("wwm-resume-note",
+      `Paused: ${describeParked(parked, C)}. Start the game begins a fresh one instead.`);
+  }
+
+  function describeParked(parked, C) {
+    if (parked.phase === "hotseat") {
+      return `${C.nameOf(parked, parked.current)} on question ${C.playingRung(parked)}`
+        + ` for ${C.formatMoney(parked, C.rungValue(parked, C.playingRung(parked)))}`;
+    }
+    if (parked.phase === "fff") return "the Fastest Finger round";
+    if (parked.phase === "pick") return "choosing the next contestant";
+    if (parked.phase === "result" || parked.phase === "standings") return "the standings";
+    return "a game in progress";
   }
 
   function fffNote(app, fileFff) {

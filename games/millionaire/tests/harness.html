@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Millionaire harness (M-I1–M-I7)</title>
+  <title>Millionaire harness (M-I1–M-I7, X-1–X-5)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
     h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
@@ -26,7 +26,7 @@
   </style>
 </head>
 <body>
-  <h1>Millionaire — loopback harness (success states M-I1 … M-I7, spec 08 §8)</h1>
+  <h1>Millionaire — loopback harness (M-I1 … M-I7, spec 08 §8; X-1 … X-5, docs/19 §4)</h1>
   <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
     embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
     no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.</p>
@@ -38,6 +38,7 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="x-scenarios.js"></script>
   <script>
   (function () {
     "use strict";
@@ -156,12 +157,23 @@
       "../css/wwm.css", "../css/wwm-phone.css",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
-      "fixtures/harness-game.json",
+      "../../../shared/library.js",
+      "../sets/index.json", "../sets/movies-tv.json", "../sets/kids-night.json",
+      "x-scenarios.js", "fixtures/harness-game.json",
     ];
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-wwm-state-v1", "gsc-wwm-draft-v1"];
+    // ?store=harness namespaces this run's localStorage, so a harness run can
+    // never leave harness questions (or a half-played game) in the real host's
+    // save on the same origin (docs/19 §3).
+    const STORE = "harness";
+    const HOST_SRC = `../index.html?embed=host&harness=1&store=${STORE}`
+      + "&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = `../index.html?embed=player&harness=1&store=${STORE}`;
+    const KEYS = [`gsc-wwm-state-v1-${STORE}`, `gsc-wwm-draft-v1-${STORE}`];
+    const REAL_KEYS = ["gsc-wwm-state-v1", "gsc-wwm-draft-v1"];
+    // Whatever the real host had on this origin before the run started. The
+    // point of ?store= is that a run cannot touch it.
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
 
     async function refreshAssets() {
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -560,7 +572,9 @@
       "../js/wwm-content.js", "../js/wwm-select.js", "../js/wwm-core.js", "../js/data.js",
       "../js/wwm-sound.js", "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js",
       "../js/wwm-app.js", "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
-      "../tests/wwm-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
+      "../tests/wwm-core.test.mjs", "../tests/harness.html", "../tests/x-scenarios.js",
+      "../tests/fixtures/harness-game.json",
+      "../sets/index.json", "../sets/movies-tv.json", "../sets/kids-night.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
 
@@ -606,6 +620,31 @@
       check("M-I7 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded"),
         HD().body.className);
+
+      // ---- X-5: the shipped library, and the store namespace ----
+      const manifest = JSON.parse(texts["../sets/index.json"]);
+      const parsed = HW().GSCLibrary.parseManifest(manifest);
+      check("X-5 sets/index.json is a manifest the shared library accepts",
+        parsed.ok === true && parsed.sets.length === 2,
+        parsed.ok ? parsed.sets.map((e) => e.file).join(", ") : parsed.error);
+      const setFiles = ["../sets/movies-tv.json", "../sets/kids-night.json"];
+      const badSets = setFiles.filter((u) => {
+        try { return HW().WwmCore.validateGame(JSON.parse(texts[u])) !== true; } catch (err) { return true; }
+      });
+      check("X-5 every shipped set passes this game's own validateGame",
+        badSets.length === 0
+        && setFiles.every((u) => JSON.parse(texts[u]).questions.length === 45),
+        badSets.length ? badSets.join(", ") : "both sets: 45 questions each, 3 per rung");
+      check("X-5 every set file named in the manifest is actually served",
+        parsed.ok && parsed.sets.every((e) => texts[`../sets/${e.file}`] !== undefined),
+        parsed.ok ? parsed.sets.map((e) => e.file).join(", ") : "-");
+      const realNow = REAL_KEYS.map((k) => localStorage.getItem(k));
+      check("X-5 the harness runs in its own ?store=harness namespace",
+        HW().WwmApp.storeSuffix() === `-${STORE}`
+        && HW().WwmApp.STORAGE_KEY === `gsc-wwm-state-v1-${STORE}`
+        && localStorage.getItem(`gsc-wwm-state-v1-${STORE}`) !== null
+        && realNow.every((v, i) => v === REAL_BEFORE[i]),
+        `wrote ${HW().WwmApp.STORAGE_KEY}; the real host's keys are byte-for-byte unchanged`);
     }
 
     /* ============ Run ============ */
@@ -618,6 +657,12 @@
         await scenarioAudience();
         await scenarioResult();
         await scenarioSplash();
+        const X = window.WwmXScenarios({
+          check, waitFor, click, core, HW, HD, H, bootHost, phoneChoices, answerCorrectly,
+        });
+        await X.scenarioLobby();
+        await X.scenarioLibrary();
+        await X.scenarioLibraryDownload();
         await scenarioEditor();
         await scenarioGates();
       } catch (err) {

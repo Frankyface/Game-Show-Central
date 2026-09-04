@@ -1,0 +1,610 @@
+{
+  "title": "Millionaire — Kids' night",
+  "settings": {
+    "currency": "$",
+    "moneyTree": [
+      100,
+      200,
+      300,
+      500,
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      125000,
+      250000,
+      500000,
+      1000000
+    ],
+    "safeHavens": [
+      5,
+      10
+    ],
+    "lifelines": {
+      "fifty": true,
+      "phone": true,
+      "audience": true,
+      "switch": false
+    },
+    "phoneSeconds": 30,
+    "audienceSeconds": 20,
+    "fastestFinger": true
+  },
+  "questions": [
+    {
+      "level": 1,
+      "category": "Everyday",
+      "q": "How many wheels does a bicycle have?",
+      "options": [
+        "Two",
+        "One",
+        "Three",
+        "Four"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 1,
+      "category": "Animals",
+      "q": "What sound does a cow make?",
+      "options": [
+        "Baa",
+        "Oink",
+        "Neigh",
+        "Moo"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 1,
+      "category": "Colours",
+      "q": "What colour is grass?",
+      "options": [
+        "Blue",
+        "Orange",
+        "Green",
+        "Pink"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 2,
+      "category": "Numbers",
+      "q": "How many fingers are on one hand?",
+      "options": [
+        "Ten",
+        "Five",
+        "Four",
+        "Six"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 2,
+      "category": "Animals",
+      "q": "Which animal has a long trunk?",
+      "options": [
+        "The elephant",
+        "The zebra",
+        "The giraffe",
+        "The hippo"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 2,
+      "category": "Food",
+      "q": "What do bees make?",
+      "options": [
+        "Butter",
+        "Cheese",
+        "Jam",
+        "Honey"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 3,
+      "category": "Words",
+      "q": "What is the opposite of hot?",
+      "options": [
+        "Loud",
+        "Fast",
+        "Cold",
+        "Wet"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 3,
+      "category": "Animals",
+      "q": "How many legs does a dog have?",
+      "options": [
+        "Eight",
+        "Four",
+        "Two",
+        "Six"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 3,
+      "category": "Shapes",
+      "q": "Which shape has three sides?",
+      "options": [
+        "A triangle",
+        "A square",
+        "A circle",
+        "A hexagon"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 4,
+      "category": "Animals",
+      "q": "What do you call a baby cat?",
+      "options": [
+        "A puppy",
+        "A cub",
+        "A foal",
+        "A kitten"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 4,
+      "category": "Space",
+      "q": "Which planet do we live on?",
+      "options": [
+        "Saturn",
+        "Neptune",
+        "Earth",
+        "Mars"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 4,
+      "category": "Nature",
+      "q": "What do plants need from the sky to grow?",
+      "options": [
+        "Thunder",
+        "Rain",
+        "Snow",
+        "Wind"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 5,
+      "category": "Time",
+      "q": "How many days are there in a fortnight?",
+      "options": [
+        "Fourteen",
+        "Seven",
+        "Ten",
+        "Twenty"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 5,
+      "category": "Animals",
+      "q": "Which is the fastest animal on land?",
+      "options": [
+        "The horse",
+        "The ostrich",
+        "The greyhound",
+        "The cheetah"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 5,
+      "category": "Science",
+      "q": "What is frozen water called?",
+      "options": [
+        "Sand",
+        "Salt",
+        "Ice",
+        "Steam"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 6,
+      "category": "Shapes",
+      "q": "How many faces does a cube have?",
+      "options": [
+        "Twelve",
+        "Six",
+        "Four",
+        "Eight"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 6,
+      "category": "Animals",
+      "q": "Which bird cannot fly but swims very well?",
+      "options": [
+        "The penguin",
+        "The eagle",
+        "The robin",
+        "The swan"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 6,
+      "category": "Space",
+      "q": "Which is the biggest planet in our solar system?",
+      "options": [
+        "Mars",
+        "Venus",
+        "Mercury",
+        "Jupiter"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 7,
+      "category": "Time",
+      "q": "How many minutes are there in an hour?",
+      "options": [
+        "Ninety",
+        "One hundred",
+        "Sixty",
+        "Thirty"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 7,
+      "category": "Animals",
+      "q": "What do caterpillars turn into?",
+      "options": [
+        "Birds",
+        "Butterflies",
+        "Bees",
+        "Beetles"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 7,
+      "category": "Geography",
+      "q": "On which continent do lions live in the wild?",
+      "options": [
+        "Africa",
+        "Antarctica",
+        "Australia",
+        "Europe"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 8,
+      "category": "Geography",
+      "q": "Which is the largest ocean on Earth?",
+      "options": [
+        "The Atlantic",
+        "The Indian",
+        "The Arctic",
+        "The Pacific"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 8,
+      "category": "Music",
+      "q": "How many strings does a violin have?",
+      "options": [
+        "Two",
+        "Eight",
+        "Four",
+        "Six"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 8,
+      "category": "Science",
+      "q": "Which gas do plants take in from the air?",
+      "options": [
+        "Nitrogen",
+        "Carbon dioxide",
+        "Oxygen",
+        "Helium"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 9,
+      "category": "Sport",
+      "q": "How many players from one team are on a basketball court?",
+      "options": [
+        "Five",
+        "Seven",
+        "Nine",
+        "Eleven"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 9,
+      "category": "Animals",
+      "q": "Which is the tallest animal in the world?",
+      "options": [
+        "The elephant",
+        "The camel",
+        "The moose",
+        "The giraffe"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 9,
+      "category": "Geography",
+      "q": "What is the capital city of France?",
+      "options": [
+        "Nice",
+        "Marseille",
+        "Paris",
+        "Lyon"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 10,
+      "category": "Numbers",
+      "q": "How many centimetres are there in a metre?",
+      "options": [
+        "Fifty",
+        "One hundred",
+        "Ten",
+        "One thousand"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 10,
+      "category": "Animals",
+      "q": "Which animal is famous for building dams?",
+      "options": [
+        "The beaver",
+        "The otter",
+        "The badger",
+        "The mole"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 10,
+      "category": "Space",
+      "q": "What is the name of the star at the centre of our solar system?",
+      "options": [
+        "Sirius",
+        "Polaris",
+        "Vega",
+        "The Sun"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 11,
+      "category": "Animals",
+      "q": "How many bones are there in a shark's skeleton?",
+      "options": [
+        "Fifty",
+        "Twelve",
+        "None",
+        "Two hundred"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 11,
+      "category": "Words",
+      "q": "What is a group of wolves called?",
+      "options": [
+        "A school",
+        "A pack",
+        "A herd",
+        "A flock"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 11,
+      "category": "Space",
+      "q": "Which is the smallest planet in our solar system?",
+      "options": [
+        "Mercury",
+        "Mars",
+        "Venus",
+        "Saturn"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 12,
+      "category": "Animals",
+      "q": "How many hearts does an octopus have?",
+      "options": [
+        "One",
+        "Two",
+        "Eight",
+        "Three"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 12,
+      "category": "Science",
+      "q": "What is the hardest substance in the human body?",
+      "options": [
+        "Fingernail",
+        "Hair",
+        "Tooth enamel",
+        "Bone"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 12,
+      "category": "Geography",
+      "q": "In which country do kangaroos live in the wild?",
+      "options": [
+        "Canada",
+        "Australia",
+        "Brazil",
+        "Kenya"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 13,
+      "category": "Nature",
+      "q": "How many colours are traditionally counted in a rainbow?",
+      "options": [
+        "Seven",
+        "Five",
+        "Six",
+        "Nine"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 13,
+      "category": "Animals",
+      "q": "What is a baby kangaroo called?",
+      "options": [
+        "A calf",
+        "A cub",
+        "A kid",
+        "A joey"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 13,
+      "category": "Science",
+      "q": "Which is the longest bone in the human body?",
+      "options": [
+        "The humerus",
+        "The rib",
+        "The femur",
+        "The tibia"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 14,
+      "category": "Animals",
+      "q": "How many legs does a butterfly have?",
+      "options": [
+        "Two",
+        "Six",
+        "Four",
+        "Eight"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 14,
+      "category": "Geography",
+      "q": "Which is the largest desert in Africa?",
+      "options": [
+        "The Sahara",
+        "The Kalahari",
+        "The Namib",
+        "The Gobi"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 14,
+      "category": "Animals",
+      "q": "Which of these animals sleeps standing up?",
+      "options": [
+        "The bear",
+        "The rabbit",
+        "The frog",
+        "The horse"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 15,
+      "category": "Science",
+      "q": "How many teeth does an adult human usually have?",
+      "options": [
+        "Twenty-eight",
+        "Forty",
+        "Thirty-two",
+        "Twenty"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 15,
+      "category": "Animals",
+      "q": "Which mammal lays eggs and has a bill like a duck?",
+      "options": [
+        "The mole",
+        "The platypus",
+        "The otter",
+        "The beaver"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 15,
+      "category": "Animals",
+      "q": "How many compartments does a cow's stomach have?",
+      "options": [
+        "Four",
+        "Two",
+        "One",
+        "Six"
+      ],
+      "answer": 0
+    }
+  ],
+  "fastestFinger": [
+    {
+      "q": "Put these animals in order by size, smallest first.",
+      "options": [
+        "An elephant",
+        "A mouse",
+        "A horse",
+        "A cat"
+      ],
+      "order": [
+        1,
+        3,
+        2,
+        0
+      ]
+    },
+    {
+      "q": "Put these in order, smallest number first.",
+      "options": [
+        "A dozen",
+        "A pair",
+        "A hundred",
+        "A score"
+      ],
+      "order": [
+        1,
+        0,
+        3,
+        2
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "file": "movies-tv.json",
+    "name": "Movies & TV",
+    "description": "Forty-five film and television questions, from Shrek's colour to Citizen Kane's cinematographer.",
+    "by": "Game Show Central",
+    "counts": {
+      "questions": 45,
+      "fastest finger": 2
+    }
+  },
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Gentle from top to bottom: animals, shapes and space, so a younger hot seat still climbs the tree.",
+    "by": "Game Show Central",
+    "counts": {
+      "questions": 45,
+      "fastest finger": 2
+    }
+  }
+]

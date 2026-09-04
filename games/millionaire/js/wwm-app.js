@@ -11,7 +11,20 @@
 
 "use strict";
 
-const WWM_STORAGE_KEY = "gsc-wwm-state-v1";
+/**
+ * `?store=NAME` moves this page's localStorage into its own namespace. The
+ * loopback harness runs on `?store=harness` so a test run can never leave a
+ * half-played game (or harness questions) in the real host's save on the same
+ * origin. Anything but letters, digits and hyphens is stripped.
+ */
+function wwmStoreSuffix() {
+  if (typeof location === "undefined") return "";
+  const raw = new URLSearchParams(location.search).get("store") || "";
+  const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+  return clean ? `-${clean}` : "";
+}
+
+const WWM_STORAGE_KEY = `gsc-wwm-state-v1${wwmStoreSuffix()}`;
 
 /* ============ App state ============ */
 
@@ -21,6 +34,10 @@ const wwmListeners = [];
 function wwmFreshApp() {
   return {
     core: null,
+    // The game the host stepped away from with "Keep this game". It is a plain
+    // core snapshot, so an open audience window keeps its absolute deadline and
+    // resuming lands exactly where they left off. Never a history mutation.
+    resumable: null,
     game: null,
     setup: { players: [], fastestFinger: null, lifelines: null },
     source: "loading…",
@@ -76,7 +93,8 @@ function wwmCue(event, before, after) {
 
 function wwmSerialise() {
   return {
-    core: wwmApp.core, game: wwmApp.game, setup: wwmApp.setup, source: wwmApp.source,
+    core: wwmApp.core, resumable: wwmApp.resumable,
+    game: wwmApp.game, setup: wwmApp.setup, source: wwmApp.source,
     sourceKind: wwmApp.sourceKind, sourceUrl: wwmApp.sourceUrl, roomCode: wwmApp.roomCode,
   };
 }
@@ -119,6 +137,10 @@ function wwmLoadSaved() {
     if (!saved || typeof saved !== "object") return null;
     if (saved.game) window.WwmCore.validateGame(saved.game);
     if (typeof saved.roomCode !== "string") saved.roomCode = null;
+    if (saved.resumable !== null && saved.resumable !== undefined && !wwmUsableCore(saved.resumable)) {
+      console.warn("Ignoring a damaged resumable snapshot.");
+      saved.resumable = null;
+    }
     if (saved.core !== null && saved.core !== undefined && !wwmUsableCore(saved.core)) {
       console.warn("Ignoring a saved game with a damaged state object.");
       return Object.assign({}, saved, { core: null });
@@ -178,7 +200,7 @@ function wwmUseGame(game, source, kind) {
   // a reload of that link must fetch it again rather than resurrect this copy.
   wwmSet({
     game, source: source || "Custom questions", sourceKind: kind || "upload",
-    sourceUrl: null, core: null,
+    sourceUrl: null, core: null, resumable: null,
     setup: Object.assign({}, wwmApp.setup, { fastestFinger: null, lifelines: null }),
   });
   wwmError("");
@@ -264,11 +286,71 @@ function wwmStart() {
     if (!wwmApp.game) throw new Error("Questions are still loading — try again in a second.");
     const players = wwmApp.setup.players.map((p) => ({ pid: p.pid, name: p.name }));
     const state = window.WwmCore.createState(wwmEffectiveGame(), players, {});
-    wwmSet({ core: window.WwmCore.reduce(state, { type: "start" }, Math.random, Date.now()) });
+    wwmSet({
+      core: window.WwmCore.reduce(state, { type: "start" }, Math.random, Date.now()),
+      resumable: null,          // Start replaces whatever was on the shelf
+    });
     wwmError("");
   } catch (err) {
     wwmError(err.message);
   }
+}
+
+/* ============ The game lobby (docs/19 §1) ============ */
+
+/** A one-line description of what Resume would put back on screen. */
+function wwmResumeNote(state) {
+  if (!state) return "";
+  const C = window.WwmCore;
+  if (state.phase === "hotseat") {
+    return `${C.nameOf(state, state.current)} on question ${C.playingRung(state)}`
+      + ` for ${C.formatMoney(state, C.rungValue(state, C.playingRung(state)))}`;
+  }
+  if (state.phase === "fff") return "the Fastest Finger round";
+  if (state.phase === "pick") return "choosing the next contestant";
+  if (state.phase === "result" || state.phase === "standings") return "the standings";
+  return "the game in progress";
+}
+
+function wwmOpenLobbyConfirm() {
+  const state = wwmApp.core;
+  setText("wwm-lobby-sub", state
+    ? `Keep ${wwmResumeNote(state)} to come back to it, or start over with the same`
+      + " contestants, questions and settings."
+    : "Nothing is in progress — this just takes you to the setup screen.");
+  show($("btn-lobby-keep"), !!state);
+  show($("wwm-lobby-confirm"), true);
+  const first = state ? $("btn-lobby-keep") : $("btn-lobby-restart");
+  if (first) first.focus();
+}
+
+function wwmCloseLobbyConfirm() {
+  show($("wwm-lobby-confirm"), false);
+  const back = $("btn-game-lobby");
+  if (back) back.focus();
+}
+
+/** Keep this game: park it on the shelf and show setup with a Resume button. */
+function wwmLobbyKeep() {
+  wwmCloseLobbyConfirm();
+  if (!wwmApp.core) return;
+  wwmSet({ resumable: wwmApp.core, core: null });
+  wwmError("");
+}
+
+/** Start over: the game goes, the roster, content and settings stay. */
+function wwmLobbyRestart() {
+  wwmCloseLobbyConfirm();
+  wwmSet({ core: null, resumable: null });
+  wwmError("");
+}
+
+/** Put the parked game back exactly as it was, deadlines and all. */
+function wwmResume() {
+  const parked = wwmApp.resumable;
+  if (!parked) return;
+  wwmSet({ core: parked, resumable: null });
+  wwmError("");
 }
 
 /* ============ Host actions ============ */
@@ -311,12 +393,15 @@ function wwmBindRoom(code) {
   const manual = new Set(wwmApp.setup.players.filter((p) => p.manual).map((p) => p.pid));
   const players = wwmApp.setup.players.filter((p) => p.manual);
   let core = wwmApp.core;
+  let resumable = wwmApp.resumable;
   let message = "";
-  if (core && core.contestants.some((c) => !manual.has(c.pid))) {
+  const fromOldRoom = (s) => !!s && s.contestants.some((c) => !manual.has(c.pid));
+  if (fromOldRoom(core)) {
     core = null;
     message = "This is a new room, so the game in progress was cleared — the phone seats belonged to the old one.";
   }
-  wwmSet({ roomCode: code, core, setup: Object.assign({}, wwmApp.setup, { players }) });
+  if (fromOldRoom(resumable)) resumable = null;
+  wwmSet({ roomCode: code, core, resumable, setup: Object.assign({}, wwmApp.setup, { players }) });
   if (message) wwmError(message);
 }
 
@@ -358,6 +443,7 @@ function wwmWireSetup() {
   $("btn-load-json").addEventListener("click", () => $("wwm-file").click());
   $("wwm-file").addEventListener("change", wwmOnFile);
   $("btn-start").addEventListener("click", wwmStart);
+  $("btn-resume").addEventListener("click", wwmResume);
   $("wwm-fff").addEventListener("change", (e) => {
     wwmSet({ setup: Object.assign({}, wwmApp.setup, { fastestFinger: e.target.checked }) });
   });
@@ -422,9 +508,45 @@ function wwmWireChrome() {
   };
   sound.addEventListener("click", () => { window.WwmSound.toggle(); paint(); });
   paint();
+  $("btn-game-lobby").addEventListener("click", wwmOpenLobbyConfirm);
+  $("btn-lobby-keep").addEventListener("click", wwmLobbyKeep);
+  $("btn-lobby-restart").addEventListener("click", wwmLobbyRestart);
+  $("btn-lobby-cancel").addEventListener("click", wwmCloseLobbyConfirm);
+  $("wwm-lobby-confirm").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") wwmCloseLobbyConfirm();
+  });
   document.addEventListener("keydown", wwmOnKey);
   window.addEventListener("beforeunload", wwmSave);
   document.addEventListener("visibilitychange", () => { if (document.hidden) wwmSave(); });
+}
+
+/* ============ The question-set library (docs/19 §2) ============ */
+
+let wwmPicker = null;
+
+/**
+ * Mount the shared picker under the Questions section. Everything it hands
+ * back goes through this game's own validateGame before it becomes the
+ * content, and a page opened from disk simply gets a plain-English line
+ * instead of a picker (shared/library.js never throws).
+ */
+function wwmMountLibrary() {
+  const box = $("wwm-library");
+  const lib = window.GSCLibrary;
+  if (!box || !lib || typeof lib.mountPicker !== "function") return;
+  if (wwmPicker) wwmPicker.destroy();
+  wwmPicker = lib.mountPicker(box, {
+    gameDir: "",
+    label: "Saved sets",
+    validate: (json) => window.WwmCore.validateGame(json),
+    onPick: (json, meta) => {
+      try {
+        wwmUseGame(json, `set: ${meta.name}`, "library");
+      } catch (err) {
+        wwmError(`That set could not be used: ${err.message}`);
+      }
+    },
+  });
 }
 
 /* ============ Splash ============ */
@@ -482,6 +604,7 @@ function wwmChooseContent(saved, loaded) {
   if (saved && saved.setup) patch.setup = wwmMergeRoster(saved.setup, wwmApp.setup.players);
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
+  if (useSaved && saved.resumable) patch.resumable = saved.resumable;
   if (!useSaved && saved && saved.core && !wwmLoadMessage) {
     wwmLoadMessage = "Loaded the questions from the link, so the game in progress was cleared.";
   }
@@ -509,6 +632,7 @@ async function wwmBoot() {
 
   const loaded = await wwmLoadContent();
   wwmSet(wwmChooseContent(saved, loaded));
+  wwmMountLibrary();
   if (wwmLoadMessage) wwmError(wwmLoadMessage);
 }
 
@@ -532,6 +656,10 @@ window.WwmApp = {
   lifelineOn: wwmLifelineOn,
   bindRoom: wwmBindRoom,
   showSplash: wwmShowSplash,
+  storeSuffix: wwmStoreSuffix,
+  openLobby: wwmOpenLobbyConfirm,
+  resume: wwmResume,
+  picker: () => wwmPicker,
   setPhoneCount: (n) => { if (n !== wwmApp.phoneCount) wwmSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: WWM_STORAGE_KEY,
 };

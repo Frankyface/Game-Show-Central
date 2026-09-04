@@ -21,12 +21,16 @@ lifelines and a Fastest Finger First round on phones. Part of
 | From disk (`file://`) | works — `questions.json` can't be fetched, so the built-in copy in `js/data.js` is used, and phones are unavailable |
 | Locally with phones | `python -m http.server 8620` at the repo root, then `http://<your-ip>:8620/games/millionaire/` |
 
+Add `?store=NAME` to the URL to give a tab its own saved game — the harness uses
+`?store=harness` so a test run can never overwrite a real host's save on the
+same origin.
+
 Tests:
 
 ```bash
 cd games/millionaire && node --test          # the pure core, M-U1 … M-U10
 python -m http.server 8620                   # then open
-# http://localhost:8620/games/millionaire/tests/harness.html    (M-I1 … M-I7)
+# http://localhost:8620/games/millionaire/tests/harness.html    (M-I1 … M-I7, X-1 … X-5)
 ```
 
 ## 2. Playing it
@@ -54,6 +58,13 @@ python -m http.server 8620                   # then open
    night** for the standings. **End the night** from the hot seat also works and
    banks whoever is playing at their walk-away amount first. The hub's night
    scoreboard is told each total.
+6. **⟲ Game lobby** (in the toolbar, any time) asks two questions:
+   **Keep this game** parks it and goes back to setup, where a **Resume the
+   game** button puts it back exactly as it was — same rung, same lifelines,
+   and a running Ask the Audience window keeps its deadline. **Start over**
+   throws the game away but keeps the contestants, the questions and the
+   settings. Neither touches the undo history, and a parked game survives a
+   reload.
 
 Every lifeline and every walk-away a phone asks for is only a *request*: a
 banner appears on the host screen and nothing happens until the host confirms.
@@ -126,7 +137,30 @@ The shipped file has **45 questions** (3 per rung, rising in difficulty) and
 when `questions.json` cannot be fetched; the unit tests fail if they drift
 apart, so regenerate both together.
 
-## 5. Phones
+## 5. The question-set library
+
+`sets/` holds extra content files with a manifest beside them:
+
+```
+sets/index.json        [{ "file": "kids-night.json", "name": "Kids' night", … }]
+sets/movies-tv.json    45 film and television questions, 3 per rung
+sets/kids-night.json   45 gentler questions, 3 per rung
+```
+
+The setup screen's **Saved sets** picker lists them, previews the one you have
+highlighted, and **Load set** makes it the current content — through the same
+`validateGame` as every other route, with the source note becoming
+`set: Kids' night`. Opened straight from disk the picker hides itself and says
+why; `questions.json` stays the default either way.
+
+**Adding your own set.** Static hosting cannot write files, so the editor gives
+you the two things to commit: **Download for the library** saves the JSON under
+a name derived from the title and prints the path to put it at
+(`games/millionaire/sets/<name>.json`) plus the exact line to paste into
+`sets/index.json`, each with a Copy button. Commit both and the set appears in
+the picker for everyone.
+
+## 6. Phones
 
 | Phone screen | What it shows |
 |---|---|
@@ -142,7 +176,7 @@ The host is authoritative. A phone message is validated
 receives its own view, and no view ever contains the correct answer — not the
 ballot, not the hot seat, not the Fastest Finger order.
 
-## 6. Files
+## 7. Files
 
 ```
 index.html                 host screens + phone screens in one page
@@ -162,14 +196,18 @@ js/timer-core.js           PURE block-countdown math (vendored from Jeopardy)
 js/wwm-timer.js            the lifeline countdown DOM glue
 questions.json             the shipped question set
 tests/wwm-core.test.mjs    node:test suite (M-U1 … M-U10)
-tests/harness.html         loopback harness (M-I1 … M-I7)
+tests/harness.html         loopback harness (M-I1 … M-I7, X-1 … X-5)
+tests/x-scenarios.js       the X-1/X-2/X-3 scenarios, loaded by the harness
+sets/index.json            the question-set library manifest
+sets/*.json                the sets themselves
 ```
 
 Game state is one serialisable object saved under `gsc-wwm-state-v1`; the
-editor draft lives under `gsc-wwm-draft-v1`. The saved game is scoped to the
+editor draft lives under `gsc-wwm-draft-v1`. Both take a `-NAME` suffix when
+the page is opened with `?store=NAME`. The saved game is scoped to the
 room it was played in, so a new room never inherits the old room's seats.
 
-## 7. Accessibility and known limits
+## 8. Accessibility and known limits
 
 - Every control is a real `<button>`; option states carry a visually hidden
   word ("selected", "locked in", "correct answer", "removed by 50:50") so
@@ -200,6 +238,9 @@ Known limits:
   reveal and next, fifteen times), and it keeps the saved game small enough for
   `localStorage`. To start a contestant again, finish or walk them and use
   **Next contestant**.
+- **A parked game is not a save slot.** There is one shelf: **Keep this game**
+  replaces whatever was on it, and **Start the game** or loading new questions
+  clears it. Opening a new room clears it too if it held phone contestants.
 - **Clearing `localStorage` by hand only works with the tab closed.** The game
   saves itself on `beforeunload`, so wiping the key from the console and
   reloading the same tab writes it straight back. Close the tab first, or use

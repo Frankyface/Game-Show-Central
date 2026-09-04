@@ -326,3 +326,105 @@ Counts held to what the tester recorded: `node --test` **67/67** and
 embedded skip, is untouched). D2 is deliberately *not* given a new harness check
 so those totals stay comparable across runs; it was verified live instead — see
 the T3 notes below.
+
+## 10. Cross-cutting round (docs/19)
+
+All three items done inside `games/millionaire/**`. Re-verified on port 8672:
+`node --test` **67/67**, `tests/harness.html` **79/79** (was 55 — 24 new checks
+for X-1, X-2, X-3 and X-5), static gates clean, every file under 800 lines.
+
+### §1 — the Game lobby control (X-1)
+
+`#btn-game-lobby` ("⟲ Game lobby") sits in the host toolbar between **Sound**
+and **Question editor**. It opens `#wwm-lobby-confirm`, a `role="dialog"` card
+that names what is at stake — *"Keep Ada on question 3 for $300 to come back to
+it, or start over with the same contestants, questions and settings"* — and
+offers **Keep this game** / **Start over** / **Cancel** (Escape cancels).
+
+- **Keep this game** moves the live state to `app.resumable` and nulls `core`,
+  so the setup screen returns with a **Resume the game** button and a line
+  saying what is paused. **Resume** puts it back byte-for-byte.
+- **Start over** clears both; the roster, the loaded questions and the lifeline
+  and Fastest Finger toggles all stay.
+- Neither touches `core.history`, so undo is unaffected — the parked state is a
+  plain snapshot, not a history entry.
+- The shelf is persisted, so a parked game survives a reload; `bindRoom` scrubs
+  it along with `core` when a *new* room's pids would be inherited; **Start**
+  and loading new content both clear it.
+
+Because the audience and phone windows already carry absolute deadlines,
+resuming mid-lifeline is exact. The harness proves it: park a game with an
+**open Ask the Audience window and a vote already in**, resume, and the window
+is still open with the *identical* deadline and vote count, `JSON.stringify`
+equal to the state before parking. Verified from the standings, from the hot
+seat mid-lifeline, and across a reload; embedded in the harness and standalone
+in the browser at `?store=manual`.
+
+### §2 — the question-set library (X-2, X-3)
+
+- `sets/index.json` plus two original themed sets, each **45 questions, 3 per
+  rung, rising difficulty**, with 2 Fastest Finger questions and answers spread
+  over all four letters:
+  - **Movies & TV** — Shrek's colour up to Citizen Kane's cinematographer.
+  - **Kids' night** — animals, shapes and space, gentle from top to bottom.
+  Both pass `WwmCore.validateGame` and raise no `warningsFor` advice.
+- `GSCLibrary.mountPicker` is mounted into `#wwm-library`, directly under the
+  Questions block on setup, with `validate: WwmCore.validateGame` and
+  `onPick → wwmUseGame(json, "set: <name>")`. The source note becomes
+  `set: Movies & TV`, and adopting a set clears any in-progress or parked game
+  built on the old questions. `shared/library.js` is loaded beside the rest of
+  the shared stack.
+- Harness checks cover the happy path (two sets listed, preview line, load →
+  validated → source note) plus the two failure paths, by mounting extra
+  pickers with a stubbed `fetch`: a manifest that is not a list, and a
+  `file://`-style fetch rejection. Both hide the control, print a plain-English
+  line, and leave the rest of setup untouched.
+- The editor's **Download for the library** validates, downloads the set under a
+  filename derived from the title (`millionaire-kids-night.json`), and prints
+  the two things to commit — the path and the exact manifest line — each with a
+  Copy button. X-3 asserts the downloaded file passes `validateGame`, the
+  filename matches the manifest's `file` rule, and the printed line parses and
+  is accepted by `GSCLibrary.parseManifest`.
+
+### §3 — `?store=NAME` namespacing
+
+`wwmStoreSuffix()` (copied from `games/price-is-right/js/tpir-app.js`) strips
+everything but letters, digits and hyphens and suffixes both keys, so the saved
+game is `gsc-wwm-state-v1-harness` and the draft `gsc-wwm-draft-v1-harness`
+under `?store=harness`. The harness loads every frame with it and X-5 asserts
+the namespaced key was written **and** that the real host's two keys are
+byte-for-byte unchanged across the whole run (snapshotted before the first
+frame loads, compared at the end).
+
+### Files added or changed
+
+| File | Lines | Change |
+|---|---:|---|
+| `sets/index.json` | 22 | new — the manifest |
+| `sets/movies-tv.json` | 610 | new — 45 questions + 2 Fastest Finger |
+| `sets/kids-night.json` | 610 | new — 45 questions + 2 Fastest Finger |
+| `tests/x-scenarios.js` | 228 | new — the X-1/X-2/X-3 scenarios |
+| `index.html` | 334 | the lobby control + confirm, Resume, `#wwm-library`, the editor's library button, `shared/library.js` |
+| `js/wwm-app.js` | 671 | `?store=` suffix, `resumable` + the keep/resume/start-over flow, the picker mount |
+| `js/wwm-view.js` | 449 | renders Resume and its "Paused: …" line |
+| `js/wwm-editor.js` | 488 | namespaced draft key, Download for the library + the manifest guidance |
+| `css/wwm.css` | 674 | the confirm's stacking, the library slot, the manifest block |
+| `tests/harness.html` | 677 | `?store=harness`, the new asset/source lists, the X-5 gate checks |
+
+**One structural note for the orchestrator:** adding the X scenarios pushed
+`tests/harness.html` to 863 lines, over the house cap, so the three new
+scenarios moved into `tests/x-scenarios.js`. The harness loads it first and
+calls `window.WwmXScenarios(bag)` with its own helpers (`check`, `waitFor`,
+`click`, `core`, `HW`, `HD`, `H`, `bootHost`, `phoneChoices`,
+`answerCorrectly`), so they still run inside the same shell against the same
+frames and report through the same `check()` and the same `#results` list —
+`window.__WWM_HARNESS__` is unchanged. Both files are in the gate lists.
+
+### Known gaps from this round
+
+- The library picker mounts once at boot. A set added to `sets/index.json`
+  while the page is open needs a reload — acceptable for committed content.
+- **Download for the library** cannot write the file or edit the manifest
+  (static hosting); it prints both, which is the workflow docs/19 §2 asks for.
+- X-4 does not apply here: the three game fixes are for The Price Is Right,
+  Deal or No Deal and Chain Reaction.

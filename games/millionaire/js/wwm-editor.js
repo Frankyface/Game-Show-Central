@@ -8,7 +8,9 @@
 
 "use strict";
 
-const WWM_DRAFT_KEY = "gsc-wwm-draft-v1";
+// Namespaced by ?store= the same way the saved game is (wwm-app.js), so a
+// harness run never overwrites the real host's draft on the same origin.
+const WWM_DRAFT_KEY = `gsc-wwm-draft-v1${window.WwmApp ? window.WwmApp.storeSuffix() : ""}`;
 
 let wwmDraft = null;
 let wwmOnlyThin = false;
@@ -324,6 +326,18 @@ function wwmRenderWarnings() {
 
 /* ============ Actions ============ */
 
+function wwmDownloadJson(game, filename) {
+  const blob = new Blob([JSON.stringify(game, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function wwmEditorDownload() {
   try {
     window.WwmCore.validateGame(wwmDraft);
@@ -331,16 +345,75 @@ function wwmEditorDownload() {
     wwmEditorMessage(`Fix this before downloading: ${err.message}`);
     return;
   }
-  const blob = new Blob([JSON.stringify(wwmDraft, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "questions.json";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  wwmDownloadJson(wwmDraft, "questions.json");
   wwmEditorMessage("");
+}
+
+/**
+ * Download for the library (docs/19 §2). Static hosting cannot write files, so
+ * this is the honest workflow: it downloads the set under a filename derived
+ * from the title and prints the exact manifest line to paste into
+ * sets/index.json plus the path to commit the file to.
+ */
+function wwmEditorLibraryDownload() {
+  try {
+    window.WwmCore.validateGame(wwmDraft);
+  } catch (err) {
+    wwmEditorMessage(`Fix this before downloading: ${err.message}`);
+    return;
+  }
+  const file = wwmLibraryFileName(wwmDraft.title);
+  wwmDownloadJson(wwmDraft, file);
+  wwmShowManifestLine(file);
+  wwmEditorMessage("");
+}
+
+/** "Movies & TV night!" -> "movies-tv-night.json" (the manifest's file rule). */
+function wwmLibraryFileName(title) {
+  const stem = String(title || "set")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return `${stem || "set"}.json`;
+}
+
+/** The two lines a host has to act on, each with its own copy button. */
+function wwmShowManifestLine(file) {
+  const box = $("wwm-editor-manifest");
+  if (!box) return;
+  const entry = {
+    file,
+    name: wwmDraft.title || file.replace(/\.json$/, ""),
+    description: "",
+    by: "",
+    counts: { questions: wwmDraft.questions.length, "fastest finger": wwmDraft.fastestFinger.length },
+  };
+  box.replaceChildren();
+  box.appendChild(el("p", "manifest-head", "Saved. To put it in the library, commit two things:"));
+  box.appendChild(wwmManifestRow("1. the file", `games/millionaire/sets/${file}`));
+  box.appendChild(wwmManifestRow("2. this line in games/millionaire/sets/index.json",
+    JSON.stringify(entry)));
+  show(box, true);
+}
+
+function wwmManifestRow(label, value) {
+  const row = el("div", "manifest-row");
+  row.appendChild(el("p", "manifest-label", label));
+  const code = el("code", "manifest-code", value);
+  row.appendChild(code);
+  const copy = el("button", "btn btn-ghost btn-small", "Copy");
+  copy.type = "button";
+  copy.addEventListener("click", () => {
+    const done = () => { copy.textContent = "Copied"; setTimeout(() => { copy.textContent = "Copy"; }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(done, () => { copy.textContent = "Select it by hand"; });
+    } else {
+      copy.textContent = "Select it by hand";
+    }
+  });
+  row.appendChild(copy);
+  return row;
 }
 
 function wwmEditorUse() {
@@ -376,6 +449,7 @@ function wwmWireEditor() {
   $("btn-editor").addEventListener("click", wwmOpenEditor);
   $("btn-editor-close").addEventListener("click", wwmCloseEditor);
   $("btn-editor-download").addEventListener("click", wwmEditorDownload);
+  $("btn-editor-library").addEventListener("click", wwmEditorLibraryDownload);
   $("btn-editor-use").addEventListener("click", wwmEditorUse);
   $("btn-editor-reset").addEventListener("click", () => {
     wwmDraft = wwmDeepCopy(window.WWM_DEFAULT_GAME || wwmBlankDraft());
@@ -408,6 +482,7 @@ window.WwmEditor = {
   open: wwmOpenEditor,
   close: wwmCloseEditor,
   draft: () => wwmDraft,
+  libraryFileName: wwmLibraryFileName,
   setDraft: (draft) => { wwmDraft = draft; wwmTouchDraft(); },
   DRAFT_KEY: WWM_DRAFT_KEY,
 };
