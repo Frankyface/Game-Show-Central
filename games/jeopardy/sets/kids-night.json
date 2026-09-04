@@ -1,0 +1,60 @@
+{
+  "title": "Kids' Night",
+  "categories": [
+    {
+      "name": "Animal Kingdom",
+      "clues": [
+        { "value": 200, "clue": "This is the only mammal that can truly fly.", "answer": "What is a bat?" },
+        { "value": 400, "clue": "A group of these tall African animals is called a tower.", "answer": "What is a giraffe?" },
+        { "value": 600, "clue": "This ocean animal has three hearts and blue blood.", "answer": "What is an octopus?" },
+        { "value": 800, "clue": "Baby kangaroos have this name, and they ride in their mother's pouch.", "answer": "What is a joey?" },
+        { "value": 1000, "clue": "This bird can't fly but can run faster than a horse, and lays the biggest egg of any living animal.", "answer": "What is an ostrich?" }
+      ]
+    },
+    {
+      "name": "Storybook Heroes",
+      "clues": [
+        { "value": 200, "clue": "This bear from darkest Peru loves marmalade sandwiches and wears a red hat.", "answer": "Who is Paddington?" },
+        { "value": 400, "clue": "Charlie Bucket wins a golden ticket to this man's chocolate factory.", "answer": "Who is Willy Wonka?" },
+        { "value": 600, "clue": "This green ogre lives in a swamp and befriends a talking donkey.", "answer": "Who is Shrek?" },
+        { "value": 800, "clue": "Roald Dahl's tiny genius with telekinetic powers has this one-word name.", "answer": "Who is Matilda?" },
+        { "value": 1000, "clue": "In the Chronicles of Narnia, this great lion rules over the land beyond the wardrobe.", "answer": "Who is Aslan?" }
+      ]
+    },
+    {
+      "name": "Space Camp",
+      "clues": [
+        { "value": 200, "clue": "This is the closest star to Earth.", "answer": "What is the Sun?" },
+        { "value": 400, "clue": "This planet is famous for its bright rings made of ice and rock.", "answer": "What is Saturn?" },
+        { "value": 600, "clue": "In 1969, this astronaut was the first person to walk on the Moon.", "answer": "Who is Neil Armstrong?" },
+        { "value": 800, "clue": "Our solar system sits in this spiral galaxy, named after a spilled drink.", "answer": "What is the Milky Way?" },
+        { "value": 1000, "clue": "This is the name for a rock from space that survives the fall and lands on Earth.", "answer": "What is a meteorite?" }
+      ]
+    },
+    {
+      "name": "Riddle Me This",
+      "clues": [
+        { "value": 200, "clue": "It has hands and a face but no arms or legs, and it tells you when to go to bed.", "answer": "What is a clock?" },
+        { "value": 400, "clue": "You can catch it but you can't throw it, and it usually comes with a runny nose.", "answer": "What is a cold?" },
+        { "value": 600, "clue": "It gets wetter and wetter the more it dries.", "answer": "What is a towel?" },
+        { "value": 800, "clue": "It follows you everywhere in the sunshine but disappears in the dark.", "answer": "What is your shadow?", "dailyDouble": true },
+        { "value": 1000, "clue": "The more of them you take, the more you leave behind.", "answer": "What are footsteps?" }
+      ]
+    },
+    {
+      "name": "Food Fight",
+      "clues": [
+        { "value": 200, "clue": "This yellow fruit comes in a bunch and monkeys are said to love it.", "answer": "What is a banana?" },
+        { "value": 400, "clue": "Honey is made by these busy striped insects.", "answer": "What are bees?" },
+        { "value": 600, "clue": "This vegetable makes almost everyone cry when you chop it.", "answer": "What is an onion?" },
+        { "value": 800, "clue": "Popcorn is made by heating these hard little kernels until they burst.", "answer": "What is corn?" },
+        { "value": 1000, "clue": "Chocolate is made from the roasted beans of this tropical tree.", "answer": "What is cacao?" }
+      ]
+    }
+  ],
+  "finalJeopardy": {
+    "category": "Around the World",
+    "clue": "This is the largest ocean on Earth, covering more of the planet than all the land put together.",
+    "answer": "What is the Pacific Ocean?"
+  }
+}

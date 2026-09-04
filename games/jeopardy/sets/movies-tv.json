@@ -1,0 +1,60 @@
+{
+  "title": "Movies & TV",
+  "categories": [
+    {
+      "name": "Opening Lines",
+      "clues": [
+        { "value": 200, "clue": "\"A long time ago in a galaxy far, far away....\" scrolls up the screen at the start of this 1977 space opera.", "answer": "What is Star Wars?" },
+        { "value": 400, "clue": "\"Call me Ishmael\" opens the novel behind this whale-hunting story, filmed with Gregory Peck as Captain Ahab.", "answer": "What is Moby-Dick?" },
+        { "value": 600, "clue": "\"It was the best of times, it was the worst of times\" begins the Dickens novel set in London and this other city.", "answer": "What is Paris?" },
+        { "value": 800, "clue": "\"I believe in America\" is the first line spoken in this 1972 Coppola film, by an undertaker asking a favour.", "answer": "What is The Godfather?" },
+        { "value": 1000, "clue": "\"My mother is a fish\" is a one-sentence chapter in the Faulkner novel that shares its title with this 1930 phrase about a dying journey.", "answer": "What is As I Lay Dying?" }
+      ]
+    },
+    {
+      "name": "Sitcom Addresses",
+      "clues": [
+        { "value": 200, "clue": "Six friends drank coffee at Central Perk in this New York borough-adjacent neighbourhood of Manhattan.", "answer": "What is Greenwich Village?" },
+        { "value": 400, "clue": "The Simpsons live at 742 Evergreen Terrace in this town of famously unspecified state.", "answer": "What is Springfield?" },
+        { "value": 600, "clue": "Dunder Mifflin's most watchable branch sat in this Pennsylvania city.", "answer": "What is Scranton?" },
+        { "value": 800, "clue": "Cheers poured its beers \"where everybody knows your name\" in this city's Beacon Hill.", "answer": "What is Boston?" },
+        { "value": 1000, "clue": "Parks and Recreation built its government dysfunction in this fictional Indiana town.", "answer": "What is Pawnee?" }
+      ]
+    },
+    {
+      "name": "Behind the Camera",
+      "clues": [
+        { "value": 200, "clue": "This director's cameo appearances in his own thrillers became a game for audiences, from Rope to Psycho.", "answer": "Who is Alfred Hitchcock?" },
+        { "value": 400, "clue": "She became the first woman to win the Academy Award for Best Director, for The Hurt Locker.", "answer": "Who is Kathryn Bigelow?" },
+        { "value": 600, "clue": "This composer wrote the two notes that made a 1975 shark terrifying, plus the themes for Star Wars and Jurassic Park.", "answer": "Who is John Williams?" },
+        { "value": 800, "clue": "A film's \"gaffer\" is the chief of this department, responsible for lighting the set.", "answer": "What is the electrical department?", "dailyDouble": true },
+        { "value": 1000, "clue": "This Japanese director's Seven Samurai was remade as The Magnificent Seven, and his Yojimbo as A Fistful of Dollars.", "answer": "Who is Akira Kurosawa?" }
+      ]
+    },
+    {
+      "name": "One-Word Titles",
+      "clues": [
+        { "value": 200, "clue": "James Cameron's 1997 romance sank the box-office record along with the ship.", "answer": "What is Titanic?" },
+        { "value": 400, "clue": "Ridley Scott's 2000 epic won Best Picture and gave Russell Crowe the line \"Are you not entertained?\"", "answer": "What is Gladiator?" },
+        { "value": 600, "clue": "Bong Joon-ho's 2019 film was the first non-English-language winner of Best Picture.", "answer": "What is Parasite?" },
+        { "value": 800, "clue": "This 1976 Scorsese film gave us \"You talkin' to me?\" and a very bad haircut.", "answer": "What is Taxi Driver?" },
+        { "value": 1000, "clue": "Christopher Nolan's 2017 war film tells its story across a mole, a sea and an air timeline of different lengths.", "answer": "What is Dunkirk?" }
+      ]
+    },
+    {
+      "name": "TV Finales",
+      "clues": [
+        { "value": 200, "clue": "This mob drama ended mid-sentence with a cut to black in a diner in 2007.", "answer": "What is The Sopranos?" },
+        { "value": 400, "clue": "Walter White's story ended in a meth lab to the sound of Badfinger's \"Baby Blue\" in this series.", "answer": "What is Breaking Bad?" },
+        { "value": 600, "clue": "This sitcom's last episode put its four leads in jail for violating a Good Samaritan law.", "answer": "What is Seinfeld?" },
+        { "value": 800, "clue": "This medical drama ran 11 seasons and ended with the line \"You set the tone\" in 2009.", "answer": "What is ER?" },
+        { "value": 1000, "clue": "M*A*S*H's finale, watched by over 100 million Americans in 1983, carried this four-word title about goodbyes and hello.", "answer": "What is Goodbye, Farewell and Amen?" }
+      ]
+    }
+  ],
+  "finalJeopardy": {
+    "category": "Award Season",
+    "clue": "Only three films have won all five of the 'Big Five' Oscars: Best Picture, Director, Actor, Actress and Screenplay. Name the 1934 Frank Capra comedy that did it first.",
+    "answer": "What is It Happened One Night?"
+  }
+}

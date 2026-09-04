@@ -23,12 +23,54 @@ This folder is vendored into the **Game Show Central** hub (see the repo root an
   straight on the buzzer screen with no second join card, and scores flow back to
   the hub's running scoreboard for the night.
 
-Everything the hub adds lives in two new files, `js/gsc-embed.js` and
-`css/gsc-embed.css`, plus five short additions to the upstream files, each marked
-`// GSC:` (or `<!-- GSC: -->`). Every one of them is inert unless `?embed=host` or
+Everything the hub adds lives in `js/gsc-embed.js` and `css/gsc-embed.css`, plus
+five short additions to the upstream files, each marked `// GSC:` (or
+`<!-- GSC: -->`). Every one of them is inert unless `?embed=host` or
 `?embed=player` is on the URL — `css/gsc-embed.css` is scoped entirely to
-`body.gsc-embedded`, a class that only exists inside the hub. **Standalone
-Jeopardy behaves exactly as it did upstream.**
+`body.gsc-embedded`, a class that only exists inside the hub. **The buzzer stack
+standalone behaves exactly as it did upstream.**
+
+### ⟲ Game lobby
+
+Once you are past the start screen there is a **⟲ Game lobby** button in the
+toolbar. It asks two questions instead of the old blunt one:
+
+- **Keep this game** — back to the start screen with the board, the scores and
+  the used clues untouched. The start screen then offers **▸ Resume game** to
+  drop straight back in (and **Start a fresh board** if you'd rather not).
+- **Start over** — clears the board and zeroes the scores. Your players,
+  questions and timer settings stay.
+
+This works standalone and inside the hub. Inside the hub it is *your* lobby, not
+the hub's — the shell bar's **⌂ Lobby** still takes you out to Game Show Central
+to pick a different game.
+
+### The question-set library
+
+`sets/` holds extra boards committed beside `questions.json`, listed in
+`sets/index.json`. The start screen's **Questions** section shows a **Saved
+sets** picker; choosing one and pressing **Load set** validates it exactly like
+an uploaded file and makes it the current game (the source note then reads
+`set: Kids' Night`). Shipped today:
+
+| File | Set | About |
+| --- | --- | --- |
+| `sets/movies-tv.json` | Movies & TV | Opening lines, sitcom addresses, the people behind the camera. |
+| `sets/kids-night.json` | Kids' Night | Animals, space, riddles and snacks. |
+
+`questions.json` stays the default; the library never overrides it on load.
+
+**Adding your own set.** GitHub Pages is static, so nothing can write into the
+repo from the browser — the workflow is a download and one paste:
+
+1. Build the board in the **Question Editor**.
+2. Press **Download for the library**. It saves a `.json` named after your title
+   and prints the exact commit path plus the one manifest line to paste.
+3. Commit the file to `games/jeopardy/sets/` and paste that line into
+   `games/jeopardy/sets/index.json` (fill in `description` and `by`).
+
+The picker needs a web server. Opened straight from disk (`file://`) it hides
+itself and says so, and the rest of the start screen is unchanged.
 
 ## Features
 

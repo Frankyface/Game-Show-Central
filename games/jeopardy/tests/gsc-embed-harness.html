@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeopardy embed harness (E1–E6)</title>
+  <title>Jeopardy embed harness (E1–E6, X-1–X-3)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #04062b; color: #f4f5ff; margin: 0; padding: 2rem; }
     h1 { font-size: 1.2rem; }
@@ -26,7 +26,7 @@
   </style>
 </head>
 <body>
-  <h1>Jeopardy embed harness — E1 … E6</h1>
+  <h1>Jeopardy embed harness — E1 … E6 and X-1 … X-3</h1>
   <p class="lede">
     This page <strong>is the shell</strong>. It mounts the real
     <code>games/jeopardy/index.html</code> as one <code>?embed=host</code> frame
@@ -57,6 +57,7 @@
 
       const CODE = "TEST";
       const STORAGE_KEY = "gh-jeopardy-state-v1";
+      const EDITOR_KEY = "gh-jeopardy-editor-v1"; // cleared too, so X-3 is reproducible
       const PAGE = "../index.html";
       const ROSTER = [
         { pid: "p1", name: "Rita", color: "#e69f00", avatar: "🦖", connected: true, manual: false },
@@ -249,7 +250,10 @@
       /* ============ The run ============ */
 
       async function run() {
-        try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* private mode */ }
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(EDITOR_KEY);
+        } catch (err) { /* private mode */ }
 
         mountHost();
         for (const p of ROSTER) mountPhone(p);
@@ -377,7 +381,144 @@
           `name="${nameField ? nameField.value : "—"}" ` +
           `code="${stuckDoc && stuckDoc.getElementById("player-code") ? stuckDoc.getElementById("player-code").value : "—"}" ` +
           `msg="${msgShown && msg ? msg.textContent.slice(0, 70) + "…" : "not shown"}"`);
+
+        await runCrossCutting();
       }
+
+      /* ============ docs/19 cross-cutting round (X-1 … X-3) ============ */
+
+      // One long scripted scenario, like run() itself: three success states that
+      // share a board, a roster and an editor. Splitting it would mean rebuilding
+      // that state three times.
+      async function runCrossCutting() {
+        const w = hostWin();
+        const d = hostDoc();
+        const g = (id) => d.getElementById(id);
+        const shown = (id) => !!g(id) && !g(id).classList.contains("hidden");
+        const snap = (s) => ({
+          scores: s.players.map((p) => `${p.name}=${p.score}`).join(","),
+          used: Object.keys(s.used).sort().join(","),
+          title: s.game.title,
+        });
+
+        if (hostState() && hostState().active) w.closeClue();
+        await waitFor(() => hostState() && !hostState().active, 4000);
+
+        /* ---- X-1: the Game lobby control ---- */
+
+        const lobbyBtn = g("btn-game-lobby");
+        check("X-1 #btn-game-lobby is in the toolbar and visible off the setup screen",
+          !!lobbyBtn && shown("btn-game-lobby") && hostState().phase === "board",
+          `present=${!!lobbyBtn} label="${lobbyBtn ? lobbyBtn.textContent : "-"}" ` +
+          `visible=${shown("btn-game-lobby")} phase=${hostState().phase} ` +
+          `upstream #btn-new-game display=${g("btn-new-game") ? w.getComputedStyle(g("btn-new-game")).display : "-"}`);
+
+        // Put real progress on the board so Keep has something to preserve.
+        w.openClue(2, 0);
+        await waitFor(() => hostState() && hostState().active, 4000);
+        w.judgeCorrect(hostState().players[0].id);
+        await waitFor(() => hostState() && !hostState().active, 4000);
+        const before = hostState();
+        const want = snap(before);
+
+        lobbyBtn.click();
+        await sleep(150);
+        const dialog = d.querySelector(".gsc-dialog");
+        const actions = dialog
+          ? [...dialog.querySelectorAll(".gsc-dialog-actions button")].map((b) => b.textContent)
+          : [];
+        check("X-1 it opens a role=dialog offering Keep this game / Start over",
+          !!dialog && dialog.getAttribute("role") === "dialog" &&
+          actions.indexOf("Keep this game") !== -1 && actions.indexOf("Start over") !== -1,
+          `role=${dialog ? dialog.getAttribute("role") : "-"} buttons=[${actions.join(", ")}]`);
+
+        g("btn-lobby-keep").click();
+        await waitFor(() => hostState() && hostState().phase === "setup", 4000);
+        const kept = snap(hostState());
+        check("X-1 Keep this game leaves setup showing Resume, board and scores intact",
+          hostState().phase === "setup" && shown("btn-resume") &&
+          kept.scores === want.scores && kept.used === want.used,
+          `phase=${hostState().phase} resumeShown=${shown("btn-resume")} ` +
+          `scores "${kept.scores}" vs "${want.scores}" - used "${kept.used}" vs "${want.used}"`);
+
+        g("btn-resume").click();
+        await waitFor(() => hostState() && hostState().phase === "board", 4000);
+        const resumed = snap(hostState());
+        check("X-1 Resume restores the exact board",
+          hostState().phase === "board" &&
+          resumed.scores === want.scores && resumed.used === want.used,
+          `phase=${hostState().phase} scores="${resumed.scores}" used="${resumed.used}"`);
+
+        g("btn-game-lobby").click();
+        await sleep(150);
+        g("btn-lobby-startover").click();
+        await waitFor(() => hostState() && hostState().phase === "setup", 4000);
+        const over = hostState();
+        check("X-1 Start over gives a clean setup with roster and content intact",
+          over.phase === "setup" && Object.keys(over.used).length === 0 && !over.active &&
+          over.players.length === before.players.length &&
+          over.players.every((p) => p.score === 0) && over.game.title === want.title &&
+          !shown("btn-resume"),
+          `phase=${over.phase} used=${Object.keys(over.used).length} ` +
+          `players=[${over.players.map((p) => p.name + "=" + p.score).join(", ")}] ` +
+          `game="${over.game.title}" resumeShown=${shown("btn-resume")}`);
+
+        /* ---- X-2: the set library ---- */
+
+        const select = d.querySelector(".gsc-library-select");
+        const options = select ? [...select.options].map((o) => o.value) : [];
+        check("X-2 the picker lists the shipped sets",
+          !!select && options.length >= 2 &&
+          options.indexOf("movies-tv.json") !== -1 && options.indexOf("kids-night.json") !== -1,
+          `options=[${options.join(", ")}] ` +
+          `preview="${(d.querySelector(".gsc-library-preview") || {}).textContent || ""}"`);
+
+        select.value = "kids-night.json";
+        select.dispatchEvent(new w.Event("change", { bubbles: true }));
+        d.querySelector(".gsc-library-load").click();
+        const loaded = await waitFor(() => {
+          const s = hostState();
+          return s && s.game && s.game.title === "Kids' Night" ? s : null;
+        }, 8000);
+        check("X-2 loading a set validates it, becomes the game, and names the source",
+          !!loaded && /^set: /.test(loaded.source) &&
+          g("source-note").textContent.indexOf("set: Kids' Night") !== -1 &&
+          (d.querySelector(".gsc-library-error").textContent || "") === "",
+          `title="${loaded ? loaded.game.title : "-"}" source="${loaded ? loaded.source : "-"}" ` +
+          `note="${g("source-note").textContent}" ` +
+          `error="${d.querySelector(".gsc-library-error").textContent}"`);
+
+        const broken = await w.GSCLibrary.load("", {
+          fetch: async () => ({ ok: true, json: async () => ({ nope: 1 }) }),
+        });
+        const offline = await w.GSCLibrary.load("", {
+          fetch: async () => { throw new Error("file://"); },
+        });
+        check("X-2 a broken manifest and a from-disk page both explain themselves",
+          !broken.ok && !!broken.error && !offline.ok && /web server/i.test(offline.error),
+          `broken="${broken.error}" fromDisk="${offline.error}"`);
+
+        /* ---- X-3: Download for the library ---- */
+
+        g("btn-editor").click();
+        await waitFor(() => shown("screen-editor"), 4000);
+        g("btn-editor-library").click();
+        await sleep(400);
+        const note = g("gsc-library-note");
+        const text = note ? note.textContent : "";
+        const line = text.split("\n\n").pop().trim();
+        let parsed = null;
+        try { parsed = JSON.parse(line); } catch (err) { parsed = null; }
+        const accepted = parsed ? w.GSCLibrary.parseManifest([parsed]) : { ok: false };
+        check("X-3 the editor prints a commit path and a manifest line the library accepts",
+          !!note && !note.classList.contains("hidden") &&
+          text.indexOf("games/jeopardy/sets/") !== -1 &&
+          !!parsed && accepted.ok === true && accepted.sets[0].file === parsed.file,
+          `pathShown=${text.indexOf("games/jeopardy/sets/") !== -1} ` +
+          `line=${line.slice(0, 110)} acceptedFile=${accepted.ok ? accepted.sets[0].file : "-"}`);
+        g("btn-editor-close").click();
+      }
+
 
       function report() {
         const list = document.getElementById("results");

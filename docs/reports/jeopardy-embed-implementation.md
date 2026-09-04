@@ -425,3 +425,144 @@ Harness evidence, per check:
    the relative path that is correct from `games/jeopardy/index.html` is one
    level short from `games/jeopardy/tests/`. Cheap to trip over; the 404s are
    silent unless you read the network log.
+
+---
+
+## 10. Cross-cutting round (docs/19)
+
+`docs/19-cross-cutting-round.md` §1 and §2 applied to Jeopardy, plus the
+`?store=` question. **This round is the first work here that is deliberately
+visible standalone** — docs/19 §4 asks for the game lobby and the set library
+"embedded and standalone" — so unlike §§1–9 these additions are not gated on
+`body.gsc-embedded`. The buzzer stack is still untouched standalone.
+
+### Files
+
+| File | Lines | What changed |
+|---|---:|---|
+| `games/jeopardy/js/gsc-extras.js` | 403 | **New.** The Game-lobby control + dialog + Resume, the library picker mount, and the editor's "Download for the library". Runs in every mode; host screens only. |
+| `games/jeopardy/css/gsc-extras.css` | 101 | **New.** The Game-lobby dialog, the library note, the picker's seat. Not scoped to `gsc-embedded`. |
+| `games/jeopardy/sets/index.json` | — | **New.** Two-entry manifest. |
+| `games/jeopardy/sets/movies-tv.json` | — | **New.** "Movies & TV" — 5 categories, 25 clues, 1 Daily Double, Final. |
+| `games/jeopardy/sets/kids-night.json` | — | **New.** "Kids' Night" — same shape. |
+| `games/jeopardy/index.html` | 322 | +2 `// GSC:` tag blocks: `css/gsc-extras.css`, and `shared/library.js` + `js/gsc-extras.js`. |
+| `games/jeopardy/tests/gsc-embed-harness.html` | 554 | X-1 … X-3 added (nine new checks). |
+| `games/jeopardy/README.md` | 373 | "Inside Game Show Central" now documents ⟲ Game lobby and the library, including how to add a set. |
+
+**No upstream `.js` file was touched in this round.** The `// GSC:` list in §2 is
+unchanged apart from the two new tag blocks in `index.html`, which `docs/02` §2
+explicitly allows ("script/link tags").
+
+### §1 — the Game lobby
+
+Upstream's **New Game** already returned to the start screen, so the work was the
+two-choice confirm and a way back in.
+
+- `#btn-game-lobby` ("⟲ Game lobby") is inserted beside `#btn-new-game`, inherits
+  its exact visibility rule (everywhere but setup), and `body.gsc-has-lobby`
+  hides the original. Upstream `newGame()` is left completely alone — it is
+  simply no longer reachable, because **Start over** does what it did.
+- The dialog is `role="dialog"` + `aria-modal`, Escape- and backdrop-closable,
+  focus starts on Keep, and focus returns to the button on close.
+- **Keep this game** is one patch: `setState({ phase: "setup" })`. Jeopardy
+  already keeps the board, scores, used tiles and Final in `state`, so there is
+  no snapshot to drift out of date and **Resume** (`{ phase: "board" }`) is its
+  exact inverse. `#btn-resume` appears next to Start only when something is worth
+  resuming, and while it is there "Start Game" relabels to "Start a fresh board"
+  so the destructive one is the one that says so.
+- **Start over** replays upstream `newGame()`'s state patch verbatim (roster with
+  scores zeroed; content, buzzer and timer settings kept) minus its own
+  `window.confirm`, which our dialog replaced.
+
+**The one piece of cleverness worth flagging:** app.js offers no render hook we
+are allowed to add, so `gsc-extras.js` wraps the global `render`. A top-level
+`function render()` in a classic script *is* the global-object property, so every
+bare `render()` call inside app.js goes through the wrapper; the original runs
+first and its return value is passed through, so app.js cannot tell. If app.js
+ever failed to load, the code falls back to a `MutationObserver` on the two
+screens it toggles.
+
+### §2 — the library
+
+- `GSCLibrary.mountPicker` is mounted into a container appended to the existing
+  "Questions" `.setup-section`. `renderSetup()` only replaces `#player-list`, so
+  the picker is never wiped.
+- `validate` is Jeopardy's own `validateGame` (it throws, which the library turns
+  into the picker's error line). A picked set becomes the game with
+  `sourceKind: "upload"` — the existing "the host chose this deliberately" kind —
+  so a reload keeps it instead of re-fetching `questions.json` over the top.
+- The picker's look needed no new CSS: `index.html` already links
+  `shared/theme.css`, which `@import`s `shared/theme-components.css`, and every
+  selector in that sheet is `.gsc-*`, so it cannot restyle anything upstream
+  draws. (An earlier draft of this round linked the component kit a second time
+  and redefined its tokens locally; both were redundant and were removed.)
+- **Download for the library** sits beside the editor's Download JSON. It runs
+  the editor's own `validateDraft()` / `cleanDraft()`, saves
+  `<slugified title>.json`, and prints the commit path plus a ready-to-paste
+  manifest line into a `<pre>`. X-3 asserts that line round-trips through
+  `GSCLibrary.parseManifest`.
+
+### §3 — `?store=NAME` namespacing: **skipped, deliberately**
+
+It is *technically* possible without an upstream edit — I probed it in the
+browser, and a page-level script can shadow `window.localStorage` via
+`Object.defineProperty` before app.js runs, with a key-rewriting façade that
+round-trips correctly. **I did not ship it**, for three reasons:
+
+1. It replaces a browser global for the **whole page**, so it silently captures
+   every other consumer too — `editor.js`'s draft autosave today, anything added
+   later. A namespacing bug there loses a host's saved game, which is the exact
+   failure `saveState()`'s warning banner exists to prevent.
+2. A plain-object façade is not a `Storage`: `instanceof` checks and the
+   `storage` event both change behaviour, and in the probe I could not verify a
+   clean restore of the original accessor.
+3. It buys nothing in production. Jeopardy's key is `const STORAGE_KEY` inside
+   `app.js`; the honest fix is one `// GSC:` line there that appends the
+   `?store=` value to that constant — which is outside the allowed edit list in
+   `docs/02` §2. If the orchestrator wants `?store=`, authorising that one line
+   is the right way to get it.
+
+The hub shell's own `?store=` (shell report deviation 6) still namespaces the
+**phone** shell, which is what made two phones in one browser testable in §4;
+only the Jeopardy host frame's own key is unnamespaced.
+
+### Verification
+
+Run on `http://127.0.0.1:8631/` (`python -m http.server 8631 --bind 127.0.0.1`
+from the repo root), Node v24.16.0.
+
+| Gate | Result |
+|---|---|
+| `cd games/jeopardy && node --test` | **PASS** — `tests 49 / pass 49 / fail 0`. |
+| `tests/gsc-embed-harness.html` | **PASS** — `18/18 checks passed` (was 9/9; X-1 … X-3 added nine). Green on two runs; the harness now also clears `gh-jeopardy-editor-v1` so X-3 is reproducible. |
+| `tests/harness.html` | **PASS** — `70/70 checks passed`. |
+| `tests/photo-harness.html` | **PASS** — `All 26 photo-clue checks passed.` |
+| Standalone unchanged where it should be | **PASS** — `games/jeopardy/` opened directly: `GSC.mode="standalone-host"`, `body.className="gsc-has-lobby"` (no `gsc-embedded`), **0** peerjs requests, `window.peerjs` undefined, **Open buzzer room** and "Playing on your phone?" both still there, ⟲ Game lobby correctly hidden on setup, Resume hidden, "Start Game" unchanged, picker lists both sets. |
+
+Harness evidence for the new checks:
+
+| Check | Detail line from the run |
+|---|---|
+| X-1 | `present=true label="⟲ Game lobby" visible=true phase=board upstream #btn-new-game display=none` |
+| X-1 | `role=dialog buttons=[Keep this game, Start over, Cancel]` |
+| X-1 | `phase=setup resumeShown=true scores "Sam=200,Rita=0" vs "Sam=200,Rita=0" - used "0-0,0-1,2-0" vs "0-0,0-1,2-0"` |
+| X-1 | `phase=board scores="Sam=200,Rita=0" used="0-0,0-1,2-0"` |
+| X-1 | `phase=setup used=0 players=[Sam=0, Rita=0] game="Game Night Jeopardy" resumeShown=false` |
+| X-2 | `options=[movies-tv.json, kids-night.json] preview="Movies & TV — by Game Show Central — Opening lines, sitcom addresses and the people behind the camera. — 5 categories · 25 clues"` |
+| X-2 | `title="Kids' Night" source="set: Kids' Night" note="Questions: set: Kids' Night" error=""` |
+| X-2 | `broken="The set library for this game is not readable — sets/index.json is not a list of sets." fromDisk="Saved sets need a web server…"` |
+| X-3 | `pathShown=true line={"file":"kids-night.json","name":"Kids' Night","description":"","by":"","counts":{"categories":5,"clues":25}} acceptedFile=kids-night.json` |
+
+### Known gaps from this round
+
+- **The Game-lobby dialog is Jeopardy-flavoured, not a `.gsc-dialog` from the
+  design system**, because the shared kit has no dialog component. It follows the
+  same tokens and the same `role="dialog"` contract.
+- **"Start a fresh board" relabels `#btn-start`** while a game is parked. It is
+  the one place this round changes upstream copy, and it is there because "Start
+  Game" sitting next to "Resume game" reads as harmless when it is not.
+- **`sets/` content is not covered by `node --test`.** The two shipped files are
+  validated by the picker at load time (X-2 exercises one end to end), but
+  nothing fails a Node run if a future set is malformed.
+- **The library picker needs a web server.** From `file://` it hides itself with
+  a plain-English note — expected, and documented in the README.

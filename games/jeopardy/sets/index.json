@@ -1,0 +1,16 @@
+[
+  {
+    "file": "movies-tv.json",
+    "name": "Movies & TV",
+    "description": "Opening lines, sitcom addresses and the people behind the camera.",
+    "by": "Game Show Central",
+    "counts": { "categories": 5, "clues": 25 }
+  },
+  {
+    "file": "kids-night.json",
+    "name": "Kids' Night",
+    "description": "Animals, space, riddles and snacks — nothing scarier than an onion.",
+    "by": "Game Show Central",
+    "counts": { "categories": 5, "clues": 25 }
+  }
+]

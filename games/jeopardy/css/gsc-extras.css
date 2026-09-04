@@ -1,0 +1,101 @@
+/* ============================================================
+   Jeopardy — Game Show Central cross-cutting styles
+   (docs/19-cross-cutting-round.md §1 and §2)
+
+   Styles the two things this round adds: the Game-lobby dialog and the
+   editor's library note, plus the seat the shared library picker sits
+   in. The picker's own look (.gsc-library*) and every token used below
+   already arrive with shared/theme.css, which index.html links first and
+   which @imports shared/theme-components.css.
+
+   Unlike css/gsc-embed.css these rules are NOT scoped to
+   `body.gsc-embedded`: docs/19 §4 asks for the game lobby and the set
+   library standalone as well as inside the hub.
+   ============================================================ */
+
+/* ============ §2 the library picker ============ */
+
+/* The picker itself is shared/theme-components.css; this is only its seat
+   inside Jeopardy's "Questions" section. */
+.gsc-library-host { margin-top: 0.9rem; }
+
+/* The manifest line the editor prints after "Download for the library".
+   <pre> so the JSON stays copy-pasteable exactly as typed. */
+.gsc-library-note {
+  margin: 0 0 0.8rem;
+  padding: 0.8rem 0.9rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line, rgba(170, 176, 224, 0.25));
+  border-left: 4px solid var(--gold);
+  border-radius: var(--radius);
+  color: var(--ink-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ============ §1 the Game-lobby control ============ */
+
+/* #btn-game-lobby replaces upstream's "New Game": same place, same visibility
+   rule, but it opens the two-choice dialog instead of one blunt confirm.
+   "Start over" inside that dialog runs exactly what New Game ran, so nothing
+   is lost by retiring the original button. */
+body.gsc-has-lobby #btn-new-game { display: none; }
+
+#btn-resume { margin-bottom: 0.6rem; }
+
+.gsc-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  background: rgba(1, 1, 23, 0.72);
+}
+
+.gsc-dialog {
+  width: min(30rem, 100%);
+  padding: 1.6rem;
+  background: var(--blue-card, #0a103f);
+  border: 1px solid var(--line, rgba(170, 176, 224, 0.25));
+  border-radius: var(--radius-lg, 18px);
+  box-shadow: var(--shadow-panel);
+}
+
+.gsc-dialog-title {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.4rem, 1.1rem + 1.4vw, 1.9rem);
+  letter-spacing: 0.01em;
+  color: var(--gold-text);
+}
+
+.gsc-dialog-body {
+  margin: 0 0 1.2rem;
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.gsc-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+@media (max-width: 480px) {
+  .gsc-dialog-actions .btn { flex: 1 1 100%; min-height: var(--tap); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gsc-dialog { animation: gsc-dialog-in var(--dur) var(--ease-out) both; }
+  @keyframes gsc-dialog-in {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+}
