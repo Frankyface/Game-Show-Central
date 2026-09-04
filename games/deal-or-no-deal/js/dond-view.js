@@ -78,6 +78,24 @@ const DondView = (function () {
       : "No phones yet — the host can open every case themselves.");
     setText("dond-board-summary", boardSummary(app.game));
     $("btn-start").disabled = !app.game || !app.setup.players.length;
+    renderResume(app);
+  }
+
+  /**
+   * The half-played game the host parked with "Keep this game" (docs 19 §1).
+   * Resume puts it back exactly as it was; Start the game beside it begins a
+   * fresh one and drops it.
+   */
+  function renderResume(app) {
+    const parked = app.resumable;
+    show($("btn-resume"), !!parked);
+    show($("dond-resume-note"), !!parked);
+    if (!parked) return;
+    const who = core().nameOf(parked, parked.current);
+    const where = PHASE_WORDS[parked.phase] || parked.phase;
+    setText("dond-resume-note",
+      `A game is parked: ${who || "nobody"} at the ${where}. `
+      + "Resume picks it up; Start the game drops it and deals again.");
   }
 
   function boardSummary(game) {
@@ -153,18 +171,40 @@ const DondView = (function () {
     return `Round ${Math.min(state.round + 1, rounds)} of ${rounds}`;
   }
 
+  /**
+   * The case number whose flip has already been played. The grid is rebuilt on
+   * every render, so without this every already-open case re-ran its animation
+   * each time anything happened — every case spun when one was clicked, and the
+   * whole grid spun again when the banker called (docs 19 §3). `undefined`
+   * means "nothing painted yet", so the first paint of a restored board seeds
+   * this without animating anything.
+   */
+  let flipped;
+
+  /** Give exactly one case the one-shot class, and take it back when it ends. */
+  function armFlip(btn) {
+    btn.classList.add("is-flipping");
+    btn.addEventListener("animationend", (event) => {
+      if (event.target === btn) btn.classList.remove("is-flipping");
+    });
+  }
+
   /** One gold case per number; opened ones show what was inside. */
   function renderCases(state) {
     const box = $("dond-cases");
     box.replaceChildren();
     const clickable = state.phase === "pick" || (state.phase === "round" && state.toOpen > 0);
+    // Only a case that has JUST been opened animates — never a re-render, and
+    // never the banker's call, which leaves `lastOpened` exactly where it was.
+    const justOpened = flipped !== undefined && state.lastOpened !== null
+      && state.lastOpened !== flipped;
     core().casesView(state).forEach((c) => {
       const btn = el("button", "case");
       btn.type = "button";
       btn.dataset.n = String(c.n);
       btn.classList.toggle("is-open", c.opened);
       btn.classList.toggle("is-own", c.own);
-      btn.classList.toggle("is-last", c.last && c.opened);
+      if (justOpened && c.opened && c.n === state.lastOpened) armFlip(btn);
       const inner = el("span", "case-inner");
       inner.appendChild(el("span", "case-face case-front", c.n));
       inner.appendChild(el("span", "case-face case-back", c.label));
@@ -174,6 +214,7 @@ const DondView = (function () {
       if (!btn.disabled) btn.addEventListener("click", () => window.DondApp.chooseCase(c.n));
       box.appendChild(btn);
     });
+    flipped = state.lastOpened;
   }
 
   function caseLabel(c, state) {
@@ -365,6 +406,12 @@ const DondView = (function () {
 
   /* ============ Chrome ============ */
 
+  /** Plain words for a phase, for the Resume note and the lobby confirm. */
+  const PHASE_WORDS = {
+    seat: "line-up", pick: "case pick", round: "cases", offer: "banker's offer",
+    swap: "swap", reveal: "reveal", result: "result", standings: "standings",
+  };
+
   function renderChrome(app) {
     const state = app.core;
     // The raw file's title is capped the way normalizeBoard caps it, so an
@@ -372,6 +419,20 @@ const DondView = (function () {
     setText("dond-title", core().cleanText(app.game && app.game.title, 80) || "Deal or No Deal");
     document.body.classList.toggle("is-playing", !!state && phaseScreen(state) === "play");
     show($("btn-editor"), !state || state.phase === "setup" || app.editorOpen);
+    // The control sits in the toolbar in every phase; it only has something to
+    // offer once a game is actually running (docs 19 §1).
+    $("btn-game-lobby").disabled = !state || app.editorOpen;
+    renderLobbyModal(app);
+  }
+
+  function renderLobbyModal(app) {
+    const modal = $("dond-lobby-modal");
+    show(modal, !!app.lobbyOpen);
+    if (!app.lobbyOpen || !app.core) return;
+    const where = PHASE_WORDS[app.core.phase] || app.core.phase;
+    setText("dond-lobby-body",
+      `This game is at the ${where}. Keep it to pick it up where you left it, `
+      + "or start over with the same contestants and the same board.");
   }
 
   /* ============ Entry point ============ */

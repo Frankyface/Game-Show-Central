@@ -333,3 +333,89 @@ loads and asserts both still hold it at the end, and that the host frame's
 on port 8693, leaving only the two `-harness` keys behind. A plain visit to
 `games/deal-or-no-deal/` still reports `STORAGE_KEY: "gsc-dond-state-v1"` with
 an empty suffix, so nothing changes for a real host.
+
+---
+
+## 10. Cross-cutting round (docs/19-cross-cutting-round.md, 2026-09-04)
+
+### §3 — the case animation (the user-reported bug)
+
+`renderCases` rebuilds the whole grid on every render, and the animation was
+keyed on the **state** class `.is-open` (plus `.is-last`). Every freshly created
+open case therefore re-ran its flip on every render: click one case and all the
+open ones spun, and the whole grid spun again when the banker called, because
+that render rebuilt the same nodes.
+
+The animation is now a **one-shot class**. `css/dond.css` moved both keyframes
+onto `.case.is-flipping` (the flip on `.case-inner`, the sting on the button, so
+the two never fight over `transform`), and `js/dond-view.js` keeps a module-level
+`flipped` — the case number whose flip has already been played. A case gets
+`is-flipping` only when `state.lastOpened` differs from `flipped`, and the class
+is removed on its own `animationend`. `flipped` starts as `undefined`, so the
+first paint of a *restored* board seeds it without animating; `lastOpened` is
+null on a fresh board, so the first case of the next contestant animates
+normally. The banker's call leaves `lastOpened` untouched, so nothing animates.
+
+Pinned by X-4 in the harness, exactly as the brief asks: after opening case 7
+only case 7 carries the class, opening another case moves the class to that one
+alone, and after the banker's call no case carries it.
+
+### §1 — the `btn-game-lobby` toolbar control
+
+`⟲ Game lobby` sits in the toolbar between Sound and Board editor and is enabled
+in every phase (disabled on setup and in the editor, where there is nothing to
+park). It opens a `.gsc-modal` confirm that names the phase and offers:
+
+- **Keep this game** — the core state moves to a new `resumable` field, `core`
+  becomes null, and the setup screen shows **Resume the game** plus a line
+  saying who is parked and where. `resumable` is serialised alongside `core`,
+  validated by the same `dondUsableCore` guard on load, and cleared by a new
+  room whose phone seats it no longer matches — so a refresh still offers
+  Resume, and a stale one is never offered.
+- **Start over** — `core` and `resumable` both go; the roster, the board and the
+  rules stay, so **Start the game** deals again immediately.
+- **Cancel**, plus `Esc`. While the confirm is open it owns the keyboard, so
+  `D`/`N`/`B` cannot fire behind it.
+
+Loading any new content (file, `?game=`, editor, library) also drops a parked
+game, because it was dealt from the old board.
+
+### §2 — the board library
+
+- `sets/index.json` plus two committed boards beyond the default: **Quick 16**
+  (16 cases, rounds `5,4,2,1,1,1`, a whole game in about ten minutes) and
+  **High rollers** (26 cases from $1,000 to $10,000,000 with a meaner banker,
+  factors starting at 0.10 and jitter 0.08). Both pass `validateBoard` and
+  produce no warnings; the manifest parses through `GSCLibrary.parseManifest`.
+- `index.html` loads `shared/library.js` and carries `#dond-library` under *The
+  board*; `dondMountLibrary()` mounts `GSCLibrary.mountPicker` there with the
+  game's own `validateBoard` and an `onPick` that adopts the board with the
+  source note `set: <name>`. The picker hides itself with a plain-English note
+  when the manifest cannot be fetched, so a page opened from disk is fine.
+- The editor's **Download for the library** validates the draft, downloads it
+  under a slug of its title, and prints the two strings the workflow needs: the
+  path to commit at and the exact manifest line (a real `JSON.stringify` of the
+  entry, counts included) to paste into `sets/index.json`. Both downloads now
+  share one `dondDownload(data, name)` helper.
+
+### Tests and gates
+
+- `cd games/deal-or-no-deal && node --test` → **89 tests, 89 pass** (unchanged;
+  this round is UI and content, and the pure core did not move).
+- `tests/harness.html` → **83 checks, all passing** on port 8693 — the previous
+  64 plus 19 new ones covering X-1 (control present and live, confirm names the
+  phase, Cancel is a no-op, Keep parks and saves, Resume restores byte-identical
+  state, Start over keeps roster/board/rules, disabled on setup), X-2 (picker
+  mounted, both sets listed, preview line, load-and-adopt with the source note,
+  plus a broken manifest and a from-disk fetch each hiding the picker with a
+  message), X-3 (the download validates, the path and a parseable manifest line
+  are printed) and X-4 (the three animation assertions).
+- The new scenarios live in `tests/harness-x.js` (173 lines), which
+  `harness.html` loads and hands its own helpers; the split exists only to keep
+  `harness.html` under the 800-line cap (it is 796). Largest shipped file is
+  `js/dond-core.js` at 750.
+- Static gates re-run clean: no `innerHTML`/`eval`/`console.log`, Google Fonts
+  the only external URLs, `data-gsc-game` and `#gsc-join` present. The gate
+  scenario's source list now also covers `harness-x.js` and the three `sets/`
+  files.
+

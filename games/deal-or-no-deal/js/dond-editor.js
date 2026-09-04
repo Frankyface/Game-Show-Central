@@ -15,6 +15,7 @@
 const DOND_DRAFT_KEY = `gsc-dond-draft-v1${window.DondApp.storeSuffix()}`;
 
 let dondDraft = null;
+let dondLibraryShown = false;
 
 /* ============ Draft plumbing ============ */
 
@@ -86,6 +87,7 @@ function dondParseList(text, allowFractions) {
 
 function dondRenderEditor() {
   if (!dondDraft) return;
+  if (!dondLibraryShown) show($("dond-editor-library"), false);
   const s = dondDraft.settings;
   $("dond-ed-title").value = dondDraft.title || "";
   $("dond-ed-currency").value = s.currency || "$";
@@ -212,15 +214,58 @@ function dondEditorDownload() {
     dondEditorMessage(`This board can’t be saved yet: ${err.message}`);
     return;
   }
-  const blob = new Blob([`${JSON.stringify(dondDraft, null, 2)}\n`], { type: "application/json" });
+  dondDownload(dondDraft, "board.json");
+  dondEditorMessage("");
+}
+
+/** Hand `data` to the browser as the file `name`. Shared by both buttons. */
+function dondDownload(data, name) {
+  const blob = new Blob([`${JSON.stringify(data, null, 2)}\n`], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "board.json";
+  link.download = name;
   document.body.appendChild(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** A bare, safe `*.json` file name built from the board's title. */
+function dondSlug(title) {
+  const clean = String(title || "board").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  return `${clean || "board"}.json`;
+}
+
+/**
+ * Download for the library (docs 19 §2). Static hosting cannot write files, so
+ * the honest workflow is: download it, commit it under sets/, then paste the
+ * manifest line. Both strings are shown on screen, ready to copy.
+ */
+function dondEditorLibrary() {
+  try {
+    window.DondCore.validateBoard(dondDraft);
+  } catch (err) {
+    dondEditorMessage(`This board cannot go in the library yet: ${err.message}`);
+    return;
+  }
+  const board = window.DondCore.normalizeBoard(dondDraft);
+  const top = board.settings.amounts[board.settings.amounts.length - 1];
+  const file = dondSlug(dondDraft.title);
+  dondDownload(dondDraft, file);
+  const entry = {
+    file,
+    name: board.title,
+    description: `${board.settings.amounts.length} cases, top prize `
+      + `${window.DondCore.formatMoney({ game: board }, top)}.`,
+    by: "",
+    counts: { cases: board.settings.amounts.length, rounds: board.settings.rounds.length },
+  };
+  setText("dond-library-path", `Commit it as: games/deal-or-no-deal/sets/${file}`);
+  setText("dond-library-line", `Then paste into sets/index.json: ${JSON.stringify(entry)}`);
+  dondLibraryShown = true;
+  show($("dond-editor-library"), true);
   dondEditorMessage("");
 }
 
@@ -257,6 +302,7 @@ function dondWireEditor() {
   $("btn-editor").addEventListener("click", dondOpenEditor);
   $("btn-editor-close").addEventListener("click", dondCloseEditor);
   $("btn-editor-download").addEventListener("click", dondEditorDownload);
+  $("btn-editor-library").addEventListener("click", dondEditorLibrary);
   $("btn-editor-use").addEventListener("click", dondEditorUse);
   $("btn-editor-reset").addEventListener("click", () => {
     dondDraft = dondDeepCopy(window.DOND_DEFAULT_BOARD || dondBlankDraft());

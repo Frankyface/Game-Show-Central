@@ -1,0 +1,22 @@
+[
+  {
+    "file": "quick-16.json",
+    "name": "Quick 16",
+    "description": "Sixteen cases and six short rounds - a whole game in about ten minutes.",
+    "by": "Game Show Central",
+    "counts": {
+      "cases": 16,
+      "rounds": 6
+    }
+  },
+  {
+    "file": "high-rollers.json",
+    "name": "High rollers",
+    "description": "Nothing under a thousand and ten million in the top case, with a meaner banker.",
+    "by": "Game Show Central",
+    "counts": {
+      "cases": 26,
+      "rounds": 9
+    }
+  }
+]

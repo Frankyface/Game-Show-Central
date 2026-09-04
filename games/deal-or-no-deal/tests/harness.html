@@ -38,6 +38,7 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-x.js"></script>
   <script>
   (function () {
     "use strict";
@@ -156,6 +157,8 @@
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
       "../../../shared/theme.css", "../../../shared/theme-components.css",
+      "../../../shared/library.js", "harness-x.js",
+      "../sets/index.json", "../sets/quick-16.json", "../sets/high-rollers.json",
       "fixtures/harness-board.json",
     ];
 
@@ -215,6 +218,11 @@
     const phoneChoices = (pid) => [...PD(pid).querySelectorAll("#dond-phone-actions .phone-choice")];
     const phoneChoice = (pid, choice) => phoneChoices(pid).find((b) => b.dataset.choice === choice);
     const phoneText = (pid, id) => PD(pid).getElementById(id).textContent;
+
+    // docs 19 §4: X-1 … X-4 live in harness-x.js and run against these helpers.
+    const X = window.DondHarnessX({
+      check, waitFor, HW, HD, H, core, click, hostCases, hostCase,
+    });
 
     /** Every sealed case's amount and label, for the leak assertions. */
     function sealedSecrets() {
@@ -458,7 +466,13 @@
         core().own === 9 && core().cases.filter((c) => c.opened).length === 0
         && core().offers.length === 0 && core().deal === null);
 
-      for (let r = 0; r < 4; r += 1) {
+      X.animation();
+      openRoundOnHost();
+      click("btn-banker");
+      await waitFor(() => core().phase === "offer", "offer 1");
+      X.bankerAnimation();
+      click("btn-no-deal");
+      for (let r = 1; r < 4; r += 1) {
         openRoundOnHost();
         click("btn-banker");
         await waitFor(() => core().phase === "offer", `offer ${r + 1}`);
@@ -611,6 +625,8 @@
         && JSON.parse(text).title === "Edited in the harness",
         `${text.length} bytes`);
 
+      await X.editorLibrary();
+
       click("btn-editor-use");
       await waitFor(() => H("screen-editor").classList.contains("hidden"), "the editor closes");
       check("N-I6 Use in game adopts the board and clears the night",
@@ -638,7 +654,8 @@
       "../js/dond-room.js", "../js/dond-phone.js",
       "../tests/dond-core.test.mjs", "../tests/dond-advice.test.mjs",
       "../tests/dond-adversarial.test.mjs", "../tests/dond-adversarial-state.test.mjs",
-      "../tests/harness.html", "../tests/fixtures/harness-board.json",
+      "../tests/harness.html", "../tests/harness-x.js", "../tests/fixtures/harness-board.json",
+      "../sets/index.json", "../sets/quick-16.json", "../sets/high-rollers.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
 
@@ -763,7 +780,9 @@
         await scenarioDeal();
         await scenarioSwap();
         await scenarioReload();
+        await X.gameLobby();
         await scenarioEditor();
+        await X.library();
         await scenarioGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

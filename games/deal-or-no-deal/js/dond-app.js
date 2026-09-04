@@ -36,6 +36,11 @@ const dondListeners = [];
 function dondFreshApp() {
   return {
     core: null,
+    // The game parked by "Keep this game" in the game-lobby confirm (docs 19
+    // §1). It is a whole core state, saved and restored like `core`, and the
+    // setup screen offers Resume while it is there.
+    resumable: null,
+    lobbyOpen: false,
     game: null,
     setup: { players: [], allowSwap: null, audienceAdvice: null },
     source: "loading…",
@@ -111,7 +116,8 @@ function dondOpenCue(before, after) {
 
 function dondSerialise() {
   return {
-    core: dondApp.core, game: dondApp.game, setup: dondApp.setup, source: dondApp.source,
+    core: dondApp.core, resumable: dondApp.resumable,
+    game: dondApp.game, setup: dondApp.setup, source: dondApp.source,
     sourceKind: dondApp.sourceKind, sourceUrl: dondApp.sourceUrl, roomCode: dondApp.roomCode,
   };
 }
@@ -154,6 +160,7 @@ function dondLoadSaved() {
     if (!saved || typeof saved !== "object") return null;
     if (saved.game) window.DondCore.validateBoard(saved.game);
     if (typeof saved.roomCode !== "string") saved.roomCode = null;
+    if (saved.resumable && !dondUsableCore(saved.resumable)) saved.resumable = null;
     if (saved.core !== null && saved.core !== undefined && !dondUsableCore(saved.core)) {
       console.warn("Ignoring a saved game with a damaged state object.");
       return Object.assign({}, saved, { core: null });
@@ -228,7 +235,7 @@ function dondUseBoard(board, source, kind) {
   // a reload of that link must fetch it again rather than resurrect this copy.
   dondSet({
     game: board, source: source || "Custom board", sourceKind: kind || "upload",
-    sourceUrl: null, core: null,
+    sourceUrl: null, core: null, resumable: null, lobbyOpen: false,
     setup: Object.assign({}, dondApp.setup, { allowSwap: null, audienceAdvice: null }),
   });
   dondError("");
@@ -313,7 +320,9 @@ function dondStart() {
     if (!dondApp.game) throw new Error("The board is still loading — try again in a second.");
     const players = dondApp.setup.players.map((p) => ({ pid: p.pid, name: p.name }));
     const state = window.DondCore.createState(dondEffectiveBoard(), players, {});
-    dondSet({ core: window.DondCore.reduce(state, { type: "start" }, Math.random) });
+    // Starting fresh drops whatever was parked — that is what "Start over" and
+    // the Start button beside Resume both mean.
+    dondSet({ core: window.DondCore.reduce(state, { type: "start" }, Math.random), resumable: null });
     dondError("");
   } catch (err) {
     dondError(err.message);
@@ -334,6 +343,39 @@ function dondToggleEv() {
   dondSet({ evShown: !dondApp.evShown });
 }
 
+/* ============ The game lobby (docs 19 §1) ============ */
+
+function dondOpenLobby() {
+  if (!dondApp.core) return;
+  dondSet({ lobbyOpen: true });
+}
+
+function dondCloseLobby() {
+  if (!dondApp.lobbyOpen) return;
+  dondSet({ lobbyOpen: false });
+}
+
+/** Park the game in progress and go back to setup; Resume brings it back. */
+function dondLobbyKeep() {
+  if (!dondApp.core) { dondCloseLobby(); return; }
+  dondSet({ resumable: dondApp.core, core: null, lobbyOpen: false, evShown: false });
+  dondError("");
+}
+
+/** Drop the game in progress. The roster, the board and the rules all stay. */
+function dondLobbyRestart() {
+  dondSet({ core: null, resumable: null, lobbyOpen: false, evShown: false });
+  dondError("");
+}
+
+/** Put the parked game back exactly as it was. */
+function dondResume() {
+  const parked = dondApp.resumable;
+  if (!parked) return;
+  dondSet({ core: parked, resumable: null, lobbyOpen: false });
+  dondError("");
+}
+
 /**
  * Bind the saved game to the room it is being played in. Shell pids (p1, p2, …)
  * restart at p1 in every new room, so a resumed game's phone contestants would
@@ -346,12 +388,15 @@ function dondBindRoom(code) {
   const manual = new Set(dondApp.setup.players.filter((p) => p.manual).map((p) => p.pid));
   const players = dondApp.setup.players.filter((p) => p.manual);
   let core = dondApp.core;
+  let resumable = dondApp.resumable;
   let message = "";
-  if (core && core.contestants.some((c) => !manual.has(c.pid))) {
-    core = null;
+  const stale = (s) => !!s && s.contestants.some((c) => !manual.has(c.pid));
+  if (stale(core) || stale(resumable)) {
+    if (stale(core)) core = null;
+    if (stale(resumable)) resumable = null;
     message = "This is a new room, so the game in progress was cleared — the phone seats belonged to the old one.";
   }
-  dondSet({ roomCode: code, core, setup: Object.assign({}, dondApp.setup, { players }) });
+  dondSet({ roomCode: code, core, resumable, setup: Object.assign({}, dondApp.setup, { players }) });
   if (message) dondError(message);
 }
 
@@ -374,6 +419,10 @@ const DOND_KEYS = {
 function dondOnKey(event) {
   if (dondIsTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.target && event.target.tagName === "BUTTON") return;
+  if (dondApp.lobbyOpen) {
+    if (event.key === "Escape") { event.preventDefault(); dondCloseLobby(); }
+    return;                                // the confirm owns the keyboard
+  }
   if (dondApp.editorOpen || !dondApp.core) return;
   const key = String(event.key).toLowerCase();
   const isSpace = event.key === " " || event.key === "Spacebar" || event.code === "Space";
@@ -442,7 +491,33 @@ function dondWireResult() {
   dondWireButton("btn-next-contestant", () => dondDispatch({ type: "nextContestant" }));
   dondWireButton("btn-finish", () => dondDispatch({ type: "finish" }));
   dondWireButton("btn-result-undo", () => dondDispatch({ type: "undo" }));
-  dondWireButton("btn-play-again", () => dondSet({ core: null }));
+  dondWireButton("btn-play-again", () => dondSet({ core: null, resumable: null }));
+}
+
+function dondWireLobby() {
+  dondWireButton("btn-game-lobby", dondOpenLobby);
+  dondWireButton("btn-lobby-keep", dondLobbyKeep);
+  dondWireButton("btn-lobby-restart", dondLobbyRestart);
+  dondWireButton("btn-lobby-cancel", dondCloseLobby);
+  dondWireButton("btn-resume", dondResume);
+}
+
+/* ============ The set library (docs 19 §2) ============ */
+
+/**
+ * Mount the shared picker under the setup screen's board section. It hides
+ * itself with a plain-English note when sets/index.json cannot be fetched (a
+ * page opened from disk), so this is safe to call unconditionally.
+ */
+function dondMountLibrary() {
+  const box = $("dond-library");
+  if (!box || !window.GSCLibrary || typeof window.GSCLibrary.mountPicker !== "function") return;
+  window.GSCLibrary.mountPicker(box, {
+    gameDir: "",
+    label: "Saved boards",
+    validate: (json) => window.DondCore.validateBoard(json),
+    onPick(json, meta) { dondUseBoard(json, `set: ${meta.name}`, "library"); },
+  });
 }
 
 function dondWireChrome() {
@@ -513,6 +588,7 @@ function dondChooseContent(saved, loaded) {
   if (saved && saved.setup) patch.setup = dondMergeRoster(saved.setup, dondApp.setup.players);
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
+  if (useSaved && saved.resumable) patch.resumable = saved.resumable;
   if (!useSaved && saved && saved.core && !dondLoadMessage) {
     dondLoadMessage = "Loaded the board from the link, so the game in progress was cleared.";
   }
@@ -535,7 +611,9 @@ async function dondBoot() {
   dondWirePlay();
   dondWireBanker();
   dondWireResult();
+  dondWireLobby();
   dondWireChrome();
+  dondMountLibrary();
 
   const loaded = await dondLoadContent();
   dondSet(dondChooseContent(saved, loaded));
@@ -559,6 +637,12 @@ window.DondApp = {
   settingOn: dondSettingOn,
   effectiveBoard: dondEffectiveBoard,
   toggleEv: dondToggleEv,
+  openLobby: dondOpenLobby,
+  closeLobby: dondCloseLobby,
+  lobbyKeep: dondLobbyKeep,
+  lobbyRestart: dondLobbyRestart,
+  resume: dondResume,
+  mountLibrary: dondMountLibrary,
   bindRoom: dondBindRoom,
   showSplash: dondShowSplash,
   setPhoneCount: (n) => { if (n !== dondApp.phoneCount) dondSet({ phoneCount: Number(n) || 0 }); },

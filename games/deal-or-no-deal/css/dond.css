@@ -562,6 +562,25 @@
 
 .amount-board-preview { max-width: 26rem; }
 
+.library-note {
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+  margin: 0.6rem 0;
+}
+
+.library-note .setup-heading { margin-top: 0; }
+
+.library-note .mono {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  color: var(--gold-text);
+  margin: 0.35rem 0 0;
+}
+
 /* ============ Embedded / phone modes ============ */
 
 body.player-mode .topbar,
@@ -603,13 +622,18 @@ body.gsc-embedded #dond-room-chip { display: none !important; }
     to { opacity: 1; transform: scale(1); }
   }
 
-  /* The flip lives on the inner face and the sting on the button around it,
-     so the two never fight over `transform` on the same element. */
-  .case.is-open .case-inner {
+  /* `.is-flipping` is a ONE-SHOT class the renderer puts on the single case
+     that has just been opened and removes on animationend. It is deliberately
+     NOT keyed on `.is-open`: the grid is rebuilt on every render, so an
+     animation keyed on the open STATE re-ran on every already-open case every
+     time anything happened — including the banker's call (docs 19 §3).
+     The flip lives on the inner face and the sting on the button around it, so
+     the two never fight over `transform` on the same element. */
+  .case.is-flipping .case-inner {
     animation: dond-case-flip var(--dur-slow) var(--ease-out) both;
   }
 
-  .case.is-last {
+  .case.is-flipping {
     animation: dond-sting 620ms var(--ease-spring) 380ms both;
   }
 

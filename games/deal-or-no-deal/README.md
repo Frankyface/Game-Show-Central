@@ -60,9 +60,22 @@ python -m http.server 8620                 # then open
    night** for the standings. **End the night** from the board also works. The
    hub's night scoreboard is told every total.
 
+**Getting back to the start.** The toolbar's **Game lobby** button asks one
+question from any phase:
+
+- **Keep this game** parks it and returns to the setup screen, where a
+  **Resume the game** button picks it up exactly where it was. The parked game
+  is saved, so it survives a refresh.
+- **Start over** drops the game in progress. The contestants, the board and the
+  rules all stay, so **Start the game** deals a fresh set of cases immediately.
+
+Loading a different board, or pressing **Start the game** beside Resume, also
+drops whatever was parked, because a parked game belongs to the board it was
+dealt from.
+
 Hotkeys on the host screen: `B` the banker calls, `D` deal, `N` no deal,
-`Space` the next step of a reveal, `U` undo. Undo works everywhere and steps
-back exactly one move.
+`Space` the next step of a reveal, `U` undo, `Esc` closes the Game lobby
+question. Undo works everywhere and steps back exactly one move.
 
 ## 3. The banker's arithmetic
 
@@ -112,6 +125,28 @@ the board gets worse when the top amounts go. That is the game.
 | `settings.allowSwap` | no | boolean, default true |
 | `settings.audienceAdvice` | no | boolean, default true. It decides whether the banker's call opens a ballot; the host can open or close one by hand at any offer regardless. The panel is simply not drawn when nobody is connected and nobody has voted |
 
+### The board library (`sets/`)
+
+Extra boards are committed beside the default one and listed in a manifest, so
+the setup screen can offer them without anyone typing JSON:
+
+```
+sets/index.json        the manifest: file, name, description, by, counts
+sets/quick-16.json     "Quick 16" … 16 cases, six short rounds
+sets/high-rollers.json "High rollers" … nothing under a thousand, ten million on top
+```
+
+The **Saved boards** picker under *The board* on the setup screen lists them,
+previews the one you have selected, and **Load set** puts it through the same
+`validateBoard` every other route uses. The source note then reads
+`set: Quick 16`. Opened straight from disk the picker hides itself and says why
+… a manifest cannot be fetched over `file://`.
+
+To add your own: build it in the editor, press **Download for the library**, and
+follow the two lines it prints … the path to commit the file at, and the
+exact manifest line to paste into `sets/index.json`. Static hosting cannot write
+files, so that is the honest workflow.
+
 Everything in the file is configuration: there is no question text to write.
 The **Board editor** edits exactly these fields, previews the amounts as the two
 columns the host screen shows, and previews the round schedule with the banker's
@@ -153,8 +188,12 @@ js/dond-room.js          host glue on GSC.host: roster, validation, per-phone vi
 js/dond-phone.js         the phone controller on GSC.player
 js/dond-sound.js         WebAudio cues (no audio files)
 js/data.js               offline mirror of board.json
+sets/index.json          the board-library manifest
+sets/*.json              the boards it lists
 tests/dond-core.test.mjs node:test, N-U1 … N-U10
+tests/dond-advice.test.mjs  the live ballot and the selector contract
 tests/harness.html       the loopback harness, N-I1 … N-I6
+tests/harness-x.js       the cross-cutting scenarios, X-1 … X-4
 ```
 
 ## 7. Known behaviour worth knowing
