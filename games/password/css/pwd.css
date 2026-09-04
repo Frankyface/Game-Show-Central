@@ -1,0 +1,774 @@
+/* ============================================================
+   Password — host styles
+   Palette (spec 13 §3): the classic show's midnight blue with
+   white and gold, and the value ladder as lit gold rungs. Built
+   on design system v2 (shared/theme.css + theme-components.css):
+   tokens, .gsc-* components and the motion vocabulary come from
+   there.
+
+   The accent map (--accent, --accent-2, --accent-ink,
+   --stage-glow) lives in shared/theme.css and is the single
+   source of truth — this sheet never re-declares it. What it does
+   declare is a set of --pwd-* tokens for the colours that are
+   this game's own, plus the two stage stops.
+
+   Two house rules shape this sheet:
+   - every @keyframes and every `animation:` sits inside
+     `@media (prefers-reduced-motion: no-preference)`;
+   - the host screen must fit 1280x720 (and the hub's 1280x676
+     frame) with no vertical scroll in play, so the word and
+     Lightning screens are fixed-height grids rather than a stack
+     that grows.
+   ============================================================ */
+
+:root {
+  --stage-deep: #0d1b4b;
+  --stage-night: #05091f;
+  --stage-card: #142a6e;
+
+  --pwd-gold: #f2c94c;        /* 9.6:1 on the stage */
+  --pwd-gold-soft: #ffde85;   /* 12.4:1 */
+  --pwd-gold-deep: #a67f10;
+  --pwd-cream: #f7f9ff;       /* 17.6:1 */
+  --pwd-dim: #c9d4f5;         /* secondary text: 10.4:1 on a glass panel over the stage */
+  --pwd-navy-lift: #16276b;
+  --pwd-red: #ff9d9d;         /* the shared --red only reaches 3.9:1 on this stage */
+  --pwd-green: #7ce8a8;
+}
+
+body {
+  margin: 0;
+  padding: 0.6rem 1.1rem 0.9rem;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* ============ Top bar ============ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.45rem;
+}
+
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--pwd-gold);
+  margin: 0;
+}
+
+.topbar-actions { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+
+.room-chip {
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  color: var(--accent-ink);
+  background: var(--pwd-gold);
+  border-radius: var(--radius-pill);
+  padding: 0.2em 0.8em;
+  font-size: 0.95rem;
+}
+
+.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+
+/* ============ Buttons this game adds to the v1 set ============ */
+
+.btn-blue {
+  color: #d9e6ff;
+  border-color: rgba(140, 176, 255, 0.6);
+  background: rgba(40, 74, 168, 0.4);
+}
+
+.btn-green {
+  color: #d6ffe6;
+  border-color: rgba(124, 232, 168, 0.6);
+  background: rgba(24, 104, 62, 0.4);
+}
+
+.btn-blue:hover, .btn-green:hover { transform: translateY(-1px); }
+
+/* The shared --red is 3.9:1 against this stage; this step clears 5:1. */
+.btn-danger { color: var(--pwd-red); border-color: rgba(255, 157, 157, 0.55); }
+.btn-danger:hover { border-color: var(--pwd-red); }
+
+.btn .gsc-kbd { margin-left: 0.5em; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+/* ============ Shared text bits ============ */
+
+.kicker {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--pwd-gold-soft);
+  margin: 0 0 0.3rem;
+}
+
+.card-title, .screen-title, .winner-name {
+  font-family: var(--font-display);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--pwd-cream);
+  margin: 0 0 0.4rem;
+}
+
+.card-title { font-size: var(--fs-title); }
+.screen-title { font-size: 1.5rem; }
+
+.hint, .source-note, .hint-inline {
+  font-size: 0.85rem;
+  color: var(--pwd-dim);
+  margin: 0.3rem 0;
+}
+
+.col-label {
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--pwd-dim);
+  margin: 0 0 0.3rem;
+}
+
+.col-note { font-size: 0.75rem; color: var(--pwd-dim); margin: 0.35rem 0 0; text-align: center; }
+
+.notice {
+  font-size: 0.95rem;
+  color: var(--pwd-dim);
+  margin: 0.2rem 0 0.4rem;
+  min-height: 1.2em;
+}
+
+.notice-warn {
+  color: #ffe6a6;
+  background: rgba(242, 201, 76, 0.14);
+  border-left: 4px solid var(--pwd-gold);
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+}
+
+.count-badge {
+  font-size: 0.75rem;
+  color: var(--accent-ink);
+  background: var(--pwd-gold-soft);
+  border-radius: var(--radius-pill);
+  padding: 0.1em 0.6em;
+  margin-left: 0.3em;
+}
+
+.setup-heading {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pwd-gold-soft);
+  margin: 0.9rem 0 0.4rem;
+}
+
+/* ============ Setup ============ */
+
+.screen-setup { max-width: 1180px; margin: 0 auto; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.2rem 1.2rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.setup-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+}
+
+.inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.4rem 0; }
+
+.inline-form input[type="text"], .field-inline input, .field-inline select, .field input,
+.field-inline select, textarea.ed-words {
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-ui);
+  padding: 0.45rem 0.6rem;
+  min-height: 40px;
+}
+
+.field-inline, .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pwd-dim);
+  margin-bottom: 0.4rem;
+}
+
+.field input { width: 100%; box-sizing: border-box; }
+
+.player-list { list-style: none; margin: 0.3rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--well);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.6rem;
+}
+
+.player-name { font-weight: 700; color: var(--pwd-cream); flex: 1; }
+.player-kind { font-size: 0.75rem; color: var(--pwd-dim); }
+
+.team-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 0.8rem; }
+
+.team-card {
+  background: var(--well);
+  border-top: 4px solid var(--pwd-gold);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem 0.3rem;
+}
+
+.team-card-b { border-top-color: #8cb0ff; }
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--pwd-dim);
+  margin: 0.4rem 0;
+  line-height: 1.35;
+}
+
+.check input { margin-top: 0.2rem; width: 18px; height: 18px; }
+
+.mode-set { border: 1px solid var(--panel-line); border-radius: var(--radius); padding: 0.6rem 0.8rem; margin: 0; }
+.mode-set strong { color: var(--pwd-gold-soft); }
+
+.rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+
+.setup-actions { margin-top: 1rem; display: flex; justify-content: flex-end; }
+
+/* ============ Banner ============ */
+
+.gsc-banner, .play-banner, .lightning-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border-left: 6px solid var(--pwd-gold);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.gsc-banner-title {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.2vw, 32px);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--pwd-cream);
+  margin: 0;
+}
+
+.gsc-banner-sub { font-size: 0.92rem; color: var(--pwd-dim); margin: 0; }
+.gsc-banner-end { margin-left: auto; }
+
+.gsc-badge {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+  background: var(--pwd-gold);
+  border-radius: var(--radius-pill);
+  padding: 0.15em 0.9em;
+}
+
+/* ============ A password in play ============ */
+
+#screen-word, #screen-lightning {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 5.6rem);
+}
+
+#screen-word .controls, #screen-lightning .controls { margin-top: auto; }
+
+.play-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 130px minmax(320px, 1fr) minmax(260px, 24%);
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 0;
+}
+
+/* ---- the value ladder ---- */
+
+.ladder-col {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 0.6rem 0.5rem 0.5rem;
+  text-align: center;
+}
+
+.ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  justify-content: stretch;
+}
+
+.ladder-rung {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  border: 1px solid rgba(242, 201, 76, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(242, 201, 76, 0.07);
+  color: var(--pwd-gold-soft);
+}
+
+.ladder-n {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Spent rungs keep their number but lose the light: the ladder reads as a
+   countdown even in a photograph, without relying on colour alone. */
+.ladder-rung.is-spent {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(201, 212, 245, 0.16);
+  color: rgba(201, 212, 245, 0.55);   /* 4.3:1 on the darkened rung */
+}
+
+.ladder-rung.is-live {
+  background: linear-gradient(180deg, var(--pwd-gold-soft), var(--pwd-gold));
+  border-color: var(--pwd-gold-soft);
+  color: var(--accent-ink);
+  box-shadow: 0 0 0 3px rgba(242, 201, 76, 0.28);
+}
+
+.ladder-rung.is-live .ladder-n { font-size: 2rem; }
+
+/* ---- the middle column ---- */
+
+.play-mid {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;   /* the reveal panel grows from the middle, not the top */
+  gap: 0.5rem;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 0.7rem 0.9rem 0.8rem;
+}
+
+.turn-plate { text-align: center; }
+
+.turn-name {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3.6vw, 54px);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--pwd-cream);
+  margin: 0;
+}
+
+.turn-roles { font-size: 0.95rem; color: var(--pwd-dim); margin: 0.25rem 0 0; }
+
+.counters { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+.counter {
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+}
+
+.counter .k {
+  margin: 0;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--pwd-dim);
+}
+
+.counter .v {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--pwd-cream);
+}
+
+.counter-value .v { color: var(--pwd-gold); }
+
+.clock-state { font-size: 0.92rem; color: var(--pwd-dim); margin: 0.2rem 0 0; min-height: 2.4em; }
+
+/* ---- the reveal panel: the ONE place a live password reaches this screen ---- */
+
+.word-panel { min-height: 0; }
+
+.word-panel.is-open {
+  background: rgba(0, 0, 0, 0.42);
+  border: 2px solid var(--pwd-gold);
+  border-radius: var(--radius-lg);
+  padding: 0.6rem 0.9rem 0.8rem;
+}
+
+.word-warn {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pwd-gold-soft);
+}
+
+.word-now {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 5vw, 74px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--pwd-cream);
+  margin: 0;
+  word-break: break-word;
+}
+
+.word-study { margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--pwd-gold-soft); }
+
+/* ---- the rail: scores and the clue log ---- */
+
+.play-rail { display: flex; flex-direction: column; gap: 0.7rem; min-height: 0; }
+
+.podiums { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.gsc-podium {
+  display: grid;
+  grid-template-areas: "name score" "note score";
+  grid-template-columns: 1fr auto;
+  gap: 0 0.6rem;
+  align-items: center;
+  background: var(--panel);
+  border-left: 5px solid rgba(201, 212, 245, 0.3);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.7rem;
+}
+
+.gsc-podium.is-active { border-left-color: var(--pwd-gold); background: var(--panel-strong); }
+.gsc-podium-name {
+  grid-area: name;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--pwd-cream);
+  text-transform: uppercase;
+}
+.gsc-podium-score {
+  grid-area: score;
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  color: var(--pwd-gold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.gsc-podium-note { grid-area: note; font-size: 0.76rem; color: var(--pwd-dim); }
+
+.clue-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+}
+
+.log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+
+.log-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 0.45rem;
+  align-items: center;
+  background: var(--well);
+  border-left: 3px solid rgba(201, 212, 245, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--pwd-dim);
+}
+
+.log-team { color: var(--pwd-cream); font-weight: 700; }
+.log-mark { font-size: 0.95rem; }
+.log-note { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
+.log-value { font-family: var(--font-display); color: var(--pwd-gold); }
+
+.log-row.is-correct { border-left-color: var(--pwd-green); }
+.log-row.is-correct .log-mark { color: var(--pwd-green); }
+.log-row.is-illegal { border-left-color: var(--pwd-red); }
+.log-row.is-illegal .log-mark { color: var(--pwd-red); }
+.log-row.is-wrong .log-mark { color: var(--amber); }
+
+/* ============ Game over ============ */
+
+#screen-over { text-align: center; max-width: 940px; margin: 0 auto; }
+
+.over-choice { display: flex; justify-content: center; margin: 0.8rem 0; }
+.over-choice .field-inline { align-items: center; }
+#screen-over .controls { justify-content: center; }
+
+/* ============ The Lightning Round ============ */
+
+.lightning-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(300px, 34%) 1fr;
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.play-clock-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 0.8rem 0.6rem 1rem;
+}
+
+.giant-clock {
+  font-family: var(--font-display);
+  font-size: clamp(78px, 11vw, 168px);
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--pwd-cream);
+  margin: 0;
+}
+
+.giant-clock.running { color: var(--pwd-gold); }
+.giant-clock.danger { color: #ffab8a; }
+.giant-clock.done { color: var(--pwd-red); }
+
+.count-big {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3.4vw, 52px);
+  color: var(--pwd-gold-soft);
+  margin: 0.2rem 0 0;
+  line-height: 1;
+}
+
+.lightning-board-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.l-slots { display: flex; flex-wrap: wrap; gap: 0.55rem; justify-content: center; }
+
+.l-slot {
+  flex: 1 1 150px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--panel);
+  border: 2px solid rgba(242, 201, 76, 0.3);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.5rem;
+  text-align: center;
+}
+
+.l-slot-n { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pwd-dim); }
+.l-slot-value { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--pwd-gold-soft); }
+.l-slot-word { font-size: 0.95rem; font-weight: 700; color: var(--pwd-cream); word-break: break-word; }
+.l-slot-note { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--pwd-dim); }
+
+.l-slot.is-got {
+  background: linear-gradient(180deg, var(--pwd-gold-soft), var(--pwd-gold));
+  border-color: var(--pwd-gold-soft);
+}
+.l-slot.is-got .l-slot-value, .l-slot.is-got .l-slot-word, .l-slot.is-got .l-slot-n { color: var(--accent-ink); }
+.l-slot.is-got .l-slot-note { color: #2b1e00; }
+.l-slot.is-passed { border-style: dashed; }
+.l-slot.is-current { border-color: var(--pwd-cream); box-shadow: 0 0 0 3px rgba(242, 201, 76, 0.35); }
+
+/* ============ Result / standings ============ */
+
+#screen-result { text-align: center; max-width: 980px; margin: 0 auto; }
+
+.winner-name { font-size: var(--fs-display); }
+
+.final-amount {
+  font-family: var(--font-display);
+  font-size: clamp(46px, 6vw, 96px);
+  line-height: 1;
+  color: var(--pwd-gold);
+  margin: 0 0 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-sub { font-size: 1.05rem; color: var(--pwd-dim); margin: 0 0 1rem; }
+
+.standings { list-style: none; margin: 0 auto; padding: 0; max-width: 660px; display: flex; flex-direction: column; gap: 0.4rem; }
+
+.standing-row {
+  display: grid;
+  grid-template-areas: "name money" "members money" "points money";
+  grid-template-columns: 1fr auto;
+  gap: 0 0.8rem;
+  align-items: center;
+  text-align: left;
+  background: var(--panel);
+  border-left: 5px solid var(--pwd-gold);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+}
+
+.standing-name {
+  grid-area: name;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--pwd-cream);
+  text-transform: uppercase;
+}
+.standing-members { grid-area: members; font-size: 0.78rem; color: var(--pwd-dim); }
+.standing-points { grid-area: points; font-size: 0.9rem; color: var(--pwd-dim); }
+.standing-money {
+  grid-area: money;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  color: var(--pwd-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+#screen-result .controls { justify-content: center; }
+
+/* ============ Editor ============ */
+
+.screen-editor { max-width: 1240px; margin: 0 auto; }
+.editor-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.editor-bar-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.editor-grid { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 1.2rem; margin-top: 0.8rem; }
+.editor-col { min-width: 0; }
+
+.ed-bad { border-color: var(--pwd-red) !important; }
+
+textarea.ed-words {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 52vh;
+  resize: vertical;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  line-height: 1.5;
+}
+
+/* ============ Splash ============ */
+
+.gsc-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(13, 27, 75, 0.97), rgba(5, 9, 31, 0.99));
+}
+
+.gsc-splash-kicker { font-size: var(--fs-micro); letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--pwd-gold-soft); margin: 0; }
+.gsc-splash-title { font-family: var(--font-display); font-size: var(--fs-hero); line-height: 0.9; text-transform: uppercase; color: var(--pwd-cream); margin: 0; }
+.gsc-splash-rule { width: min(320px, 60vw); height: 4px; background: var(--pwd-gold); border-radius: 2px; }
+.gsc-splash-sub { font-size: var(--fs-body); color: var(--pwd-dim); margin: 0; }
+
+/* ============ Embedded / player chrome ============ */
+
+body.gsc-embedded #pwd-room-controls,
+body.gsc-embedded #pwd-join-note,
+body.gsc-embedded #pwd-room-chip { display: none !important; }
+
+body.player-mode .topbar,
+body.player-mode #pwd-error { display: none !important; }
+
+/* ============ Motion (every animation lives in here) ============ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pwd-rung-light {
+    0% { transform: scale(0.94); }
+    60% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes pwd-slot-light {
+    0% { transform: scale(0.94); }
+    60% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes pwd-clock-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.62; }
+  }
+
+  .ladder-rung.is-live { animation: pwd-rung-light var(--dur) var(--ease-spring) both; }
+  .l-slot.is-got { animation: pwd-slot-light var(--dur) var(--ease-spring) both; }
+  .giant-clock.danger { animation: pwd-clock-pulse 1s steps(2, end) infinite; }
+  .word-panel.is-open { animation: gsc-rise var(--dur) var(--ease-out) both; }
+}
+
+/* ============ Narrow host windows ============ */
+
+@media (max-width: 1080px) {
+  .play-grid { grid-template-columns: 110px 1fr; }
+  .play-rail { grid-column: 1 / -1; }
+  .lightning-grid { grid-template-columns: 1fr; }
+  .team-cards, .setup-cols { grid-template-columns: 1fr; }
+  .editor-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-height: 700px) {
+  .turn-name { font-size: clamp(26px, 3vw, 40px); }
+  .counter .v { font-size: clamp(24px, 2.6vw, 36px); }
+  .word-now { font-size: clamp(32px, 4vw, 56px); }
+}

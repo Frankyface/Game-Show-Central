@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password</title>
+  <meta name="description" content="A Password style game for game night: two teams of two, one-word clues, a value ladder from ten down to one, and a Lightning Round. Phones optional. Bring your own word list as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/pwd.css">
+  <link rel="stylesheet" href="css/pwd-phone.css">
+</head>
+<body data-gsc-game="password">
+
+  <header class="topbar">
+    <h1 id="pwd-title" class="topbar-title">Password</h1>
+    <div class="topbar-actions">
+      <span id="pwd-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Word editor</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="pwd-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="pwd-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card">
+        <p class="kicker">One word. One guess. Ten points, then nine, then eight&hellip;</p>
+        <h2 class="card-title">Password</h2>
+        <p id="pwd-source" class="source-note">Loading words&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Players <span id="pwd-player-count" class="count-badge"></span></h3>
+            <p class="hint">Two teams of two. Seat 1 gives the clues first; the pair swap between
+              words unless you turn that off.</p>
+            <ul id="pwd-player-list" class="player-list"></ul>
+            <form id="pwd-add-player" class="inline-form">
+              <label class="visually-hidden" for="pwd-player-name">Player name</label>
+              <input id="pwd-player-name" type="text" maxlength="24" placeholder="Player name"
+                     autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost" type="submit">+ Add player</button>
+            </form>
+
+            <div class="team-cards">
+              <div class="team-card team-card-a">
+                <label class="field-inline">Team A
+                  <input id="pwd-team-a" type="text" maxlength="24" autocomplete="off" placeholder="Team A">
+                </label>
+                <label class="field-inline">Seat 1 (gives first)
+                  <select id="pwd-a1"></select>
+                </label>
+                <label class="field-inline">Seat 2
+                  <select id="pwd-a2"></select>
+                </label>
+              </div>
+              <div class="team-card team-card-b">
+                <label class="field-inline">Team B
+                  <input id="pwd-team-b" type="text" maxlength="24" autocomplete="off" placeholder="Team B">
+                </label>
+                <label class="field-inline">Seat 1 (gives first)
+                  <select id="pwd-b1"></select>
+                </label>
+                <label class="field-inline">Seat 2
+                  <select id="pwd-b2"></select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">How the password reaches the givers</h3>
+            <fieldset class="mode-set">
+              <legend class="visually-hidden">Password mode</legend>
+              <label class="check"><input id="pwd-mode-phone" type="radio" name="pwd-mode" value="phone">
+                <span><strong>Phone mode</strong> — both givers read the password off their own phones.
+                  Nothing secret ever appears on this screen.</span></label>
+              <label class="check"><input id="pwd-mode-host" type="radio" name="pwd-mode" value="host">
+                <span><strong>Host as giver</strong> — no phones. This screen can show the password on
+                  request, so the host gives the clues for both teams.</span></label>
+            </fieldset>
+
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="pwd-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="pwd-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="pwd-join-note" class="hint hidden">Players open <span id="pwd-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <div class="rule-grid">
+              <label class="field-inline">Points to win
+                <input id="pwd-set-target" type="number" min="5" max="100" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Lightning seconds
+                <input id="pwd-set-lsecs" type="number" min="15" max="180" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Lightning words
+                <input id="pwd-set-lwords" type="number" min="1" max="10" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Each word is worth
+                <input id="pwd-set-lvalue" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Team A or B opens
+                <select id="pwd-set-first">
+                  <option value="0">Team A</option>
+                  <option value="1">Team B</option>
+                </select>
+              </label>
+            </div>
+            <label class="check"><input id="pwd-set-bonus" type="checkbox"> All the words doubles the money</label>
+            <label class="check"><input id="pwd-set-swap" type="checkbox"> Swap giver and receiver between words</label>
+
+            <h3 class="setup-heading">Words</h3>
+            <div class="inline-form">
+              <button id="btn-shuffle" class="btn btn-ghost" type="button" aria-pressed="false">Shuffle the list</button>
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load words (.json)</button>
+              <input id="pwd-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="pwd-word-count" class="hint"></p>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== A password in play ===================== -->
+    <section id="screen-word" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="pwd-play-title" class="gsc-banner-title">&nbsp;</p>
+        <p id="pwd-play-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="pwd-play-game" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="play-grid">
+        <!-- The value ladder: ten rungs, lit down to the one in play. Numbers
+             only — it is a scoreboard, never a hint. -->
+        <div class="ladder-col">
+          <p class="col-label">Worth now</p>
+          <div id="pwd-ladder" class="ladder" role="img" aria-label="Value ladder"></div>
+          <p id="pwd-ladder-note" class="col-note">&nbsp;</p>
+        </div>
+
+        <div class="play-mid">
+          <div class="turn-plate">
+            <p class="col-label">Clue from</p>
+            <p id="pwd-turn-name" class="turn-name">&nbsp;</p>
+            <p id="pwd-turn-roles" class="turn-roles">&nbsp;</p>
+          </div>
+          <div class="counters">
+            <div class="counter">
+              <p class="k">Clues</p>
+              <p id="pwd-clue-count" class="v">0 / 10</p>
+            </div>
+            <div class="counter counter-value">
+              <p class="k">Worth</p>
+              <p id="pwd-value" class="v">10</p>
+            </div>
+          </div>
+          <p id="pwd-play-state" class="clock-state">&nbsp;</p>
+          <p id="pwd-play-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+          <!-- Built by pwd-view.js ONLY while the host has asked to see the
+               password. Nothing secret is ever parked here hidden: the nodes
+               do not exist. -->
+          <div id="pwd-word-panel" class="word-panel"></div>
+        </div>
+
+        <aside class="play-rail">
+          <div id="pwd-podiums" class="podiums" aria-live="polite"></div>
+          <div id="pwd-clue-log" class="clue-log" aria-label="Clues so far"></div>
+        </aside>
+      </div>
+
+      <div class="controls">
+        <button id="btn-clue" class="btn btn-blue btn-big" type="button">Clue given
+          <kbd class="gsc-kbd">C</kbd></button>
+        <button id="btn-correct" class="btn btn-green btn-big" type="button">Correct
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-wrong" class="btn btn-gold btn-big" type="button">Wrong
+          <kbd class="gsc-kbd">W</kbd></button>
+        <button id="btn-illegal" class="btn btn-danger btn-big" type="button">Illegal clue
+          <kbd class="gsc-kbd">X</kbd></button>
+        <button id="btn-reveal" class="btn btn-ghost" type="button" aria-pressed="false">Show password to me</button>
+        <button id="btn-study" class="btn btn-ghost" type="button">Study (5 s)</button>
+        <button id="btn-first" class="btn btn-ghost" type="button">Other team opens</button>
+        <button id="btn-skip" class="btn btn-ghost" type="button">Skip this word</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-next-word" class="btn btn-gold btn-big" type="button">Next word
+          <kbd class="gsc-kbd">N</kbd></button>
+      </div>
+    </section>
+
+    <!-- ===================== Game over ===================== -->
+    <section id="screen-over" class="screen hidden">
+      <p class="kicker">Game over</p>
+      <h2 id="pwd-over-team" class="winner-name">&nbsp;</h2>
+      <p id="pwd-over-score" class="final-amount">&nbsp;</p>
+      <p id="pwd-over-sub" class="result-sub">&nbsp;</p>
+      <div class="over-choice">
+        <label class="field-inline">Who gives the Lightning clues?
+          <select id="pwd-lightning-giver"></select>
+        </label>
+      </div>
+      <div class="controls">
+        <button id="btn-to-lightning" class="btn btn-gold btn-big" type="button">Play the Lightning Round</button>
+        <button id="btn-over-next-game" class="btn btn-blue" type="button">Another game instead</button>
+        <button id="btn-over-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-over-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Lightning Round ===================== -->
+    <section id="screen-lightning" class="screen hidden">
+      <div class="gsc-banner lightning-banner">
+        <p id="pwd-l-title" class="gsc-banner-title">Lightning Round</p>
+        <p id="pwd-l-roles" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="pwd-l-total" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="lightning-grid">
+        <div class="play-clock-col">
+          <p id="pwd-clock" class="giant-clock" role="timer" aria-live="off">1:00</p>
+          <p id="pwd-l-count" class="count-big" aria-live="polite">0 / 5</p>
+          <p id="pwd-l-state" class="clock-state">Press Start when the giver is ready.</p>
+        </div>
+        <div class="lightning-board-col">
+          <div id="pwd-l-slots" class="l-slots" aria-label="Lightning Round words"></div>
+          <p id="pwd-l-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+          <div id="pwd-l-panel" class="word-panel"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-l-start" class="btn btn-gold btn-big" type="button">Start the clock
+          <kbd class="gsc-kbd">Enter</kbd></button>
+        <button id="btn-l-got" class="btn btn-green btn-big" type="button">Got it
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-l-pass" class="btn btn-blue btn-big" type="button">Pass <kbd class="gsc-kbd">P</kbd></button>
+        <button id="btn-l-reveal" class="btn btn-ghost" type="button" aria-pressed="false">Show words to me</button>
+        <button id="btn-l-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-l-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-l-next" class="btn btn-gold btn-big" type="button">Show the result
+          <kbd class="gsc-kbd">N</kbd></button>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="pwd-result-kicker" class="kicker">&nbsp;</p>
+      <h2 id="pwd-result-team" class="winner-name">&nbsp;</h2>
+      <p id="pwd-result-amount" class="final-amount">&nbsp;</p>
+      <p id="pwd-result-sub" class="result-sub">&nbsp;</p>
+      <ol id="pwd-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-result-next" class="btn btn-gold btn-big" type="button">Show the standings</button>
+        <button id="btn-next-game" class="btn btn-blue btn-big" type="button">Play another game</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-new-teams" class="btn btn-ghost hidden" type="button">New teams</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Word editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Word editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="pwd-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="pwd-editor-warn" class="notice"></p>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="pwd-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="pwd-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Points to win a game
+            <input id="pwd-ed-target" type="number" min="5" max="100" step="1" inputmode="numeric">
+          </label>
+          <label class="field">The first clue is worth
+            <input id="pwd-ed-start" type="number" min="3" max="20" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Seconds in the Lightning Round
+            <input id="pwd-ed-lsecs" type="number" min="15" max="180" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Words in the Lightning Round
+            <input id="pwd-ed-lwords" type="number" min="1" max="10" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Each Lightning word is worth
+            <input id="pwd-ed-lvalue" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+          </label>
+          <label class="check"><input id="pwd-ed-bonus" type="checkbox"> All the words doubles the money</label>
+          <label class="check"><input id="pwd-ed-swap" type="checkbox"> Swap roles between words</label>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <h3 class="setup-heading">Passwords <span id="pwd-ed-count" class="count-badge"></span></h3>
+          <p class="hint">One password per line. Single words only — letters, apostrophes and hyphens.
+            Sixty is the minimum; a hundred and twenty or more is comfortable.</p>
+          <label class="visually-hidden" for="pwd-ed-words">Passwords, one per line</label>
+          <textarea id="pwd-ed-words" class="ed-words" spellcheck="false" autocomplete="off"
+                    rows="24"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="pwd-phone-card" class="phone-card">
+        <p id="pwd-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="pwd-phone-word" class="phone-word" aria-live="polite">&nbsp;</p>
+        <p id="pwd-phone-sub" class="phone-sub">Waiting for the host&hellip;</p>
+        <div id="pwd-phone-meta" class="phone-meta"></div>
+        <div id="pwd-phone-actions" class="phone-actions"></div>
+        <p id="pwd-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============
+       Same node, ids and classes as the hub's own splash: decorative,
+       pointer-events:none, skipped entirely under prefers-reduced-motion. ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/pwd-content.js"></script>
+  <script src="js/pwd-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/pwd-sound.js"></script>
+  <script src="js/pwd-clock.js"></script>
+  <script src="js/pwd-view.js"></script>
+  <script src="js/pwd-app.js"></script>
+  <script src="js/pwd-editor.js"></script>
+  <script src="js/pwd-room.js"></script>
+  <script src="js/pwd-phone.js"></script>
+</body>
+</html>
