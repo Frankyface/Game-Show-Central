@@ -11,7 +11,21 @@
 
 "use strict";
 
-const PWD_STORAGE_KEY = "gsc-pwd-state-v1";
+/**
+ * `?store=NAME` moves this page's localStorage into its own namespace. The
+ * loopback harness uses `?store=harness` so a test run cannot leave harness
+ * words (or a half-played game) in the real host's save on the same origin —
+ * the pattern Price Is Right settled on in Phase 3 (defect PW-D5).
+ * Anything but letters, digits and hyphens is stripped.
+ */
+function pwdStoreSuffix() {
+  if (typeof location === "undefined") return "";
+  const raw = new URLSearchParams(location.search).get("store") || "";
+  const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+  return clean ? `-${clean}` : "";
+}
+
+const PWD_STORAGE_KEY = `gsc-pwd-state-v1${pwdStoreSuffix()}`;
 const PWD_STUDY_MS = 5000;   // spec 13 §3: study mode shows the password for 5 s
 
 /* ============ App state ============ */
@@ -156,21 +170,33 @@ function pwdPauseRestored(state) {
   });
 }
 
+/**
+ * A save we cannot use is always dropped — but never silently: the host is told
+ * on the setup screen what happened, the way a failed `?game=` is (defect
+ * PW-D6, and the house rule that every failure path surfaces a message).
+ */
+const PWD_SAVE_UNREADABLE = "Your saved game couldn’t be read, so it was cleared";
+
 function pwdLoadSaved() {
   try {
     const raw = localStorage.getItem(PWD_STORAGE_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw);
-    if (!saved || typeof saved !== "object") return null;
+    if (!saved || typeof saved !== "object") {
+      pwdNote(`${PWD_SAVE_UNREADABLE} — this night starts fresh.`);
+      return null;
+    }
     if (saved.game) window.PwdCore.validateGame(saved.game);
     if (typeof saved.roomCode !== "string") saved.roomCode = null;
     if (saved.core !== null && saved.core !== undefined && !pwdUsableCore(saved.core)) {
       console.warn("Ignoring a saved game with a damaged state object.");
+      pwdNote(`${PWD_SAVE_UNREADABLE} — the words and the line-up are still here.`);
       return Object.assign({}, saved, { core: null });
     }
     return Object.assign({}, saved, { core: pwdPauseRestored(saved.core) });
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
+    pwdNote(`${PWD_SAVE_UNREADABLE} — this night starts fresh.`);
     return null;
   }
 }
@@ -185,6 +211,12 @@ function pwdError(message) {
 /* ============ Content loading ============ */
 
 let pwdLoadMessage = "";   // survives the pwdSet() in pwdBoot, which clears the banner
+
+/** Add one sentence to the banner pwdBoot shows. Notes never overwrite. */
+function pwdNote(text) {
+  if (!text) return;
+  pwdLoadMessage = pwdLoadMessage ? `${pwdLoadMessage} ${text}` : text;
+}
 // The first half of the ?game= failure banner. The second half depends on what
 // pwdChooseContent actually settles on, so it is written there.
 let pwdUrlFailure = "";
@@ -631,32 +663,6 @@ function pwdWireChrome() {
   document.addEventListener("visibilitychange", () => { if (document.hidden) pwdSave(); });
 }
 
-/* ============ Splash ============ */
-
-const PWD_SPLASH_MS = 1200;
-let pwdSplashTimer = null;
-
-/**
- * The 1.2 s title card the hub shows on a game switch, mirrored here so a
- * standalone page carries it too. Decorative only: `.gsc-splash` is
- * `pointer-events: none`, and the whole card is skipped under reduced motion.
- */
-function pwdShowSplash() {
-  const node = $("gsc-splash");
-  if (!node) return;
-  if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  if (document.body.classList.contains("gsc-embedded")) return;  // the hub shows its own
-  setText("gsc-splash-title", "Password");
-  setText("gsc-splash-sub", "One word. One guess. Ten points, then nine…");
-  node.dataset.gscGame = "password";
-  node.classList.remove("hidden");
-  if (pwdSplashTimer) clearTimeout(pwdSplashTimer);
-  pwdSplashTimer = setTimeout(() => {
-    pwdSplashTimer = null;
-    node.classList.add("hidden");
-  }, PWD_SPLASH_MS);
-}
-
 /* ============ Boot ============ */
 
 /**
@@ -708,12 +714,11 @@ function pwdChooseContent(saved, loaded) {
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
   if (pwdUrlFailure) {
-    pwdLoadMessage = `${pwdUrlFailure} ${useSaved
+    pwdNote(`${pwdUrlFailure} ${useSaved
       ? "Keeping the words you already had."
-      : "Using the built-in list instead."}`;
-  }
-  if (!useSaved && saved && saved.core && !pwdLoadMessage) {
-    pwdLoadMessage = "Loaded the words from the link, so the game in progress was cleared.";
+      : "Using the built-in list instead."}`);
+  } else if (!useSaved && saved && saved.core) {
+    pwdNote("Loaded the words from the link, so the game in progress was cleared.");
   }
   const setup = patch.setup || pwdApp.setup;
   patch.setup = Object.assign({}, setup, { settings: pwdSettingsFromGame(patch.game, setup) });
@@ -724,7 +729,7 @@ async function pwdBoot() {
   const mode = (window.GSC && window.GSC.mode) || "standalone-host";
   document.body.classList.toggle("player-mode", mode.endsWith("-player"));
   document.body.classList.toggle("gsc-embedded", mode.startsWith("embed-"));
-  pwdShowSplash();
+  window.PwdView.showSplash();
   if (mode.endsWith("-player")) return;   // pwd-phone.js owns the phone page
 
   // Read the saved game BEFORE the first await: pwd-room.js seeds the roster as
@@ -762,7 +767,8 @@ window.PwdApp = {
   toggleReveal: pwdToggleReveal,
   phoneIntent: pwdPhoneIntent,
   bindRoom: pwdBindRoom,
-  showSplash: pwdShowSplash,
+  showSplash: () => window.PwdView.showSplash(),
+  storeSuffix: pwdStoreSuffix,
   setPhoneCount: (n) => { if (n !== pwdApp.phoneCount) pwdSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: PWD_STORAGE_KEY,
 };

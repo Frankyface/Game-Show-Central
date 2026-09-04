@@ -420,6 +420,33 @@ const PwdView = (function () {
     });
   }
 
+  /* ============ The splash ============ */
+
+  const SPLASH_MS = 1200;
+  let splashTimer = null;
+
+  /**
+   * The 1.2 s title card the hub shows on a game switch, mirrored here so a
+   * standalone page carries it too. Decorative only: `.gsc-splash` is
+   * `pointer-events: none`, and the whole card is skipped under reduced motion
+   * and when embedded (the hub shows its own).
+   */
+  function showSplash() {
+    const node = $("gsc-splash");
+    if (!node) return;
+    if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (document.body.classList.contains("gsc-embedded")) return;
+    setText("gsc-splash-title", "Password");
+    setText("gsc-splash-sub", "One word. One guess. Ten points, then nine…");
+    node.dataset.gscGame = "password";
+    node.classList.remove("hidden");
+    if (splashTimer) clearTimeout(splashTimer);
+    splashTimer = setTimeout(() => {
+      splashTimer = null;
+      node.classList.add("hidden");
+    }, SPLASH_MS);
+  }
+
   /* ============ Whole-page render ============ */
 
   function render(app) {
@@ -437,7 +464,7 @@ const PwdView = (function () {
     if (which === "result") renderResult(app);
   }
 
-  return { render, screenFor, revealActive };
+  return { render, screenFor, revealActive, showSplash };
 })();
 
 window.PwdView = PwdView;

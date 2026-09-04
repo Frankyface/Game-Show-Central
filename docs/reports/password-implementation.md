@@ -185,14 +185,142 @@ sees under the ladder as "The list has come round again."
 
 ## 9. For the orchestrator
 
-- **`shared/theme.css` still has no `[data-gsc-game="password"]` block.** The
-  game currently inherits the `:root` defaults — `--accent: var(--gold)`
-  `#ffcc4d`, `--accent-ink: #241a02`, `--stage-glow: #0a1158` — which happen to
-  land almost exactly on the spec's gold `#f2c94c` over midnight blue, so the
-  page looks right today. When the accent block is added (the registry entry
-  already carries `#f2c94c`), please keep `--accent-ink` dark: white on
-  `#f2c94c` is only 1.8:1, and the ladder rung, the badge, the room chip and the
-  won Lightning slot all print `--accent-ink` on that gold. `#241a02` gives
-  10.8:1. Nothing in `css/pwd.css` needs to change.
+- **The accent block landed — closed.** `shared/theme.css` now carries
+  `[data-gsc-game="password"]` with `--accent: #f2c94c`, `--accent-2: #7aa2ff`,
+  `--accent-ink: #241a02` and `--stage-glow: #0d1b4b`. The dark ink is what the
+  ladder rung, the badge, the room chip and the won Lightning slot print on the
+  gold; the tester measured it live at 10.8:1. Nothing in `css/pwd.css` changed,
+  and the sheet still declares no `body[data-gsc-game]` block of its own (harness
+  gate PW-I6 greps for one).
 - Nothing outside `games/password/**` and this report was touched. No git
   commands were run.
+
+---
+
+## 10. Fixes after verification (2026-09-04)
+
+The independent tester's verdict was **ship**
+(`docs/reports/password-verification.md`). They fixed PW-D1 (marks accepted
+while the Lightning clock was paused), PW-D2 (a revealed password left in a
+hidden panel), PW-D3 (`Polish` → `Sparkle`) and PW-D4 (the two new suites were
+outside the harness gate list); all four are kept as they wrote them. This
+section covers the three minors they handed back.
+
+### PW-D5 — the harness wrote to the real save keys
+
+`tests/harness.html` cleared `gsc-pwd-state-v1` / `gsc-pwd-draft-v1` at the
+start of a run and left its 60-word fixture game and its roster in them at the
+end, so opening `games/password/` afterwards on the same origin found the
+harness's night waiting.
+
+Fixed with the `?store=NAME` namespace Price Is Right settled on in Phase 3:
+
+| File | Change |
+| --- | --- |
+| `js/pwd-app.js` | new `pwdStoreSuffix()` reads `?store=`, strips anything but letters/digits/hyphens, caps at 24 chars; `PWD_STORAGE_KEY` becomes `` `gsc-pwd-state-v1${pwdStoreSuffix()}` ``; exported as `PwdApp.storeSuffix()` |
+| `js/pwd-editor.js` | `PWD_DRAFT_KEY` picks up the same suffix through `PwdApp.storeSuffix()` |
+| `tests/harness.html` | `HOST_SRC` / `PHONE_SRC` carry `store=harness`; `KEYS` are the `-harness` pair; a new `REAL_KEYS` + `REAL_BEFORE` snapshot |
+
+A new gate, **PW-I6 V-store**, asserts the host frame's `PwdApp.STORAGE_KEY` is
+`gsc-pwd-state-v1-harness`, the editor's `DRAFT_KEY` is
+`gsc-pwd-draft-v1-harness`, and both real keys are byte-for-byte what they were
+before the run (a snapshot comparison, not a clear — a test page has no business
+deleting a host's actual save).
+
+Verified with the tester's own repro: after a full harness run,
+`localStorage` held `gsc-pwd-state-v1-harness` = "Edited in the harness" while
+`gsc-pwd-state-v1` still held the shipped "Password — Game Night" with its 200
+words, and opening `games/password/` resumed the *real* saved night.
+
+### PW-D6 — a discarded save said nothing in the UI
+
+`pwdLoadSaved()` dropped a damaged save with only a `console.warn`, against the
+house rule that every failure path surfaces a plain-English message.
+
+Three silent branches now speak, through a new `pwdNote()` helper that
+**appends** to the boot banner instead of overwriting it (so a `?game=` failure
+and a damaged save can both be reported in the same load):
+
+| Branch | Message |
+| --- | --- |
+| the save is not JSON (`catch`) | "Your saved game couldn’t be read, so it was cleared — this night starts fresh." |
+| the save parsed to something that is not an object | the same |
+| `core` fails `pwdUsableCore` but the file and roster are intact | "Your saved game couldn’t be read, so it was cleared — the words and the line-up are still here." |
+
+`pwdChooseContent`'s two existing writers were routed through `pwdNote` as well,
+so the `?game=` banner no longer silently replaces a save message.
+
+Verified live in both directions: `{{{ not json` → the first message, the
+built-in 200 words loaded, setup screen shown; the tester's exact damaged-core
+save (`{"core":{"phase":"word","teams":[],"scores":"x"}}` grafted onto a real
+save) → the second message with **Ada, Ben, Cleo and Dev still seated** and the
+word list intact.
+
+### PW-D7 — labels under the `--fs-micro` floor
+
+`.log-note` computed to 10.88 px. It is the word ("clue" / "correct" / "wrong" /
+"illegal clue") that keeps colour from being the only signal in the clue log, so
+it is exactly the text that should not be the smallest on the screen. Raised to
+`var(--fs-micro)` (12 px). The tester's report called it the only sub-12 px text
+on the host screens; two more were hiding on the Lightning screen — `.l-slot-n`
+(0.68 rem) and `.l-slot-note` (0.66 rem, the "got it" / "passed" / "to come"
+label, the same non-colour signal) — both raised to `var(--fs-micro)` too. That
+is now every host-screen label at or above the floor.
+
+The risk the tester flagged was the fixed-height word screen, so the rows were
+pinned to one line first: `.log-note` gained `white-space: nowrap` and
+`.log-team` gained `min-width: 0` + `overflow: hidden` + `text-overflow:
+ellipsis` + `nowrap`, so no team name can grow a row however long it is.
+
+Re-measured with 17-character team names ("The Unstoppables" / "Wordsmiths
+United") and a seven-entry log: rows 26 px, the log does not overflow its own
+scroll box, and **zero vertical and zero horizontal overflow on all seven
+in-play states** (word, word revealed, game over, Lightning idle, Lightning
+running, Lightning finished, result, standings) at **both 1280×676 and
+1280×720**.
+
+PW-D8 (the setup screen scrolls at 1280×720) needs no change — the no-scroll
+rule is for screens in play, and a setup form that scrolls is normal.
+
+### One structural change the fixes forced
+
+PW-D5 and PW-D6 pushed `js/pwd-app.js` to 806 lines, over the house cap — the
+harness's own V2 gate caught it. `pwdShowSplash()` and its two module variables
+moved to `js/pwd-view.js` as `PwdView.showSplash()`; it paints DOM and nothing
+else, so it belongs with the rest of the painting. `PwdApp.showSplash` stays as a
+one-line delegate, so every caller (including the harness's splash scenario) is
+unchanged. `pwd-app.js` 806 → **780**, `pwd-view.js` 443 → **470**.
+
+`tests/harness.html` is now **797** lines. Two lines of its own report-page CSS
+were merged, and its lede reflowed, to pay for the new gate and the race fix
+below. It is the file closest to the cap in this component — anything further
+added to it should be paid for the same way, or the V2 gate will fail the run
+that adds it.
+
+### A race the re-runs exposed
+
+Two checks failed on one re-run and passed on the next: **PW-I3** "the password
+moves to the other two phones when the roles swap" and **PW-I5** "the phones
+re-attach to the reloaded host". Neither is a product defect — the host pushes
+all four views in one pass, but each crosses its own `postMessage`, and both
+scenarios waited on *one* phone and then asserted on *another*. Moving the
+splash shifted the timing enough to lose the race that had been won by luck.
+Both `waitFor` predicates now wait for every phone the check is about to read
+(both givers on the giver screen **and** both receivers on the receiver screen).
+Three consecutive full runs green afterwards.
+
+### State after the fixes
+
+| Check | Result |
+| --- | --- |
+| `cd games/password && node --test` | **114 pass / 0 fail** |
+| `node --test` (repo root) | **996 pass / 0 fail** (the repo total moves as other components land) |
+| `tests/harness.html` on `127.0.0.1:8701` | **75/75 PASS**, `#summary.ok` (74 + the new V-store gate), three consecutive runs |
+| every file < 800 lines | largest `tests/harness.html` 797, `css/pwd.css` 792, `js/pwd-app.js` 780 |
+| `innerHTML` / `document.write` / `eval(` / `new Function` / `console.log` | zero under `games/password/` |
+| 1280×676 and 1280×720, all in-play states | no vertical or horizontal scroll |
+
+Files touched in this pass: `js/pwd-app.js`, `js/pwd-view.js`,
+`js/pwd-editor.js`, `css/pwd.css`, `tests/harness.html`, `README.md` and this
+report. Nothing outside `games/password/**`; no git commands were run. The
+server on port 8701 was stopped and the browser tabs closed.

@@ -13,7 +13,9 @@
 
 "use strict";
 
-const PWD_DRAFT_KEY = "gsc-pwd-draft-v1";
+// Namespaced by ?store= the same way the saved game is (pwd-app.js, PW-D5).
+const PWD_DRAFT_KEY = `gsc-pwd-draft-v1${
+  window.PwdApp && window.PwdApp.storeSuffix ? window.PwdApp.storeSuffix() : ""}`;
 
 let pwdDraft = null;
 

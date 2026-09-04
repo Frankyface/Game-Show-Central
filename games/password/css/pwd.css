@@ -529,9 +529,25 @@ body {
   color: var(--pwd-dim);
 }
 
-.log-team { color: var(--pwd-cream); font-weight: 700; }
+.log-team {
+  color: var(--pwd-cream);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .log-mark { font-size: 0.95rem; }
-.log-note { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
+
+/* The word beside the glyph is what keeps colour from being the only signal,
+   so it sits on the design system's --fs-micro floor, never under it (PW-D7).
+   nowrap keeps every row one line high, whatever the teams are called. */
+.log-note {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
 .log-value { font-family: var(--font-display); color: var(--pwd-gold); }
 
 .log-row.is-correct { border-left-color: var(--pwd-green); }
@@ -616,10 +632,12 @@ body {
   text-align: center;
 }
 
-.l-slot-n { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pwd-dim); }
+.l-slot-n { font-size: var(--fs-micro); letter-spacing: 0.14em; text-transform: uppercase; color: var(--pwd-dim); }
 .l-slot-value { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--pwd-gold-soft); }
 .l-slot-word { font-size: 0.95rem; font-weight: 700; color: var(--pwd-cream); word-break: break-word; }
-.l-slot-note { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--pwd-dim); }
+/* Same rule as .log-note: "got it" / "passed" / "to come" is the non-colour
+   signal on a slot, so it holds the --fs-micro floor too. */
+.l-slot-note { font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.1em; color: var(--pwd-dim); }
 
 .l-slot.is-got {
   background: linear-gradient(180deg, var(--pwd-gold-soft), var(--pwd-gold));

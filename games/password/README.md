@@ -151,10 +151,15 @@ python -m http.server 8620          # from the repo root
 - Host: <http://localhost:8620/games/password/>
 - Phones: open the room from the setup screen and give people the join link, or
   run the game inside the hub (`index.html`) where the shell owns the room.
-- Everything is saved to `localStorage` under `gsc-pwd-state-v1` and restored on
-  reload. A reload mid-Lightning comes back **paused** with the time that was
-  left; press Resume when the room is ready. A saved game is tied to the room it
-  was played in, so a new room never inherits the old room's seats.
+- Everything is saved to `localStorage` under `gsc-pwd-state-v1` (the editor
+  draft under `gsc-pwd-draft-v1`) and restored on reload. A reload mid-Lightning
+  comes back **paused** with the time that was left; press Resume when the room
+  is ready. A saved game is tied to the room it was played in, so a new room
+  never inherits the old room's seats. A save that cannot be read is dropped and
+  the setup screen says so — it never fails silently.
+- `?store=NAME` moves this page's storage into its own namespace
+  (`gsc-pwd-state-v1-NAME`). The loopback harness runs with `?store=harness` so a
+  test run can never leave fixture words or a fixture roster in your real save.
 
 ## 5. Tests
 
@@ -178,7 +183,7 @@ the host document's text does not contain it anywhere.
 | `index.html` | host screens + phone screens, one page |
 | `js/pwd-content.js` | PURE: the JSON contract, validation, the word order |
 | `js/pwd-core.js` | PURE: the reducer, the selectors, `phoneView` |
-| `js/pwd-view.js` | host rendering (and the four DOM helpers) |
+| `js/pwd-view.js` | host rendering, the splash, and the four DOM helpers |
 | `js/pwd-app.js` | host state, persistence, buttons, hotkeys |
 | `js/pwd-clock.js` | the Lightning Round clock renderer |
 | `js/pwd-sound.js` | WebAudio cues behind the shared 🔊 preference |

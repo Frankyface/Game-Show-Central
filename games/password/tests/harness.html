@@ -9,15 +9,13 @@
     h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
     p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
     #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
-    #summary.ok { color: #35d68a; }
-    #summary.bad { color: #ff5a66; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
     #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
     #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
     #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
     #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
     .tag { font-weight: 700; margin-right: 0.5rem; }
-    li[data-pass="true"] .tag { color: #35d68a; }
-    li[data-pass="false"] .tag { color: #ff5a66; }
     .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
     .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
     #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
@@ -27,11 +25,8 @@
 </head>
 <body>
   <h1>Password — loopback harness (success states PW-I1 … PW-I6, spec 13 §6)</h1>
-  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
-    embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
-    no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.
-    The load-bearing assertion is PW-I1: while a password is in play, BOTH givers' phones carry it and the
-    host document's <code>textContent</code> does not contain it anywhere.</p>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself — no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.
+    The load-bearing assertion is PW-I1: while a password is in play, BOTH givers' phones carry it and the host document's <code>textContent</code> does not contain it anywhere.</p>
   <p id="summary">Running…</p>
   <ul id="results"></ul>
 
@@ -162,9 +157,15 @@
       "fixtures/harness-game.json",
     ];
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-pwd-state-v1", "gsc-pwd-draft-v1"];
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // leaves its 60-word fixture game or its roster in the real host's save on
+    // the same origin (defect PW-D5; the pattern comes from Price Is Right).
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness"
+      + "&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-pwd-state-v1-harness", "gsc-pwd-draft-v1-harness"];
+    const REAL_KEYS = ["gsc-pwd-state-v1", "gsc-pwd-draft-v1"];
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
 
     async function refreshAssets() {
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -373,7 +374,8 @@
       check("PW-I3 the losers of the last word open the next one, and the roles swap",
         core().round.turn === 1 && HW().PwdCore.giverPids(core()).join(",") === "p2,p4",
         `turn ${core().round.turn}, givers ${HW().PwdCore.giverPids(core()).join(",")}`);
-      await waitFor(() => phoneView("p2").screen === "giver", "the password moves phone");
+      await waitFor(() => ["p2", "p4"].every((p) => phoneView(p).screen === "giver")
+        && ["p1", "p3"].every((p) => phoneView(p).screen === "receiver"), "the password moves phone");
       check("PW-I3 the password moves to the other two phones when the roles swap",
         phoneWord("p2") === core().round.word && phoneWord("p4") === core().round.word
         && phoneView("p1").word === undefined && phoneView("p3").word === undefined
@@ -532,7 +534,8 @@
         leakedOnHost([after.word]).join(", ") || "still hidden");
       const givers = HW().PwdCore.giverPids(core());
       const receivers = ["p1", "p2", "p3", "p4"].filter((pid) => givers.indexOf(pid) < 0);
-      await waitFor(() => phoneView(givers[0]).screen === "giver", "phones re-attach", 8000);
+      await waitFor(() => givers.every((p) => phoneView(p).screen === "giver")
+        && receivers.every((p) => phoneView(p).screen === "receiver"), "phones re-attach", 8000);
       check("PW-I5 the phones re-attach to the reloaded host and get their views back",
         phoneWord(givers[0]) === after.word && phoneWord(givers[1]) === after.word
         && phoneView(receivers[0]).screen === "receiver"
@@ -738,6 +741,12 @@
       const outside = guarded[0].match(/@keyframes|animation:/g) || [];
       check("PW-I6 every @keyframes and animation: is inside prefers-reduced-motion: no-preference",
         outside.length === 0, outside.join(", ") || "none outside the guard");
+
+      check("PW-I6 V-store the run is namespaced and leaves the real save untouched",
+        HW().PwdApp.STORAGE_KEY === "gsc-pwd-state-v1-harness"
+        && HW().PwdEditor.DRAFT_KEY === "gsc-pwd-draft-v1-harness"
+        && REAL_KEYS.every((k, i) => localStorage.getItem(k) === REAL_BEFORE[i]),
+        `${HW().PwdApp.STORAGE_KEY} / ${HW().PwdEditor.DRAFT_KEY}`);
 
       check("PW-I6 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded"), HD().body.className);
