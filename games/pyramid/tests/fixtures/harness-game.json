@@ -1,0 +1,190 @@
+{
+  "title": "Harness Pyramid",
+  "settings": {
+    "currency": "$",
+    "categorySeconds": 30,
+    "circleSeconds": 60,
+    "tiebreakSeconds": 15,
+    "wordsPerCategory": 4,
+    "categoriesPerTeam": 1,
+    "swapRoles": true,
+    "circleValues": [
+      200,
+      300,
+      400,
+      500,
+      800,
+      1000
+    ],
+    "grandPrize": 10000,
+    "grandPrizeLabel": "$10,000"
+  },
+  "categories": [
+    {
+      "title": "Harness One",
+      "hint": "Test category 1",
+      "words": [
+        "Aardvark",
+        "Zeppelin",
+        "Marzipan",
+        "Kaleidoscope"
+      ]
+    },
+    {
+      "title": "Harness Two",
+      "hint": "Test category 2",
+      "words": [
+        "Xylophone",
+        "Quokka",
+        "Bandolier",
+        "Fandango"
+      ]
+    },
+    {
+      "title": "Harness Three",
+      "hint": "Test category 3",
+      "words": [
+        "Gargoyle",
+        "Harmonica",
+        "Iguana",
+        "Jamboree"
+      ]
+    },
+    {
+      "title": "Harness Four",
+      "hint": "Test category 4",
+      "words": [
+        "Kumquat",
+        "Lorgnette",
+        "Mandolin",
+        "Narwhal"
+      ]
+    },
+    {
+      "title": "Harness Five",
+      "hint": "Test category 5",
+      "words": [
+        "Obelisk",
+        "Pomelo",
+        "Quicksand",
+        "Rutabaga"
+      ]
+    },
+    {
+      "title": "Harness Six",
+      "hint": "Test category 6",
+      "words": [
+        "Sarcophagus",
+        "Tambourine",
+        "Ukulele",
+        "Vestibule"
+      ]
+    },
+    {
+      "title": "Harness Seven",
+      "hint": "Test category 7",
+      "words": [
+        "Wombat",
+        "Yodelling",
+        "Zabaglione",
+        "Armadillo"
+      ]
+    },
+    {
+      "title": "Harness Eight",
+      "hint": "Test category 8",
+      "words": [
+        "Bouzouki",
+        "Catapult",
+        "Dulcimer",
+        "Escarpment"
+      ]
+    },
+    {
+      "title": "Harness Nine",
+      "hint": "Test category 9",
+      "words": [
+        "Flamingo",
+        "Gondola",
+        "Hovercraft",
+        "Isthmus"
+      ]
+    },
+    {
+      "title": "Harness Ten",
+      "hint": "Test category 10",
+      "words": [
+        "Junkyard",
+        "Kimono",
+        "Lighthouse",
+        "Meerkat"
+      ]
+    },
+    {
+      "title": "Harness Eleven",
+      "hint": "Test category 11",
+      "words": [
+        "Nutcracker",
+        "Origami",
+        "Periscope",
+        "Quiver"
+      ]
+    },
+    {
+      "title": "Harness Twelve",
+      "hint": "Test category 12",
+      "words": [
+        "Rickshaw",
+        "Sextant",
+        "Tarantula",
+        "Umbrella"
+      ]
+    }
+  ],
+  "circles": [
+    {
+      "boxes": [
+        {
+          "category": "Things in a zeppelin"
+        },
+        {
+          "category": "Things made of marzipan"
+        },
+        {
+          "category": "Things a quokka does"
+        },
+        {
+          "category": "Things in a vestibule"
+        },
+        {
+          "category": "Things you yodel at"
+        },
+        {
+          "category": "Things a narwhal has"
+        }
+      ]
+    },
+    {
+      "boxes": [
+        {
+          "category": "Things in a gondola"
+        },
+        {
+          "category": "Things a meerkat sees"
+        },
+        {
+          "category": "Things made of origami"
+        },
+        {
+          "category": "Things in a junkyard"
+        },
+        {
+          "category": "Things a sextant finds"
+        },
+        {
+          "category": "Things a wombat digs"
+        }
+      ]
+    }
+  ]
+}

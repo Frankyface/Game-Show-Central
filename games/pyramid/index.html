@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyramid</title>
+  <meta name="description" content="A $100,000 Pyramid style game for game night: two teams of two, seven words, thirty seconds, and a Winner's Circle. Phones optional. Bring your own categories as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/pyr.css">
+  <link rel="stylesheet" href="css/pyr-phone.css">
+</head>
+<body data-gsc-game="pyramid">
+
+  <header class="topbar">
+    <h1 id="pyr-title" class="topbar-title">Pyramid</h1>
+    <div class="topbar-actions">
+      <span id="pyr-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Category editor</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="pyr-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="pyr-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card">
+        <p class="kicker">Seven words. Thirty seconds. One partner who cannot say the word.</p>
+        <h2 class="card-title">Pyramid</h2>
+        <p id="pyr-source" class="source-note">Loading categories&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Players <span id="pyr-player-count" class="count-badge"></span></h3>
+            <p class="hint">Two teams of two. Seat 1 gives the clues first; the roles swap between
+              categories unless you turn that off.</p>
+            <ul id="pyr-player-list" class="player-list"></ul>
+            <form id="pyr-add-player" class="inline-form">
+              <label class="visually-hidden" for="pyr-player-name">Player name</label>
+              <input id="pyr-player-name" type="text" maxlength="24" placeholder="Player name"
+                     autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost" type="submit">+ Add player</button>
+            </form>
+
+            <div class="team-cards">
+              <div class="team-card team-card-a">
+                <label class="field-inline">Team A
+                  <input id="pyr-team-a" type="text" maxlength="24" autocomplete="off" placeholder="Team A">
+                </label>
+                <label class="field-inline">Seat 1 (gives first)
+                  <select id="pyr-a1"></select>
+                </label>
+                <label class="field-inline">Seat 2
+                  <select id="pyr-a2"></select>
+                </label>
+              </div>
+              <div class="team-card team-card-b">
+                <label class="field-inline">Team B
+                  <input id="pyr-team-b" type="text" maxlength="24" autocomplete="off" placeholder="Team B">
+                </label>
+                <label class="field-inline">Seat 1 (gives first)
+                  <select id="pyr-b1"></select>
+                </label>
+                <label class="field-inline">Seat 2
+                  <select id="pyr-b2"></select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">How the words reach the giver</h3>
+            <fieldset class="mode-set">
+              <legend class="visually-hidden">Word mode</legend>
+              <label class="check"><input id="pyr-mode-phone" type="radio" name="pyr-mode" value="phone">
+                <span><strong>Phone mode</strong> — the giver reads the word off their own phone. Nothing
+                  secret ever appears on this screen.</span></label>
+              <label class="check"><input id="pyr-mode-host" type="radio" name="pyr-mode" value="host">
+                <span><strong>Host as giver</strong> — no phones. This screen can show the words on
+                  request, so the host gives the clues for both teams.</span></label>
+            </fieldset>
+
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="pyr-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="pyr-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="pyr-join-note" class="hint hidden">Players open <span id="pyr-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <div class="rule-grid">
+              <label class="field-inline">Seconds per category
+                <input id="pyr-set-catsecs" type="number" min="5" max="300" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Seconds in the Winner&rsquo;s Circle
+                <input id="pyr-set-circlesecs" type="number" min="5" max="300" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Categories per team
+                <input id="pyr-set-perteam" type="number" min="1" max="6" step="1" inputmode="numeric">
+              </label>
+            </div>
+            <label class="check"><input id="pyr-set-swap" type="checkbox"> Swap giver and guesser between categories</label>
+
+            <h3 class="setup-heading">Categories</h3>
+            <div class="inline-form">
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load categories (.json)</button>
+              <input id="pyr-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="pyr-category-count" class="hint"></p>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Pyramid board ===================== -->
+    <section id="screen-board" class="screen hidden">
+      <div class="gsc-banner board-banner">
+        <p id="pyr-board-title" class="gsc-banner-title">Pick a category</p>
+        <p id="pyr-board-sub" class="gsc-banner-sub">&nbsp;</p>
+      </div>
+
+      <div class="board-grid">
+        <div id="pyr-board" class="pyramid" aria-label="The pyramid"></div>
+        <aside class="board-rail">
+          <div id="pyr-podiums" class="podiums" aria-live="polite"></div>
+          <div id="pyr-mainresult" class="mainresult hidden">
+            <p id="pyr-mainresult-text" class="mainresult-text">&nbsp;</p>
+            <div class="controls controls-column">
+              <button id="btn-tiebreak" class="btn btn-gold btn-big hidden" type="button">Play the tiebreak</button>
+              <button id="btn-to-circle-a" class="btn btn-gold btn-big" type="button">Team A to the Winner&rsquo;s Circle</button>
+              <button id="btn-to-circle-b" class="btn btn-gold btn-big" type="button">Team B to the Winner&rsquo;s Circle</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="controls">
+        <button id="btn-board-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-board-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Category play ===================== -->
+    <section id="screen-play" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="pyr-play-category" class="gsc-banner-title">&nbsp;</p>
+        <p id="pyr-play-roles" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="pyr-play-team" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="play-grid">
+        <div class="play-clock-col">
+          <p id="pyr-clock" class="giant-clock" role="timer" aria-live="off">0:30</p>
+          <p id="pyr-count" class="count-big" aria-live="polite">0 / 7</p>
+          <p id="pyr-play-state" class="clock-state">Press Start when the giver is ready.</p>
+        </div>
+
+        <div class="play-word-col">
+          <p id="pyr-play-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+          <!-- Position + outcome of each word. Deliberately carries no text: it is
+               a progress strip, safe on a shared screen at any point in the round. -->
+          <div id="pyr-pips" class="word-pips"></div>
+          <!-- Built by pyr-view.js ONLY while the host has asked to see the words.
+               Nothing secret is ever parked here hidden: the nodes do not exist. -->
+          <div id="pyr-word-panel" class="word-panel"></div>
+          <div id="pyr-results" class="results-panel"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-clock-start" class="btn btn-gold btn-big" type="button">Start the clock</button>
+        <button id="btn-correct" class="btn btn-green btn-big" type="button">Got it
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-pass" class="btn btn-blue btn-big" type="button">Pass <kbd class="gsc-kbd">P</kbd></button>
+        <button id="btn-illegal" class="btn btn-danger btn-big" type="button">Illegal clue
+          <kbd class="gsc-kbd">X</kbd></button>
+        <button id="btn-reveal-words" class="btn btn-ghost" type="button" aria-pressed="false">Show words to me</button>
+        <button id="btn-study" class="btn btn-ghost" type="button">Study (10 s)</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-next" class="btn btn-gold btn-big" type="button">Next</button>
+      </div>
+    </section>
+
+    <!-- ===================== Winner's Circle ===================== -->
+    <section id="screen-circle" class="screen hidden">
+      <div class="gsc-banner circle-banner">
+        <p id="pyr-circle-title" class="gsc-banner-title">Winner&rsquo;s Circle</p>
+        <p id="pyr-circle-roles" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="pyr-circle-total" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="circle-grid">
+        <div class="play-clock-col">
+          <p id="pyr-circle-clock" class="giant-clock" role="timer" aria-live="off">1:00</p>
+          <p id="pyr-circle-count" class="count-big" aria-live="polite">0 / 6</p>
+          <p id="pyr-circle-state" class="clock-state">Press Start when the giver is ready.</p>
+        </div>
+        <div class="circle-board-col">
+          <div id="pyr-circle-boxes" class="circle-pyramid" aria-label="The Winner&rsquo;s Circle"></div>
+          <p id="pyr-circle-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+          <div id="pyr-circle-panel" class="word-panel"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-circle-start" class="btn btn-gold btn-big" type="button">Start the clock</button>
+        <button id="btn-circle-correct" class="btn btn-green btn-big" type="button">Got it
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-circle-pass" class="btn btn-blue btn-big" type="button">Pass <kbd class="gsc-kbd">P</kbd></button>
+        <button id="btn-circle-illegal" class="btn btn-danger btn-big" type="button">Illegal clue
+          <kbd class="gsc-kbd">X</kbd></button>
+        <button id="btn-circle-reveal" class="btn btn-ghost" type="button" aria-pressed="false">Show subjects to me</button>
+        <button id="btn-circle-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-circle-next" class="btn btn-gold btn-big" type="button">Next</button>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="pyr-result-kicker" class="kicker">&nbsp;</p>
+      <h2 id="pyr-result-team" class="winner-name">&nbsp;</h2>
+      <p id="pyr-result-amount" class="final-amount">&nbsp;</p>
+      <p id="pyr-result-sub" class="result-sub">&nbsp;</p>
+      <ol id="pyr-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-result-next" class="btn btn-gold btn-big" type="button">Show the standings</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-play-again" class="btn btn-blue btn-big hidden" type="button">Play again</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Category editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Category editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="pyr-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="pyr-editor-warn" class="notice"></p>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="pyr-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="pyr-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Seconds per category
+            <input id="pyr-ed-catsecs" type="number" min="5" max="300" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Seconds in the Winner&rsquo;s Circle
+            <input id="pyr-ed-circlesecs" type="number" min="5" max="300" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Seconds per tiebreak word
+            <input id="pyr-ed-tbsecs" type="number" min="5" max="300" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Words per category
+            <input id="pyr-ed-words" type="number" min="3" max="12" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Categories per team
+            <input id="pyr-ed-perteam" type="number" min="1" max="6" step="1" inputmode="numeric">
+          </label>
+          <label class="check"><input id="pyr-ed-swap" type="checkbox"> Swap roles between categories</label>
+          <label class="field">Winner&rsquo;s Circle box values (comma separated, six)
+            <input id="pyr-ed-values" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">Grand prize
+            <input id="pyr-ed-prize" type="number" min="1" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Grand prize label
+            <input id="pyr-ed-prize-label" type="text" maxlength="24" autocomplete="off">
+          </label>
+
+          <h3 class="setup-heading">Winner&rsquo;s Circle sets <span id="pyr-ed-circle-count" class="count-badge"></span></h3>
+          <div id="pyr-ed-circles" class="ed-circles"></div>
+          <button id="btn-ed-add-circle" class="btn btn-ghost btn-small" type="button">+ Add a circle set</button>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <h3 class="setup-heading">Categories <span id="pyr-ed-count" class="count-badge"></span></h3>
+          <div class="inline-form">
+            <button id="btn-ed-add" class="btn btn-ghost btn-small" type="button">+ Add a category</button>
+          </div>
+          <div id="pyr-ed-rows" class="ed-rows"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="pyr-phone-card" class="phone-card">
+        <p id="pyr-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="pyr-phone-word" class="phone-word" aria-live="polite">&nbsp;</p>
+        <p id="pyr-phone-sub" class="phone-sub">Waiting for the host&hellip;</p>
+        <div id="pyr-phone-meta" class="phone-meta"></div>
+        <div id="pyr-phone-actions" class="phone-actions"></div>
+        <p id="pyr-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============
+       Same node, ids and classes as the hub's own splash: decorative,
+       pointer-events:none, skipped entirely under prefers-reduced-motion. ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/pyr-content.js"></script>
+  <script src="js/pyr-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/pyr-sound.js"></script>
+  <script src="js/pyr-clock.js"></script>
+  <script src="js/pyr-view.js"></script>
+  <script src="js/pyr-app.js"></script>
+  <script src="js/pyr-editor.js"></script>
+  <script src="js/pyr-room.js"></script>
+  <script src="js/pyr-phone.js"></script>
+</body>
+</html>

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyramid harness (Y-I1–Y-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Pyramid — loopback harness (success states Y-I1 … Y-I6, spec 11 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
+    no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.
+    The load-bearing assertion is Y-I1: while a round is running, the giver's phone carries the word and the
+    host document's <code>textContent</code> does not contain it anywhere.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__PYR_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f4b400", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#2ec4b6", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const ROOM = { code: "PYRA", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/pyr-content.js", "../js/pyr-core.js", "../js/data.js", "../js/pyr-sound.js",
+      "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-editor.js",
+      "../js/pyr-room.js", "../js/pyr-phone.js",
+      "../css/pyr.css", "../css/pyr-phone.css",
+      "../../../shared/theme.css", "../../../shared/theme-components.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "fixtures/harness-game.json",
+    ];
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1";
+    const KEYS = ["gsc-pyr-state-v1", "gsc-pyr-draft-v1"];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().PyrApp.core();
+    const click = (id) => H(id).click();
+    /** Everything the shared screen is showing, hidden nodes included. */
+    const hostText = () => HD().body.textContent;
+
+    function setNumber(id, value) {
+      const node = H(id);
+      node.value = String(value);
+      node.dispatchEvent(new (HW().Event)("change", { bubbles: true }));
+    }
+
+    async function bootHost(clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().PyrApp && HW().PyrApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.PyrPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).PyrPhone.view();
+    const phoneWord = (pid) => PD(pid).getElementById("pyr-phone-word").textContent;
+    const phoneAction = (pid, label) => PW(pid).PyrPhone.action(label);
+
+    const freeCards = () => [...HD().querySelectorAll("#pyr-board .pyr-card")].filter((c) => !c.disabled);
+    const roundWords = () => core().round.words.map((w) => w.text);
+
+    /** Every word this round, plus every circle subject: none may reach the host DOM. */
+    function leakedOnHost(list) {
+      const text = hostText();
+      return list.filter((w) => text.indexOf(w) >= 0);
+    }
+
+    /* ============================================================
+       Y-I1 — the giver's phone has the word; the host screen never does
+       ============================================================ */
+
+    async function scenarioGiver() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().PyrApp.state().setup.players.length === 4, "roster from the shell");
+      check("Y-I1 the shell roster becomes the player pool and fills the four seats",
+        HW().PyrApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo,Dev"
+        && JSON.stringify(HW().PyrApp.state().setup.seats) === JSON.stringify([["p1", "p2"], ["p3", "p4"]]),
+        JSON.stringify(HW().PyrApp.state().setup.seats));
+      check("Y-I1 the file's own rules land in the setup screen",
+        H("pyr-set-perteam").value === "1" && H("pyr-set-catsecs").value === "30",
+        `${H("pyr-set-perteam").value} per team, ${H("pyr-set-catsecs").value}s`);
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "board", "the pyramid board");
+      check("Y-I1 one category per team makes a two-card board",
+        HD().querySelectorAll("#pyr-board .pyr-card").length === 2,
+        `${HD().querySelectorAll("#pyr-board .pyr-card").length} cards`);
+
+      freeCards()[0].click();
+      await waitFor(() => core().phase === "play", "category play");
+      const word = HW().PyrCore.currentWord(core());
+      await waitFor(() => phoneView("p1").screen === "giver", "the giver's phone");
+      check("Y-I1 the giver's phone shows the word, big",
+        phoneWord("p1") === word && phoneView("p1").word === word, `${phoneWord("p1")} / ${word}`);
+      check("Y-I1 THE HOST SCREEN DOES NOT CONTAIN THE WORD (DOM text)",
+        hostText().indexOf(word) < 0, `looked for “${word}” in ${hostText().length} characters`);
+      check("Y-I1 no word of this category appears anywhere on the host screen",
+        leakedOnHost(roundWords()).length === 0, leakedOnHost(roundWords()).join(", ") || "none of the 4");
+      check("Y-I1 the guesser's phone gets the clock and the category — never a word",
+        phoneView("p2").screen === "guesser" && phoneView("p2").word === undefined
+        && leakedOnHost([]).length === 0
+        && roundWords().every((w) => PD("p2").body.textContent.indexOf(w) < 0),
+        `p2 sees ${phoneWord("p2")}`);
+      check("Y-I1 the other team's phones see no word either",
+        ["p3", "p4"].every((pid) => phoneView(pid).screen === "wait"
+          && roundWords().every((w) => PD(pid).body.textContent.indexOf(w) < 0)),
+        `p3 ${phoneView("p3").screen}, p4 ${phoneView("p4").screen}`);
+      check("Y-I1 the host screen shows the category, the count and the clock instead",
+        H("pyr-play-category").textContent === core().round.title
+        && H("pyr-count").textContent === "0 / 4"
+        && /^\d:\d\d$/.test(H("pyr-clock").textContent),
+        `${H("pyr-play-category").textContent} · ${H("pyr-count").textContent} · ${H("pyr-clock").textContent}`);
+
+      // Host-as-giver mode: the words appear ONLY while the host asks for them.
+      click("btn-reveal-words");
+      check("Y-I1 “Show words to me” is the one way a word reaches the host screen",
+        hostText().indexOf(word) >= 0
+        && HD().querySelector("#pyr-word-panel .word-warn").textContent.indexOf("Shared screen") === 0,
+        HD().querySelector("#pyr-word-panel .word-warn").textContent);
+      click("btn-reveal-words");
+      check("Y-I1 hiding them removes the nodes again, not merely their styling",
+        hostText().indexOf(word) < 0 && HD().querySelectorAll("#pyr-word-panel *").length === 0,
+        `${HD().querySelectorAll("#pyr-word-panel *").length} nodes left in the panel`);
+    }
+
+    /* ============================================================
+       Y-I2 — Got it from the phone advances; the host stays the judge
+       ============================================================ */
+
+    async function scenarioMarks() {
+      check("Y-I2 the giver cannot mark before the host starts the clock",
+        phoneAction("p1", "Got it").disabled === true
+        && H("btn-correct").disabled === true);
+
+      click("btn-clock-start");
+      await waitFor(() => core().round.clock.running, "the clock runs");
+      await waitFor(() => phoneAction("p1", "Got it") && !phoneAction("p1", "Got it").disabled, "the phone unlocks");
+
+      const first = HW().PyrCore.currentWord(core());
+      phoneAction("p1", "Got it").click();
+      await waitFor(() => core().round.words[0].status === "correct", "the tap reaches the host");
+      check("Y-I2 Got it on the giver's phone takes the word and scores it",
+        core().round.words[0].status === "correct" && HW().PyrCore.scores(core())[0] === 1
+        && H("pyr-count").textContent === "1 / 4",
+        H("pyr-count").textContent);
+      await waitFor(() => phoneWord("p1") !== first, "the phone moves on");
+      check("Y-I2 the giver's phone moves straight to the next word",
+        phoneWord("p1") === HW().PyrCore.currentWord(core())
+        && hostText().indexOf(phoneWord("p1")) < 0,
+        phoneWord("p1"));
+
+      phoneAction("p1", "Pass").click();
+      await waitFor(() => core().round.words[1].status === "passed", "pass from the phone");
+      check("Y-I2 Pass on the phone skips the word and keeps it in the round",
+        core().round.words[1].status === "passed"
+        && HW().PyrCore.remainingWords(core()).some((w) => w.text === core().round.words[1].text));
+
+      // The host overrides: illegal is a judgement and has no phone button at all.
+      const before = HW().PyrCore.currentWord(core());
+      click("btn-illegal");
+      check("Y-I2 the host's Illegal clue kills the word for the round",
+        core().round.words[2].status === "illegal"
+        && HW().PyrCore.remainingWords(core()).every((w) => w.text !== before),
+        `${before} is out`);
+      check("Y-I2 the phone has no illegal button — that judgement is the host's",
+        phoneAction("p1", "Illegal clue") === null
+        && [...PD("p1").querySelectorAll("#pyr-phone-actions .btn")].map((b) => b.textContent).join("/") === "Got it/Pass",
+        [...PD("p1").querySelectorAll("#pyr-phone-actions .btn")].map((b) => b.textContent).join("/"));
+
+      // A phone that is not the giver is ignored, and so is an illegal payload.
+      const scoreBefore = HW().PyrCore.scores(core())[0];
+      PW("p2").PyrPhone.me.send({ t: "mark", result: "correct" });
+      PW("p3").PyrPhone.me.send({ t: "mark", result: "correct" });
+      PW("p1").PyrPhone.me.send({ t: "mark", result: "illegal" });
+      PW("p1").PyrPhone.me.send({ t: "nonsense", result: "correct" });
+      await sleep(120);
+      check("Y-I2 a mark from anyone but the giver — and any junk frame — is ignored",
+        HW().PyrCore.scores(core())[0] === scoreBefore,
+        `score stayed at ${scoreBefore}`);
+    }
+
+    /* ============================================================
+       Y-I3 — one clock, the same on every phone
+       ============================================================ */
+
+    async function scenarioClock() {
+      const deadline = core().round.clock.deadline;
+      check("Y-I3 every phone is given the host's deadline, not its own timer",
+        phoneView("p1").clock.deadline === deadline
+        && phoneView("p2").clock.deadline === deadline
+        && phoneView("p3").clock.deadline === deadline,
+        `host ${deadline}, p2 ${phoneView("p2").clock.deadline}`);
+
+      await sleep(300);
+      const secs = (text) => {
+        const parts = String(text).split(":");
+        return parts.length === 2 ? Number(parts[0]) * 60 + Number(parts[1]) : NaN;
+      };
+      const host = secs(H("pyr-clock").textContent);
+      const one = secs(PW("p1").PyrPhone.clockText());
+      const two = secs(PW("p2").PyrPhone.clockText());
+      check("Y-I3 the giver's and the guesser's phones read the same second as the host",
+        Math.abs(host - one) <= 1 && Math.abs(host - two) <= 1 && Number.isFinite(one),
+        `host ${H("pyr-clock").textContent}, p1 ${PW("p1").PyrPhone.clockText()}, p2 ${PW("p2").PyrPhone.clockText()}`);
+      check("Y-I3 the guesser's phone is the clock and the count, and nothing else",
+        phoneView("p2").count.total === 4 && phoneView("p2").category === core().round.title
+        && Object.keys(phoneView("p2")).indexOf("word") < 0,
+        Object.keys(phoneView("p2")).join(","));
+    }
+
+    /* ============================================================
+       Y-I4 — a reload mid-category resumes, paused
+       ============================================================ */
+
+    async function scenarioReload() {
+      const before = {
+        slot: core().round.slot,
+        statuses: core().round.words.map((w) => w.status).join(","),
+        left: core().round.clock.deadline - Date.now(),
+        score: HW().PyrCore.scores(core())[0],
+      };
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "play", "resume after reload");
+      const after = core().round;
+      check("Y-I4 a reload mid-category comes back on the same word list and score",
+        after.slot === before.slot && after.words.map((w) => w.status).join(",") === before.statuses
+        && HW().PyrCore.scores(core())[0] === before.score,
+        `${after.words.map((w) => w.status).join(",")} / ${before.statuses}`);
+      check("Y-I4 the clock comes back PAUSED with the time that was left",
+        after.clock.running === false && after.clock.deadline === null
+        && Math.abs(after.clock.remainingMs - before.left) < 2000 && after.clock.remainingMs > 0,
+        `${Math.round(after.clock.remainingMs / 1000)}s left, was ${Math.round(before.left / 1000)}s`);
+      check("Y-I4 the reload does not reveal the words either",
+        leakedOnHost(roundWords()).length === 0 && H("btn-reveal-words").getAttribute("aria-pressed") === "false",
+        leakedOnHost(roundWords()).join(", ") || "still hidden");
+      await waitFor(() => phoneView("p1").screen === "giver", "phones re-attach after the host reload", 8000);
+      check("Y-I4 the phones re-attach to the reloaded host and get their views back",
+        phoneWord("p1") === HW().PyrCore.currentWord(core()) && phoneView("p2").screen === "guesser",
+        `p1 ${phoneWord("p1")}, p2 ${phoneView("p2").screen}`);
+
+      click("btn-clock-start");
+      await waitFor(() => core().round.clock.running, "resumed");
+      check("Y-I4 Resume starts the clock again from where it stopped",
+        core().round.clock.running === true && core().round.clock.deadline > Date.now());
+    }
+
+    /* ============================================================
+       Y-I5 — the Winner's Circle over phones
+       ============================================================ */
+
+    /** Mark whatever is left until the round closes, then move on. */
+    async function finishRound(result) {
+      let guard = 0;
+      while (core().round && !core().round.finished && guard < 30) {
+        if (!core().round.started) click("btn-clock-start");
+        click(result === "correct" ? "btn-correct" : "btn-illegal");
+        guard += 1;
+        await sleep(5);
+      }
+      click("btn-next");
+      await sleep(30);
+    }
+
+    async function scenarioCircle() {
+      await finishRound("correct");
+      await waitFor(() => core().phase === "board", "back to the board");
+      freeCards()[0].click();
+      await waitFor(() => core().phase === "play", "the other team's category");
+      await finishRound("illegal");
+      await waitFor(() => core().phase === "mainResult", "the main game ends");
+      check("Y-I5 the leader is offered the Winner's Circle",
+        HW().PyrCore.leader(core()) === 0 && !H("btn-to-circle-a").classList.contains("hidden")
+        && H("btn-to-circle-b").classList.contains("hidden"),
+        `scores ${HW().PyrCore.scores(core()).join("-")}`);
+
+      click("btn-to-circle-a");
+      await waitFor(() => core().phase === "circle", "the Winner's Circle");
+      const subjects = core().circle.boxes.map((b) => b.category);
+      const giverPid = core().circle.giverPid;
+      const guesserPid = core().circle.guesserPid;
+      await waitFor(() => phoneView(giverPid).screen === "circle-giver", "the circle giver's phone");
+      check("Y-I5 only the circle giver's phone carries the subject",
+        phoneWord(giverPid) === subjects[0]
+        && phoneView(guesserPid).circleCategory === undefined
+        && subjects.every((s) => PD(guesserPid).body.textContent.indexOf(s) < 0),
+        `${phoneWord(giverPid)} vs guesser “${phoneWord(guesserPid)}”`);
+      check("Y-I5 THE HOST SCREEN DOES NOT CONTAIN ANY SUBJECT (DOM text)",
+        leakedOnHost(subjects).length === 0, leakedOnHost(subjects).join(", ") || "none of the 6");
+      check("Y-I5 the host screen shows the six values and the running total instead",
+        [...HD().querySelectorAll(".circle-box-value")].map((n) => n.textContent).join(",")
+          === "$1,000,$500,$800,$200,$300,$400"
+        && H("pyr-circle-total").textContent === "$0",
+        [...HD().querySelectorAll(".circle-box-value")].map((n) => n.textContent).join(","));
+
+      click("btn-circle-start");
+      await waitFor(() => phoneAction(giverPid, "Got it") && !phoneAction(giverPid, "Got it").disabled, "unlocked");
+      phoneAction(giverPid, "Got it").click();
+      await waitFor(() => core().circle.boxes[0].status === "won", "the first box lights up");
+      check("Y-I5 Got it from the circle giver's phone lights the box and banks its value",
+        core().circle.boxes[0].status === "won" && H("pyr-circle-total").textContent === "$200"
+        && HD().querySelector(".circle-box.is-won .circle-box-note").textContent === "won",
+        H("pyr-circle-total").textContent);
+
+      click("btn-circle-illegal");
+      check("Y-I5 an illegal clue blocks that box in red and rules out the grand prize",
+        core().circle.boxes[1].status === "blocked"
+        && HD().querySelectorAll(".circle-box.is-blocked").length === 1,
+        `${core().circle.boxes[1].status}`);
+
+      let guard = 0;
+      while (!core().circle.finished && guard < 12) { click("btn-circle-correct"); guard += 1; await sleep(5); }
+      check("Y-I5 the team keep everything they won when a box was blocked",
+        core().outcome.cleared === false && core().outcome.boxesWon === 5
+        && HW().PyrCore.circleWinnings(core()) === 2900,
+        `${core().outcome.boxesWon} boxes, ${HW().PyrCore.circleWinnings(core())}`);
+
+      click("btn-circle-next");
+      await waitFor(() => core().phase === "result", "the prize card");
+      check("Y-I5 the prize card names the team and the money",
+        H("pyr-result-team").textContent === "Team A" && H("pyr-result-amount").textContent === "$2,900",
+        `${H("pyr-result-team").textContent} — ${H("pyr-result-amount").textContent}`);
+      await waitFor(() => phoneView("p1").screen === "result", "phones see the result");
+      check("Y-I5 both members of the winning team are told what they won",
+        phoneView("p1").mine === "$2,900" && phoneView("p2").mine === "$2,900"
+        && phoneView("p3").mine === null,
+        `p1 ${phoneView("p1").mine}, p3 ${phoneView("p3").mine}`);
+
+      click("btn-result-next");
+      await waitFor(() => core().phase === "standings", "the standings");
+      const scores = shellLog.filter((d) => d.t === "scores").pop();
+      check("Y-I5 the night scoreboard is given the money for both winners",
+        !!scores && scores.scores.filter((s) => s.score === 2900).length === 2
+        && scores.scores.length === 4,
+        scores ? JSON.stringify(scores.scores) : "no scores frame");
+      check("Y-I5 the shell bar subtitle follows the game",
+        shellLog.some((d) => d.t === "title" && d.text === "Winner’s Circle"),
+        shellLog.filter((d) => d.t === "title").map((d) => d.text).join(" / "));
+    }
+
+    /* ============================================================
+       Y-I6 — the editor round-trip, the splash, and the static gates
+       ============================================================ */
+
+    async function scenarioEditor() {
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "editor opens");
+      check("Y-I6 the editor shows every category with a field per word",
+        HD().querySelectorAll("#pyr-ed-rows .ed-row").length === 12
+        && HD().querySelectorAll("#pyr-ed-rows .ed-words input").length === 48
+        && HD().querySelectorAll("#pyr-ed-circles .ed-circle").length === 2,
+        `${HD().querySelectorAll("#pyr-ed-rows .ed-row").length} categories, `
+        + `${HD().querySelectorAll("#pyr-ed-rows .ed-words input").length} word fields`);
+
+      let captured = null;
+      const realCreate = HW().URL.createObjectURL;
+      HW().URL.createObjectURL = (blob) => { captured = blob; return realCreate.call(HW().URL, blob); };
+      click("btn-editor-download");
+      await waitFor(() => captured, "download blob");
+      HW().URL.createObjectURL = realCreate;
+      const text = await captured.text();
+      check("Y-I6 Download JSON produces a file that passes validateGame",
+        HW().PyrCore.validateGame(JSON.parse(text)) === true && JSON.parse(text).categories.length === 12,
+        `${text.length} bytes, ${JSON.parse(text).categories.length} categories`);
+
+      // A broken draft is refused with a plain-English reason.
+      const draft = HW().PyrEditor.draft();
+      const keep = draft.categories[0].words[0];
+      draft.categories[0].words[0] = "";
+      HW().PyrEditor.setDraft(draft);
+      check("Y-I6 an empty word blocks Use in game and says why",
+        H("pyr-editor-msg").textContent.indexOf("word 1 is empty") > 0,
+        H("pyr-editor-msg").textContent);
+      draft.categories[0].words[0] = keep;
+      draft.title = "Edited in the harness";
+      HW().PyrEditor.setDraft(draft);
+      click("btn-editor-use");
+      await waitFor(() => H("screen-editor").classList.contains("hidden"), "editor closes");
+      check("Y-I6 Use in game adopts the draft and clears the finished game",
+        HW().PyrApp.state().game.title === "Edited in the harness"
+        && HW().PyrApp.state().core === null
+        && !H("screen-setup").classList.contains("hidden"),
+        HW().PyrApp.state().source);
+    }
+
+    async function scenarioSplash() {
+      const node = H("gsc-splash");
+      check("Y-I6 the page carries the shared .gsc-splash title card",
+        !!node && node.classList.contains("gsc-splash")
+        && HW().getComputedStyle(node).pointerEvents === "none",
+        node ? `pointer-events: ${HW().getComputedStyle(node).pointerEvents}` : "missing");
+      HD().body.classList.remove("gsc-embedded");
+      HW().PyrApp.showSplash();
+      check("Y-I6 the splash shows the game name and wears the game accent",
+        !node.classList.contains("hidden") && H("gsc-splash-title").textContent === "Pyramid"
+        && node.dataset.gscGame === "pyramid",
+        `${H("gsc-splash-title").textContent} / ${H("gsc-splash-sub").textContent}`);
+      await waitFor(() => node.classList.contains("hidden"), "the splash clears itself", 2500);
+      const realMatch = HW().matchMedia;
+      HW().matchMedia = (q) => ({ matches: /prefers-reduced-motion/.test(q), media: q,
+        addEventListener() {}, removeEventListener() {} });
+      HW().PyrApp.showSplash();
+      const skipped = node.classList.contains("hidden");
+      HW().matchMedia = realMatch;
+      check("Y-I6 prefers-reduced-motion skips the splash entirely", skipped,
+        skipped ? "stayed hidden" : "SHOWN under reduce");
+      HD().body.classList.add("gsc-embedded");
+      HW().PyrApp.showSplash();
+      check("Y-I6 an embedded frame skips the card — the hub shows its own",
+        node.classList.contains("hidden"),
+        node.classList.contains("hidden") ? "stayed hidden when embedded" : "SHOWN over the hub's splash");
+    }
+
+    const SOURCES = [
+      "../index.html", "../categories.json", "../README.md",
+      "../css/pyr.css", "../css/pyr-phone.css",
+      "../js/pyr-content.js", "../js/pyr-core.js", "../js/data.js", "../js/pyr-sound.js",
+      "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-editor.js",
+      "../js/pyr-room.js", "../js/pyr-phone.js",
+      "../tests/pyr-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
+    ];
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("Y-I6 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("Y-I6 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("Y-I6 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("Y-I6 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("Y-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("Y-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="pyramid"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("Y-I6 V8 categories.json validates through validateGame and ships 24 + 4",
+        HW().PyrCore.validateGame(JSON.parse(texts["../categories.json"])) === true
+        && JSON.parse(texts["../categories.json"]).categories.length === 24
+        && JSON.parse(texts["../categories.json"]).circles.length === 4);
+      check("Y-I6 js/data.js mirrors categories.json and reaches globalThis",
+        JSON.stringify(HW().PYR_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../categories.json"])),
+        HW().PYR_DEFAULT_GAME ? "globalThis.PYR_DEFAULT_GAME is set" : "MISSING");
+
+      // Every animation must sit inside prefers-reduced-motion: no-preference.
+      // Comments stripped first: this sheet documents the rule in its own header.
+      const comments = new RegExp("/\\*[\\s\\S]*?\\*/", "g");
+      const css = (texts["../css/pyr.css"] + texts["../css/pyr-phone.css"]).replace(comments, "");
+      const guarded = css.split("@media (prefers-reduced-motion: no-preference)");
+      const outside = guarded[0].match(/@keyframes|animation:/g) || [];
+      check("Y-I6 every @keyframes and animation: is inside prefers-reduced-motion: no-preference",
+        outside.length === 0, outside.join(", ") || "none outside the guard");
+
+      check("Y-I6 the embedded page hides the standalone room controls",
+        HD().body.classList.contains("gsc-embedded"), HD().body.className);
+    }
+
+    /** V-phone: 320 px wide, thumb-sized targets, no horizontal scroll. */
+    function scenarioPhoneGates() {
+      const frame = phoneFrames.get("p1");
+      const doc = PD("p1");
+      const buttons = [...doc.querySelectorAll("#pyr-phone-actions .btn")];
+      const small = buttons.filter((b) => b.getBoundingClientRect().height < 56);
+      check("Y-I6 V-phone every phone action is at least 56 px tall at 320 px",
+        buttons.length > 0 && small.length === 0,
+        buttons.map((b) => `${b.textContent}:${Math.round(b.getBoundingClientRect().height)}`).join(" "));
+      const wide = [...phoneFrames.keys()].filter((pid) => {
+        const d = PD(pid).documentElement;
+        return d.scrollWidth > d.clientWidth + 1;
+      });
+      check("Y-I6 V-phone no phone scrolls sideways at 320 px — giver, guesser or spectator",
+        wide.length === 0,
+        wide.length ? wide.join(", ")
+          : [...phoneFrames.keys()].map((pid) => `${pid}:${PD(pid).documentElement.scrollWidth}`).join(" "));
+      void frame;
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioGiver();
+        await scenarioMarks();
+        await scenarioClock();
+        scenarioPhoneGates();
+        await scenarioReload();
+        await scenarioCircle();
+        await scenarioSplash();
+        await scenarioEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>
