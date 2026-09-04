@@ -188,7 +188,12 @@
     const dispatch = (event) => HW().CrApp.dispatch(event);
 
     async function bootHost(clear) {
-      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      if (clear !== false) {
+        // Unload the old page FIRST: its beforeunload handler saves the state,
+        // which would otherwise land in localStorage after we cleared it.
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
       await loadFrame(hostFrame, HOST_SRC);
       await waitFor(() => HW().CrApp && HW().CrApp.state().game, "host boot");
     }
@@ -536,7 +541,9 @@
       "../js/cr-sound.js", "../js/cr-clock.js", "../js/cr-view.js", "../js/cr-app.js",
       "../js/cr-editor.js", "../js/cr-room.js", "../js/cr-phone.js",
       "../css/cr.css", "../css/cr-phone.css",
-      "../tests/cr-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
+      "../tests/cr-core.test.mjs", "../tests/cr-adversarial.test.mjs",
+      "../tests/cr-adversarial-fuzz.test.mjs",
+      "../tests/harness.html", "../tests/fixtures/harness-game.json",
       "../README.md",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;

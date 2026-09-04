@@ -146,7 +146,8 @@
    */
   function paintClock(node) {
     const core = window.CrCore;
-    const left = Number.isFinite(view.deadline) && core ? core.secondsLeft(view.deadline, Date.now()) : view.seconds;
+    const fallback = view.over ? 0 : view.seconds;   // "Time!" must not show the round length again
+    const left = Number.isFinite(view.deadline) && core ? core.secondsLeft(view.deadline, Date.now()) : fallback;
     node.textContent = String(left);
     node.classList.toggle("danger", Number.isFinite(view.deadline) && left > 0 && left <= 10);
     node.classList.toggle("done", Number.isFinite(view.deadline) && left <= 0);

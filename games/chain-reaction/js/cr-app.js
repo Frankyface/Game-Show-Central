@@ -310,7 +310,10 @@ function crSpeedDeadline() {
 
 function crSpeedSeconds() {
   const state = crApp.core;
-  return state && state.speed ? state.speed.seconds : 0;
+  if (!state || !state.speed) return 0;
+  // Once the round is over the deadline is cleared, so the clock falls back to
+  // this. It must read 0, not the round length, or "Time!" shows "60".
+  return state.speed.over ? 0 : state.speed.seconds;
 }
 
 function crStartClock() {

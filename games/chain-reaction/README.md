@@ -145,6 +145,7 @@ played. The Speed Chain uses `speedChains[(number of chains − 1) % length]`.
 | `js/data.js` | offline mirror of `chains.json` |
 | `css/cr.css`, `css/cr-phone.css` | host and phone styling on the v2 design system |
 | `tests/cr-core.test.mjs` | 57 unit tests (C-U1 … C-U10) |
+| `tests/cr-adversarial*.test.mjs` | 62 adversarial tests added by the tester (A1 … A16) |
 | `tests/harness.html` | the loopback harness (C-I1 … C-I6) |
 
 State lives in one serialisable object under `gsc-cr-state-v1`, scoped to the
@@ -164,7 +165,7 @@ Link made. `CrCore` re-exports all of it, so the API in the spec is unchanged.
 ## Testing
 
 ```bash
-cd games/chain-reaction && node --test        # 57 unit tests
+cd games/chain-reaction && node --test        # 119 unit tests
 python -m http.server 8620                    # from the repo root, then:
 #   http://localhost:8620/games/chain-reaction/tests/harness.html
 #   http://localhost:8620/games/chain-reaction/            (host, standalone)
