@@ -51,6 +51,16 @@ const GAME_REGISTRY = [
     tagline: "Twenty-six cases. One banker.",
     phone: ["pick cases", "deal or no deal", "audience advice"], players: [1, 16],
   },
+  {
+    id: "password", name: "Password", path: "games/password/", icon: "🔐", accent: "#f2c94c",
+    tagline: "One-word clues. Ten points and falling.",
+    phone: ["secret password for the givers", "clue given"], players: [2, 16], teams: true,
+  },
+  {
+    id: "chain-reaction", name: "Chain Reaction", path: "games/chain-reaction/", icon: "⛓️", accent: "#ff2e88",
+    tagline: "Eight words. Every pair a phrase.",
+    phone: ["pick a direction", "typed guesses"], players: [2, 16], teams: true,
+  },
 ];
 
 const HubRegistry = (function () {
