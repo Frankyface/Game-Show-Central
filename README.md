@@ -5,7 +5,8 @@ and reads out a four-letter room code. Everyone else opens the same site on
 their phone, types the code and their name **once**, and stays connected while
 the host hops between games: Jeopardy, Family Feud, Wheel of Fortune,
 Weakest Link, Who Wants to Be a Millionaire, The Price Is Right, Pyramid, Deal
-or No Deal, Password and Chain Reaction.
+or No Deal, Password, Chain Reaction, The Chase, 1 vs 100, Press Your Luck and
+Match Game.
 
 No accounts. No server. No install. It is a folder of static files —
 HTML, CSS and plain JavaScript — that runs from GitHub Pages, from any web
@@ -103,6 +104,10 @@ Every game also works as its own page, with its own room, without the hub:
 - `games/deal-or-no-deal/`
 - `games/password/`
 - `games/chain-reaction/`
+- `games/the-chase/`
+- `games/one-vs-100/`
+- `games/press-your-luck/`
+- `games/match-game/`
 
 Open one directly and it shows its own "Open room (phones)" button; the join
 link is that game's URL with `?room=CODE`. This is the mode to use if you only
@@ -132,6 +137,10 @@ each game's own README:
 - [`games/deal-or-no-deal/README.md`](games/deal-or-no-deal/README.md)
 - [`games/password/README.md`](games/password/README.md)
 - [`games/chain-reaction/README.md`](games/chain-reaction/README.md)
+- [`games/the-chase/README.md`](games/the-chase/README.md)
+- [`games/one-vs-100/README.md`](games/one-vs-100/README.md)
+- [`games/press-your-luck/README.md`](games/press-your-luck/README.md)
+- [`games/match-game/README.md`](games/match-game/README.md)
 
 ---
 
@@ -220,7 +229,8 @@ The Jeopardy game is vendored from
 `games/jeopardy/UPSTREAM_COMMIT`); its buzzer stack is the field-tested code
 the hub's room transport is built from. Jeopardy!, Family Feud, Wheel of
 Fortune, The Weakest Link, Who Wants to Be a Millionaire, The Price Is Right,
-The $100,000 Pyramid, Deal or No Deal, Password and Chain Reaction are trademarks of
+The $100,000 Pyramid, Deal or No Deal, Password, Chain Reaction, The Chase,
+1 vs 100, Press Your Luck and Match Game are trademarks of
 their respective owners; this is
 an unaffiliated fan project for playing at home.
 

@@ -61,6 +61,26 @@ const GAME_REGISTRY = [
     tagline: "Eight words. Every pair a phrase.",
     phone: ["pick a direction", "typed guesses"], players: [2, 16], teams: true,
   },
+  {
+    id: "the-chase", name: "The Chase", path: "games/the-chase/", icon: "🏃", accent: "#d10000",
+    tagline: "Outrun the Chaser. Bank the money.",
+    phone: ["secret answer locks", "chaser can be a player"], players: [1, 16], teams: true,
+  },
+  {
+    id: "one-vs-100", name: "1 vs 100", path: "games/one-vs-100/", icon: "💯", accent: "#19c9ff",
+    tagline: "One player. The whole room is the Mob.",
+    phone: ["everyone answers", "eliminations"], players: [2, 16],
+  },
+  {
+    id: "press-your-luck", name: "Press Your Luck", path: "games/press-your-luck/", icon: "🎰", accent: "#ff3ea5",
+    tagline: "Big bucks, no Whammies. STOP!",
+    phone: ["buzzers", "picks", "STOP the board"], players: [2, 4],
+  },
+  {
+    id: "match-game", name: "Match Game", path: "games/match-game/", icon: "📝", accent: "#ff8c1a",
+    tagline: "Fill in the blank. Match the panel.",
+    phone: ["secret panel answers", "audience match"], players: [3, 16],
+  },
 ];
 
 const HubRegistry = (function () {
