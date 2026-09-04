@@ -44,6 +44,20 @@ optional. Spec: `docs/14-chain-reaction-spec.md`.
 
 Keys are ignored while you are typing in a field, and while the editor is open.
 
+### The Game lobby button
+
+**⟲ Game lobby** in the toolbar gets you back to this game's own setup screen
+from any phase, with two ways out:
+
+- **Keep this game** — parks the game exactly as it stands (scores, board,
+  undo history, and the Speed Chain clock stopped where it was). Setup comes
+  back with a **Resume the game** button that puts it straight back.
+- **Start over** — throws the game away. The teams, the phones on them, the
+  chains and the settings all stay, so you can start a fresh one immediately.
+
+Neither touches the undo history: the parked game is a whole saved state, so
+Resume is exact. It works embedded in the hub and standalone.
+
 ### Peek — read this once
 
 The host screen **is** the shared screen, so it shows exactly what the players
@@ -68,6 +82,12 @@ In the Speed Chain, the playing team's phones get the clock and a **Pass**
 button. "Got it" is the host's call alone — a `got` message from a phone is
 ignored.
 
+The chain on a phone is the same board the host screen shows: **one row of
+letter tiles per word**, all eight rows stacked and centred, one tile size for
+the whole column (the longest word sets it), revealed letters in the tiles,
+blank tiles for the rest, and a dashed outline on the two words in play. It
+fits a 12-letter word at 320 px with no sideways scrolling.
+
 Every other phone gets a watch screen: the same column, the same scores, no
 buttons. **No phone ever receives a hidden letter** — the host builds each
 phone's column character by character from the reveal mask, so an unrevealed
@@ -79,8 +99,20 @@ letter is not in the payload at all (pinned by `C-U10` and `C-I3`).
 
 `chains.json` ships 18 chains and 4 speed chains. Load your own three ways:
 
-- **Chain editor** in the top bar → edit → **Use in game** or **Download JSON**
-  (draft auto-saves under `gsc-cr-draft-v1`).
+- **Saved chain sets** on the setup screen — the shared library picker
+  (`shared/library.js`). It lists everything in `sets/index.json`, previews the
+  set and loads it through this game's own validator; the source note then
+  reads `set: Kids' night`. Two sets ship beside the default file:
+
+  | Set | What is in it |
+  | --- | --- |
+  | `sets/kids-night.json` | Playground, bubble gum and birthday words, and a wrong guess gives the next letter away |
+  | `sets/out-and-about.json` | Roads, trails and campfires, played for double money |
+
+  Opened straight from disk (`file://`) the picker hides itself and says why —
+  saved sets need a web server.
+- **Chain editor** in the top bar → edit → **Use in game**, **Download JSON**,
+  or **Download for the library** (draft auto-saves under `gsc-cr-draft-v1`).
 - **Load chains (.json)** on the setup screen.
 - `?game=https://example.com/my-chains.json` on the URL. An explicit link wins
   over a saved game unless the save came from that same link.
@@ -118,6 +150,19 @@ letter is not in the payload at all (pinned by `C-U10` and `C-I3`).
 | `settings.speedAllClearLabel` | no | ≤ 16 chars, default `$1,000` |
 | `settings.revealOnWrong` | no | `true` also gives the incoming team the next letter of the word that was missed. Default `false` |
 
+### Adding your own set to the library
+
+Static hosting cannot write into the repo, so the editor gives you the two
+pieces and you commit them:
+
+1. Build the chains in the **Chain editor** and press **Download for the
+   library**. It saves `your-title.json` and prints the exact manifest line.
+2. Commit the file to `games/chain-reaction/sets/` and paste that line into
+   `games/chain-reaction/sets/index.json`.
+
+The picker lists it on the next load. `file` must be a bare `*.json` name — the
+shared module drops anything with a slash, a scheme or a `..`.
+
 The one rule the validator **cannot** check is the one that matters: every
 adjacent pair has to be a phrase people say. The editor shows the pair under
 each field (`↳ SPACE SHIP`) so you can read them back as you write.
@@ -147,7 +192,9 @@ played. The Speed Chain uses `speedChains[(number of chains − 1) % length]`.
 | `tests/cr-core.test.mjs` | 57 unit tests (C-U1 … C-U10) |
 | `tests/cr-adversarial*.test.mjs` | 62 adversarial tests added by the tester (A1 … A16) |
 | `tests/cr-regression.test.mjs` | 7 tests pinning the clock and tiebreak fixes (CR-2, CR-6) |
-| `tests/harness.html` | the loopback harness (C-I1 … C-I6) |
+| `sets/index.json` + `sets/*.json` | the in-repo set library (docs/19 §2) |
+| `tests/harness.html` | the loopback harness (C-I1 … C-I6, X-1 … X-4) |
+| `tests/harness-kit.js` | the harness's PASS/FAIL list and bridge shell, split out for the 800-line limit |
 
 State lives in one serialisable object under `gsc-cr-state-v1`, scoped to the
 room code: opening a **new** room clears a game whose teams were made of the
@@ -175,7 +222,7 @@ Link made. `CrCore` re-exports all of it, so the API in the spec is unchanged.
 ## Testing
 
 ```bash
-cd games/chain-reaction && node --test        # 126 unit tests
+cd games/chain-reaction && node --test        # 130 unit tests
 python -m http.server 8620                    # from the repo root, then:
 #   http://localhost:8620/games/chain-reaction/tests/harness.html
 #   http://localhost:8620/games/chain-reaction/            (host, standalone)

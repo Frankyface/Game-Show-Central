@@ -19,6 +19,7 @@
     <div class="topbar-actions">
       <span id="cr-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">&#8635; Game lobby</button>
       <button id="btn-editor" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Chain editor</button>
       <button id="btn-exit" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm hidden" type="button">Back to lobby</button>
     </div>
@@ -84,12 +85,15 @@
               <input id="cr-file" class="visually-hidden" type="file" accept="application/json,.json">
             </div>
             <p id="cr-chain-count" class="hint"></p>
+            <div id="cr-library"></div>
           </div>
         </div>
 
         <div class="setup-actions">
+          <button id="btn-resume" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big hidden" type="button">Resume the game</button>
           <button id="btn-start" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Start the game</button>
         </div>
+        <p id="cr-resume-note" class="hint hidden" role="status"></p>
       </div>
     </section>
 
@@ -216,6 +220,7 @@
         <div class="editor-bar-actions">
           <button id="btn-editor-use" class="btn btn-blue gsc-btn gsc-btn-primary" type="button">Use in game</button>
           <button id="btn-editor-download" class="btn btn-gold gsc-btn" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-blue gsc-btn gsc-btn-primary" type="button">Download for the library</button>
           <button id="btn-editor-reset" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Reset to shipped</button>
           <button id="btn-editor-blank" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Start blank</button>
           <button id="btn-editor-close" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Close</button>
@@ -223,6 +228,7 @@
       </div>
       <p id="cr-editor-msg" class="error-msg hidden" role="alert"></p>
       <p id="cr-editor-warn" class="notice"></p>
+      <p id="cr-editor-manifest" class="manifest-line hidden" role="status"></p>
 
       <div class="editor-grid">
         <div class="editor-col">
@@ -280,6 +286,20 @@
 
   </main>
 
+  <!-- ============ Game lobby confirm (docs/19 §1) ============ -->
+  <div id="cr-lobby-confirm" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cr-lobby-title">
+    <div class="overlay-card gsc-modal lobby-card">
+      <p id="cr-lobby-title" class="overlay-title gsc-modal-title">Back to the game lobby</p>
+      <p id="cr-lobby-sub" class="overlay-sub">Keep this game to come back to it, or start over with the same
+        teams and chains.</p>
+      <div class="controls gsc-modal-actions">
+        <button id="btn-lobby-keep" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Keep this game</button>
+        <button id="btn-lobby-over" class="btn btn-ghost btn-big gsc-btn gsc-btn-danger gsc-btn-big" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ Chain complete interstitial ============ -->
   <div id="cr-interstitial" class="overlay hidden" role="dialog" aria-modal="false" aria-label="Chain complete">
     <div class="overlay-card gsc-modal">
@@ -317,6 +337,7 @@
   <script src="../../shared/room-host.js"></script>
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
   <script src="js/cr-content.js"></script>
   <script src="js/cr-select.js"></script>
   <script src="js/cr-core.js"></script>

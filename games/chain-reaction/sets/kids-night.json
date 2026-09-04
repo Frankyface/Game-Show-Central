@@ -1,0 +1,24 @@
+{
+  "title": "Chain Reaction — Kids' night",
+  "settings": {
+    "currency": "$",
+    "values": [100, 200, 300],
+    "speedSeconds": 60,
+    "speedPerWord": 100,
+    "speedAllClear": 1000,
+    "speedAllClearLabel": "$1,000",
+    "revealOnWrong": true
+  },
+  "chains": [
+    ["PLAY", "GROUND", "FLOOR", "BOARD", "WALK", "OVER", "TIME", "OUT"],
+    ["SOAP", "BUBBLE", "GUM", "DROP", "KICK", "BALL", "PARK", "BENCH"],
+    ["QUICK", "SAND", "PAPER", "PLANE", "CRASH", "LAND", "SLIDE", "SHOW"],
+    ["PIGGY", "BANK", "NOTE", "BOOK", "WORM", "HOLE", "PUNCH", "LINE"],
+    ["BIRTH", "DAY", "DREAM", "BOAT", "HOUSE", "FLY", "PAPER", "CLIP"],
+    ["SNOW", "MAN", "POWER", "HOUSE", "WORK", "SHOP", "KEEPER", "SAKE"]
+  ],
+  "speedChains": [
+    ["PEANUT", "BUTTER", "FLY", "TRAP", "DOOR", "BELL", "BOY", "SCOUT"],
+    ["TOY", "BOX", "SPRING", "TIME", "TABLE", "TENNIS", "BALL", "GAME"]
+  ]
+}

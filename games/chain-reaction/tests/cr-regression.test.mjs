@@ -18,7 +18,9 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const Core = require("../js/cr-core.js");
+const Library = require("../../../shared/library.js");
 const SHIPPED = require("../chains.json");
+const MANIFEST = require("../sets/index.json");
 
 const rng = () => 0;
 const TEAMS = [{ name: "Red", pids: ["p1", "p2"] }, { name: "Blue", pids: ["p3"] }];
@@ -175,5 +177,64 @@ test("C-U8 the shipped file never picks a tiebreak word the teams have seen", ()
     assert.equal(seen.has(sd.word), false, `"${sd.word}" was already on the board`);
     assert.equal(sd.revealed.some(Boolean), false, "it starts blank");
     assert.ok(sd.before && sd.after, "its neighbours are the clue");
+  });
+});
+
+/* ============================================================
+   X-2 - the shipped set library (docs/19 §2)
+   ============================================================ */
+
+test("X-2 sets/index.json is a manifest the shared library accepts", () => {
+  const parsed = Library.parseManifest(MANIFEST);
+  assert.equal(parsed.ok, true, parsed.error);
+  assert.equal(parsed.sets.length, MANIFEST.length, "no row was dropped as junk");
+  assert.ok(parsed.sets.length >= 2, "docs/19 §2 asks for at least two extra sets");
+  parsed.sets.forEach((entry) => {
+    assert.equal(Library.safeFile(entry.file), entry.file, `${entry.file} is not a bare .json name`);
+    assert.ok(entry.name && entry.description, `${entry.file} needs a name and a description`);
+  });
+});
+
+test("X-2 every set in the manifest is a playable Chain Reaction game", () => {
+  MANIFEST.forEach((entry) => {
+    const set = require(`../sets/${entry.file}`);
+    assert.equal(Core.validateGame(set), true, `${entry.file} does not validate`);
+    const game = Core.normalizeGame(set);
+    assert.equal(game.chains.length, entry.counts.chains, `${entry.file} chain count`);
+    assert.equal(game.speedChains.length, entry.counts["speed chains"], `${entry.file} speed chain count`);
+    assert.deepEqual(Core.warningsFor(set), [], `${entry.file} has warnings`);
+    // Playable end to end, not merely valid.
+    let s = Core.reduce(Core.createState(set, TEAMS, {}), { type: "start" }, rng, 0);
+    let guard = 0;
+    while (s.phase === "chain" && guard < 200) {
+      guard += 1;
+      s = Core.reduce(s, { type: "reveal", direction: guard % 2 ? "top" : "bottom" }, rng, 0);
+      if (s.target !== null) s = Core.reduce(s, { type: "judge", correct: true }, rng, 0);
+    }
+    assert.equal(s.phase, "chainDone", `${entry.file} could not be played out`);
+  });
+});
+
+test("X-2 no set repeats a word inside a chain, and every word is 2-12 letters", () => {
+  MANIFEST.forEach((entry) => {
+    const set = require(`../sets/${entry.file}`);
+    Core.normalizeGame(set).chains.concat(Core.normalizeGame(set).speedChains).forEach((chain, ci) => {
+      const seen = new Set();
+      chain.forEach((word, wi) => {
+        assert.match(word, /^[A-Z]+(?:['-][A-Z]+)*$/, `${entry.file} chain ${ci + 1} word ${wi + 1}`);
+        const letters = word.replace(/[^A-Z]/g, "").length;
+        assert.ok(letters >= 2 && letters <= 12, `${entry.file}: ${word} is ${letters} letters`);
+        assert.equal(seen.has(word), false, `${entry.file} chain ${ci + 1} repeats ${word}`);
+        seen.add(word);
+        if (wi > 0) assert.notEqual(word, chain[wi - 1]);
+      });
+    });
+  });
+});
+
+test("X-2 the manifest and the default file are different content", () => {
+  MANIFEST.forEach((entry) => {
+    const set = require(`../sets/${entry.file}`);
+    assert.notDeepEqual(set.chains, SHIPPED.chains, `${entry.file} is a copy of chains.json`);
   });
 });

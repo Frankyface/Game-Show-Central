@@ -56,23 +56,36 @@ body.player-mode { padding: 0; }
 
 /* ============ The column on a phone ============ */
 
+/* The chain has to read like the show: eight rows of letter tiles stacked and
+   centred, ONE tile size for the whole column. Every row used to be
+   `width: 100%`, so a two-letter word became two huge tiles and an eight-letter
+   word eight small ones — the words looked spaced out rather than stacked
+   (docs/19 §3). The longest word now sets the tile (`--cr-cols`, written by
+   cr-phone.js) and each row is exactly as wide as its own letters. */
 .phone-column {
+  --cr-pgap: 3px;
+  --cr-ptile: min(30px, calc((100% - (var(--cr-cols, 8) - 1) * var(--cr-pgap)) / var(--cr-cols, 8)));
   list-style: none;
   margin: 0.3rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: var(--cr-pgap);
   width: 100%;
 }
 
-.phone-column .row { display: block; width: 100%; }
+.phone-column .row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
 
 .phone-column .row-tiles {
   display: grid;
-  grid-template-columns: repeat(var(--len, 5), minmax(0, 1fr));
-  gap: 3px;
-  width: 100%;
+  grid-template-columns: repeat(var(--len, 5), 1fr);
+  gap: var(--cr-pgap);
+  width: calc(var(--len, 5) * var(--cr-ptile) + (var(--len, 5) - 1) * var(--cr-pgap));
 }
 
 .phone-column .tile {
@@ -81,7 +94,7 @@ body.player-mode { padding: 0; }
   justify-content: center;
   aspect-ratio: 1;
   font-family: var(--font-display);
-  font-size: min(4.6vw, 19px);
+  font-size: min(4.8vw, 19px);
   line-height: 1;
   border-radius: 4px;
   background: var(--cr-tile-empty);
@@ -97,6 +110,11 @@ body.player-mode { padding: 0; }
 .phone-column .tile.is-punct { background: transparent; border-color: transparent; color: var(--ink-dim); }
 .phone-column .row.owner-0 .tile.is-lit { background: linear-gradient(180deg, #9fb6ff, #5f80ff); border-color: var(--cr-blue); }
 .phone-column .row.owner-1 .tile.is-lit { background: linear-gradient(180deg, #ffb4d6, #ff5fa2); border-color: var(--cr-pink); }
+.phone-column .row.is-eligible .row-tiles {
+  outline: 2px dashed rgba(255, 255, 255, 0.42);
+  outline-offset: 2px;
+  border-radius: 5px;
+}
 .phone-column .row.is-target .row-tiles { outline: 2px solid var(--cr-pink); outline-offset: 2px; border-radius: 5px; }
 .phone-column .row.is-current .row-tiles { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 5px; }
 .phone-column .row-tag { display: none; }

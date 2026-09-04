@@ -41,6 +41,10 @@ function crFreshApp() {
     roomCode: null,
     players: [],
     editorOpen: false,
+    confirmOpen: false,
+    // The game the host parked with "Keep this game" (docs/19 §1). It is a
+    // whole core state, history and all, so Resume is exact and undo-safe.
+    resumable: null,
     peek: false,
   };
 }
@@ -114,7 +118,15 @@ function crSerialise() {
   return {
     core: frozen, game: crApp.game, setup: crApp.setup, source: crApp.source,
     sourceKind: crApp.sourceKind, sourceUrl: crApp.sourceUrl, roomCode: crApp.roomCode,
+    resumable: freezeClock(crApp.resumable),
   };
+}
+
+/** A parked game's clock must be frozen too, or Resume hands back a deadline
+    that ran out while it was parked (same rule as the live save, CR-2). */
+function freezeClock(core) {
+  if (!core || !core.speed || !core.speed.started || core.speed.over) return core;
+  return Object.assign({}, core, { speed: window.CrCore.pauseSpeed(core.speed, Date.now()) });
 }
 
 function crSave() {
@@ -169,6 +181,8 @@ function crLoadSaved() {
         speed: window.CrCore.pauseSpeed(saved.core.speed, Date.now()),
       });
     }
+    if (saved.resumable && !crUsableCore(saved.resumable)) saved.resumable = null;
+    if (saved.resumable) saved.resumable = freezeClock(saved.resumable);
     return saved;
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
@@ -335,6 +349,46 @@ function crBindRoom(code) {
   }
 }
 
+/* ============ The game lobby (docs/19 §1) ============ */
+
+function crLobbyOpen(on) {
+  const box = $("cr-lobby-confirm");
+  if (!box) return;
+  show(box, !!on);
+  crSet({ confirmOpen: !!on });
+  if (on) {
+    setText("cr-lobby-sub", crApp.core
+      ? "Keep this game to come back to it, or start over with the same teams and chains."
+      : "There is no game in progress — this is the setup screen already.");
+    const keep = $("btn-lobby-keep");
+    if (keep) keep.disabled = !crApp.core;
+    if (keep && crApp.core) keep.focus();
+  }
+}
+
+/** Park the game in progress: setup comes back, with a Resume button. */
+function crLobbyKeep() {
+  if (!crApp.core) { crLobbyOpen(false); return; }
+  // Park it with the clock stopped: a Speed Chain left running here would burn
+  // its seconds while the host is on the setup screen (the CR-2 rule again).
+  crSet({ resumable: freezeClock(crApp.core), core: null, peek: false });
+  crLobbyOpen(false);
+  crError("");
+}
+
+/** Throw the game away. Teams, chains and settings all stay. */
+function crLobbyStartOver() {
+  crSet({ core: null, resumable: null, peek: false });
+  crLobbyOpen(false);
+  crError("");
+}
+
+function crResume() {
+  if (!crApp.resumable) return;
+  crSet({ core: crApp.resumable, resumable: null, peek: false });
+  crError("");
+}
+
 /* ============ Speed Chain clock ============ */
 
 /**
@@ -411,7 +465,7 @@ const CR_KEYMAPS = { chain: CR_CHAIN_KEYS, speed: CR_SPEED_KEYS, sudden: CR_SUDD
 function crOnKey(event) {
   if (crIsTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.target && event.target.tagName === "BUTTON") return;
-  if (crApp.editorOpen) return;
+  if (crApp.editorOpen || crApp.confirmOpen) return;
   const state = crApp.core;
   if (!state) return;
   if (state.phase === "chainDone") {
@@ -466,6 +520,33 @@ function crWireSetup() {
   $("btn-load-json").addEventListener("click", () => $("cr-file").click());
   $("cr-file").addEventListener("change", crOnFile);
   $("btn-start").addEventListener("click", crStart);
+  $("btn-resume").addEventListener("click", crResume);
+}
+
+function crWireLobby() {
+  crWireButton("btn-game-lobby", () => crLobbyOpen(true));
+  crWireButton("btn-lobby-keep", crLobbyKeep);
+  crWireButton("btn-lobby-over", crLobbyStartOver);
+  crWireButton("btn-lobby-cancel", () => crLobbyOpen(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && crApp.confirmOpen) { event.preventDefault(); crLobbyOpen(false); }
+  });
+}
+
+/**
+ * The shared set library (docs/19 §2, design-system §3). It resolves rather
+ * than throws, so a page opened from disk simply shows its own note and the
+ * setup screen is unchanged otherwise.
+ */
+function crMountLibrary() {
+  const box = $("cr-library");
+  if (!box || !globalThis.GSCLibrary) return;
+  globalThis.GSCLibrary.mountPicker(box, {
+    gameDir: "",
+    label: "Saved chain sets",
+    validate: (json) => window.CrCore.validateGame(json),
+    onPick: (json, meta) => crUseGame(json, `set: ${meta.name}`, "library"),
+  });
 }
 
 function crWireChain() {
@@ -577,6 +658,7 @@ function crChooseContent(saved, loaded) {
   }
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
+  if (useSaved && saved.resumable) patch.resumable = saved.resumable;
   if (!useSaved && saved && saved.core && !crLoadMessage) {
     crLoadMessage = "Loaded the chains from the link, so the game in progress was cleared.";
   }
@@ -601,8 +683,10 @@ async function crBoot() {
   crWireSpeed();
   crWireInterstitial();
   crWireResult();
+  crWireLobby();
   crWireChrome();
   crStartClock();
+  crMountLibrary();
 
   const loaded = await crLoadContent();
   crSet(crChooseContent(saved, loaded));
@@ -623,6 +707,10 @@ window.CrApp = {
   setPlayers: crSetPlayers,
   players: () => crApp.players.slice(),
   start: crStart,
+  resume: crResume,
+  lobby: crLobbyOpen,
+  lobbyKeep: crLobbyKeep,
+  lobbyStartOver: crLobbyStartOver,
   bindRoom: crBindRoom,
   showSplash: crShowSplash,
   clock: () => crClock,

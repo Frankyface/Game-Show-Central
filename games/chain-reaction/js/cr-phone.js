@@ -50,10 +50,18 @@
     return btn;
   }
 
-  /** The masked column, exactly as the host sent it. */
+  /**
+   * The masked column, exactly as the host sent it: one row per word, each row
+   * a grid of `row.len` letter tiles. The longest word in the chain sets one
+   * tile size for the whole column (`--cr-cols`), so the rows stack like the
+   * show's board instead of each stretching to the full width (docs/19 §3).
+   */
   function buildColumn(box, rows) {
     box.replaceChildren();
-    (rows || []).forEach((row) => {
+    const list = rows || [];
+    const widest = list.reduce((max, row) => Math.max(max, row.len || 0), 0);
+    box.style.setProperty("--cr-cols", String(Math.max(2, widest)));
+    list.forEach((row) => {
       const li = el("li", "row");
       const tiles = el("div", "row-tiles");
       tiles.style.setProperty("--len", String(row.len));
@@ -66,6 +74,7 @@
       li.appendChild(tiles);
       if (row.solved) li.classList.add("is-solved");
       if (row.owner === 0 || row.owner === 1) li.classList.add(`owner-${row.owner}`);
+      if (row.eligible) li.classList.add("is-eligible");
       if (row.target) li.classList.add("is-target");
       if (row.current) li.classList.add("is-current");
       li.setAttribute("aria-label", row.solved

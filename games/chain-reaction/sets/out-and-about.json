@@ -1,0 +1,24 @@
+{
+  "title": "Chain Reaction — Out & about",
+  "settings": {
+    "currency": "$",
+    "values": [200, 400, 600],
+    "speedSeconds": 60,
+    "speedPerWord": 200,
+    "speedAllClear": 2000,
+    "speedAllClearLabel": "$2,000",
+    "revealOnWrong": false
+  },
+  "chains": [
+    ["ROAD", "TRIP", "WIRE", "TAP", "DANCE", "FLOOR", "BOARD", "WALK"],
+    ["BOOT", "CAMP", "FIRE", "WOOD", "WORK", "BENCH", "PRESS", "RELEASE"],
+    ["FOOT", "PATH", "WAY", "SIDE", "WALK", "OUT", "DOOR", "STEP"],
+    ["SEA", "SIDE", "SHOW", "BOAT", "RACE", "TRACK", "SUIT", "CASE"],
+    ["TOUR", "BUS", "STOP", "LIGHT", "HOUSE", "HOLD", "UP", "RIGHT"],
+    ["CROSS", "ROAD", "BLOCK", "HEAD", "PHONE", "BOOK", "CASE", "STUDY"]
+  ],
+  "speedChains": [
+    ["SNOW", "SHOE", "STRING", "BEAN", "BAG", "PIPE", "LINE", "UP"],
+    ["RIVER", "BANK", "ROLL", "OVER", "PASS", "PORT", "HOLE", "PUNCH"]
+  ]
+}

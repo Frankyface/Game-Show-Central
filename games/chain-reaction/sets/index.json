@@ -1,0 +1,22 @@
+[
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Playground, bubble gum and birthday words — nothing anyone needs to be old to know.",
+    "by": "GSC",
+    "counts": {
+      "chains": 6,
+      "speed chains": 2
+    }
+  },
+  {
+    "file": "out-and-about.json",
+    "name": "Out & about",
+    "description": "Roads, trails and campfires, played for double money.",
+    "by": "GSC",
+    "counts": {
+      "chains": 6,
+      "speed chains": 2
+    }
+  }
+]

@@ -439,3 +439,123 @@ Static gates re-run after every change: largest file 744 lines
 every `@keyframes` and `animation:` still inside
 `@media (prefers-reduced-motion: no-preference)`, phone targets ≥ 56 px with no
 horizontal scroll at 320 px.
+
+---
+
+# Cross-cutting round (docs/19)
+
+Round three: the game-lobby control, the in-repo set library, and the phone
+column fix from `docs/19-cross-cutting-round.md` §3.
+
+## §3 — the phone chain is a real tile grid · fixed
+
+**The bug, exactly.** `css/cr-phone.css` gave every row `width: 100%` and
+`grid-template-columns: repeat(n, minmax(0, 1fr))`. Each row therefore
+stretched across the whole phone independently of its length, so `UP` became
+two enormous tiles and `POISONING` nine small ones — the words read as
+spaced-out fragments rather than one stacked board.
+
+**The fix.** One tile size for the whole column, driven by the longest word:
+
+- `js/cr-phone.js` writes `--cr-cols` (the longest `row.len`) onto
+  `#cr-phone-column` on every render.
+- `css/cr-phone.css` derives the tile from it —
+  `--cr-ptile: min(30px, calc((100% - (cols - 1) * gap) / cols))` — and each
+  row is `display: grid`, `grid-template-columns: repeat(n, 1fr)`, exactly
+  `n` tiles wide, centred in a flex row. The column is `align-items: center`,
+  so the rows stack down the middle like the show's board.
+- Tiles keep `aspect-ratio: 1`; no letter-spacing anywhere.
+- The two words in play now carry a dashed outline on the phone as well
+  (`.row.is-eligible`), so the frontier reads without the host screen.
+
+**Measured** in a phone frame emulated at 320 × 640 with a synthetic
+12-letter chain (`THANKSGIVING`): `--cr-cols: 12`, every tile exactly
+**20 px**, one row per word with 5/4/4/5/8/4/6/12 tiles, widest row 274 px in
+a 274 px column, `scrollWidth === innerWidth === 320` — **no horizontal
+scroll**. At the harness's own 240 px frames the tiles come out at 30 px
+(the cap) and the spread across all 8 rows is 0 px.
+
+## §1 — the Game lobby control · added
+
+`⟲ Game lobby` (`btn-game-lobby`) sits in the toolbar between Sound and the
+Chain editor and opens a `role="dialog"` confirm with three buttons.
+
+| Control | What it does |
+| --- | --- |
+| **Keep this game** | `crApp.resumable = freezeClock(core)`, `core = null` → the setup screen returns with **Resume the game** and a line saying where the parked game stands ("A game is parked on chain 2, $300 to Team Blue and …"). |
+| **Start over** | `core` and `resumable` both cleared. Teams, the phones on them, the loaded chains and the settings all stay. |
+| **Cancel** | Nothing changes. Escape does the same. |
+
+- Undo-safe by construction: the parked value is a whole core state, history
+  included, so **Resume** restores it byte for byte (the harness compares an
+  11-field snapshot before and after).
+- The parked clock is **frozen** on the way in, so a Speed Chain parked with
+  40 s left does not burn while the host is on the setup screen, and Resume
+  offers "Resume the clock (40s)" rather than a deadline that already passed.
+- `resumable` is persisted (and re-frozen) with the save, and validated by
+  `crUsableCore` on the way back in.
+- Hotkeys are disabled while the confirm is open.
+
+Two real bugs were caught by the new checks and fixed before this shipped:
+`crLobbyKeep` parked the *live* clock (only the localStorage copy was being
+frozen), and `renderResume` only ran inside `renderSetup`, so the Resume
+button kept its visible class after the game came back.
+
+## §2 — the set library · added
+
+- `index.html` loads `shared/library.js` and carries a `#cr-library`
+  container under the setup screen's **Chains** block;
+  `crMountLibrary()` mounts `GSCLibrary.mountPicker` with `gameDir: ""`,
+  `validate: CrCore.validateGame` and an `onPick` that adopts the set through
+  the same path as an upload (`source` becomes `set: Kids' night`).
+- **Two themed sets** ship beside the default file, both written to the same
+  bar as `chains.json` — 6 chains + 2 speed chains each, all 56 adjacent
+  pairs per set re-read one by one, no pair repeated inside a set:
+
+  | File | Set | Notes |
+  | --- | --- | --- |
+  | `sets/kids-night.json` | Kids' night | playground / bubble gum / birthday words; `revealOnWrong: true` so it moves faster with children |
+  | `sets/out-and-about.json` | Out & about | roads, trails and campfires at `[200, 400, 600]` with a $2,000 all-six bonus |
+
+- The **editor** gained **Download for the library**: it validates, saves
+  `your-title.json` (slugged from the title) and prints the exact manifest
+  line plus the path to commit to, in a selectable monospace block. Static
+  hosting cannot write files, so this is the honest workflow and the README
+  documents it.
+
+## Tests
+
+| Suite | Before | After |
+| --- | --- | --- |
+| `cd games/chain-reaction && node --test` | 126 | **130 / 130** |
+| root `node --test` | 996 | **1243 / 1243** (other games landed in between; no regression from this round) |
+| `tests/harness.html` | 55 | **81 / 81** (`#summary.ok`, repeated runs) |
+
+The four new unit tests (in `tests/cr-regression.test.mjs`) cover X-2 from the
+content side: the manifest parses through the shared module, every file it
+names validates, normalises to the counts it advertises, plays end to end,
+repeats no word inside a chain, and is not a copy of `chains.json`.
+
+The 26 new harness checks are **X-1** (10: the control exists; the confirm;
+Keep → setup + Resume; roster and chains survive; Resume restores the exact
+state; Resume disappears; Start over keeps roster/chains/settings; Cancel;
+from the Speed Chain; the parked clock is frozen and resumes paused),
+**X-2** (6: the picker lists the manifest, previews it, loads a set through the
+validator, the source note updates, the game plays with it, a missing manifest
+hides the picker with a plain-English line), **X-3** (4: one download, a
+slugged file name, a valid manifest line with the right shape, the commit
+path, and the file passes the picker's validator) and **X-4** (4: one row per
+word with a tile per letter, one tile size across the column, `--cr-cols` set
+from the longest word, a real grid with no horizontal scroll). Two gate checks
+were added for the new markup and for `sets/index.json` naming real, valid
+files.
+
+`tests/harness.html` reached 881 lines with all of that, over the V2 gate, so
+its two generic pieces — the PASS/FAIL list and the architecture 00 §6 bridge
+shell — moved to `tests/harness-kit.js` (141 lines, in `SOURCES`, so the gates
+still cover it). The page is 796 lines. No game logic moved.
+
+Static gates re-run: largest file 796, zero `innerHTML` / `document.write` /
+`eval` / `new Function`, zero `console.log`, motion still inside
+`prefers-reduced-motion: no-preference`, no local `body[data-gsc-game]`
+override.

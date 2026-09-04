@@ -249,15 +249,57 @@ function crEditorDownload() {
     crEditorMessage(`Fix this before downloading: ${err.message}`);
     return;
   }
+  crDownloadJson("chains.json");
+  crEditorMessage("");
+}
+
+/** Hand the draft to the browser as a file. Built with no innerHTML. */
+function crDownloadJson(filename) {
   const blob = new Blob([JSON.stringify(crDraft, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "chains.json";
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** A file name a manifest will accept: lowercase, letters/digits/hyphens. */
+function crSetFileName(title) {
+  const stem = String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "").slice(0, 40);
+  return `${stem || "my-set"}.json`;
+}
+
+/**
+ * Download for the library (docs/19 §2). Static hosting cannot write into the
+ * repo, so this is the honest workflow: it downloads the file under a name a
+ * manifest will accept and prints the exact line to paste into
+ * `sets/index.json`, plus where to commit the file.
+ */
+function crEditorLibrary() {
+  try {
+    window.CrCore.validateGame(crDraft);
+  } catch (err) {
+    crEditorMessage(`Fix this before saving to the library: ${err.message}`);
+    return;
+  }
+  const file = crSetFileName(crDraft.title);
+  crDownloadJson(file);
+  const line = JSON.stringify({
+    file,
+    name: crDraft.title || file.replace(/\.json$/, ""),
+    description: "",
+    by: "",
+    counts: { chains: crDraft.chains.length, "speed chains": crDraft.speedChains.length },
+  });
+  const node = $("cr-editor-manifest");
+  if (!node) return;
+  node.textContent = `Saved ${file}. Commit it to games/chain-reaction/sets/${file}, `
+    + `then add this line to games/chain-reaction/sets/index.json:  ${line}`;
+  show(node, true);
   crEditorMessage("");
 }
 
@@ -294,6 +336,7 @@ function crWireEditor() {
   $("btn-editor").addEventListener("click", crOpenEditor);
   $("btn-editor-close").addEventListener("click", crCloseEditor);
   $("btn-editor-download").addEventListener("click", crEditorDownload);
+  $("btn-editor-library").addEventListener("click", crEditorLibrary);
   $("btn-editor-use").addEventListener("click", crEditorUse);
   $("btn-editor-reset").addEventListener("click", () => {
     crDraft = crDeepCopy(globalThis.CR_DEFAULT_GAME || crBlankDraft());
@@ -316,6 +359,8 @@ if (!(window.GSC && window.GSC.mode && window.GSC.mode.endsWith("-player"))) {
 
 window.CrEditor = {
   open: crOpenEditor,
+  library: crEditorLibrary,
+  setFileName: crSetFileName,
   close: crCloseEditor,
   draft: () => crDraft,
   setDraft: (draft) => { crDraft = draft; crTouchDraft(); },

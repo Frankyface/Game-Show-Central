@@ -39,113 +39,34 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-kit.js"></script>
   <script>
   (function () {
     "use strict";
 
-    /* ============ Result plumbing ============ */
+    /* ============ Result plumbing (tests/harness-kit.js) ============ */
 
-    const results = [];
-    let uncaught = null;
-    window.addEventListener("error", (e) => { uncaught = e.message; });
-    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+    const kit = window.CRHarnessKit.create({
+      list: document.getElementById("results"),
+      summary: document.getElementById("summary"),
+    });
+    const check = kit.check;
+    const render = kit.render;
+    const sleep = kit.sleep;
+    const waitFor = kit.waitFor;
 
-    function check(label, cond, detail) {
-      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
-      render();
-    }
-
-    function render() {
-      const list = document.getElementById("results");
-      list.replaceChildren();
-      for (const r of results) {
-        const li = document.createElement("li");
-        li.dataset.pass = String(r.pass);
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = r.pass ? "PASS" : "FAIL";
-        li.appendChild(tag);
-        li.appendChild(document.createTextNode(r.label));
-        if (r.detail) {
-          const d = document.createElement("span");
-          d.className = "detail";
-          d.textContent = r.detail;
-          li.appendChild(d);
-        }
-        list.appendChild(li);
-      }
-      const failed = results.filter((r) => !r.pass).length;
-      const summary = document.getElementById("summary");
-      const ok = failed === 0 && !uncaught;
-      summary.className = ok ? "ok" : "bad";
-      summary.textContent = ok
-        ? `All ${results.length} checks passed.`
-        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
-      window.__CR_HARNESS__ = { total: results.length, failed, uncaught, results };
-    }
-
-    /* ============ Async helpers ============ */
-
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-    async function waitFor(fn, label, timeout) {
-      const limit = timeout || 5000;
-      const start = Date.now();
-      for (;;) {
-        let value = null;
-        try { value = fn(); } catch (err) { value = null; }
-        if (value) return value;
-        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
-        await sleep(30);
-      }
-    }
-
-    /* ============ The bridge shell (00 §6) ============ */
+    /* ============ The bridge shell (00 §6, tests/harness-kit.js) ============ */
 
     const PLAYERS = [
       { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
       { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
       { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
     ];
-    const ROOM = { code: "TEST", players: PLAYERS };
-
     const hostFrame = document.getElementById("host");
     const phoneFrames = new Map();   // pid -> iframe
-    const shellLog = [];             // scores/title/exit frames the host sent up
-
-    function post(frame, msg) {
-      if (!frame || !frame.contentWindow) return;
-      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
-    }
-
-    window.addEventListener("message", (event) => {
-      if (event.origin !== location.origin) return;
-      const d = event.data;
-      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
-      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
-      for (const [pid, frame] of phoneFrames) {
-        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
-      }
-    });
-
-    function fromHost(d) {
-      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
-      if (d.t === "send") {
-        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
-        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
-        return;
-      }
-      shellLog.push(d);
-    }
-
-    function fromPhone(pid, d) {
-      if (d.t === "ready") {
-        const me = PLAYERS.find((p) => p.pid === pid);
-        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
-        return;
-      }
-      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
-    }
+    const shellLog = window.CRHarnessKit.bridge({
+      hostFrame, phoneFrames, room: { code: "TEST", players: PLAYERS },
+    }).shellLog;
 
     /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
 
@@ -156,8 +77,10 @@
       "../css/cr.css", "../css/cr-phone.css",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../../../shared/library.js",
       "../../../shared/theme.css", "../../../shared/theme-components.css",
-      "fixtures/harness-game.json",
+      "fixtures/harness-game.json", "harness-kit.js",
+      "../sets/index.json", "../sets/kids-night.json", "../sets/out-and-about.json",
     ];
 
     // ?store=harness namespaces this run's localStorage, so a harness run never
@@ -368,6 +291,29 @@
       check("C-I3 no phone holds a letter of an unrevealed word — not in the DOM, not in the payload",
         leaked.length === 0, leaked.join(", ") || `${hidden.length} words still hidden`);
 
+      // X-4 / docs/19 §3: one row per word, each a grid of that word's letters,
+      // every tile the same size, rows stacked and centred.
+      const lens = state.chain.words.map((w) => w.length);
+      const tileCounts = phoneRows("p1").map((row) => row.querySelectorAll(".tile").length);
+      check("X-4 the phone chain is one row per word with a tile per letter",
+        phoneRows("p1").length === 8 && JSON.stringify(tileCounts) === JSON.stringify(lens),
+        `${tileCounts} vs ${lens}`);
+      // offsetWidth, not getBoundingClientRect: a tile that has just lit up is
+      // mid-way through its 220 ms pop, and a transform must not read as a
+      // different tile size.
+      const widths = [...PD("p1").querySelectorAll("#cr-phone-column .tile")].map((t) => t.offsetWidth);
+      const spread = Math.max(...widths) - Math.min(...widths);
+      check("X-4 every tile in the column is the same size (no row stretched to full width)",
+        widths.length > 0 && spread <= 1, `${Math.min(...widths)}–${Math.max(...widths)}px`);
+      const colStyle = PW("p1").getComputedStyle(PD("p1").getElementById("cr-phone-column"));
+      check("X-4 the longest word sets the column's tile grid",
+        Number(colStyle.getPropertyValue("--cr-cols")) === Math.max(...lens),
+        `--cr-cols ${colStyle.getPropertyValue("--cr-cols").trim()}, longest word ${Math.max(...lens)}`);
+      check("X-4 the tiles are a real grid, not letter-spacing",
+        PW("p1").getComputedStyle(phoneRows("p1")[1].querySelector(".row-tiles")).display === "grid"
+        && PD("p1").documentElement.scrollWidth <= PW("p1").innerWidth,
+        `scrollWidth ${PD("p1").documentElement.scrollWidth} / ${PW("p1").innerWidth}`);
+
       const phoneShown = phoneCount("p1");
       check("C-I3 every phone tile that carries a letter is one the host has revealed",
         JSON.stringify(shown) === JSON.stringify(phoneShown), `${shown} vs ${phoneShown}`);
@@ -557,6 +503,177 @@
         HW().CrCore.validateGame(HW().CrApp.state().game) === true);
     }
 
+    /* ====== X-1 — the Game lobby control (docs/19 §1) ====== */
+
+    async function scenarioGameLobby() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().CrApp.state().players.length === 3, "roster");
+      assignTeams();
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "chain", "a game in progress");
+      dispatch({ type: "reveal", direction: "top" });
+      dispatch({ type: "judge", correct: true });
+      dispatch({ type: "reveal", direction: "bottom" });
+      const snapshot = JSON.stringify({
+        phase: core().phase, scores: core().scores, target: core().target,
+        control: core().control, revealed: core().chain.revealed, history: core().history.length,
+      });
+
+      check("X-1 the toolbar carries a Game lobby control next to Sound and the editor",
+        !!H("btn-game-lobby") && H("btn-game-lobby").textContent.indexOf("Game lobby") >= 0,
+        H("btn-game-lobby") ? H("btn-game-lobby").textContent : "MISSING");
+      click("btn-game-lobby");
+      await waitFor(() => !H("cr-lobby-confirm").classList.contains("hidden"), "the confirm opens");
+      check("X-1 it opens a confirm with Keep this game and Start over",
+        !!H("btn-lobby-keep") && !!H("btn-lobby-over") && !!H("btn-lobby-cancel")
+        && H("cr-lobby-confirm").getAttribute("role") === "dialog");
+      click("btn-lobby-keep");
+      await waitFor(() => core() === null, "back to setup");
+      check("X-1 Keep this game returns to setup and offers Resume",
+        HD().querySelector("#screen-setup").classList.contains("hidden") === false
+        && H("btn-resume").classList.contains("hidden") === false
+        && H("cr-resume-note").textContent.indexOf("parked") >= 0,
+        H("cr-resume-note").textContent);
+      check("X-1 the roster and the loaded chains survive it",
+        HW().CrApp.state().players.length === 3 && !!HW().CrApp.state().game,
+        `${HW().CrApp.state().players.length} phones`);
+      await waitFor(() => phoneView("p1").screen === "wait", "the phones went back to waiting");
+      click("btn-resume");
+      await waitFor(() => core(), "the parked game comes back");
+      const back = JSON.stringify({
+        phase: core().phase, scores: core().scores, target: core().target,
+        control: core().control, revealed: core().chain.revealed, history: core().history.length,
+      });
+      check("X-1 Resume restores the exact state it parked", back === snapshot, back);
+      check("X-1 and Resume is gone once the game is back",
+        H("btn-resume").classList.contains("hidden") && HW().CrApp.state().resumable === null);
+      click("btn-game-lobby");
+      await waitFor(() => !H("cr-lobby-confirm").classList.contains("hidden"), "the confirm opens again");
+      click("btn-lobby-over");
+      await waitFor(() => core() === null, "a clean setup");
+      check("X-1 Start over clears the game but keeps the roster, chains and settings",
+        HW().CrApp.state().resumable === null && H("btn-resume").classList.contains("hidden")
+        && HW().CrApp.state().players.length === 3 && !!HW().CrApp.state().game
+        && HW().CrApp.state().setup.settings.values.length === 2,
+        HW().CrApp.state().source);
+      // From the Speed Chain too, and Cancel must change nothing.
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "chain", "a fresh game");
+      sweepChain();
+      dispatch({ type: "nextChain" });
+      sweepChain();
+      if (HW().CrCore.leader(core()) === null) {
+        dispatch({ type: "suddenDeath" });
+        dispatch({ type: "judge", correct: true });
+      }
+      dispatch({ type: "toSpeed", team: null });
+      dispatch({ type: "speedStart" });
+      await waitFor(() => core().phase === "speed" && core().speed.started, "the Speed Chain");
+      click("btn-game-lobby");
+      await waitFor(() => !H("cr-lobby-confirm").classList.contains("hidden"), "the confirm");
+      click("btn-lobby-cancel");
+      await sleep(120);
+      check("X-1 Cancel leaves the game exactly where it was",
+        H("cr-lobby-confirm").classList.contains("hidden") && core().phase === "speed",
+        core().phase);
+      click("btn-game-lobby");
+      await waitFor(() => !H("cr-lobby-confirm").classList.contains("hidden"), "the confirm");
+      click("btn-lobby-keep");
+      await waitFor(() => core() === null, "parked from the Speed Chain");
+      check("X-1 it works from the Speed Chain as well, and the parked clock is frozen",
+        HW().CrApp.state().resumable.phase === "speed"
+        && HW().CrApp.state().resumable.speed.deadline === null
+        && HW().CrApp.state().resumable.speed.started === false,
+        `remainingMs ${HW().CrApp.state().resumable.speed.remainingMs}`);
+      click("btn-resume");
+      await waitFor(() => core(), "resumed");
+      check("X-1 resuming the Speed Chain hands the clock back paused, not expired",
+        core().phase === "speed" && core().speed.over === false
+        && H("btn-speed-start").textContent.indexOf("Resume the clock") >= 0,
+        H("btn-speed-start").textContent.trim());
+    }
+
+    /* ====== X-2 / X-3 — the set library and the editor's export ====== */
+
+    async function scenarioLibrary() {
+      await bootHost();
+      await waitFor(() => HD().querySelector("#cr-library .gsc-library-select"), "the picker mounts");
+      const select = HD().querySelector("#cr-library .gsc-library-select");
+      await waitFor(() => select.options.length >= 2, "the manifest is listed");
+      const manifest = await (await fetch("../sets/index.json", { cache: "reload" })).json();
+      check("X-2 the picker lists every set in the manifest",
+        select.options.length === manifest.length
+        && [...select.options].map((o) => o.value).join(",") === manifest.map((m) => m.file).join(","),
+        [...select.options].map((o) => o.textContent).join(" | "));
+      const preview = () => HD().querySelector("#cr-library .gsc-library-preview").textContent;
+      check("X-2 the Preview line names the set, who made it and its counts",
+        preview().indexOf(manifest[0].name) >= 0, preview());
+      select.selectedIndex = 1;
+      const win = HW();   // the window goes in a local first: `new` binds to the call
+      select.dispatchEvent(new win.Event("change", { bubbles: true }));
+      HD().querySelector("#cr-library .gsc-library-load").click();
+      await waitFor(() => HW().CrApp.state().source.indexOf("set: ") === 0, "the set loads");
+      const wanted = await (await fetch(`../sets/${manifest[1].file}`, { cache: "reload" })).json();
+      check("X-2 loading a set replaces the content and updates the source note",
+        HW().CrApp.state().source === `set: ${manifest[1].name}`
+        && JSON.stringify(HW().CrApp.state().game.chains) === JSON.stringify(wanted.chains),
+        HW().CrApp.state().source);
+      check("X-2 the loaded set went through the game's own validator",
+        HW().CrCore.validateGame(HW().CrApp.state().game) === true
+        && HD().querySelector("#cr-library .gsc-library-error").textContent === "",
+        HD().querySelector("#cr-library .gsc-library-error").textContent);
+      check("X-2 and the game plays with it", (() => {
+        click("btn-start");
+        return !!core() && core().chain.words.join(",") === wanted.chains[0].join(",");
+      })(), core() ? core().chain.words.join(",") : "no game");
+      // A manifest that cannot be fetched hides the picker and says why.
+      const off = HD().createElement("div");
+      HD().body.appendChild(off);
+      const picker = HW().GSCLibrary.mountPicker(off, { gameDir: "no-such-game/" });
+      await picker.ready;
+      check("X-2 a missing manifest hides the picker and explains itself in plain English",
+        off.querySelector(".gsc-library").classList.contains("gsc-library-off")
+        && off.querySelector(".gsc-library-error").textContent.length > 10,
+        off.querySelector(".gsc-library-error").textContent);
+      picker.destroy();
+      off.remove();
+    }
+
+    async function scenarioLibraryExport() {
+      click("btn-editor");
+      await waitFor(() => HW().CrApp.state().editorOpen, "the editor");
+      // Count the download instead of performing it: the harness must not write
+      // a file to whoever is running it.
+      const proto = HW().HTMLAnchorElement.prototype;
+      const realClick = proto.click;
+      let downloads = 0;
+      let named = "";
+      proto.click = function stub() { downloads += 1; named = this.download || ""; };
+      try {
+        click("btn-editor-library");
+        await waitFor(() => !H("cr-editor-manifest").classList.contains("hidden"), "the manifest line");
+      } finally {
+        proto.click = realClick;
+      }
+      const line = H("cr-editor-manifest").textContent;
+      check("X-3 Download for the library saves a set file named for the title",
+        downloads === 1 && /^[a-z0-9-]+\.json$/.test(named), `${downloads} download(s), "${named}"`);
+      const json = line.slice(line.indexOf("{"));
+      let parsed = null;
+      try { parsed = JSON.parse(json); } catch (err) { parsed = null; }
+      check("X-3 it prints a manifest line that is valid JSON with the right shape",
+        !!parsed && parsed.file === named && !!parsed.name
+        && parsed.counts && Number.isFinite(parsed.counts.chains), json);
+      check("X-3 it says exactly where to commit the file",
+        line.indexOf("games/chain-reaction/sets/") >= 0 && line.indexOf("sets/index.json") >= 0,
+        line.slice(0, 90));
+      check("X-3 the file it produced would pass the library picker's validator",
+        HW().CrCore.validateGame(HW().CrEditor.draft()) === true);
+      click("btn-editor-close");
+      await waitFor(() => !HW().CrApp.state().editorOpen, "the editor closes");
+    }
+
     const SOURCES = [
       "../index.html", "../chains.json",
       "../js/cr-content.js", "../js/cr-select.js", "../js/cr-core.js", "../js/data.js",
@@ -565,7 +682,8 @@
       "../css/cr.css", "../css/cr-phone.css",
       "../tests/cr-core.test.mjs", "../tests/cr-adversarial.test.mjs",
       "../tests/cr-adversarial-fuzz.test.mjs", "../tests/cr-regression.test.mjs",
-      "../tests/harness.html", "../tests/fixtures/harness-game.json",
+      "../tests/harness.html", "../tests/harness-kit.js", "../tests/fixtures/harness-game.json",
+      "../sets/index.json", "../sets/kids-night.json", "../sets/out-and-about.json",
       "../README.md",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
@@ -616,6 +734,17 @@
       check("C-I6 the shipped file carries 18 chains and 4 speed chains of eight words",
         JSON.parse(texts["../chains.json"]).chains.length === 18
         && JSON.parse(texts["../chains.json"]).speedChains.length === 4);
+      check("C-I6 the page carries the Game lobby control and the shared library module",
+        html.indexOf('id="btn-game-lobby"') > 0 && html.indexOf('id="btn-resume"') > 0
+        && html.indexOf('id="cr-library"') > 0 && html.indexOf("shared/library.js") > 0);
+      check("C-I6 sets/index.json is a manifest of real, committed set files",
+        (() => {
+          const rows = JSON.parse(texts["../sets/index.json"]);
+          return Array.isArray(rows) && rows.length >= 2
+            && rows.every((r) => texts[`../sets/${r.file}`]
+              && HW().CrCore.validateGame(JSON.parse(texts[`../sets/${r.file}`])) === true);
+        })(),
+        JSON.parse(texts["../sets/index.json"]).map((r) => r.file).join(", "));
       check("C-I6 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded"), HD().body.className);
       check("C-I6 the host reported a title and standings to the shell",
@@ -650,10 +779,14 @@
         await scenarioSpeed();
         await scenarioReload();
         await scenarioEditor();
+        await scenarioGameLobby();
+        await scenarioLibrary();
+        await scenarioLibraryExport();
         await scenarioGates();
       } catch (err) {
-        uncaught = err && err.message ? err.message : String(err);
-        check("harness run completed", false, uncaught);
+        const why = err && err.message ? err.message : String(err);
+        kit.setUncaught(why);
+        check("harness run completed", false, why);
       }
       render();
     })();

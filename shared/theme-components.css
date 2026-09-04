@@ -682,7 +682,7 @@ button.gsc-chip:hover { border-color: var(--accent); color: var(--ink); }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--track-eyebrow);
-  color: var(--ink-mute);
+  color: var(--ink-dim); /* --ink-mute is ~3.5:1 on lighter game stages (Pyramid teal) */
 }
 
 .gsc-library-row {

@@ -342,6 +342,37 @@ const CrView = (function () {
     $("btn-start").disabled = !app.game;
   }
 
+  /**
+   * "Keep this game" parks a game here; Resume puts it straight back. Painted
+   * on every render, not only inside renderSetup, so the button disappears the
+   * moment the parked game is resumed.
+   */
+  function renderResume(app) {
+    const parked = app.resumable && !app.core ? app.resumable : null;
+    show($("btn-resume"), !!parked);
+    show($("cr-resume-note"), !!parked);
+    $("btn-start").textContent = parked ? "Start a new game" : "Start the game";
+    if (!parked) return;
+    setText("cr-resume-note", `${resumeWhere(parked)} — Resume picks it up exactly where it was; `
+      + "Start a new game throws it away.");
+  }
+
+  const RESUME_WHERE = {
+    chain: (s) => `A game is parked on chain ${s.chainIndex + 1}`,
+    chainDone: (s) => `A game is parked at the end of chain ${s.chainIndex + 1}`,
+    sudden: () => "A game is parked at sudden death",
+    speed: () => "A game is parked in the Speed Chain",
+    result: () => "A finished game is parked",
+  };
+
+  function resumeWhere(state) {
+    const build = Object.prototype.hasOwnProperty.call(RESUME_WHERE, state.phase)
+      ? RESUME_WHERE[state.phase] : null;
+    const where = build ? build(state) : "A game is parked";
+    return `${where}, ${core().formatMoney(state, state.scores[0])} to `
+      + `${state.teams[0].name} and ${core().formatMoney(state, state.scores[1])} to ${state.teams[1].name}`;
+  }
+
   function teamButton(app, player, index) {
     const on = app.setup.assign[player.pid] === index;
     const btn = el("button", `btn btn-small gsc-btn gsc-btn-sm team-pick team-${index}`,
@@ -396,6 +427,7 @@ const CrView = (function () {
     const wanted = app.editorOpen ? "editor" : phaseScreen(app.core);
     SCREENS.forEach((name) => show($(`screen-${name}`), !app.editorOpen && name === wanted));
     show($("screen-editor"), app.editorOpen);
+    renderResume(app);
     if (app.editorOpen || !app.core) {
       show($("cr-interstitial"), false);
       if (!app.editorOpen) renderSetup(app);

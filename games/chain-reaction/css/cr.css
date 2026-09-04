@@ -457,3 +457,26 @@ body.gsc-embedded #cr-room-chip { display: none !important; }
     50% { transform: scale(1.06); }
   }
 }
+
+/* ============ Game lobby confirm + the library (docs/19) ============ */
+
+.lobby-card { max-width: 34rem; }
+.lobby-card .controls { justify-content: center; }
+
+#cr-resume-note { text-align: center; margin-top: 0.4rem; }
+
+.manifest-line {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.7rem;
+  margin: 0.4rem 0 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+#cr-library { margin-top: 0.6rem; }
