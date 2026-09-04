@@ -51,6 +51,11 @@ body[data-gsc-game="deal-or-no-deal"] {
   text-transform: uppercase;
   margin: 0;
   color: var(--case-gold);
+  /* A long board title must never push the host screen sideways (tester fix). */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }

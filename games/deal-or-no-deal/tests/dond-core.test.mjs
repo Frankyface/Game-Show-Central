@@ -140,8 +140,9 @@ test("N-U1 amounts must be 10-30 distinct non-negative numbers", () => {
   assert.throws(() => Core.validateBoard({ settings: { amounts: negative } }), /non-negative/);
   const strings = ["1", 2, 3, 4, 5, 6, 7, 8, 9, 10];
   assert.throws(() => Core.validateBoard({ settings: { amounts: strings } }), /non-negative/);
-  // Zero is a legal amount; the US board's cheapest case is a cent.
-  assert.equal(Core.validateBoard({ settings: { amounts: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] } }), true);
+  // Zero is a legal amount; the US board's cheapest case is a cent. (A ten-case
+  // board must name its own schedule: the 24-opening default does not fit it.)
+  assert.equal(Core.validateBoard({ settings: { amounts: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], rounds: [4, 2, 1, 1] } }), true);
 });
 
 test("N-U1 offer factors: one per round, each 0 to 1.5", () => {
@@ -164,11 +165,11 @@ test("N-U1 jitter, currency, swap and advice flags are checked", () => {
 });
 
 test("N-U1 normalizeBoard fills the defaults, sorts the amounts and copies", () => {
-  const messy = { settings: { amounts: [5, 1, 3, 9, 7, 2, 8, 4, 6, 10] } };
+  const messy = { settings: { amounts: [5, 1, 3, 9, 7, 2, 8, 4, 6, 10], rounds: [4, 2, 1, 1] } };
   const g = Core.normalizeBoard(messy);
   assert.deepEqual(g.settings.amounts, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   assert.deepEqual(messy.settings.amounts, [5, 1, 3, 9, 7, 2, 8, 4, 6, 10], "input untouched");
-  assert.deepEqual(g.settings.rounds, Core.DEFAULT_ROUNDS.slice());
+  assert.deepEqual(Core.normalizeBoard({}).settings.rounds, Core.DEFAULT_ROUNDS.slice());
   assert.equal(g.settings.jitter, 0.05);
   assert.equal(g.settings.allowSwap, true);
   assert.equal(g.settings.currency, "$");

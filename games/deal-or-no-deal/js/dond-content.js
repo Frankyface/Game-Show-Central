@@ -145,7 +145,10 @@
       fail(q("settings.currency") + " must be text of at most 3 characters.");
     }
     const amounts = s.amounts === undefined ? DEFAULT_AMOUNTS.slice() : validateAmounts(s.amounts);
-    const rounds = s.rounds === undefined ? DEFAULT_ROUNDS.slice() : validateRounds(s.rounds, amounts.length);
+    // The DEFAULT schedule must be checked against THIS board's case count too:
+    // a file with ten amounts and no `rounds` key would otherwise validate and
+    // then deadlock mid-play with more cases to open than exist (tester fix).
+    const rounds = validateRounds(s.rounds === undefined ? DEFAULT_ROUNDS : s.rounds, amounts.length);
     if (s.offerFactors !== undefined) validateFactors(s.offerFactors, rounds.length);
     if (s.jitter !== undefined && !(Number.isFinite(s.jitter) && s.jitter >= 0 && s.jitter <= MAX_JITTER)) {
       fail(q("settings.jitter") + ` must be a number between 0 and ${MAX_JITTER}.`);

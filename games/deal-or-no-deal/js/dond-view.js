@@ -352,7 +352,9 @@ const DondView = (function () {
 
   function renderChrome(app) {
     const state = app.core;
-    setText("dond-title", (app.game && app.game.title) || "Deal or No Deal");
+    // The raw file's title is capped the way normalizeBoard caps it, so an
+    // over-long title in a hand-written board cannot reach the DOM (tester fix).
+    setText("dond-title", core().cleanText(app.game && app.game.title, 80) || "Deal or No Deal");
     document.body.classList.toggle("is-playing", !!state && phaseScreen(state) === "play");
     show($("btn-editor"), !state || state.phase === "setup" || app.editorOpen);
   }

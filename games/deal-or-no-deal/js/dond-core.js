@@ -339,7 +339,11 @@
    */
   function reduce(state, event, rng) {
     if (!state || !isPlainObject(event) || typeof event.type !== "string") return state;
-    const handler = HANDLERS[event.type];
+    // hasOwnProperty, not a bare lookup: "toString"/"valueOf"/"hasOwnProperty"
+    // live on Object.prototype and would otherwise be CALLED as handlers, which
+    // either throws out of the pure core or returns a corrupted state (tester fix).
+    const handler = Object.prototype.hasOwnProperty.call(HANDLERS, event.type)
+      ? HANDLERS[event.type] : null;
     if (!handler) return state;
     const next = handler(state, event, typeof rng === "function" ? rng : Math.random);
     if (!next || next === state) return state;
