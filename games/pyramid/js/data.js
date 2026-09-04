@@ -109,7 +109,7 @@ const PYR_DEFAULT_GAME = {
       ]
     },
     {
-      "title": "Who's a Good Boy",
+      "title": "Off the Lead",
       "hint": "Things a dog does",
       "words": [
         "Fetch",
@@ -122,7 +122,7 @@ const PYR_DEFAULT_GAME = {
       ]
     },
     {
-      "title": "Round and Round",
+      "title": "Dizzy Business",
       "hint": "Things that spin",
       "words": [
         "Carousel",
@@ -187,7 +187,7 @@ const PYR_DEFAULT_GAME = {
       ]
     },
     {
-      "title": "Give It a Rattle",
+      "title": "Well Mixed",
       "hint": "Things you shake",
       "words": [
         "Hands",
@@ -206,7 +206,7 @@ const PYR_DEFAULT_GAME = {
         "Stethoscope",
         "Thermometer",
         "Bandage",
-        "Plaster",
+        "Latex gloves",
         "Small torch",
         "Prescription pad",
         "Cotton swab"
@@ -265,7 +265,7 @@ const PYR_DEFAULT_GAME = {
       ]
     },
     {
-      "title": "Nine Lives",
+      "title": "Curiosity Calls",
       "hint": "Things a cat does",
       "words": [
         "Purr",

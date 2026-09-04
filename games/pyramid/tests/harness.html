@@ -327,6 +327,33 @@
         && [...PD("p1").querySelectorAll("#pyr-phone-actions .btn")].map((b) => b.textContent).join("/") === "Got it/Pass",
         [...PD("p1").querySelectorAll("#pyr-phone-actions .btn")].map((b) => b.textContent).join("/"));
 
+      // Y-5: a pause is the host stopping play. The phone goes quiet with the
+      // clock; the host's own buttons stay live because the host is the judge.
+      click("btn-clock-start");
+      await waitFor(() => !core().round.clock.running, "the clock pauses");
+      await waitFor(() => phoneAction("p1", "Got it") && phoneAction("p1", "Got it").disabled,
+        "the phone greys out");
+      check("Y-I2 pausing the clock greys out Got it and Pass on the giver's phone",
+        phoneAction("p1", "Got it").disabled === true && phoneAction("p1", "Pass").disabled === true
+        && PD("p1").getElementById("pyr-phone-sub").textContent === "The host has paused the clock.",
+        PD("p1").getElementById("pyr-phone-sub").textContent);
+      const pausedScore = HW().PyrCore.scores(core())[0];
+      const pausedStatuses = core().round.words.map((w) => w.status).join(",");
+      PW("p1").PyrPhone.me.send({ t: "mark", result: "correct" });
+      PW("p1").PyrPhone.me.send({ t: "mark", result: "pass" });
+      await sleep(120);
+      check("Y-I2 a mark sent from the phone while the clock is paused is refused",
+        HW().PyrCore.scores(core())[0] === pausedScore
+        && core().round.words.map((w) => w.status).join(",") === pausedStatuses,
+        `score stayed at ${pausedScore}`);
+      check("Y-I2 the host can still judge through a pause — the host is the judge",
+        H("btn-correct").disabled === false && H("btn-pass").disabled === false
+        && H("btn-illegal").disabled === false);
+      click("btn-clock-start");
+      await waitFor(() => core().round.clock.running, "the clock resumes");
+      await waitFor(() => phoneAction("p1", "Got it") && !phoneAction("p1", "Got it").disabled,
+        "the phone comes back");
+
       // A phone that is not the giver is ignored, and so is an illegal payload.
       const scoreBefore = HW().PyrCore.scores(core())[0];
       PW("p2").PyrPhone.me.send({ t: "mark", result: "correct" });
@@ -542,6 +569,59 @@
         HW().PyrApp.state().source);
     }
 
+    /* ============================================================
+       Y-I6 — End the night, from a running category (defect Y-6)
+       ============================================================ */
+
+    async function scenarioEndNight() {
+      HW().PyrApp.set({ core: null });
+      await waitFor(() => !H("screen-setup").classList.contains("hidden"), "back to setup");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "board", "a fresh board");
+      freeCards()[0].click();
+      await waitFor(() => core().phase === "play", "a fresh category");
+      click("btn-clock-start");
+      click("btn-correct");
+      check("Y-I6 the play toolbar carries an End the night that needs no word judged",
+        !!H("btn-play-finish") && H("btn-play-finish").textContent === "End the night"
+        && H("btn-next").classList.contains("hidden"),
+        "Next is still hidden mid-round, End the night is not");
+      click("btn-play-finish");
+      await waitFor(() => core().phase === "standings", "straight to the standings");
+      check("Y-I6 End the night mid-category goes to the standings and banks no prize",
+        core().outcome === null && H("pyr-result-amount").textContent === "$0"
+        && HD().querySelectorAll("#pyr-standings li").length === 2,
+        `${H("pyr-result-team").textContent} — ${H("pyr-result-amount").textContent}`);
+      check("Y-I6 the Winner's Circle toolbar carries the same escape",
+        !!H("btn-circle-finish") && H("btn-circle-finish").textContent === "End the night");
+    }
+
+    /* ============================================================
+       Y-I6 — a phone adopts the typed row of the same name (Y-2/Y-3)
+       ============================================================ */
+
+    function scenarioAdopt() {
+      const app = HW().PyrApp;
+      app.set({ setup: Object.assign({}, app.state().setup, { players: [], seats: [["", ""], ["", ""]] }) });
+      app.addPlayer("Zoe", null, true);                 // the host types a name
+      const typed = app.state().setup.players[0].pid;
+      app.setSeat(0, 0, typed);
+      const adopted = app.addPlayer("zoe", "p9", false); // a phone joins under it
+      const row = app.state().setup.players[0];
+      check("Y-I6 a phone sharing a typed player's name takes that row over, not a refusal",
+        adopted === true && app.state().setup.players.length === 1
+        && row.pid === "p9" && row.manual === false && row.name === "Zoe",
+        JSON.stringify(app.state().setup.players));
+      check("Y-I6 the adopted row keeps the seat it was already in",
+        app.state().setup.seats[0][0] === "p9",
+        JSON.stringify(app.state().setup.seats));
+      const twice = app.addPlayer("Zoe");
+      check("Y-I6 a second TYPED player of the same name is still refused, with a reason",
+        twice === false && H("pyr-error").textContent.indexOf("already on the list") > 0,
+        H("pyr-error").textContent);
+      app.error("");
+    }
+
     async function scenarioSplash() {
       const node = H("gsc-splash");
       check("Y-I6 the page carries the shared .gsc-splash title card",
@@ -576,7 +656,8 @@
       "../js/pyr-content.js", "../js/pyr-core.js", "../js/data.js", "../js/pyr-sound.js",
       "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-editor.js",
       "../js/pyr-room.js", "../js/pyr-phone.js",
-      "../tests/pyr-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
+      "../tests/pyr-core.test.mjs", "../tests/pyr-adversarial.test.mjs", "../tests/pyr-hostile.test.mjs",
+      "../tests/pyr-fixtures.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
 
@@ -662,6 +743,8 @@
         scenarioPhoneGates();
         await scenarioReload();
         await scenarioCircle();
+        await scenarioEndNight();
+        scenarioAdopt();
         await scenarioSplash();
         await scenarioEditor();
         await scenarioGates();

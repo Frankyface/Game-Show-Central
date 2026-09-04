@@ -28,17 +28,16 @@
   --pyr-red: #ff9d9d;    /* the shared --red only reaches 3.4:1 on this stage */
 }
 
-/* theme.css has no `pyramid` block yet (the shell agent owns that file), so
-   the accent map is declared here. Same selector shape, and this sheet loads
-   after the theme, so it wins either way. */
+/* The accent map (--accent, --accent-2, --accent-ink, --stage-glow) lives in
+   shared/theme.css under [data-gsc-game="pyramid"] and is the single source:
+   the hub shell bar and the game-switch splash wear it too, so a value declared
+   twice shifts hue as the splash clears (defect Y-7). Do not re-declare them
+   here. What this block DOES override is the painting, not the palette. */
 body[data-gsc-game="pyramid"] {
-  --accent: #f4b400;
-  --accent-2: #2ec4b6;
-  --accent-ink: #241a02;
-  --stage-glow: #0a4351;
   /* The shared stage paints a 22%-accent bloom in the top-right corner. Gold
      over teal lifts that corner far enough to push small text under 4.5:1, so
-     this game repaints the same stage without it. */
+     this game repaints the same stage without it. Everything else — the glow
+     colour, the deep-to-night base — still comes from the tokens. */
   --stage-bg:
     radial-gradient(120% 78% at 50% -14%, var(--stage-glow) 0%, transparent 58%),
     radial-gradient(150% 115% at 50% 52%, transparent 38%, rgba(0, 0, 0, 0.62) 100%),

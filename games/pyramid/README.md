@@ -24,6 +24,7 @@ Each category has seven words and a 30-second clock.
 | **Got it** | `Space` | one point, on to the next word |
 | **Pass** | `P` | skip it — a passed word comes back round if time is left |
 | **Illegal clue** | `X` | the giver said the word, part of it, or spelled it: the word is dead for the round and scores nothing |
+| End the night | — | leaves the round or the circle without judging anything and goes to the standings |
 | Start / Pause / Resume | `Enter` | the clock |
 | Undo | `U` | steps back through every pick and every mark |
 | Next | `N` | back to the board |
@@ -62,7 +63,7 @@ There is no hidden element holding it: the nodes are not built at all.
 
 | Who | What their phone shows |
 | --- | --- |
-| Giver | the word, huge, plus **Got it** / **Pass**, the count and the clock |
+| Giver | the word, huge, plus **Got it** / **Pass**, the count and the clock. Both buttons grey out while the host has the clock paused — a pause stops play |
 | Guesser | the clock, the count and the category title — no word, ever |
 | Everybody else | the clock and who is playing |
 
@@ -127,9 +128,14 @@ never the rules.
 | `circles` | **yes** | at least 2 sets |
 | `circles[].boxes` | **yes** | exactly 6, each with a `category` of 1–50 characters, unique within the set |
 
-The shipped file has **24 categories and 4 Winner's Circle sets**, so a night
-can run three or four games without repeating. A category or a circle set that
+The shipped file has **24 categories and 4 Winner's Circle sets**. A game uses
+seven categories (six for the board, one held back for a tiebreak), so a night
+runs **three games before a category repeats** — a fourth still deals a full
+board, it just draws from the whole set again. A category or a circle set that
 has already been played is kept out of the next draw.
+
+The shipped words are British English throughout ("Tin opener", "Ice lolly",
+"Spirit level", "A toffee apple"). Swap them in the editor for your own room.
 
 **Loading your own:**
 

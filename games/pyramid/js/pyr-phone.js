@@ -88,10 +88,12 @@
     giver(v, meta, actions) {
       buildClock(meta);
       stat(meta, "Got", countText(v));
+      // Greyed out until the host actually has the clock running: a paused clock
+      // is the host stopping play, and the reducer refuses the tap anyway.
       actions.appendChild(actionButton("Got it", "btn-green btn-tap",
-        () => send("correct"), !v.started));
+        () => send("correct"), !v.canMark));
       actions.appendChild(actionButton("Pass", "btn-blue btn-tap",
-        () => send("pass"), !v.started));
+        () => send("pass"), !v.canMark));
       return {
         kicker: `You give · ${v.category || ""}`,
         word: v.word || "",
@@ -116,8 +118,8 @@
     "circle-giver": function circleGiver(v, meta, actions) {
       buildClock(meta);
       stat(meta, "Boxes", countText(v));
-      actions.appendChild(actionButton("Got it", "btn-green btn-tap", () => send("correct"), !v.started));
-      actions.appendChild(actionButton("Pass", "btn-blue btn-tap", () => send("pass"), !v.started));
+      actions.appendChild(actionButton("Got it", "btn-green btn-tap", () => send("correct"), !v.canMark));
+      actions.appendChild(actionButton("Pass", "btn-blue btn-tap", () => send("pass"), !v.canMark));
       return {
         kicker: "Winner’s Circle · you give examples",
         word: v.circleCategory || "",

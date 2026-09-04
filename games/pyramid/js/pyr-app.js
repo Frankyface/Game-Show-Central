@@ -182,6 +182,9 @@ function pyrError(message) {
 /* ============ Content loading ============ */
 
 let pyrLoadMessage = "";   // survives the pyrSet() in pyrBoot, which clears the banner
+// The first half of the ?game= failure banner. The second half depends on what
+// pyrChooseContent actually settles on, so it is written there (defect Y-4).
+let pyrUrlFailure = "";
 
 async function pyrFetchGame(url, label, kind) {
   const res = await fetch(url, { cache: "no-store" });
@@ -197,7 +200,7 @@ async function pyrLoadContent() {
     try {
       return await pyrFetchGame(url, `Custom categories from ${url}`, "fetch");
     } catch (err) {
-      pyrLoadMessage = `Could not load categories from ${url}: ${err.message}. Using the built-in set instead.`;
+      pyrUrlFailure = `Could not load categories from ${url}: ${err.message}.`;
     }
   }
   try {
@@ -261,13 +264,33 @@ function pyrAddPlayer(name, pid, manual) {
   if (!clean) { pyrError("Give the player a name first."); return false; }
   const players = pyrApp.setup.players;
   if (players.length >= 16) { pyrError("That is the maximum of 16 players."); return false; }
-  if (players.some((p) => p.name.toLowerCase() === clean.toLowerCase())) {
+  const twin = players.find((p) => p.name.toLowerCase() === clean.toLowerCase());
+  if (twin) {
+    // A phone that shares a name with somebody the host typed in IS that person,
+    // arriving with a phone. Take over the typed row and its seat — the way the
+    // hub relinks a returning player — instead of refusing them a seat at all
+    // (defect Y-2). Two typed rows, or two phones, are still a name clash.
+    if (manual === false && pid && twin.manual) return pyrAdoptSeat(twin, pid);
     pyrError(`${clean} is already on the list — pick another name.`);
     return false;
   }
   const id = pid || `y${Date.now().toString(36)}${players.length}`;
   const next = players.concat([{ pid: id, name: clean, manual: manual !== false }]);
   pyrSet({ setup: Object.assign({}, pyrApp.setup, { players: next, seats: pyrAutoSeats(next) }) });
+  pyrError("");
+  return true;
+}
+
+/**
+ * Hand a typed player's row — and whatever seat it holds — to the phone that
+ * just joined under the same name. The name is kept as the host typed it.
+ * @param {{pid:string, name:string}} row @param {string} pid the phone's pid
+ */
+function pyrAdoptSeat(row, pid) {
+  const players = pyrApp.setup.players.map((p) => (
+    p.pid === row.pid ? { pid, name: p.name, manual: false } : p));
+  const seats = pyrApp.setup.seats.map((pair) => pair.map((s) => (s === row.pid ? pid : s)));
+  pyrSet({ setup: Object.assign({}, pyrApp.setup, { players, seats }) });
   pyrError("");
   return true;
 }
@@ -375,18 +398,18 @@ function pyrStudy() {
   }, 250);
 }
 
-/** A tap from the giver's phone. The host is still the judge: this is checked
-    against the state before it becomes an event, and illegal is host-only. */
+/**
+ * A tap from the giver's phone. The host is still the judge: PyrCore.phoneCanMark
+ * decides whether this pid may tap at all — it must be the current giver AND the
+ * clock must be running (or at the buzzer, judging the word in flight). A pause
+ * is the host stopping play, so a paused clock silences the phone while the
+ * host's own buttons stay live (defect Y-5). Illegal is host-only either way.
+ */
 function pyrPhoneMark(pid, result) {
   const state = pyrApp.core;
   if (!state || (result !== "correct" && result !== "pass")) return;
-  if (state.phase === "play" && state.round && state.round.giverPid === pid) {
-    pyrDispatch({ type: "mark", result });
-    return;
-  }
-  if (state.phase === "circle" && state.circle && state.circle.giverPid === pid) {
-    pyrDispatch({ type: "circleMark", result });
-  }
+  if (!window.PyrCore.phoneCanMark(state, pid)) return;
+  pyrDispatch({ type: state.phase === "circle" ? "circleMark" : "mark", result });
 }
 
 /**
@@ -524,6 +547,9 @@ function pyrWirePlay() {
   pyrWireButton("btn-reveal-words", pyrToggleReveal);
   pyrWireButton("btn-study", pyrStudy);
   pyrWireButton("btn-undo", () => pyrDispatch({ type: "undo" }));
+  // An escape hatch that does not need a word judged first (defect Y-6): it
+  // banks nothing new and goes straight to the standings.
+  pyrWireButton("btn-play-finish", () => pyrDispatch({ type: "finish" }));
   pyrWireButton("btn-next", () => pyrDispatch({ type: "nextTurn" }));
 }
 
@@ -542,6 +568,8 @@ function pyrWireCircle() {
   pyrWireButton("btn-circle-illegal", () => pyrDispatch({ type: "circleMark", result: "illegal" }));
   pyrWireButton("btn-circle-reveal", () => pyrSet({ circleReveal: !pyrApp.circleReveal }));
   pyrWireButton("btn-circle-undo", () => pyrDispatch({ type: "undo" }));
+  // Same escape hatch; from here it keeps whatever the circle has already won.
+  pyrWireButton("btn-circle-finish", () => pyrDispatch({ type: "finish" }));
   pyrWireButton("btn-circle-next", () => pyrDispatch({ type: "nextTurn" }));
 }
 
@@ -592,15 +620,32 @@ function pyrShowSplash() {
 
 /* ============ Boot ============ */
 
-/** Saved roster first, then any phone the shell added while we were loading. */
+/**
+ * Saved roster first, then any phone the shell added while we were loading.
+ * De-duplicated by pid AND by name: a phone that arrived under the same name as
+ * a typed row takes that row over (pid and seat), so the seat dropdowns never
+ * offer two identical names with nothing to tell them apart (defect Y-3).
+ */
 function pyrMergeSetup(savedSetup, current) {
   const base = Object.assign({}, pyrApp.setup, savedSetup);
   const players = (savedSetup.players || []).slice();
-  current.forEach((p) => { if (!players.some((x) => x.pid === p.pid)) players.push(p); });
+  const swaps = [];
+  const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+  current.forEach((p) => {
+    if (players.some((x) => x.pid === p.pid)) return;
+    const i = players.findIndex((x) => x.manual && same(x.name, p.name));
+    if (i < 0) { players.push(p); return; }
+    swaps.push([players[i].pid, p.pid]);
+    players[i] = { pid: p.pid, name: players[i].name, manual: false };
+  });
   base.players = players;
-  base.seats = Array.isArray(savedSetup.seats) && savedSetup.seats.length === 2
+  const seats = Array.isArray(savedSetup.seats) && savedSetup.seats.length === 2
     ? savedSetup.seats.map((pair) => (Array.isArray(pair) ? pair.slice(0, 2) : ["", ""]))
     : pyrApp.setup.seats;
+  base.seats = seats.map((pair) => pair.map((seat) => {
+    const swap = swaps.find(([was]) => was === seat);
+    return swap ? swap[1] : seat;
+  }));
   base.settings = Object.assign({}, pyrApp.setup.settings, savedSetup.settings || {});
   return base;
 }
@@ -624,6 +669,11 @@ function pyrChooseContent(saved, loaded) {
   if (saved && Array.isArray(saved.usedIds)) patch.usedIds = saved.usedIds;
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
+  if (pyrUrlFailure) {
+    pyrLoadMessage = `${pyrUrlFailure} ${useSaved
+      ? "Keeping the categories you already had."
+      : "Using the built-in set instead."}`;
+  }
   if (!useSaved && saved && saved.core && !pyrLoadMessage) {
     pyrLoadMessage = "Loaded the categories from the link, so the game in progress was cleared.";
   }

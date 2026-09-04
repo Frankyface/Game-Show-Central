@@ -128,22 +128,6 @@ body.player-mode .screen:not(#screen-phone) { display: none !important; }
 
 .phone-status { font-size: 0.82rem; color: var(--pyr-dim, #d9ecf3); margin: 0.6rem 0 0; min-height: 1.2em; }
 
-.phone-boxes { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
-
-.phone-box {
-  flex: 1 1 28%;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(244, 180, 0, 0.3);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 0.3rem;
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--pyr-dim, #d9ecf3);
-}
-
-.phone-box.is-won { background: rgba(244, 180, 0, 0.8); color: #241a02; font-weight: 700; }
-.phone-box.is-blocked { background: rgba(122, 29, 29, 0.8); color: #ffd3d3; }
-
 .phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
 
 .phone-standings li {

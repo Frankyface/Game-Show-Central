@@ -619,6 +619,26 @@
     return null;
   }
 
+  /**
+   * May the giver TAP a mark right now? A pause is the host stopping play, so
+   * the phone goes quiet with the clock; the buzzer does not, because the word
+   * in flight still has to be judged (defect Y-5). The host’s own buttons are
+   * deliberately wider than this — the host is the judge and may mark whenever.
+   * @param {object} state @param {string} pid
+   */
+  function phoneCanMark(state, pid) {
+    if (!state) return false;
+    if (state.phase === "play" && state.round) {
+      const r = state.round;
+      return r.giverPid === pid && !r.finished && r.started && (r.clock.running || r.expired);
+    }
+    if (state.phase === "circle" && state.circle) {
+      const c = state.circle;
+      return c.giverPid === pid && !c.finished && c.started && (c.clock.running || c.expired);
+    }
+    return false;
+  }
+
   /** The clock fields every phone screen may see. Never a word. */
   function clockView(clock) {
     return {
@@ -654,6 +674,13 @@
     return base;
   }
 
+  /** What the giver’s phone says under the word, in the three clock states. */
+  function markSub(round, canMark, playing) {
+    if (canMark) return playing;
+    if (round.started) return "The host has paused the clock.";
+    return "Wait for the host to start the clock.";
+  }
+
   function playPhoneView(state, pid) {
     const r = state.round;
     const count = wordCount(state);
@@ -665,7 +692,8 @@
       return {
         screen: "giver", word: currentWord(state), category: r.title, hint: r.hint,
         count, clock, started: r.started, expired: r.expired,
-        sub: r.started ? "Describe it — never say the word." : "Wait for the host to start the clock.",
+        canMark: phoneCanMark(state, pid),
+        sub: markSub(r, phoneCanMark(state, pid), "Describe it — never say the word."),
       };
     }
     if (pid === r.guesserPid) {
@@ -689,7 +717,8 @@
       return {
         screen: "circle-giver", circleCategory: box ? box.category : "", boxValue: box ? box.value : 0,
         count, clock, started: c.started,
-        sub: c.started ? "Give examples — never describe the subject." : "Wait for the host to start the clock.",
+        canMark: phoneCanMark(state, pid),
+        sub: markSub(c, phoneCanMark(state, pid), "Give examples — never describe the subject."),
       };
     }
     if (pid === c.guesserPid) {
@@ -727,6 +756,6 @@
     formatMoney, secondsLeft, teamIndexOf, nameOf, standings, rolesFor, playedBy,
     correctCount, nextIndex, nextBox, circleOutcome,
     // phones
-    validatePhoneMsg, phoneView, clockView,
+    validatePhoneMsg, phoneView, clockView, phoneCanMark,
   };
 });

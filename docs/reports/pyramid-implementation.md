@@ -214,3 +214,117 @@ The spec is normative; these are the places where it left room and I chose.
   click of **Reset to shipped** in the editor, or clearing the save.
 - Real-network testing used one browser profile on one machine; a check across
   two physical devices is still worth doing before a game night.
+
+
+---
+
+## 9. Fixes after verification
+
+Written after `docs/reports/pyramid-verification.md` (verdict **fix-then-ship**).
+The tester's own fix for **Y-1** (the tiebreak's unmatched last word) is kept as
+they wrote it, and their three suites — `pyr-adversarial.test.mjs`,
+`pyr-hostile.test.mjs`, `pyr-fixtures.mjs` — are kept and stay green.
+
+### Y-5 · a phone could still score while the host had the clock paused
+
+The gate was `round.started`, which stays true through a pause. New selector
+`PyrCore.phoneCanMark(state, pid)` is the single rule: the pid must be the
+current giver, the round must be live, and the clock must be **running or at the
+buzzer** (the word in flight still has to be judged). It is enforced in two
+places — `pyrPhoneMark` refuses the intent before it can become an event, and
+the giver's view carries `canMark` so **Got it** / **Pass** grey out and the
+phone reads *"The host has paused the clock."*
+
+The host's own buttons deliberately stay live through a pause: the host is the
+judge, not a player. Same rule in the Winner's Circle.
+
+Covered by three new unit cases and, in the harness, by a check that greys the
+buttons, sends a mark from a phone that has bypassed them anyway, and confirms
+nothing moved while `btn-correct` is still enabled. Confirmed live over the real
+PeerJS broker (room `RVSR`): paused, phone greyed, two hostile `mark` frames
+refused (`0 / 7` unchanged), host's own ✓ then scored `1 / 7`.
+
+### Y-2 / Y-3 · a phone sharing a typed player's name
+
+A phone whose name matches a row the host typed **is** that person arriving with
+a phone, so it now takes the row over — pid and seat — the way the hub relinks a
+returning player, instead of being refused a seat entirely. New
+`pyrAdoptSeat(row, pid)` in `pyr-app.js`; `pyrAddPlayer` only adopts when the
+incoming player is a phone (`manual === false`) and the twin is a typed row, so
+a second *typed* name is still refused with the original message.
+
+`pyrMergeSetup` now de-duplicates the restored roster by **name as well as pid**
+and carries the seat across, so a saved "Ada" and a live phone "Ada" can no
+longer both appear in the four dropdowns.
+
+Verified live: four typed players seated, then a phone called Ada joined —
+roster stayed at four, Ada's row became `p1 / phone`, and seat A1 moved with it.
+
+### Y-4 · the fallback sentence now matches what actually loaded
+
+`pyrLoadContent` only records the failure (`pyrUrlFailure`); the second sentence
+is written in `pyrChooseContent`, where `useSaved` is known — *"Keeping the
+categories you already had."* when the save is what plays, *"Using the built-in
+set instead."* when it is not.
+
+### Y-6 · an escape hatch on the play and circle toolbars
+
+`#btn-play-finish` and `#btn-circle-finish` ("End the night") dispatch `finish`.
+From a running category it banks nothing new and goes straight to the standings;
+from the circle it keeps whatever has already been won. Harness scenario
+`scenarioEndNight` plays it for real and asserts `outcome === null` and `$0`.
+
+### Y-7 · one source for the accent tokens (decided centrally)
+
+The local `body[data-gsc-game="pyramid"]` token block is gone: `--accent`,
+`--accent-2`, `--accent-ink` and `--stage-glow` now come only from
+`shared/theme.css`, so the hub shell bar, the game-switch splash and the game
+page paint the same glow. Confirmed in the browser: the page computes
+`--stage-glow: #0b3b3c` from the theme.
+
+The **`--stage-bg` override stays** — it is the reason small text on the
+top-right of the stage clears 4.5:1, and the tester verified that argument. The
+selector now carries nothing but the painting, with a comment saying why the
+palette must not be re-declared there. Nothing in the sheet depended on the old
+local glow value; the theme's is darker, so every measured pair improved.
+
+### Content, docs and cosmetics
+
+- **"Plaster" → "Latex gloves"** in *Say Ahh*: "Plaster" and "Bandage" are
+  near-synonyms in British English, so a guesser saying "plaster" for "Bandage"
+  was right and got marked wrong.
+- **Four titles that named their own theme** are replaced: *Who's a Good Boy* →
+  **Off the Lead**, *Nine Lives* → **Curiosity Calls**, *Round and Round* →
+  **Dizzy Business**, *Give It a Rattle* → **Well Mixed**. *Never Sinks In* is
+  kept — the tester marked that one optional and judged the pun earns it.
+- `js/data.js` was **regenerated from `categories.json`** in the same script, so
+  the two cannot drift; the mirror test and `A11` both still pass.
+- README: **three games before a category repeats**, not four (a game eats seven
+  — six board plus a held-back tiebreak); a note that the shipped words are
+  British English; the paused-phone rule; and "End the night" in the key table.
+- `css/pyr-phone.css`: the 17 dead `.phone-box` lines are deleted.
+- `tests/pyr-core.test.mjs`: the literal NUL at the old line 131 is now the
+  escape ` `, so all three test files are pure printable ASCII and no
+  longer read as binary to `grep` and `file`.
+
+### Not changed, and why
+
+- **Y-8** is documentation only and is now correct in the README; the
+  `warningsFor` threshold is left alone because a fourth game still deals a full
+  board rather than stalling (the tester's `A11` asserts it).
+- Adoption is a **setup-screen** rule. A phone that joins after the game has
+  started still gets *"X joined — they can play from the next game."* — seating
+  them mid-game would mean rewriting pids inside a running core state, which is
+  a bigger change than this round of fixes warrants.
+
+### State after the fixes
+
+| Check | Result |
+| --- | --- |
+| `cd games/pyramid && node --test` | **95 pass, 0 fail** (92 before + 3 new for Y-5) |
+| `node --test` at the repo root | **754 pass, 0 fail** |
+| `tests/harness.html` (port 8692) | **All 66 checks passed** (57 before + 9 new for Y-5, Y-6, Y-2/Y-3) |
+| Real network | room `RVSR` on the live PeerJS broker: adoption, the paused-phone refusal and the host override all confirmed |
+| 1280×720 | no vertical scroll on board, play (hidden and revealed), round-over, mainResult, circle, result, standings — with the new buttons in both toolbars |
+| Contrast | re-walked all seven surfaces against the theme's darker glow: **0 pairs below threshold** |
+| Static gates | V2 every file < 800 lines (largest `tests/pyr-core.test.mjs` at 775); V3/V4 clean; the tester's three suites are now in the harness's gate list |
