@@ -251,8 +251,9 @@ const WwmView = (function () {
       const used = !state.lifelines[key];
       const btn = el("button", used ? "lifeline lifeline-used" : "lifeline");
       btn.type = "button";
-      btn.disabled = used || legal.indexOf(lifelineEvent(key)) < 0;
-      btn.title = used ? `${label.name} — already used` : label.name;
+      const blocked = !used && legal.indexOf(lifelineEvent(key)) < 0;
+      btn.disabled = used || blocked;
+      btn.title = lifelineTitle(state, label, used, blocked);
       btn.setAttribute("aria-label", btn.title);
       btn.appendChild(el("span", "lifeline-badge", label.badge));
       btn.appendChild(el("span", "lifeline-name", label.short));
@@ -260,6 +261,14 @@ const WwmView = (function () {
       btn.addEventListener("click", () => window.WwmApp.useLifeline(key));
       box.appendChild(btn);
     });
+  }
+
+  /** Say why a badge is dark: spent, or unusable on this question right now. */
+  function lifelineTitle(state, label, used, blocked) {
+    if (used) return `${label.name} — already used`;
+    if (!blocked) return label.name;
+    if (state.notice === core().SWITCH_UNAVAILABLE) return state.notice;
+    return `${label.name} — not available on this question`;
   }
 
   function lifelineEvent(key) {

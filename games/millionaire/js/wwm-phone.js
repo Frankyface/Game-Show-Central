@@ -21,6 +21,9 @@
   let fffOrder = [];
   let fffKey = "";
 
+  /** The Ask-the-Audience countdown's repaint interval; ephemeral, never sent. */
+  let voteTicker = null;
+
   const LETTERS = ["A", "B", "C", "D"];
 
   /* ============ Small builders ============ */
@@ -56,6 +59,53 @@
     cash.appendChild(el("p", "v", v.hotMoney || ""));
     wrap.appendChild(cash);
     box.appendChild(wrap);
+  }
+
+  /* ============ Ask-the-Audience countdown (a cue, nothing more) ============ */
+
+  const CLOCK_TICK_MS = 250;
+
+  function stopVoteClock() {
+    if (!voteTicker) return;
+    clearInterval(voteTicker);
+    voteTicker = null;
+  }
+
+  /**
+   * Repaint the strip and the seconds from the deadline the host sent. Hitting
+   * zero changes nothing at all: the host still closes the vote, exactly as the
+   * host screen behaves (spec 08 §1).
+   */
+  function paintVoteClock(box) {
+    const core = window.WwmCore;
+    const total = Number.isFinite(view.seconds) ? view.seconds : 0;
+    const left = core ? core.secondsLeft(view.deadline, Date.now()) : 0;
+    const label = box.querySelector(".phone-clock-label");
+    if (label) label.textContent = left > 0 ? `${left}s left to vote` : "Time is up — the host closes the vote.";
+    const blocks = box.querySelectorAll(".gsc-timer-block");
+    const tc = window.TimerCore;
+    const lit = tc && total > 0 ? tc.litBlocks((total - left) * 1000, total * 1000) : 0;
+    const first = (blocks.length - lit) / 2;
+    blocks.forEach((block, i) => block.classList.toggle("is-lit", i >= first && i < first + lit));
+    const urgent = left > 0 && left <= 5;
+    box.classList.toggle("is-urgent", urgent);
+    const strip = box.querySelector(".gsc-timer");
+    if (strip) strip.classList.toggle("is-urgent", urgent);   // the shared brighter lit style
+  }
+
+  /** A .gsc-timer strip plus a plain seconds line, under the ballot. */
+  function buildVoteClock(actions) {
+    if (!Number.isFinite(view.deadline)) return;
+    const box = el("div", "phone-clock");
+    const strip = el("div", "gsc-timer");
+    strip.setAttribute("aria-hidden", "true");
+    const count = (window.TimerCore && window.TimerCore.BLOCKS) || 9;
+    for (let i = 0; i < count; i += 1) strip.appendChild(el("span", "gsc-timer-block"));
+    box.appendChild(strip);
+    box.appendChild(el("p", "phone-clock-label"));
+    actions.appendChild(box);
+    paintVoteClock(box);
+    voteTicker = setInterval(() => paintVoteClock(box), CLOCK_TICK_MS);
   }
 
   /* ============ Fastest Finger ordering ============ */
@@ -144,7 +194,7 @@
       };
     },
 
-    vote(v, box) {
+    vote(v, box, actions) {
       (v.options || []).forEach((text, idx) => {
         const gone = (v.removed || []).indexOf(idx) >= 0;
         box.appendChild(choiceButton(gone ? "" : text, LETTERS[idx], {
@@ -153,6 +203,7 @@
           onPick: () => me.send({ t: "vote", idx }),
         }));
       });
+      buildVoteClock(actions);
       return {
         kicker: "Ask the Audience",
         headline: v.q || "",
@@ -199,6 +250,7 @@
     const actions = $("wwm-phone-actions");
     box.replaceChildren();
     actions.replaceChildren();
+    stopVoteClock();                       // the vote screen starts a fresh one
     const build = SCREENS[view.screen] || SCREENS.wait;
     const spec = build(view, box, actions) || {};
     card.className = `phone-card ${spec.cardClass || ""}`.trim();
@@ -235,7 +287,13 @@
     }
     setText("wwm-phone-status", "Connected. Waiting for the host…");
     render();
-    window.WwmPhone = { me, onMessage, view: () => view, order: () => fffOrder.slice() };
+    window.WwmPhone = {
+      me, onMessage, view: () => view, order: () => fffOrder.slice(),
+      clockText: () => {
+        const label = document.querySelector(".phone-clock-label");
+        return label ? label.textContent : "";
+      },
+    };
   }
 
   if (document.readyState === "loading") {

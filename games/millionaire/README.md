@@ -45,9 +45,11 @@ python -m http.server 8620                   # then open
    the lock. `U` undoes.
 4. **Lifelines** (each once per contestant): **50:50** removes two wrong
    options; **Phone a Friend** opens a named 30-second cue timer; **Ask the
-   Audience** opens a 20-second vote — phones vote A–D and the bar chart fills
-   live, or the host types four percentages; **Switch the Question** (off by
-   default) swaps in an unused question of the same level.
+   Audience** opens a 20-second vote — phones vote A–D against the same
+   countdown the host sees and the bar chart fills live, or the host types four
+   percentages; **Switch the Question** (off by default) swaps in an unused
+   question of the same level, and says so on screen when the rung holds nothing
+   else — the lifeline is not spent.
 5. **Result.** "You leave with $X", then **Next contestant** or **Finish the
    night** for the standings. **End the night** from the hot seat also works and
    banks whoever is playing at their walk-away amount first. The hub's night
@@ -132,7 +134,7 @@ apart, so regenerate both together.
 | `fff` | the four items as tap-to-order chips, then **Submit my order** |
 | `hotseat` | the question, A–D, the lifelines still available, **Ask to walk away** |
 | `locked` | "Locked in — look at the host screen" |
-| `vote` | Ask the Audience: the question and A–D, one vote each |
+| `vote` | Ask the Audience: the question, A–D, and the same countdown the host sees (a cue) |
 | `result` | what this player leaves with, and the standings |
 
 The host is authoritative. A phone message is validated
@@ -183,7 +185,8 @@ room it was played in, so a new room never inherits the old room's seats.
 Known limits:
 
 - The Phone a Friend and Ask the Audience clocks are **cues**: reaching zero
-  flashes the strip and changes nothing. The host closes the window.
+  flashes the strip and changes nothing, on the host screen and on the phone
+  ballot alike. The host closes the window.
 - Ask the Audience counts the **first** tap from each phone; a phone cannot
   change its vote (one phone, one vote).
 - **End the night** from the hot seat banks the contestant who is still
@@ -192,3 +195,13 @@ Known limits:
   play" with no total.
 - Fastest Finger ties are decided by arrival order at the host, so a slow
   network is a real disadvantage — exactly as the format intends.
+- **Undo goes back 60 steps.** That is deep enough for any single question but
+  not for a whole 15-question run (which is exactly 60 steps: select, lock,
+  reveal and next, fifteen times), and it keeps the saved game small enough for
+  `localStorage`. To start a contestant again, finish or walk them and use
+  **Next contestant**.
+- **Clearing `localStorage` by hand only works with the tab closed.** The game
+  saves itself on `beforeunload`, so wiping the key from the console and
+  reloading the same tab writes it straight back. Close the tab first, or use
+  the supported resets: **Play again**, **Finish the night**, or the editor's
+  **Reset to shipped**.

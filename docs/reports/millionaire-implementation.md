@@ -235,22 +235,16 @@ choices a UI pass can revisit; behaviour does not depend on either.
   reached the hot seat stay listed as "still to play" with no total.
 - ~~`wwm-core.js` is 789 lines~~ — **fixed** by splitting the selectors into
   `js/wwm-select.js`; the reducer file is now 560 lines.
-- **The splash shows in embedded mode as instructed, which differs from
-  Weakest Link.** `games/weakest-link/js/wl-splash.js` deliberately *skips* the
-  card when `gsc-embedded` is set, on the grounds that the shell already plays
-  one on the game switch. This game follows the coordinator's instruction and
-  shows it in every mode. Because the shell's card sits in the parent document
-  above the iframe and both last 1.2 s, the game's own card is normally hidden
-  behind it — but the iframe boots a little later, so a brief tail of the game
-  card can show after the shell's clears. If the UI tester sees that flash, the
-  fix is one line: add
-  `if (document.body.classList.contains("gsc-embedded")) return;` to
-  `wwmShowSplash()` in `js/wwm-app.js`, matching Weakest Link.
 - **The state is written on `beforeunload`**, so clearing `localStorage` from a
-  console and reloading in the same tab restores the game. That is correct
-  behaviour for a host, but it surprises anyone trying to reset by hand; the
-  supported resets are **Play again**, **Finish the night** and the editor's
-  **Reset to shipped**.
+  console and reloading in the *same tab* restores the game (tester's **D5**).
+  That is correct behaviour for a host; the manual reset works with the tab
+  closed first, and the supported resets are **Play again**, **Finish the
+  night** and the editor's **Reset to shipped**. Now stated in the README's
+  known limits.
+- **Undo goes back 60 steps** (`MAX_HISTORY`), which is exactly one full
+  15-question run, so a contestant who played the whole tree cannot be unwound
+  to the start (tester's **D6**). The cap keeps the saved game inside
+  `localStorage`; now stated in the README's known limits.
 - **Only one phone was exercised on the real broker.** Fastest Finger with
   several real phones racing, and an audience of more than one, were verified
   in the loopback harness (four phones) but not over live WebRTC. Worth a pass
@@ -298,7 +292,8 @@ all re-verified (`node --test` 33/33, harness **54/54**, static gates clean):
    shared class, and it wears the millionaire accent via
    `data-gsc-game="millionaire"`. Covered by the new **M-I6b** harness scenario
    and exposed as `WwmApp.showSplash()` so a tester can trigger it on demand.
-   See §6 for the one deliberate difference from Weakest Link.
+   Like Weakest Link, the card is skipped when the page is embedded — the
+   hub plays its own on the switch — so only a standalone host sees it.
 3. **End the night banks the contestant** — `evFinish` commits whoever is in the
    hot seat at `winningsIfWalk` (or at an already revealed outcome) before
    switching to the standings, and `#btn-give-up` relabels itself
@@ -311,3 +306,23 @@ the house cap, so the selectors moved into a new pure module
 `wwm-core.js` in `index.html`). `WwmCore` re-exports it, so nothing outside the
 game changed — the unit suite and the harness needed no edits beyond adding the
 file to the two asset lists.
+
+## 9. Tester's minors, closed out
+
+The independent tester's verdict was **ship** with six minors
+(`docs/reports/millionaire-verification.md`). D1 was documentation drift only.
+The rest are now closed, inside `games/millionaire/**`:
+
+| ID | What | Fix |
+|---|---|---|
+| **D2** | the phone's Ask-the-Audience ballot showed no timer, though `phoneView` already sent `deadline` and `seconds` | `js/wwm-phone.js` now builds a shared `.gsc-timer` strip plus a plain "`N`s left to vote" line under the ballot (`buildVoteClock` / `paintVoteClock`, a 250 ms interval torn down on every render). Block maths comes from the pure `TimerCore`, the strip is `aria-hidden` so the words carry the meaning, the last five seconds turn urgent, and hitting zero changes **nothing** — the host still closes the vote. Styling in `css/wwm-phone.css` (`.phone-clock`). |
+| **D3** | Switch the Question was a silent no-op when the rung held nothing else | `evUseSwitch` now returns `notice: WwmCore.SWITCH_UNAVAILABLE` — "No other question at this level — the lifeline is still yours." — which the hot-seat notice line already renders. The lifeline is still not burned, the question and `used` list are untouched, and saying it twice is not a second undo step. `renderLifelines` also explains a dark badge in its tooltip instead of repeating the lifeline name. The tester's **A3** unit test was updated to assert the new message (still 67 tests). |
+| **D4** | this report's §6 still described the embedded splash as unskipped | bullet removed; §8 now records that the card is skipped when embedded, matching `js/wwm-app.js` and Weakest Link. |
+| **D5** | the `beforeunload` save defeats a manual `localStorage` reset | added to the README's known limits, with the working alternatives. |
+| **D6** | undo depth of 60 was undocumented | added to the README's known limits, with what those 60 steps buy. |
+
+Counts held to what the tester recorded: `node --test` **67/67** and
+`tests/harness.html` **55/55** (the tester's rewritten M-I6b, which expects the
+embedded skip, is untouched). D2 is deliberately *not* given a new harness check
+so those totals stay comparable across runs; it was verified live instead — see
+the T3 notes below.

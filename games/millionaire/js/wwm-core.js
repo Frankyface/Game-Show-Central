@@ -487,11 +487,20 @@
     });
   }
 
+  // Shown when the rung holds nothing else to switch to. The lifeline is NOT
+  // spent, so the host can try again on the next question.
+  const SWITCH_UNAVAILABLE = "No other question at this level — the lifeline is still yours.";
+
   function evUseSwitch(state, ev, rng) {
     if (state.phase !== "hotseat" || !state.lifelines.switch) return state;
     if (state.locked || state.revealed || !state.question) return state;
     const draw = drawQuestion(state.game, state.question.level, state.used, rng);
-    if (!draw.question || draw.question.id === state.question.id) return state;
+    if (!draw.question || draw.question.id === state.question.id) {
+      // A silent no-op would look like a broken button (CLAUDE.md: every
+      // failure path surfaces a plain-English message).
+      if (state.notice === SWITCH_UNAVAILABLE) return state;
+      return Object.assign({}, state, { notice: SWITCH_UNAVAILABLE });
+    }
     return Object.assign({}, state, blankQuestionSlate(), {
       question: draw.question,
       used: state.used.concat([draw.question.id]),
@@ -541,7 +550,7 @@
     validateGame, normalizeGame, warningsFor, drawQuestion, drawFff,
     fiftyFiftyPair, largestRemainder, cleanText,
     // state
-    createState, reduce, legalActions,
+    createState, reduce, legalActions, SWITCH_UNAVAILABLE,
     // money
     rungValue, playingRung, bankedValue, winningsIfWalk, winningsIfWrong, isSafeHaven,
     moneyTreeView, formatMoney, rungCount,

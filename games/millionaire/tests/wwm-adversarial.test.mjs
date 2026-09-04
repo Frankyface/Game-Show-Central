@@ -231,13 +231,20 @@ test("A3 every lifeline is refused once the answer is locked", () => {
   });
 });
 
-test("A3 Switch the Question is a clean no-op when the rung has nothing else", () => {
+test("A3 Switch the Question says so when the rung has nothing else", () => {
   const game = makeGame({ perLevel: 1 });
   const s = seated(game);
-  const same = Core.reduce(s, { type: "useSwitch" }, fixed(0), 1);
-  assert.equal(same, s, "nothing changes");
-  assert.equal(same.lifelines.switch, true, "and the lifeline is NOT burned");
-  assert.ok(!Core.legalActions(s).includes("useSwitch"), "the host button is not offered");
+  const said = Core.reduce(s, { type: "useSwitch" }, fixed(0), 1);
+  // D3: a silent no-op looked like a broken button, so the host is now told.
+  assert.equal(said.notice, Core.SWITCH_UNAVAILABLE, "the host is told why");
+  assert.match(said.notice, /lifeline is still yours/);
+  assert.equal(said.lifelines.switch, true, "and the lifeline is NOT burned");
+  assert.equal(said.question, s.question, "the question itself is untouched");
+  assert.deepEqual(said.used, s.used, "and nothing is marked as seen");
+  assert.ok(Core.legalActions(s).includes("useSwitch"), "the badge is live so the host can be told");
+  // Saying it twice is not a second undo step, and then the badge goes dark.
+  assert.equal(Core.reduce(said, { type: "useSwitch" }, fixed(0), 1), said);
+  assert.ok(!Core.legalActions(said).includes("useSwitch"));
 });
 
 test("A3 Switch the Question keeps the level and burns the lifeline once", () => {
