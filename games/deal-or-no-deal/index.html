@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deal or No Deal</title>
+  <meta name="description" content="Deal or No Deal for game night: 26 sealed cases, a banker who keeps calling, and an audience on their phones telling you what to do. Bring your own board as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/dond.css">
+  <link rel="stylesheet" href="css/dond-phone.css">
+</head>
+<body data-gsc-game="deal-or-no-deal">
+
+  <header class="topbar">
+    <h1 id="dond-title" class="topbar-title">Deal or No Deal</h1>
+    <div class="topbar-actions">
+      <span id="dond-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Board editor</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="dond-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="dond-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card">
+        <p class="kicker">Twenty-six cases. One banker. No takebacks.</p>
+        <h2 class="card-title">Deal or No Deal</h2>
+        <p id="dond-source" class="source-note">Loading the board&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Contestants <span id="dond-player-count" class="count-badge"></span></h3>
+            <p class="hint">One at a time at the cases. Everyone else advises from their phone.</p>
+            <ul id="dond-player-list" class="player-list"></ul>
+            <form id="dond-add-player" class="inline-form">
+              <label class="visually-hidden" for="dond-player-name">Contestant name</label>
+              <input id="dond-player-name" type="text" maxlength="24" placeholder="Contestant name"
+                     autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost" type="submit">+ Add contestant</button>
+            </form>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="dond-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="dond-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="dond-join-note" class="hint hidden">Players open <span id="dond-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <label class="check"><input id="dond-swap" type="checkbox"> Offer the final swap</label>
+            <label class="check"><input id="dond-advice" type="checkbox"> Phones advise Deal / No Deal</label>
+            <p id="dond-rules-note" class="hint-inline"></p>
+
+            <h3 class="setup-heading">The board</h3>
+            <p id="dond-board-summary" class="hint"></p>
+            <div class="inline-form">
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load a board (.json)</button>
+              <input id="dond-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Who is playing ===================== -->
+    <section id="screen-seat" class="screen hidden">
+      <div class="gsc-banner">
+        <div>
+          <p class="gsc-banner-title">Who is opening the cases?</p>
+          <p class="gsc-banner-sub">Everyone else advises from their phone.</p>
+        </div>
+      </div>
+      <div id="dond-seat-list" class="seat-row"></div>
+      <ol id="dond-seat-standings" class="standings standings-small"></ol>
+      <div class="controls">
+        <button id="btn-seat-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-seat-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== The cases ===================== -->
+    <section id="screen-play" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <div>
+          <p id="dond-phase" class="gsc-banner-title">&nbsp;</p>
+          <p id="dond-phase-sub" class="gsc-banner-sub">&nbsp;</p>
+        </div>
+        <div class="gsc-banner-end">
+          <span id="dond-own-chip" class="own-chip hidden">
+            <span class="own-chip-label">Your case</span>
+            <span id="dond-own-number" class="own-chip-number">&mdash;</span>
+          </span>
+          <span id="dond-toopen" class="gsc-badge" aria-live="polite">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="play-grid">
+        <div class="case-yard">
+          <div id="dond-cases" class="cases" aria-label="The cases"></div>
+        </div>
+        <aside class="amount-board" aria-label="The amounts still in play">
+          <ol id="dond-col-left" class="amount-col amount-col-low"></ol>
+          <ol id="dond-col-right" class="amount-col amount-col-high"></ol>
+        </aside>
+      </div>
+
+      <p id="dond-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+
+      <div class="controls">
+        <button id="btn-banker" class="btn btn-gold btn-big" type="button">The banker is calling</button>
+        <button id="btn-swap-yes" class="btn btn-gold btn-big" type="button">Swap the cases</button>
+        <button id="btn-swap-no" class="btn btn-blue btn-big" type="button">Keep my case</button>
+        <button id="btn-reveal-rest" class="btn btn-blue btn-big" type="button">Open the next case</button>
+        <button id="btn-reveal-own" class="btn btn-gold btn-big" type="button">Open my case</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-give-up" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="dond-result-kicker" class="kicker">&nbsp;</p>
+      <h2 id="dond-result-name" class="winner-name">&nbsp;</h2>
+      <p id="dond-result-amount" class="final-amount">&nbsp;</p>
+      <p id="dond-result-detail" class="result-detail">&nbsp;</p>
+      <ol id="dond-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-next-contestant" class="btn btn-gold btn-big" type="button">Next contestant</button>
+        <button id="btn-finish" class="btn btn-ghost" type="button">Finish the night</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-play-again" class="btn btn-blue btn-big hidden" type="button">Play again</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Board editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Board editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="dond-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="dond-editor-warn" class="notice"></p>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">The board</h3>
+          <label class="field">Title
+            <input id="dond-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="dond-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Amounts (comma separated, 10&ndash;30 of them)
+            <textarea id="dond-ed-amounts" rows="4" autocomplete="off" spellcheck="false"></textarea>
+          </label>
+          <p class="hint">The order does not matter &mdash; they are sorted for the board and shuffled
+            into the cases when a contestant sits down.</p>
+
+          <h3 class="setup-heading">Rounds</h3>
+          <label class="field">Cases opened per round (comma separated)
+            <input id="dond-ed-rounds" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">Offer factor per round (comma separated, 0&ndash;1.5)
+            <input id="dond-ed-factors" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">Banker jitter (0&ndash;0.2)
+            <input id="dond-ed-jitter" type="number" min="0" max="0.2" step="0.01" inputmode="decimal">
+          </label>
+          <ol id="dond-ed-rounds-preview" class="rounds-preview" aria-label="Round schedule preview"></ol>
+          <label class="check"><input id="dond-ed-swap" type="checkbox"> Offer the final swap</label>
+          <label class="check"><input id="dond-ed-advice" type="checkbox"> Phones advise Deal / No Deal</label>
+        </div>
+
+        <div class="editor-col">
+          <h3 class="setup-heading">Preview <span id="dond-ed-count" class="count-badge"></span></h3>
+          <div class="amount-board amount-board-preview" aria-label="Amount board preview">
+            <ol id="dond-ed-col-left" class="amount-col amount-col-low"></ol>
+            <ol id="dond-ed-col-right" class="amount-col amount-col-high"></ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="dond-phone-card" class="phone-card">
+        <p id="dond-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="dond-phone-headline" class="phone-headline" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="dond-phone-sub" class="phone-sub">&nbsp;</p>
+        <div id="dond-phone-choices" class="phone-choices"></div>
+        <div id="dond-phone-actions" class="phone-actions"></div>
+        <p id="dond-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== The banker's call ===================== -->
+  <div id="dond-banker" class="overlay hidden" role="dialog" aria-modal="false" aria-label="The banker&rsquo;s offer">
+    <div class="overlay-card banker-card">
+      <p class="banker-phone" aria-hidden="true">&#9742;</p>
+      <p class="overlay-title">The banker offers</p>
+      <p id="dond-offer" class="offer-amount">&nbsp;</p>
+      <p id="dond-offer-sub" class="overlay-sub">&nbsp;</p>
+      <p id="dond-request" class="request-banner hidden" role="status" aria-live="polite"></p>
+
+      <div class="ev-row">
+        <button id="btn-ev" class="btn btn-ghost btn-small" type="button" aria-pressed="false">Show the odds (host only)</button>
+        <span id="dond-ev" class="ev-value hidden"></span>
+      </div>
+
+      <div id="dond-advice-box" class="advice">
+        <p class="advice-title">The room says</p>
+        <div class="advice-bar">
+          <div id="dond-advice-deal" class="advice-fill advice-deal"><span id="dond-advice-deal-label">Deal</span></div>
+          <div id="dond-advice-no" class="advice-fill advice-no"><span id="dond-advice-no-label">No deal</span></div>
+        </div>
+        <p id="dond-advice-count" class="overlay-sub" aria-live="polite">No votes yet.</p>
+        <button id="btn-advice-close" class="btn btn-ghost btn-small" type="button">Close the vote</button>
+      </div>
+
+      <div class="controls">
+        <button id="btn-deal" class="btn btn-gold btn-big" type="button">Deal</button>
+        <button id="btn-no-deal" class="btn btn-red btn-big" type="button">No deal</button>
+        <button id="btn-offer-undo" class="btn btn-ghost" type="button">Undo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============
+       Same node, ids and classes as the hub's own splash (js/hub-host.js):
+       decorative, pointer-events:none, skipped entirely under
+       prefers-reduced-motion and when embedded. ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/dond-content.js"></script>
+  <script src="js/dond-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/dond-sound.js"></script>
+  <script src="js/dond-view.js"></script>
+  <script src="js/dond-app.js"></script>
+  <script src="js/dond-editor.js"></script>
+  <script src="js/dond-room.js"></script>
+  <script src="js/dond-phone.js"></script>
+</body>
+</html>

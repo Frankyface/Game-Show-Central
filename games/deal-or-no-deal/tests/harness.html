@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deal or No Deal harness (N-I1–N-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 62rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 940px; height: 620px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 250px; height: 470px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Deal or No Deal — loopback harness (success states N-I1 … N-I6, spec 12 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus three embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
+    no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__DOND_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+    ];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/dond-content.js", "../js/dond-core.js", "../js/data.js", "../js/dond-sound.js",
+      "../js/dond-view.js", "../js/dond-app.js", "../js/dond-editor.js",
+      "../js/dond-room.js", "../js/dond-phone.js",
+      "../css/dond.css", "../css/dond-phone.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../../../shared/theme.css", "../../../shared/theme-components.css",
+      "fixtures/harness-board.json",
+    ];
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-board.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1";
+    const KEYS = ["gsc-dond-state-v1", "gsc-dond-draft-v1"];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().DondApp.core();
+    const click = (id) => H(id).click();
+    const hostCases = () => [...HD().querySelectorAll("#dond-cases .case")];
+    const hostCase = (n) => HD().querySelector(`#dond-cases .case[data-n="${n}"]`);
+
+    async function bootHost(clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().DondApp && HW().DondApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.DondPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).DondPhone.view();
+    const phoneCases = (pid) => [...PD(pid).querySelectorAll("#dond-phone-choices .phone-case")];
+    const phoneChoices = (pid) => [...PD(pid).querySelectorAll("#dond-phone-actions .phone-choice")];
+    const phoneChoice = (pid, choice) => phoneChoices(pid).find((b) => b.dataset.choice === choice);
+    const phoneText = (pid, id) => PD(pid).getElementById(id).textContent;
+
+    /** Every sealed case's amount and label, for the leak assertions. */
+    function sealedSecrets() {
+      const s = core();
+      return s.cases.filter((c) => !c.opened)
+        .map((c) => ({ n: c.n, amount: c.amount, label: HW().DondCore.formatMoney(s, c.amount) }));
+    }
+
+    /**
+     * Anything in this phone's view that gives away a sealed case. Raw numbers
+     * are not scanned here (a case NUMBER would trip that) — the exact
+     * number-level leak test is N-U10 in node, where the fixture guarantees no
+     * coincidence. Here: no `amount` field at all, no sealed row carrying a
+     * label, and no sealed case's money string anywhere except where it is
+     * legitimately the banker's offer.
+     */
+    function leaks(pid) {
+      const view = phoneView(pid);
+      const blob = JSON.stringify(view);
+      const out = [];
+      if (blob.indexOf("\"amount\"") >= 0) out.push("a raw amount field");
+      const sealed = new Set(core().cases.filter((c) => !c.opened).map((c) => c.n));
+      (view.cases || []).forEach((c) => {
+        if (sealed.has(c.n) && c.label !== "") out.push(`case ${c.n} shows ${c.label}`);
+      });
+      sealedSecrets().forEach((c) => {
+        if (blob.indexOf(`"${c.label}"`) >= 0 && view.offer !== c.label) out.push(`case ${c.n} = ${c.label}`);
+      });
+      return out;
+    }
+
+    /** Open cases on the HOST until the round counter runs out. */
+    function openRoundOnHost() {
+      while (core().toOpen > 0) {
+        const btn = HD().querySelector("#dond-cases .case:not(:disabled)");
+        if (!btn) break;
+        btn.click();
+      }
+    }
+
+    /* ============================================================
+       N-I1 — the contestant picks and opens cases from their phone
+       ============================================================ */
+
+    async function scenarioPicks() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().DondApp.state().setup.players.length === 3, "roster from the shell");
+      check("N-I1 the shell roster becomes the contestant list",
+        HW().DondApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo",
+        HW().DondApp.state().setup.players.map((p) => p.name).join(","));
+      check("N-I1 audience advice switches itself on because phones are connected",
+        H("dond-advice").checked === true && HW().DondApp.state().phoneCount === 3,
+        `${HW().DondApp.state().phoneCount} phones`);
+      check("N-I1 the harness board loaded over the shipped one",
+        HW().DondApp.state().game.settings.amounts.length === 10,
+        HW().DondApp.state().source);
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "seat", "the seat screen");
+      HD().querySelector('#dond-seat-list .seat-btn[data-pid="p1"]').click();
+      await waitFor(() => core().phase === "pick", "the pick screen");
+      check("N-I1 seating deals ten sealed cases", core().cases.length === 10
+        && core().cases.every((c) => !c.opened) && hostCases().length === 10,
+        `${hostCases().length} cases on screen`);
+
+      await waitFor(() => phoneView("p1").screen === "pick", "the contestant's phone");
+      check("N-I1 only the contestant is asked to pick",
+        phoneView("p1").mode === "own" && phoneView("p2").screen === "wait"
+        && phoneView("p3").screen === "wait",
+        `p2 sees ${phoneView("p2").screen}`);
+      check("N-I1 the phone grid shows every case and no amount",
+        phoneCases("p1").length === 10 && leaks("p1").length === 0, leaks("p1").join("; "));
+
+      phoneCases("p1")[2].click();                     // Ada keeps case 3
+      await waitFor(() => core().own === 3, "the phone's pick reaches the host");
+      check("N-I1 a phone tap chooses the case the contestant keeps",
+        core().own === 3 && core().phase === "round" && core().toOpen === 4
+        && H("dond-own-number").textContent === "3",
+        `own ${core().own}, toOpen ${core().toOpen}`);
+      check("N-I1 the host marks that case and never lets it be opened",
+        hostCase(3).classList.contains("is-own") && hostCase(3).disabled === true);
+
+      await waitFor(() => phoneView("p1").mode === "open", "the opening screen");
+      const own = phoneCases("p1").find((b) => b.dataset.n === "3");
+      check("N-I1 the contestant's own case is locked on their phone too",
+        own.disabled === true && own.dataset.state === "own");
+      for (let i = 0; i < 4; i += 1) {
+        const before = core().toOpen;
+        PD("p1").querySelector("#dond-phone-choices .phone-case:not(:disabled)").click();
+        await waitFor(() => core().toOpen === before - 1, `case ${i + 1} of the round`);
+      }
+      check("N-I1 four phone taps open four cases and end the round",
+        core().toOpen === 0 && core().cases.filter((c) => c.opened).length === 4,
+        `${core().cases.filter((c) => c.opened).length} open`);
+      check("N-I1 the amount board strikes out exactly what was opened",
+        HD().querySelectorAll(".amount-row.is-open").length === 4,
+        [...HD().querySelectorAll(".amount-row.is-open .amount-label")].map((n) => n.textContent).join(" "));
+      check("N-I1 nothing sealed has ever reached a phone",
+        ["p1", "p2", "p3"].every((pid) => leaks(pid).length === 0),
+        ["p1", "p2", "p3"].map((pid) => leaks(pid).join("; ")).join(" | "));
+    }
+
+    /* ============================================================
+       N-I2 — the offer, the audience split and the phone's decision
+       ============================================================ */
+
+    async function scenarioOffer() {
+      click("btn-banker");
+      await waitFor(() => core().phase === "offer", "the banker's call");
+      const offer = HW().DondCore.formatMoney(core(), core().offer);
+      check("N-I2 the offer follows the formula with the fixture's zero jitter",
+        core().offer === HW().DondContent.niceOffer(HW().DondCore.ev(core()) * 0.25)
+        && H("dond-offer").textContent === offer,
+        `${offer} from an average of ${Math.round(HW().DondCore.ev(core()))}`);
+
+      await waitFor(() => phoneView("p1").screen === "decision", "the contestant's decision screen");
+      check("N-I2 the contestant is asked, the room is polled, and both see the offer",
+        phoneView("p1").offer === offer && phoneView("p2").screen === "advice"
+        && phoneView("p3").screen === "advice" && phoneView("p2").offer === offer,
+        `p2 sees ${phoneView("p2").screen}`);
+
+      phoneChoice("p2", "deal").click();
+      await waitFor(() => Object.keys(core().advice.votes).length === 1, "the first vote");
+      phoneChoice("p3", "no").click();
+      await waitFor(() => Object.keys(core().advice.votes).length === 2, "the second vote");
+      check("N-I2 two phones make a live 50/50 split on the host screen",
+        H("dond-advice-deal-label").textContent === "Deal 50%"
+        && H("dond-advice-no-label").textContent === "No deal 50%"
+        && H("dond-advice-count").textContent.indexOf("1 deal / 1 no deal") > 0,
+        H("dond-advice-count").textContent);
+      check("N-I2 a phone never sees another phone's advice",
+        phoneView("p2").myVote === "deal" && phoneView("p3").myVote === "no"
+        && JSON.stringify(phoneView("p2")).indexOf("\"votes\"") < 0);
+      phoneChoice("p3", "deal");
+      check("N-I2 one phone is one vote",
+        phoneChoices("p3").every((b) => b.disabled) && core().advice.votes.p3 === "no");
+      check("N-I2 the contestant is not in their own audience",
+        phoneChoices("p1").every((b) => b.dataset.choice === "deal" || b.dataset.choice === "no")
+        && core().advice.votes.p1 === undefined);
+
+      // The contestant says DEAL from their phone: a request, nothing more.
+      phoneChoice("p1", "deal").click();
+      await waitFor(() => core().request, "the decision reaches the host");
+      check("N-I2 a phone decision only asks — the host still has to press the button",
+        core().request.choice === "deal" && core().deal === null
+        && !H("dond-request").classList.contains("hidden")
+        && H("dond-request").textContent.indexOf("Ada says DEAL") === 0,
+        H("dond-request").textContent);
+    }
+
+    /* ============================================================
+       N-I3 — Deal, then the would-have-won reveal
+       ============================================================ */
+
+    async function scenarioDeal() {
+      const offer = core().offer;
+      click("btn-deal");
+      await waitFor(() => core().phase === "reveal", "the reveal");
+      check("N-I3 Deal freezes the offer, closes the vote and ends the board",
+        core().deal.offer === offer && core().advice.open === false && core().request === null,
+        `dealt for ${offer}`);
+
+      const expected = HW().DondCore.revealOrder(core()).slice();
+      const seen = [];
+      while (HW().DondCore.revealOrder(core()).length) {
+        click("btn-reveal-rest");
+        seen.push(core().lastOpened);
+      }
+      check("N-I3 the remaining cases open lowest number first",
+        seen.join(",") === expected.join(","), `${seen.join(",")} vs ${expected.join(",")}`);
+      check("N-I3 the contestant's own case is still the last one sealed",
+        HW().DondCore.caseByN(core(), core().own).opened === false
+        && H("btn-reveal-rest").classList.contains("hidden"));
+
+      const inside = HW().DondCore.caseByN(core(), core().own).amount;
+      click("btn-reveal-own");
+      await waitFor(() => core().phase === "result", "the result screen");
+      check("N-I3 the result pays the offer and says what the case held",
+        core().outcome.won === offer && core().outcome.wouldHaveWon === inside
+        && H("dond-result-amount").textContent === HW().DondCore.formatMoney(core(), offer)
+        && H("dond-result-detail").textContent.indexOf(HW().DondCore.formatMoney(core(), inside)) > 0,
+        H("dond-result-detail").textContent);
+
+      await waitFor(() => phoneView("p1").screen === "result", "the phones see the result");
+      check("N-I3 the contestant's phone shows their own total, nobody else's",
+        phoneView("p1").yours === HW().DondCore.formatMoney(core(), offer)
+        && phoneView("p2").yours === null && phoneView("p2").standings.length === 3,
+        phoneText("p1", "dond-phone-headline"));
+      check("N-I3 the night scoreboard is told the total",
+        shellLog.some((d) => d.t === "scores" && d.scores.some((s) => s.pid === "p1" && s.score === offer)),
+        JSON.stringify(shellLog.filter((d) => d.t === "scores").slice(-1)));
+    }
+
+    /* ============================================================
+       N-I4 — No Deal to the end, and the swap
+       ============================================================ */
+
+    async function scenarioSwap() {
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "seat", "the seat screen again");
+      HD().querySelector('#dond-seat-list .seat-btn[data-pid="p2"]').click();
+      await waitFor(() => core().phase === "pick", "Ben picks");
+      hostCase(9).click();
+      check("N-I4 a fresh board is dealt for the next contestant",
+        core().own === 9 && core().cases.filter((c) => c.opened).length === 0
+        && core().offers.length === 0 && core().deal === null);
+
+      for (let r = 0; r < 4; r += 1) {
+        openRoundOnHost();
+        click("btn-banker");
+        await waitFor(() => core().phase === "offer", `offer ${r + 1}`);
+        click("btn-no-deal");
+      }
+      check("N-I4 four rounds of No Deal leave exactly two cases sealed",
+        core().phase === "swap" && HW().DondCore.unopenedCases(core()).length === 2
+        && HW().DondCore.otherCases(core()).length === 1
+        && !H("btn-swap-yes").classList.contains("hidden"),
+        `phase ${core().phase}`);
+      // The offer is not monotonic — it tracks the board, and the board
+      // collapses as the big amounts go. What must hold every round is the
+      // formula itself (the fixture sets jitter to 0, so it is exact).
+      const factors = core().game.settings.offerFactors;
+      check("N-I4 every offer is exactly EV x factor, rounded, round after round",
+        core().offers.length === 4
+        && core().offers.every((o, i) => o.offer === HW().DondContent.niceOffer(o.ev * factors[i])),
+        core().offers.map((o, i) => `${factors[i]}x${Math.round(o.ev)}=${o.offer}`).join("  "));
+
+      const other = HW().DondCore.otherCases(core())[0];
+      click("btn-swap-yes");
+      check("N-I4 swapping hands the contestant the last case",
+        core().own === other.n && core().swapped === true && core().phase === "reveal",
+        `now holding case ${core().own}`);
+      click("btn-reveal-own");
+      await waitFor(() => core().phase === "result", "Ben's result");
+      check("N-I4 the swapped case is what pays, and the board is complete",
+        core().outcome.won === other.amount && core().outcome.swapped === true
+        && core().cases.every((c) => c.opened)
+        && H("dond-result-detail").textContent.indexOf("Swapped into case") === 0,
+        H("dond-result-detail").textContent);
+      check("N-I4 the standings hold both finished contestants",
+        HD().querySelectorAll("#dond-standings li").length === 3
+        && HD().querySelectorAll("#dond-standings .is-banked").length === 2,
+        [...HD().querySelectorAll("#dond-standings li")].map((n) => n.textContent).join(" | "));
+    }
+
+    /* ============================================================
+       N-I5 — a reload mid-round, and the splash
+       ============================================================ */
+
+    async function scenarioReload() {
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "seat", "Cleo's turn");
+      HD().querySelector('#dond-seat-list .seat-btn[data-pid="p3"]').click();
+      await waitFor(() => core().phase === "pick", "Cleo picks");
+      hostCase(2).click();
+      const first = HD().querySelector("#dond-cases .case:not(:disabled)");
+      first.click();
+      const before = {
+        own: core().own, toOpen: core().toOpen,
+        opened: core().cases.filter((c) => c.opened).map((c) => c.n).join(","),
+        amounts: core().cases.map((c) => c.amount).join(","),
+        banked: core().contestants.filter((c) => c.out).map((c) => `${c.name}:${c.won}`).join(","),
+      };
+
+      await bootHost(false);                       // the host tab is refreshed mid-round
+      await waitFor(() => core(), "the saved game comes back");
+      const after = {
+        own: core().own, toOpen: core().toOpen,
+        opened: core().cases.filter((c) => c.opened).map((c) => c.n).join(","),
+        amounts: core().cases.map((c) => c.amount).join(","),
+        banked: core().contestants.filter((c) => c.out).map((c) => `${c.name}:${c.won}`).join(","),
+      };
+      check("N-I5 a reload mid-round restores the board, the counter and the night",
+        JSON.stringify(before) === JSON.stringify(after),
+        `${JSON.stringify(before)} vs ${JSON.stringify(after)}`);
+      check("N-I5 the restored screen is the play screen, not setup",
+        !H("screen-play").classList.contains("hidden") && H("screen-setup").classList.contains("hidden"));
+
+      await waitFor(() => phoneView("p3").screen === "pick", "the phones are served again after the reload");
+      check("N-I5 every phone is pushed a fresh view after the host reloads",
+        phoneView("p3").mode === "open" && phoneView("p1").screen === "wait"
+        && leaks("p3").length === 0,
+        `p3 sees ${phoneView("p3").screen}/${phoneView("p3").mode}; p1 sees ${phoneView("p1").screen}; leaks: ${leaks("p3").join("; ")}`);
+
+      // The splash: present, decorative, skipped when embedded or under reduce.
+      const node = H("gsc-splash");
+      check("N-I5 the page carries the shared .gsc-splash title card",
+        !!node && node.classList.contains("gsc-splash")
+        && HW().getComputedStyle(node).pointerEvents === "none",
+        node ? `pointer-events: ${HW().getComputedStyle(node).pointerEvents}` : "missing");
+      check("N-I5 an embedded frame skips the card — the hub shows its own",
+        node.classList.contains("hidden") && HD().body.classList.contains("gsc-embedded"),
+        HD().body.className);
+      HD().body.classList.remove("gsc-embedded");
+      HW().DondApp.showSplash();
+      check("N-I5 standalone, the splash names the game and wears its accent",
+        !node.classList.contains("hidden") && H("gsc-splash-title").textContent === "Deal or No Deal"
+        && node.dataset.gscGame === "deal-or-no-deal" && H("gsc-splash-sub").textContent.length > 0,
+        `${H("gsc-splash-title").textContent} / ${H("gsc-splash-sub").textContent}`);
+      await waitFor(() => node.classList.contains("hidden"), "the splash clears itself", 2500);
+      const realMatch = HW().matchMedia;
+      HW().matchMedia = (q) => ({ matches: /prefers-reduced-motion/.test(q), media: q,
+        addEventListener() {}, removeEventListener() {} });
+      HW().DondApp.showSplash();
+      const skipped = node.classList.contains("hidden");
+      HW().matchMedia = realMatch;
+      HD().body.classList.add("gsc-embedded");
+      check("N-I5 prefers-reduced-motion skips the splash entirely", skipped,
+        skipped ? "stayed hidden" : "SHOWN under reduce");
+    }
+
+    /* ============================================================
+       N-I6 — the editor round-trip and the static gates
+       ============================================================ */
+
+    async function scenarioEditor() {
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "the editor opens");
+      const left = [...HD().querySelectorAll("#dond-ed-col-left .amount-label")].map((n) => n.textContent);
+      const right = [...HD().querySelectorAll("#dond-ed-col-right .amount-label")].map((n) => n.textContent);
+      check("N-I6 the editor previews the board as the two columns the host sees",
+        left.length === 5 && right.length === 5 && left[0] === "$1" && right[4] === "$50,000",
+        `${left.join(" ")} | ${right.join(" ")}`);
+      check("N-I6 the round schedule preview names every round and its factor",
+        HD().querySelectorAll("#dond-ed-rounds-preview li").length === 5
+        && HD().querySelector("#dond-ed-rounds-preview li").textContent.indexOf("25% of the average") > 0,
+        [...HD().querySelectorAll("#dond-ed-rounds-preview li")].map((n) => n.textContent).join(" | "));
+
+      // A schedule that would open too many cases is refused in plain English.
+      setField("dond-ed-rounds", "4, 4, 1");
+      check("N-I6 an impossible round schedule is explained, not silently accepted",
+        !H("dond-editor-msg").classList.contains("hidden")
+        && H("dond-editor-msg").textContent.indexOf("two must stay closed") > 0,
+        H("dond-editor-msg").textContent);
+      setField("dond-ed-rounds", "4, 2, 1, 1");
+      check("N-I6 fixing the schedule clears the message",
+        H("dond-editor-msg").classList.contains("hidden")
+        && H("dond-editor-warn").textContent.length > 0,
+        H("dond-editor-warn").textContent);
+
+      setField("dond-ed-amounts", "2, 6, 11, 51, 101, 501, 1001, 5001, 10001, 50001");
+      setField("dond-ed-title", "Edited in the harness");
+      check("N-I6 editing the amounts repaints the preview at once",
+        HD().querySelector("#dond-ed-col-left .amount-label").textContent === "$2"
+        && H("dond-ed-count").textContent === "10 cases",
+        H("dond-ed-count").textContent);
+
+      let captured = null;
+      const realCreate = HW().URL.createObjectURL;
+      HW().URL.createObjectURL = (blob) => { captured = blob; return realCreate.call(HW().URL, blob); };
+      click("btn-editor-download");
+      await waitFor(() => captured, "the download blob");
+      HW().URL.createObjectURL = realCreate;
+      const text = await captured.text();
+      check("N-I6 Download JSON produces a file that passes validateBoard",
+        HW().DondCore.validateBoard(JSON.parse(text)) === true
+        && JSON.parse(text).settings.amounts[0] === 2
+        && JSON.parse(text).title === "Edited in the harness",
+        `${text.length} bytes`);
+
+      click("btn-editor-use");
+      await waitFor(() => H("screen-editor").classList.contains("hidden"), "the editor closes");
+      check("N-I6 Use in game adopts the board and clears the night",
+        HW().DondApp.state().game.title === "Edited in the harness"
+        && HW().DondApp.state().core === null
+        && !H("screen-setup").classList.contains("hidden"),
+        HW().DondApp.state().source);
+    }
+
+    function setField(id, value) {
+      const node = H(id);
+      node.value = value;
+      node.dispatchEvent(new (HW().Event)("input", { bubbles: true }));
+    }
+
+    /* ============================================================
+       N-I6 — static gates (verification plan 06 §4)
+       ============================================================ */
+
+    const SOURCES = [
+      "../index.html", "../board.json", "../README.md",
+      "../css/dond.css", "../css/dond-phone.css",
+      "../js/dond-content.js", "../js/dond-core.js", "../js/data.js", "../js/dond-sound.js",
+      "../js/dond-view.js", "../js/dond-app.js", "../js/dond-editor.js",
+      "../js/dond-room.js", "../js/dond-phone.js",
+      "../tests/dond-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-board.json",
+    ];
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("N-I6 V1 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("N-I6 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      // Comments that merely name the rule are allowed; real calls are not.
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("N-I6 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("N-I6 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("N-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("N-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="deal-or-no-deal"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("N-I6 the splash markup is in the page and boot calls showSplash()",
+        html.indexOf('id="gsc-splash"') > 0
+        && (texts["../js/dond-app.js"] || "").indexOf("dondShowSplash();") > 0);
+      check("N-I6 V8 board.json validates through validateBoard",
+        HW().DondCore.validateBoard(JSON.parse(texts["../board.json"])) === true);
+      check("N-I6 js/data.js mirrors board.json and reaches globalThis",
+        JSON.stringify(HW().DOND_DEFAULT_BOARD) === JSON.stringify(JSON.parse(texts["../board.json"])),
+        HW().DOND_DEFAULT_BOARD ? "globalThis.DOND_DEFAULT_BOARD is set" : "MISSING");
+
+      // Every animation the game adds must sit inside prefers-reduced-motion.
+      const css = `${texts["../css/dond.css"]}\n${texts["../css/dond-phone.css"]}`;
+      check("N-I6 every @keyframes and animation: sits inside a no-preference block",
+        motionIsGuarded(css), motionIsGuarded(css) ? "all guarded" : "an animation escapes the media query");
+
+      check("N-I6 the embedded page hides the standalone room controls",
+        HD().body.classList.contains("gsc-embedded")
+        && HW().getComputedStyle(H("dond-room-controls")).display === "none",
+        HD().body.className);
+
+      // Phone targets at 320 px: the sheet's own floor, checked on a real phone frame.
+      const phone = phoneFrames.get("p2");
+      phone.style.width = "320px";
+      await sleep(60);
+      const doc = phone.contentDocument;
+      const small = [...doc.querySelectorAll("#screen-phone button")]
+        .filter((b) => b.getBoundingClientRect().height < 56)
+        .map((b) => `${b.className}:${Math.round(b.getBoundingClientRect().height)}`);
+      const wide = doc.documentElement.scrollWidth > doc.documentElement.clientWidth;
+      check("N-I6 V5 at 320 px every phone target is at least 56 px and nothing scrolls sideways",
+        small.length === 0 && !wide, small.length ? small.join(", ") : `scrollWidth ${doc.documentElement.scrollWidth}`);
+      phone.style.width = "";
+    }
+
+    /**
+     * True when no `@keyframes` block and no `animation:` declaration sits
+     * outside a `@media (prefers-reduced-motion: no-preference)` block
+     * (design-system.md §1.7). Brace counting is enough here: the sheets have
+     * no strings or comments containing braces.
+     */
+    function motionIsGuarded(css) {
+      const stripped = css.replace(/\/\*[\s\S]*?\*\//g, "");
+      let depth = 0;
+      let guardDepth = -1;
+      let ok = true;
+      const tokens = stripped.split(/(\{|\})/);
+      let pending = "";
+      for (const token of tokens) {
+        if (token === "{") {
+          if (/@media[^{]*prefers-reduced-motion:\s*no-preference/.test(pending) && guardDepth < 0) {
+            guardDepth = depth;
+          }
+          depth += 1;
+          pending = "";
+          continue;
+        }
+        if (token === "}") {
+          depth -= 1;
+          if (guardDepth >= 0 && depth === guardDepth) guardDepth = -1;
+          pending = "";
+          continue;
+        }
+        if (guardDepth < 0 && (/@keyframes/.test(token) || /(^|[;\s])animation:/.test(token))) ok = false;
+        pending = token;
+      }
+      return ok;
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioPicks();
+        await scenarioOffer();
+        await scenarioDeal();
+        await scenarioSwap();
+        await scenarioReload();
+        await scenarioEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

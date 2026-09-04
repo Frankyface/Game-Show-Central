@@ -1,0 +1,618 @@
+/* ============================================================
+   Deal or No Deal — host screens
+   The palette from spec 12 §3: a deep red curtain falling to
+   black, gold case numbers, and the amount board in two columns —
+   the low half cool blue, the high half hot orange-red, exactly
+   as it reads on television. Opened amounts are struck through
+   and dimmed. Everything is CSS: no images.
+   Sized for a shared screen at 1280x720 with no vertical scroll
+   during play.
+   ============================================================ */
+
+/* The stage colours belong on :root (design-system.md §4): they are set on
+   <html> and inherit past the shared [data-gsc-game] block. */
+:root {
+  --stage-deep: #4a0715;
+  --stage-night: #08010a;
+  --stage-card: #2b0410;
+  --stage-accent: #8c1026;
+  --case-gold: #f5c542;
+  --case-gold-deep: #b8860b;
+  --board-low: #2f6fd0;
+  --board-high: #e4572e;
+}
+
+/* The accent, on the other hand, must sit at the same specificity as the
+   shared per-game block (which does not yet carry an entry for this game) —
+   this sheet loads after shared/theme.css, so this wins either way. */
+body[data-gsc-game="deal-or-no-deal"] {
+  --accent: #f5c542;
+  --accent-2: #c81d3a;
+  --accent-ink: #2a0209;
+  --stage-glow: #5a0a1a;
+}
+
+/* ============ Chrome ============ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 1, 10, 0.55);
+}
+
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--case-gold);
+}
+
+.topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.room-chip {
+  font-family: var(--font-display);
+  letter-spacing: 0.2em;
+  color: var(--case-gold);
+  border: 1px solid rgba(245, 197, 66, 0.5);
+  border-radius: var(--radius);
+  padding: 0.25em 0.7em;
+}
+
+#dond-error { padding: 0 1.2rem; }
+#dond-main { padding: 0.6rem 1.2rem 1rem; }
+.screen { max-width: 1400px; margin: 0 auto; }
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+  margin: 0 0 0.3rem;
+}
+
+.screen-title, .card-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.6rem;
+  color: var(--case-gold);
+}
+
+.setup-heading {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+  margin: 1rem 0 0.4rem;
+}
+
+.hint, .hint-inline, .notice, .source-note {
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+
+.notice { min-height: 1.2em; color: var(--case-gold); text-align: center; }
+.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+
+.count-badge {
+  font-size: 0.72rem;
+  color: #2a0209;
+  background: var(--case-gold);
+  border-radius: 999px;
+  padding: 0.1em 0.6em;
+  margin-left: 0.4rem;
+}
+
+.controls {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.7rem;
+}
+
+.btn-blue {
+  background: linear-gradient(180deg, #3f7fd6 0%, #1c3f78 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(28, 63, 120, 0.5);
+}
+.btn-blue:hover { box-shadow: 0 6px 20px rgba(63, 127, 214, 0.55); transform: translateY(-1px); }
+
+.btn-red {
+  background: linear-gradient(180deg, #e03e57 0%, #7c0d1f 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 13, 31, 0.55);
+}
+.btn-red:hover { box-shadow: 0 6px 20px rgba(224, 62, 87, 0.55); transform: translateY(-1px); }
+
+/* ============ Setup ============ */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-line, var(--line));
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.3rem;
+  backdrop-filter: blur(var(--panel-blur));
+}
+
+.setup-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.6rem;
+}
+
+.setup-block { min-width: 0; }
+.setup-actions { display: flex; justify-content: center; margin-top: 1rem; }
+
+.player-list { list-style: none; margin: 0.4rem 0; padding: 0; display: grid; gap: 0.3rem; }
+
+.player-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--well);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.6rem;
+}
+
+.player-seat {
+  font-family: var(--font-display);
+  color: var(--case-gold);
+  min-width: 1.4em;
+  text-align: center;
+}
+
+.player-name { flex: 1; font-weight: 600; }
+.player-tag { font-size: 0.7rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.12em; }
+
+.inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.4rem 0; }
+
+.inline-form input[type="text"],
+.field input, .field textarea {
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 0.5em 0.7em;
+}
+
+.field { display: block; margin: 0 0 0.7rem; font-size: 0.8rem; color: var(--ink-dim); }
+.field input, .field textarea { display: block; width: 100%; margin-top: 0.25rem; }
+.field textarea { resize: vertical; line-height: 1.4; }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+  font-size: 0.9rem;
+}
+.check input { width: 18px; height: 18px; accent-color: var(--case-gold); }
+
+/* ============ Who is playing ============ */
+
+.seat-row {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 1.4rem 0;
+}
+
+.seat-btn { min-width: 12rem; }
+
+.standings {
+  list-style: none;
+  margin: 1rem auto 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+  max-width: 44rem;
+}
+
+.standings-small { max-width: 34rem; font-size: 0.9rem; }
+
+/* A contestant who has played has BANKED money — never the dimmed, struck
+   through `.gsc-podium.is-out` look, which reads as "eliminated". */
+.standings .gsc-podium.is-banked .gsc-podium-score { color: var(--case-gold); }
+.standings .gsc-podium.is-active .gsc-podium-score { color: var(--ink-dim); font-size: 1rem; }
+
+/* ============ The play screen ============ */
+
+.play-banner { margin-bottom: 0.6rem; }
+
+.own-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 2px solid var(--case-gold);
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.9rem;
+  background: rgba(245, 197, 66, 0.12);
+}
+
+.own-chip-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+}
+
+.own-chip-number {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--case-gold);
+  line-height: 1;
+}
+
+.play-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.case-yard { min-width: 0; }
+
+.cases {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+/* ---------- one case ---------- */
+
+.case {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 0;
+  height: 74px;
+  perspective: 700px;
+  cursor: pointer;
+}
+
+.case:disabled { cursor: default; }
+
+.case-inner {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+}
+
+.case.is-open .case-inner { transform: rotateY(180deg); }
+
+.case-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  backface-visibility: hidden;
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.case-front {
+  font-size: 1.7rem;
+  color: #3a2400;
+  background: linear-gradient(160deg, #ffe488 0%, var(--case-gold) 42%, var(--case-gold-deep) 100%);
+  border: 2px solid #6b4c05;
+  box-shadow: var(--shadow-panel), inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* The lid: a darker band across the top so a case reads as a case. */
+.case-front::before {
+  content: "";
+  position: absolute;
+  left: 8%; right: 8%; top: 22%;
+  height: 3px;
+  background: rgba(80, 55, 0, 0.45);
+  border-radius: 2px;
+}
+
+.case-back {
+  transform: rotateY(180deg);
+  font-size: clamp(0.6rem, 1.1vw, 0.95rem);
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(140, 16, 38, 0.75) 0%, rgba(20, 2, 8, 0.9) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  padding: 0 0.2rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.case.is-own .case-front {
+  border-color: #fff;
+  box-shadow: var(--shadow-lift), 0 0 0 3px rgba(255, 255, 255, 0.55),
+              inset 0 2px 0 rgba(255, 255, 255, 0.55);
+}
+
+.case:not(:disabled):hover .case-front { transform: translateY(-3px); }
+.case-front { transition: transform var(--dur-fast) var(--ease-out); }
+
+/* ============ The amount board ============ */
+
+.amount-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 0.55rem;
+}
+
+.amount-col { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+
+.amount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  border-radius: 4px;
+  padding: 0.1rem 0.55rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #fff;
+}
+
+.amount-col-low .amount-row { background: linear-gradient(90deg, #17325e 0%, var(--board-low) 100%); }
+.amount-col-high .amount-row { background: linear-gradient(90deg, #8a2408 0%, var(--board-high) 100%); }
+
+.amount-row.is-open {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-mute);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.amount-gone {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  color: var(--ink-mute);
+}
+
+.amount-row:not(.is-open) .amount-gone { display: none; }
+
+/* ============ The banker's call ============ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 0, 4, 0.82);
+  z-index: 40;
+  padding: 1rem;
+}
+
+.overlay-card {
+  background: var(--stage-card);
+  border: 2px solid var(--case-gold);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lift);
+  padding: 1.2rem 2rem 1.4rem;
+  text-align: center;
+  max-width: 44rem;
+  width: 100%;
+}
+
+.overlay-title {
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  margin: 0.2rem 0 0.1rem;
+}
+
+.overlay-sub { color: var(--ink-dim); font-size: 0.86rem; margin: 0.3rem 0; }
+
+.banker-phone { font-size: 2.4rem; margin: 0; color: var(--case-gold); line-height: 1; }
+
+.offer-amount {
+  font-family: var(--font-display);
+  font-size: clamp(52px, 8vw, 104px);
+  line-height: 1;
+  margin: 0.1rem 0 0.2rem;
+  color: var(--case-gold);
+  text-shadow: 0 6px 30px rgba(245, 197, 66, 0.4);
+  letter-spacing: var(--track-display);
+}
+
+.request-banner {
+  margin: 0.5rem auto;
+  max-width: 34rem;
+  border: 2px solid var(--case-gold);
+  border-radius: var(--radius);
+  background: rgba(245, 197, 66, 0.14);
+  color: var(--case-gold);
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+}
+
+.ev-row { display: flex; gap: 0.7rem; align-items: center; justify-content: center; margin: 0.4rem 0; }
+.ev-value { font-size: 0.85rem; color: var(--ink-dim); }
+
+.advice { margin: 0.7rem auto 0; max-width: 34rem; }
+
+.advice-title {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  color: var(--ink-mute);
+  margin: 0 0 0.3rem;
+}
+
+.advice-bar {
+  display: flex;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-line);
+}
+
+.advice-fill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 0;
+  transition: width var(--dur) var(--ease-out);
+}
+
+.advice-deal { background: linear-gradient(90deg, #1b7f4d 0%, var(--green) 100%); color: #04180d; }
+.advice-no { background: linear-gradient(90deg, #7c0d1f 0%, #e03e57 100%); color: #fff; }
+
+/* ============ Result ============ */
+
+.winner-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  text-transform: uppercase;
+  margin: 0.2rem 0;
+  text-align: center;
+  color: var(--ink);
+}
+
+.final-amount {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 7vw, 92px);
+  line-height: 1;
+  margin: 0.2rem 0;
+  text-align: center;
+  color: var(--case-gold);
+  text-shadow: 0 6px 30px rgba(245, 197, 66, 0.35);
+}
+
+.result-detail { text-align: center; color: var(--ink-dim); margin: 0.2rem 0 0.6rem; }
+
+/* ============ Editor ============ */
+
+.screen-editor { padding-bottom: 2rem; }
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.editor-bar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1.6rem;
+  align-items: start;
+}
+
+.editor-col {
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1.1rem 1.1rem;
+}
+
+.rounds-preview {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.rounds-preview li {
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+
+.rounds-preview li b { color: var(--case-gold); font-weight: 700; }
+
+.amount-board-preview { max-width: 26rem; }
+
+/* ============ Embedded / phone modes ============ */
+
+body.player-mode .topbar,
+body.player-mode #dond-main > .screen:not(#screen-phone) { display: none !important; }
+body.player-mode #screen-phone { display: block; }
+body.gsc-embedded #dond-room-controls,
+body.gsc-embedded #dond-join-note,
+body.gsc-embedded #dond-room-chip { display: none !important; }
+
+/* ============ Narrow host screens ============ */
+
+@media (max-width: 1100px) {
+  .play-grid { grid-template-columns: 1fr; }
+  .amount-board { max-width: 40rem; }
+  .setup-cols, .editor-grid { grid-template-columns: 1fr; }
+}
+
+/* ============ Motion (design-system.md §1.7 — the motion rule) ============ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes dond-case-flip {
+    from { transform: rotateY(0deg); }
+    to { transform: rotateY(180deg); }
+  }
+
+  @keyframes dond-sting {
+    0% { transform: scale(1); filter: brightness(1); }
+    35% { transform: scale(1.14); filter: brightness(1.5); }
+    100% { transform: scale(1); filter: brightness(1); }
+  }
+
+  @keyframes dond-ring {
+    0%, 100% { transform: rotate(-12deg); }
+    50% { transform: rotate(12deg); }
+  }
+
+  @keyframes dond-offer-in {
+    from { opacity: 0; transform: scale(0.82); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* The flip lives on the inner face and the sting on the button around it,
+     so the two never fight over `transform` on the same element. */
+  .case.is-open .case-inner {
+    animation: dond-case-flip var(--dur-slow) var(--ease-out) both;
+  }
+
+  .case.is-last {
+    animation: dond-sting 620ms var(--ease-spring) 380ms both;
+  }
+
+  .banker-phone { animation: dond-ring 520ms ease-in-out 3; }
+  .offer-amount { animation: dond-offer-in var(--dur-slow) var(--ease-spring) both; }
+  .own-chip { animation: gsc-pop var(--dur) var(--ease-spring) both; }
+  .final-amount { animation: gsc-pop var(--dur-slow) var(--ease-spring) both; }
+}

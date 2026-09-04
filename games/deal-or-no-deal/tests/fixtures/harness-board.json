@@ -1,0 +1,12 @@
+{
+  "title": "Harness board (ten cases)",
+  "settings": {
+    "currency": "$",
+    "amounts": [1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000],
+    "rounds": [4, 2, 1, 1],
+    "offerFactors": [0.25, 0.5, 0.75, 1.0],
+    "jitter": 0,
+    "allowSwap": true,
+    "audienceAdvice": true
+  }
+}
