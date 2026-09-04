@@ -79,11 +79,19 @@ splash card do exactly that):
 | `wheel-of-fortune` | `#9d4edd` | `#2ec4b6` | `#3d1268` |
 | `weakest-link` | `#7c99b6` | `#d33` | `#16222e` |
 | `millionaire` | `#3346c8` | `#a06bff` | `#141c63` |
+| `price-is-right` | `#e63946` | `#ffd23f` carnival yellow | `#123a86` carnival blue |
+| `pyramid` | `#f4b400` | `#2ec4b6` | `#0b3b3c` deep teal |
+| `deal-or-no-deal` | `#b5121b` | `#f2c14e` case gold | `#4a0810` |
 
 ```html
 <body data-gsc-game="family-feud">          <!-- whole page wears Feud red -->
 <div class="gsc-splash" data-gsc-game="jeopardy">  <!-- one node wears Jeopardy blue -->
 ```
+
+`--accent-ink` is the readable text colour on that accent, so it is not always
+white: on Price Is Right's `#e63946` white reaches only 4.2:1, so that block
+uses a near-black `#1a0206` (4.8:1); Pyramid's gold uses `#241a02` (9.3:1).
+Check any accent you change with a contrast calculator before you ship it.
 
 Set your own accents by editing that block in `shared/theme.css`, **not** in
 your game's `:root` (a `:root` declaration sets the value on `<html>` and the

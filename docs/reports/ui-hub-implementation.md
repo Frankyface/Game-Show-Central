@@ -16,7 +16,7 @@ harness selects on, and every message in the protocol are untouched.
 | `index.html` | restructured | 159 | landing hero + line-up strip, lobby join-steps, phone copy, the `.gsc-splash` node, `data-gsc-game="hub"` |
 | `css/hub.css` | rewritten | 723 | landing, lobby, game cards + CSS-drawn art, shell bar, dialogs |
 | `css/hub-phone.css` | **new** | 214 | the phone controller (split out only to stay under the 800-line rule) |
-| `js/hub-registry.js` | +5 lines | 97 | the Millionaire entry from `docs/08-millionaire-spec.md` §7 |
+| `js/hub-registry.js` | +5 lines | 112 | the Millionaire entry from `docs/08-millionaire-spec.md` §7 (the three later games were added by the coordinator) |
 | `js/hub-host.js` | +26 lines | 732 | `showSplash()` + 3 styling-hook attributes |
 | `js/hub-player.js` | +21 lines | 433 | `showSplash()` + its one call |
 | `docs/reports/img/ui-before-README.md` | **new** | — | the "before" record (see §5) |
@@ -67,7 +67,10 @@ Full detail with a usage example each: **`docs/design-system.md`**. Summary:
 **Per-game accents** are keyed on the `[data-gsc-game="…"]` **attribute**, not
 on `body`, so the shell bar and the splash card can wear another game's accent
 inside the hub page. Blocks exist for `hub`, `jeopardy`, `family-feud`,
-`wheel-of-fortune`, `weakest-link`, `millionaire`.
+`wheel-of-fortune`, `weakest-link`, `millionaire`, `price-is-right`,
+`pyramid`, `deal-or-no-deal`. `--accent-ink` is picked for contrast, not
+convention: Price Is Right's `#e63946` fails with white (4.2:1) so its ink is a
+near-black `#1a0206` (4.8:1); Pyramid's gold uses `#241a02` (9.3:1).
 
 **Components (all `.gsc-*`)** — `.gsc-panel` (+`-strong`, `-accent`),
 `.gsc-card` (+`-interactive`), `.gsc-well`, `.gsc-rule`, `.gsc-scroll`,
@@ -108,8 +111,13 @@ join on your phone — the third is now a real button-shaped link), and a
 "tonight's line-up" strip of five cards, each with **CSS-drawn art, no
 images**: the Jeopardy board grid under a gold category strip, the Feud survey
 board with answer slots and score boxes, a Wheel of Fortune conic wheel, two
-interlocking Weakest Link chain rings, and the Millionaire concentric rings.
-The same art stack drives the lobby cards, keyed on `[data-game="…"]`.
+interlocking Weakest Link chain rings, the Millionaire concentric rings, the
+Price Is Right bidders' podium row under a red marquee band, the Pyramid
+six-box 3-2-1 board, and a row of gold Deal or No Deal cases on a folded red
+curtain. The same art stack drives the lobby cards, keyed on `[data-game="…"]`.
+Each plate is one `--art` gradient stack with `background-repeat: no-repeat`;
+the motifs are sized with `min(%, px)` so they read correctly on both the wide
+landing plate (~118×70) and the tall lobby art rail (~72×176).
 
 **Lobby.** One screen, `height: 100dvh`, `overflow: hidden` — the page never
 scrolls at 1280×720; the roster and the game grid scroll internally if they
@@ -122,7 +130,9 @@ night scoreboard is a leaderboard: a CSS-counter rank, gold/silver/bronze rails
 on the top three, tabular-numeral totals. Game cards are horizontal — the art
 as a full-height left rail, name in Anton, tagline, capability chips, the soft
 player hint, and Play — with an accent-tinted wash, a hover lift and an accent
-glow.
+glow. The grid is `repeat(auto-fit, minmax(268px, 1fr))`: **eight** games land
+as 3×3 inside the panel at 1280×720 with no scroll at all (two-up around
+1000px, one-up on a phone).
 
 **Shell bar.** 44px, translucent (`rgba(7,4,18,.72)` + a 14px backdrop blur),
 an accent hairline under it, the game name in Anton tinted with that game's
@@ -148,17 +158,17 @@ screen and every phone at the moment the frame mounts.
 
 | Check | Result |
 | --- | --- |
-| `node --test` at root | **422/422 pass**, 0 fail (390 before; the Millionaire registry entry adds 32 parameterised cases) |
+| `node --test` at root | **457/457 pass**, 0 fail (390 before; each added registry entry brings parameterised cases with it) |
 | `tests/hub-harness.html` on `http://127.0.0.1:8671` | **16/16 pass**, including L-I10 (no banned DOM sinks, every gated file < 800 lines) |
-| Landing at 1280×720 | `scrollHeight == 720`, `scrollWidth == 1280` — no scroll |
-| Lobby at 1280×720, room open, manual player, 5 games | `scrollHeight == 720`; the game grid's `scrollHeight == clientHeight == 648` — everything fits, no inner scroll either |
+| Landing at 1280×720, **8 games** | `scrollHeight == 720`, `scrollWidth == 1280` — no scroll; the line-up strip keeps all eight cards on one row |
+| Lobby at 1280×720, room open, manual player, **8 games** | `scrollHeight == 720`; the game grid is 3 columns × 3 rows with `scrollHeight == clientHeight == 648` — everything fits, no inner scroll either |
 | Host in a game at 1280×720 | bar 44px + frame 676px = 720; page `scrollHeight == 720` |
 | Phone join at 320×640 | `scrollWidth == 320`, `scrollHeight == 640`; all 13 controls measure ≥ 56px tall (12 avatars 65×56, Join 278×56) |
 | Phone waiting at 320×640 | `scrollWidth == 320`, `scrollHeight == 640`; Leave 56px |
 | Splash | fires on `pickGame`, carries `data-gsc-game`, auto-hides after 1.2s, `pointer-events:none` |
 | Contrast | worst real pair on the hub is `--ink-mute` on a panel at **5.91:1**; `--ink-dim` 8.5:1, `--ink` 16.5:1, gold code 11.9:1, `--red` 6.4:1, `--green` 9.8:1, gold-button ink 11.4:1. All ≥ 4.5:1. |
 | Reduced motion | static gate: a scan of all four sheets finds **zero** `animation:` / `@keyframes` outside a `prefers-reduced-motion: no-preference` block, so under `reduce` no animation object is created at all |
-| No `innerHTML` / files < 800 lines | all shell and CSS files clean; largest is `shared/theme-components.css` at 700 |
+| No `innerHTML` / files < 800 lines | all shell and CSS files clean; largest is `css/hub.css` at 773 |
 
 Note for the tester on contrast tooling: `.btn-gold` and `.gsc-btn-primary` now
 declare a flat `background-color` under their gradient, so a DOM sampler reads

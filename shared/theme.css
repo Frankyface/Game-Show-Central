@@ -126,6 +126,20 @@
   --accent: #3346c8; --accent-2: #a06bff; --accent-ink: #ffffff;
   --stage-glow: #141c63;
 }
+[data-gsc-game="price-is-right"] {
+  /* carnival: red marquee, yellow bulbs, a blue stage. White on this red is
+     only 4.2:1, so the ink on the accent is near-black. */
+  --accent: #e63946; --accent-2: #ffd23f; --accent-ink: #1a0206;
+  --stage-glow: #123a86;
+}
+[data-gsc-game="pyramid"] {
+  --accent: #f4b400; --accent-2: #2ec4b6; --accent-ink: #241a02;
+  --stage-glow: #0b3b3c;
+}
+[data-gsc-game="deal-or-no-deal"] {
+  --accent: #b5121b; --accent-2: #f2c14e; --accent-ink: #ffffff;
+  --stage-glow: #4a0810;
+}
 
 /* ============================================================
    Base
