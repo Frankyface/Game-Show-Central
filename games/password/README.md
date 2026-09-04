@@ -159,7 +159,10 @@ python -m http.server 8620          # from the repo root
 ## 5. Tests
 
 ```bash
-cd games/password && node --test    # 54 unit tests, PW-U1 … PW-U10
+cd games/password && node --test    # 114 unit tests
+#   pwd-core.test.mjs        54  PW-U1 … PW-U10
+#   pwd-adversarial.test.mjs 43  leak crawls, rules, undo, frozen state
+#   pwd-fuzz.test.mjs        17  validator and phone-wire fuzzing
 ```
 
 Browser loopback harness (PW-I1 … PW-I6), served from the repo root:
@@ -184,7 +187,7 @@ the host document's text does not contain it anywhere.
 | `js/pwd-phone.js` | `GSC.player` glue: render a view, send one intent |
 | `js/data.js` | offline mirror of `words.json` |
 | `css/pwd.css`, `css/pwd-phone.css` | host and phone styles |
-| `tests/` | `pwd-core.test.mjs`, `pwd-fixtures.mjs`, `harness.html` |
+| `tests/` | `pwd-core.test.mjs`, `pwd-adversarial.test.mjs`, `pwd-fuzz.test.mjs`, `pwd-fixtures.mjs`, `harness.html` |
 
 `js/pwd-view.js` is a split out of `pwd-app.js` (the spec's file list names one
 `pwd-app.js`); both files would otherwise be over the 800-line house cap, the

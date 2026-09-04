@@ -1,7 +1,8 @@
 /* ============================================================
    Password — shared fixtures for the unit suites
    Deterministic builders and the leak assertion used by
-   tests/pwd-core.test.mjs and tests/pwd-adversarial.test.mjs.
+   tests/pwd-core.test.mjs, tests/pwd-adversarial.test.mjs and
+   tests/pwd-fuzz.test.mjs.
    Split out only to keep every file under the 800-line house cap.
    Pure: no DOM, no timers, no real randomness.
    ============================================================ */
@@ -93,6 +94,101 @@ export function scoreTo(state, team, points) {
  * password, and no view may carry a password the player is not entitled to.
  * @param {object} state @param {string[]} allowed pids that may see `word`
  */
+/* ============================================================
+   The adversarial harness (tests/pwd-adversarial.test.mjs)
+   ============================================================ */
+
+/** Real seats, a spectator, an empty id and two prototype-shaped ids. */
+export const PIDS = ["p1", "p2", "p3", "p4", "px", "", "__proto__", "constructor"];
+
+/** Every event the reducer answers to, in the shapes a host or a phone can send. */
+export const EVENTS = [
+  { type: "start" },
+  { type: "clueGiven" }, { type: "clueGiven", team: 0 }, { type: "clueGiven", team: 1 },
+  { type: "guess", result: "correct" }, { type: "guess", result: "wrong" },
+  { type: "illegal" }, { type: "setFirst", team: 0 }, { type: "setFirst", team: 1 },
+  { type: "skipWord" }, { type: "nextWord" },
+  { type: "toLightning" }, { type: "toLightning", giver: 0 }, { type: "toLightning", giver: 1 },
+  { type: "lightningStart" }, { type: "lightningPause" }, { type: "lightningExpired" },
+  { type: "lightningMark", result: "got" }, { type: "lightningMark", result: "pass" },
+  { type: "nextGame" }, { type: "finish" }, { type: "undo" },
+];
+
+/* The complete set of keys any phone view is allowed to carry. A key outside
+   this list is a new surface nobody has leak-tested. */
+const VIEW_KEYS = new Set([
+  "screen", "name", "team", "teamName", "points", "teamNames", "target", "sub",
+  "value", "clues", "turnTeam", "turnName", "yourTurn",
+  "word", "canClue", "canMark",
+  "count", "clock", "started", "money", "moneyText",
+  "mine", "won", "standings",
+]);
+
+/** Exactly the pids the spec lets see a password in this state — nobody else. */
+export function entitled(state) {
+  if (state.phase === "word" && state.round && !state.round.finished) return Core.giverPids(state);
+  if (state.phase === "lightning" && state.lightning && !state.lightning.finished) {
+    return [state.lightning.giverPid];
+  }
+  return [];
+}
+
+/** Every password this state is holding: the word in play and every Lightning word. */
+export function secretsOf(state) {
+  return [state.round ? state.round.word : null]
+    .concat(state.lightning ? state.lightning.words.map((w) => w.text) : [])
+    .filter(Boolean);
+}
+
+/**
+ * The invariant the whole game rests on, checked hard: nobody unentitled sees
+ * ANY password, an entitled giver sees ONLY the word they are clueing right
+ * now, and no view carries a key outside the audited set.
+ * @param {object} state @param {string} where a label for the failure message
+ */
+export function auditViews(state, where) {
+  const allowed = entitled(state);
+  const secrets = secretsOf(state);
+  PIDS.forEach((pid) => {
+    const view = Core.phoneView(state, pid);
+    Object.keys(view).forEach((k) => {
+      assert.ok(VIEW_KEYS.has(k), `${where}: phoneView(${pid}) has un-audited key "${k}"`);
+    });
+    const text = JSON.stringify(view);
+    if (allowed.indexOf(pid) < 0) {
+      secrets.forEach((secret) => {
+        assert.equal(text.indexOf(secret), -1, `${where}: phoneView(${pid}) leaked “${secret}” — ${text}`);
+      });
+      return;
+    }
+    const live = state.phase === "lightning"
+      ? Core.lightningWord(state) : (state.round && state.round.word);
+    assert.equal(view.word, live, `${where}: entitled ${pid} should hold the live word`);
+    secrets.filter((s) => s !== live).forEach((other) => {
+      assert.equal(text.indexOf(other), -1,
+        `${where}: giver ${pid} saw a password that is not in play yet — “${other}”`);
+    });
+  });
+}
+
+/** A game won by Team A with the Lightning Round already under way at t=1000. */
+export function lightningAt(opts) {
+  const o = Object.assign({ settings: {} }, opts || {});
+  o.settings = Object.assign({ targetScore: 10 }, o.settings);
+  let s = scoreTo(boot(o), 0, o.settings.targetScore);
+  s = Core.reduce(s, { type: "toLightning" }, 1000);
+  return Core.reduce(s, { type: "lightningStart" }, 1000);
+}
+
+/** Freeze a state and everything under it, so any write throws in strict mode. */
+export function deepFreeze(value, seen) {
+  const marks = seen || new Set();
+  if (!value || typeof value !== "object" || marks.has(value)) return value;
+  marks.add(value);
+  Object.getOwnPropertyNames(value).forEach((k) => deepFreeze(value[k], marks));
+  return Object.freeze(value);
+}
+
 export function assertNoLeak(state, allowed) {
   const secrets = [state.round ? state.round.word : null]
     .concat(state.lightning ? state.lightning.words.map((w) => w.text) : [])

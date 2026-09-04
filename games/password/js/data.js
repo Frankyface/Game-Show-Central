@@ -62,7 +62,7 @@ const PWD_DEFAULT_GAME = {
     "Victory",
     "Fluffy",
     "Dolphin",
-    "Polish",
+    "Sparkle",
     "Rumor",
     "Awkward",
     "Elbow",

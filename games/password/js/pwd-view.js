@@ -377,7 +377,8 @@ const PwdView = (function () {
     const start = $("btn-l-start");
     start.textContent = l.clock.running ? "Pause" : (l.started ? "Resume" : "Start the clock");
     start.disabled = !live || l.expired;
-    ["btn-l-got", "btn-l-pass"].forEach((id) => { $(id).disabled = !(live && l.started); });
+    const judging = live && l.started && (l.clock.running || l.expired);
+    ["btn-l-got", "btn-l-pass"].forEach((id) => { $(id).disabled = !judging; });
     $("btn-l-reveal").disabled = !live;
     $("btn-l-reveal").setAttribute("aria-pressed", String(!!app.lightningReveal));
     $("btn-l-reveal").textContent = app.lightningReveal ? "Hide the words" : "Show words to me";
@@ -424,6 +425,10 @@ const PwdView = (function () {
   function render(app) {
     const which = screenFor(app);
     SCREENS.forEach((name) => show($(`screen-${name}`), name === which));
+    // A screen we are leaving is never repainted, so a revealed password would
+    // sit in its (hidden) panel for the rest of the night. Empty them here.
+    if (which !== "word" && $("pwd-word-panel")) $("pwd-word-panel").replaceChildren();
+    if (which !== "lightning" && $("pwd-l-panel")) $("pwd-l-panel").replaceChildren();
     if (which === "setup") renderSetup(app);
     if (!app.core) return;
     if (which === "word") renderWord(app);

@@ -384,6 +384,10 @@
   function evLightningMark(state, ev) {
     const l = state.lightning;
     if (state.phase !== "lightning" || !l || l.finished || !l.started) return state;
+    // A pause is the host stopping play: nothing is judged off the clock, from
+    // the host's buttons, the hotkeys or a phone (the buzzer is the exception —
+    // the word in flight is still judged). Same rule as phoneCanMark.
+    if (!l.clock.running && !l.expired) return state;
     if (LIGHTNING_MARKS.indexOf(ev.result) < 0 || !l.words[l.cursor]) return state;
     const status = ev.result === "got" ? "got" : "passed";
     const words = l.words.map((w, i) => (i === l.cursor ? { text: w.text, status } : w));
