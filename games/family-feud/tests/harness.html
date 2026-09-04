@@ -37,6 +37,7 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-x.js"></script>
   <script>
   (function () {
     "use strict";
@@ -101,6 +102,8 @@
 
     const ASSETS = [
       "../js/feud-content.js", "../js/feud-core.js", "../js/feud-app.js", "../js/feud-fm.js",
+      "../js/feud-setup.js",
+      "../tests/harness-x.js",
       "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
       "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
       "../css/feud.css", "../css/feud-board.css", "../css/feud-phone.css", "../css/timer.css", "../questions.json",
@@ -114,7 +117,12 @@
 
     /* ============ The mini shell (bridge protocol, 00 §6) ============ */
 
-    const HOST_SRC = "../index.html?embed=host&harness=1";
+    // ?store=harness namespaces this run's localStorage, so a test can never
+    // leave harness teams or a half-played game in the real host's save.
+    const STORE = "harness";
+    const HOST_SRC = `../index.html?embed=host&harness=1&store=${STORE}`;
+    const STATE_KEY = `gsc-family-feud-state-v1-${STORE}`;
+    const DRAFT_KEY = `gsc-family-feud-draft-v1-${STORE}`;
     const ROOM_CODE = "TEST";
     const hostFrame = document.getElementById("host");
     const phoneHost = document.getElementById("phones");
@@ -190,7 +198,7 @@
 
     async function bootHost(clearStorage) {
       if (clearStorage !== false) {
-        localStorage.removeItem("gsc-family-feud-state-v1");
+        localStorage.removeItem(STATE_KEY);
       }
       hostReady = false;
       await fetch(HOST_SRC, { cache: "reload" });
@@ -211,7 +219,8 @@
       phoneHost.appendChild(iframe);
       const entry = { iframe, pid, name };
       phones.set(pid, entry);
-      await loadFrame(iframe, `../index.html?embed=player&harness=1&pid=${pid}&name=${encodeURIComponent(name)}`);
+      await loadFrame(iframe,
+        `../index.html?embed=player&harness=1&store=${STORE}&pid=${pid}&name=${encodeURIComponent(name)}`);
       toHost({ t: "player-join", player });
       await waitFor(() => iframe.contentWindow.FeudPhone && iframe.contentWindow.FeudPhone.getView(),
         `phone ${name} first view`);
@@ -467,7 +476,7 @@
     /* ============ F-I5 — the editor round-trips ============ */
 
     async function testEditor() {
-      localStorage.removeItem("gsc-family-feud-draft-v1");
+      localStorage.removeItem(DRAFT_KEY);
       await bootHost();
       clickHost("Question Editor");
       await waitFor(() => !HD().getElementById("screen-editor").classList.contains("hidden"), "editor open");
@@ -529,12 +538,10 @@
       check("F-I5 the edited counts are what the board will use",
         hostState().game.rounds[0].answers[0].count === 95,
         `top answer count ${hostState().game.rounds[0].answers[0].count}`);
-      localStorage.removeItem("gsc-family-feud-draft-v1");
+      localStorage.removeItem(DRAFT_KEY);
     }
 
     /* ============ F-I7 — a new room never inherits the old room's seats ============ */
-
-    const STATE_KEY = "gsc-family-feud-state-v1";
 
     async function testRoomBinding() {
       // Clear the harness roster BEFORE booting, so the host's `init` carries an
@@ -617,6 +624,8 @@
     const SOURCE_FILES = [
       "../index.html",
       "../js/feud-content.js", "../js/feud-core.js", "../js/feud-app.js", "../js/feud-fm.js",
+      "../js/feud-setup.js",
+      "../tests/harness-x.js",
       "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
       "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
       "../css/feud.css", "../css/feud-board.css", "../css/feud-phone.css", "../css/timer.css",
@@ -682,6 +691,14 @@
         await testFastMoney();
         await testEditor();
         await testRoomBinding();
+        const X = window.FeudHarnessX({
+          check, waitFor, sleep, HD, HW, hostState, bootHost, resetPhones,
+          clickHost, dispatchHost, loadFrame, hostFrame, HOST_SRC, DRAFT_KEY,
+          setHostReady: (value) => { hostReady = value; },
+        });
+        await X.testGameLobby();
+        await X.testLibrary();
+        await X.testLibraryExport();
         await testStaticGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

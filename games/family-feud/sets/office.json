@@ -1,0 +1,128 @@
+{
+  "title": "Family Feud — Office Party",
+  "settings": {
+    "strikes": 3,
+    "multipliers": [1, 1, 2, 3],
+    "fastMoney": { "enabled": true, "target": 200, "timer1": 20, "timer2": 25 }
+  },
+  "rounds": [
+    {
+      "question": "Name something people do in a meeting that could have been an email.",
+      "answers": [
+        { "text": "Check their phone", "count": 33 },
+        { "text": "Doodle", "count": 22 },
+        { "text": "Nod along", "count": 18 },
+        { "text": "Mute and eat", "count": 13 },
+        { "text": "Watch the clock", "count": 9 }
+      ]
+    },
+    {
+      "question": "Name something that disappears from the office kitchen.",
+      "answers": [
+        { "text": "Milk", "count": 36 },
+        { "text": "Someone's lunch", "count": 24 },
+        { "text": "Teaspoons", "count": 16 },
+        { "text": "Biscuits", "count": 14 },
+        { "text": "Mugs", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name an excuse for leaving the office party early.",
+      "answers": [
+        { "text": "Early start tomorrow", "count": 30 },
+        { "text": "The babysitter", "count": 23 },
+        { "text": "Last train", "count": 20 },
+        { "text": "A headache", "count": 14 },
+        { "text": "The dog", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name something people keep on their desk.",
+      "answers": [
+        { "text": "A mug", "count": 32 },
+        { "text": "Photos", "count": 21 },
+        { "text": "A plant", "count": 18 },
+        { "text": "Snacks", "count": 15 },
+        { "text": "Sticky notes", "count": 10 }
+      ]
+    },
+    {
+      "question": "Name a phrase you hear on every video call.",
+      "answers": [
+        { "text": "You're on mute", "count": 41 },
+        { "text": "Can everyone hear me?", "count": 22 },
+        { "text": "Let's take that offline", "count": 15 },
+        { "text": "Sorry, you go ahead", "count": 12 },
+        { "text": "I'll share my screen", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name something people fight over in an office.",
+      "answers": [
+        { "text": "The thermostat", "count": 34 },
+        { "text": "The last parking space", "count": 22 },
+        { "text": "The good chair", "count": 17 },
+        { "text": "The radio station", "count": 13 },
+        { "text": "The window blinds", "count": 9 }
+      ]
+    }
+  ],
+  "fastMoney": [
+    {
+      "question": "Name a drink people bring to their desk.",
+      "answers": [
+        { "text": "Coffee", "count": 52 },
+        { "text": "Tea", "count": 24 },
+        { "text": "Water", "count": 14 },
+        { "text": "Energy drink", "count": 6 }
+      ]
+    },
+    {
+      "question": "Name a day of the week people dread.",
+      "answers": [
+        { "text": "Monday", "count": 68 },
+        { "text": "Sunday", "count": 14 },
+        { "text": "Tuesday", "count": 9 },
+        { "text": "Thursday", "count": 5 }
+      ]
+    },
+    {
+      "question": "Name something you would never say to your boss.",
+      "answers": [
+        { "text": "No", "count": 34 },
+        { "text": "That's not my job", "count": 27 },
+        { "text": "You're wrong", "count": 21 },
+        { "text": "I'm leaving", "count": 12 }
+      ]
+    },
+    {
+      "question": "Name a place people go for a work lunch.",
+      "answers": [
+        { "text": "A cafe", "count": 33 },
+        { "text": "The office kitchen", "count": 25 },
+        { "text": "A sandwich shop", "count": 20 },
+        { "text": "The park", "count": 14 },
+        { "text": "Their desk", "count": 7 }
+      ]
+    },
+    {
+      "question": "Name something people put in an out-of-office message.",
+      "answers": [
+        { "text": "The date they're back", "count": 42 },
+        { "text": "A colleague to contact", "count": 27 },
+        { "text": "Where they are", "count": 16 },
+        { "text": "An apology", "count": 9 }
+      ]
+    },
+    {
+      "question": "Name a gift people get at a work secret santa.",
+      "answers": [
+        { "text": "A mug", "count": 34 },
+        { "text": "Socks", "count": 26 },
+        { "text": "Chocolate", "count": 20 },
+        { "text": "A candle", "count": 12 },
+        { "text": "A gift card", "count": 6 }
+      ]
+    }
+  ]
+}

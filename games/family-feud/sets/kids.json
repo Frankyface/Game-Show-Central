@@ -1,0 +1,128 @@
+{
+  "title": "Family Feud — Kids' Night",
+  "settings": {
+    "strikes": 3,
+    "multipliers": [1, 1, 2, 3],
+    "fastMoney": { "enabled": true, "target": 200, "timer1": 25, "timer2": 30 }
+  },
+  "rounds": [
+    {
+      "question": "Name something a kid asks for at the grocery store.",
+      "answers": [
+        { "text": "Candy", "count": 39 },
+        { "text": "Cereal", "count": 21 },
+        { "text": "Cookies", "count": 15 },
+        { "text": "Ice cream", "count": 12 },
+        { "text": "A toy", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name something you find at a playground.",
+      "answers": [
+        { "text": "Slide", "count": 35 },
+        { "text": "Swings", "count": 30 },
+        { "text": "Monkey bars", "count": 14 },
+        { "text": "Sandbox", "count": 11 },
+        { "text": "See-saw", "count": 6 }
+      ]
+    },
+    {
+      "question": "Name a chore kids try to get out of.",
+      "answers": [
+        { "text": "Dishes", "count": 28 },
+        { "text": "Cleaning their room", "count": 26 },
+        { "text": "Taking out the trash", "count": 18 },
+        { "text": "Homework", "count": 14 },
+        { "text": "Walking the dog", "count": 9 }
+      ]
+    },
+    {
+      "question": "Name an animal a kid would want as a pet.",
+      "answers": [
+        { "text": "Dog", "count": 42 },
+        { "text": "Cat", "count": 24 },
+        { "text": "Hamster", "count": 12 },
+        { "text": "Rabbit", "count": 9 },
+        { "text": "Fish", "count": 7 }
+      ]
+    },
+    {
+      "question": "Name something you take to school on the first day.",
+      "answers": [
+        { "text": "Backpack", "count": 34 },
+        { "text": "New shoes", "count": 20 },
+        { "text": "Pencils", "count": 17 },
+        { "text": "Lunchbox", "count": 15 },
+        { "text": "Nerves", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name something kids build with.",
+      "answers": [
+        { "text": "Blocks", "count": 36 },
+        { "text": "Sand", "count": 22 },
+        { "text": "Cardboard boxes", "count": 17 },
+        { "text": "Pillows", "count": 12 },
+        { "text": "Snow", "count": 8 }
+      ]
+    }
+  ],
+  "fastMoney": [
+    {
+      "question": "Name a colour in a rainbow.",
+      "answers": [
+        { "text": "Red", "count": 31 },
+        { "text": "Blue", "count": 26 },
+        { "text": "Green", "count": 19 },
+        { "text": "Yellow", "count": 15 },
+        { "text": "Purple", "count": 6 }
+      ]
+    },
+    {
+      "question": "Name something a kid puts under their pillow.",
+      "answers": [
+        { "text": "A tooth", "count": 55 },
+        { "text": "A stuffed animal", "count": 20 },
+        { "text": "A book", "count": 12 },
+        { "text": "Candy", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name a fruit you would put in a lunchbox.",
+      "answers": [
+        { "text": "Apple", "count": 44 },
+        { "text": "Banana", "count": 28 },
+        { "text": "Grapes", "count": 16 },
+        { "text": "Orange", "count": 7 }
+      ]
+    },
+    {
+      "question": "Name something you do at a birthday party.",
+      "answers": [
+        { "text": "Eat cake", "count": 40 },
+        { "text": "Open presents", "count": 25 },
+        { "text": "Play games", "count": 18 },
+        { "text": "Sing", "count": 12 }
+      ]
+    },
+    {
+      "question": "Name a place a family goes on a day out.",
+      "answers": [
+        { "text": "The zoo", "count": 30 },
+        { "text": "The beach", "count": 25 },
+        { "text": "The park", "count": 21 },
+        { "text": "A museum", "count": 13 },
+        { "text": "The cinema", "count": 8 }
+      ]
+    },
+    {
+      "question": "Name something that comes in a set of two.",
+      "answers": [
+        { "text": "Shoes", "count": 37 },
+        { "text": "Socks", "count": 27 },
+        { "text": "Gloves", "count": 18 },
+        { "text": "Eyes", "count": 11 }
+      ]
+    }
+  ]
+}

@@ -12,7 +12,8 @@
 
 const FeudEditor = (function () {
   const { $, el, button, show } = window.FeudApp.helpers;
-  const EDITOR_KEY = "gsc-family-feud-draft-v1";
+  // Namespaced by ?store= the same way the saved game is (feud-app.js).
+  const EDITOR_KEY = `gsc-family-feud-draft-v1${window.FeudApp.storeSuffix()}`;
   const DEFAULT_ANSWERS = 4;
 
   let draft = null;
@@ -65,6 +66,7 @@ const FeudEditor = (function () {
       $("editor-save-warning").textContent =
         "Draft too large to auto-save in this browser — use Download JSON to keep your work.";
     }
+    hideLibraryNote();
     renderWarnings();
   }
 
@@ -96,6 +98,12 @@ const FeudEditor = (function () {
     saveDraft();
     document.body.classList.remove("editor-open");
     show($("screen-editor"), false);
+  }
+
+  /** The manifest note is stale the moment the draft changes again. */
+  function hideLibraryNote() {
+    const host = $("editor-library-note");
+    if (host && !host.classList.contains("hidden")) show(host, false);
   }
 
   function resetTo(next) {
@@ -138,18 +146,70 @@ const FeudEditor = (function () {
     }
   }
 
-  function download() {
-    if (!validateDraft()) return;
-    const json = `${JSON.stringify(cleanDraft(), null, 2)}\n`;
-    const blob = new Blob([json], { type: "application/json" });
+  /** Push `text` to the browser as a download named `filename`. */
+  function saveFile(text, filename) {
+    const blob = new Blob([text], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "questions.json";
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  }
+
+  function download() {
+    if (!validateDraft()) return;
+    saveFile(JSON.stringify(cleanDraft(), null, 2) + "\n", "questions.json");
+  }
+
+  /** A file name for the library, derived from the draft title. */
+  function libraryFileName() {
+    const stem = String(draft.title || "set").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+    return (stem || "set") + ".json";
+  }
+
+  /**
+   * Download for the library (19 §2). Static hosting cannot write into the
+   * repo, so the honest workflow is: download the file, drop it in sets/, and
+   * paste the manifest line printed below into sets/index.json.
+   */
+  function downloadForLibrary() {
+    if (!validateDraft()) return;
+    const data = cleanDraft();
+    const file = libraryFileName();
+    saveFile(JSON.stringify(data, null, 2) + "\n", file);
+    showLibraryNote(data, file);
+  }
+
+  function showLibraryNote(data, file) {
+    const entry = {
+      file,
+      name: String(data.title || "Untitled set").slice(0, 60),
+      description: "",
+      by: "",
+      counts: { rounds: data.rounds.length, "fast money": (data.fastMoney || []).length },
+    };
+    const host = $("editor-library-note");
+    host.replaceChildren();
+    host.appendChild(el("p", "editor-library-title", "Saved " + file + ". Two steps to publish it:"));
+    const steps = el("ol", "editor-library-steps");
+    const one = el("li");
+    one.appendChild(document.createTextNode("Commit the file you just downloaded to "));
+    one.appendChild(el("code", null, "games/family-feud/sets/" + file));
+    steps.appendChild(one);
+    const two = el("li");
+    two.appendChild(document.createTextNode("Add this line to the array in "));
+    two.appendChild(el("code", null, "games/family-feud/sets/index.json"));
+    two.appendChild(document.createTextNode(" (fill in the description and your name):"));
+    steps.appendChild(two);
+    host.appendChild(steps);
+    const line = el("pre", "editor-library-line");
+    line.appendChild(el("code", null, JSON.stringify(entry)));
+    host.appendChild(line);
+    show(host, true);
   }
 
   function useInGame() {
@@ -361,6 +421,7 @@ const FeudEditor = (function () {
     $("btn-editor-setup").addEventListener("click", open);
     $("btn-editor-close").addEventListener("click", close);
     $("btn-editor-download").addEventListener("click", download);
+    $("btn-editor-library").addEventListener("click", downloadForLibrary);
     $("btn-editor-use").addEventListener("click", useInGame);
     $("editor-title").addEventListener("input", (event) => {
       draft.title = event.target.value;
@@ -389,7 +450,10 @@ const FeudEditor = (function () {
     wireSettings();
   }
 
-  return { wire, open, close, download, useInGame, cleanDraft, getDraft: () => draft };
+  return {
+    wire, open, close, download, downloadForLibrary, useInGame, cleanDraft,
+    libraryFileName, getDraft: () => draft,
+  };
 })();
 
 window.FeudEditor = FeudEditor;

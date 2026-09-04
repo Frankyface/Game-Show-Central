@@ -1,0 +1,16 @@
+[
+  {
+    "file": "kids.json",
+    "name": "Kids' night",
+    "description": "Playground, lunchbox and bedtime surveys — nothing a nine-year-old can't answer.",
+    "by": "GSC",
+    "counts": { "rounds": 6, "fast money": 6 }
+  },
+  {
+    "file": "office.json",
+    "name": "Office party",
+    "description": "Meetings, the shared fridge and 'you're on mute' — for the end-of-year call.",
+    "by": "GSC",
+    "counts": { "rounds": 6, "fast money": 6 }
+  }
+]

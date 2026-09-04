@@ -385,3 +385,109 @@ first select each time, which is what misled me.)
 - The tester's note on deviation 9 stands: `feud.css` re-declares the shared
   tokens and `.btn`, so a future change in `shared/theme.css` will not reach this
   game until that duplicated `:root` block is deleted.
+
+---
+
+## 9. Cross-cutting round (docs/19)
+
+Scope: §1 the Game lobby control, §2 the question-set library, §3's
+`?store=NAME` namespacing. §3's three game fixes are other components'.
+
+Re-run after the changes: **`node --test` 87/87**, **harness 84/84**
+(`All 84 loopback checks passed.`, `uncaught: null`) served from
+`python -m http.server 8642 --bind 127.0.0.1`. 33 of those 84 are new
+(17 X-1, 9 X-2, 7 X-3).
+
+### §1 — the Game lobby control
+
+`btn-game-lobby` ("⟲ Game lobby") sits in the host toolbar between Sound and
+Question Editor, visible from every phase except setup, where there is nothing
+to park. It opens a real `role="dialog" aria-modal="true"` confirm (Esc and
+Cancel close it, focus lands on the first choice) offering:
+
+- **Keep this game** — snapshots the game into `state.resumable` and returns to
+  setup, which then shows a **Resume this game** card naming the round and the
+  scores. Resume restores the snapshot exactly, undo history included.
+- **Start over** — clears the game; roster, content, team names, rounds-to-play
+  and the Fast Money setting all stay.
+
+The snapshot stores everything but the content and any nested snapshot, so it
+costs a few KB and cannot recurse. It rides in the saved state, so a parked
+game survives a reload. Loading new content (upload, editor, a library set) or
+pressing Start retires it, because a snapshot taken against different questions
+could not be restored honestly.
+
+- Files: `js/feud-setup.js` (the whole flow), `js/feud-app.js`
+  (`render` visibility, `startGame`, persistence tolerance), `index.html`,
+  `css/feud.css`.
+- Verified embedded by X-1's 17 harness checks and standalone by hand:
+  `mode:"standalone-host"`, label `⟲ Game lobby`, dialog opens with focus on
+  Keep, Esc closes, Keep → Resume → `resumedExactly: true`, Start over →
+  `{phase:"setup", bank:0, strikes:0, scores:[0,0], card:false}` with the
+  content and hand-typed roster intact.
+
+### §2 — the question-set library
+
+`sets/index.json` lists two new sets committed beside the default file, each
+6 rounds + 6 Fast Money questions of original, family-friendly content:
+**Kids' night** (`kids.json`) and **Office party** (`office.json`). Both pass
+`validateGame` with no `warningsFor` output.
+
+`GSCLibrary.mountPicker` is mounted into `#questions-library` under the existing
+Questions section, wired to this game's own `validateGame`; `onPick` routes
+through a new `useContent()` that sets the source note to `set: <name>`. The
+picker is entirely optional — no `shared/library.js`, no `sets/` folder or a
+page opened from disk and it says so in plain English and hides itself.
+
+The editor gained **Download for the library**: it saves the draft under a file
+name derived from the title (`office-party.json`) and prints the two paths to
+commit plus the exact `sets/index.json` line, which the shared
+`GSCLibrary.parseManifest` accepts. The note retires itself the moment the draft
+changes again, so it can never name a stale file.
+
+- Files: `sets/index.json`, `sets/kids.json`, `sets/office.json`,
+  `js/feud-setup.js` (`useContent`, `mountLibrary`), `js/feud-editor.js`
+  (`saveFile`, `libraryFileName`, `downloadForLibrary`, `showLibraryNote`),
+  `index.html`, `css/feud.css`.
+- X-2 pins the listing, the preview line, a real load (`set: Office party`,
+  6 rounds, still playable), a set that fails `validateGame` being refused with
+  the validator's own words while the current content stays put, a broken
+  manifest, and the from-disk case. X-3 pins the export end to end.
+
+### §3 — `?store=NAME`
+
+`feudStoreSuffix()` (same shape as `games/price-is-right`) namespaces both
+`gsc-family-feud-state-v1` and `gsc-family-feud-draft-v1`; the harness runs on
+`?store=harness`. Confirmed live: three independent keys coexist on one origin
+(`…-v1`, `…-v1-harness`, `…-v1-manual`).
+
+### Two bugs this round surfaced
+
+1. **The cross-file export was evaluated too early.** Splitting the setup half
+   out meant `window.FeudApp = { useContent, … }` in `feud-app.js` referenced
+   functions that had not been defined yet, and the page died on load with
+   `useContent is not defined`. The five cross-file names are now thin wrappers
+   that resolve at call time.
+2. **The Start button kept its "Start a fresh game" label** after the parked
+   game was resumed or discarded, because `renderResumeCard` only set the label
+   in the parked branch. It now sets it both ways — caught by X-1, which failed
+   with `no enabled button "Start the Feud"` on the first run.
+
+### Housekeeping
+
+- `js/feud-app.js` reached 936 lines once the lobby and library landed, so the
+  setup screen, the picker and the lobby flow moved to **`js/feud-setup.js`**
+  (306 lines; `feud-app.js` is now 648). `tests/harness.html` reached 981, so
+  the X scenarios moved to **`tests/harness-x.js`** (298 lines; the harness is
+  now 712), which the harness loads and hands a helper kit. Both new files are
+  in the harness's cache-refresh list and its F-I6 gate.
+- `shared/theme-components.css` is now linked (the picker's `.gsc-library`
+  styles live there). Every selector in it is `.gsc-*`, so nothing in this
+  game's own sheet is affected; it loads before `css/feud.css` so the Feud
+  palette still wins.
+- Static gates re-run clean: 21 files, largest 798 (the tester's suite), largest
+  product file `css/feud-board.css` at 721; no markup or dynamic-code sinks, no
+  `console.log`, no new external URLs, no console errors.
+- Spec deviation to note: docs/19 §1 says the control is "next to Sound /
+  Editor"; here it sits **between** them.
+- No server is left running.

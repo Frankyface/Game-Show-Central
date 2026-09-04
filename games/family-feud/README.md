@@ -55,12 +55,55 @@ screen and read out the four-letter code. Players open the same page with
 8. **Final standings** — **Play again** (same teams, scores reset) or **Back to
    setup**.
 
+**⟲ Game lobby** in the top bar gets you back to this game's own setup
+screen from any phase, without going out to the hub. It asks first:
+
+- **Keep this game** parks it. Setup then shows a **Resume this game** card
+  naming the round and the scores; pressing it puts the board back exactly as
+  it was, undo history and all. The parked game is part of the save, so it
+  survives a reload — and **Start a fresh game** beside it does what it says.
+- **Start over** throws the game away. Teams, players, questions and settings
+  all stay, so you are one press from a new match with the same room.
+
+Cancel (or Esc) changes nothing.
+
 **Undo** in the top bar rewinds the last game action (30 steps deep) and never
 touches the roster. Click a team's score to type a correction. 🔊 toggles the
 synthesised sounds and the choice sticks. The game auto-saves after every
 action — a refresh drops you back exactly where you were.
 
 ---
+
+## Question sets
+
+`sets/` holds extra content files committed next to the game, listed in
+`sets/index.json`. The setup screen's **Question sets in this repo** picker
+reads that manifest, previews the highlighted set and loads it on **Load set** —
+through the same `validateGame` every other content path uses, so a broken set
+is refused with the validator's own words and the current game is untouched.
+The source note then reads `set: Kids' night`.
+
+| Set | What's in it |
+|---|---|
+| `kids.json` — **Kids' night** | 6 rounds + 6 Fast Money questions: playground, lunchbox, chores and bedtime. Longer Fast Money clocks (25 s / 30 s). |
+| `office.json` — **Office party** | 6 rounds + 6 Fast Money questions: meetings, the shared fridge and "you're on mute". |
+
+`questions.json` stays the default; the picker only changes what is loaded.
+
+### Adding a set
+
+Static hosting can't write into the repo, so the workflow is explicit:
+
+1. Build the game in the editor, then press **Download for the library**. It
+   saves a file named from the title (`office-party.json`) and prints the exact
+   manifest line plus the two paths involved.
+2. Commit the file to `games/family-feud/sets/`.
+3. Paste that line into the array in `games/family-feud/sets/index.json`,
+   filling in `description` and `by`.
+
+Manifest entries are `{ "file", "name", "description", "by", "counts" }`;
+`file` must be a bare `*.json` name sitting in `sets/`. The shared reader keeps
+at most 50 entries and silently drops malformed rows.
 
 ## Questions JSON
 
@@ -170,6 +213,10 @@ games/family-feud/
   index.html              host screens + phone screens in one page
   questions.json          the default surveys (6 rounds + 8 Fast Money)
   README.md               this file
+  sets/
+    index.json            the library manifest
+    kids.json             "Kids' night"
+    office.json           "Office party"
   css/
     feud.css              host stage: palette, board, tiles, strikes, Fast Money
     feud-phone.css        phone controller + the question editor
@@ -177,7 +224,8 @@ games/family-feud/
   js/
     feud-content.js       PURE (UMD FeudContent): validateGame / normalizeGame / warningsFor
     feud-core.js          PURE (UMD FeudCore): createState / reduce / selectors / validatePhoneMsg
-    feud-app.js           host glue: state, localStorage, setup + board + standings
+    feud-app.js           host glue: state, localStorage, board + standings
+    feud-setup.js         setup screen, the set picker, Game lobby / Resume
     feud-fm.js            the Fast Money screen
     feud-editor.js        the question editor
     feud-room.js          GSC.host glue: roster, inbound validation, outbound views
@@ -189,26 +237,35 @@ games/family-feud/
     data.js               offline mirror of questions.json
   tests/
     feud-core.test.mjs    node:test unit suite (F-U1–F-U10)
-    harness.html          loopback browser harness (F-I1–F-I6)
+    feud-adversarial.test.mjs  the tester's adversarial suite
+    harness.html          loopback browser harness (F-I1–F-I7)
+    harness-x.js          the cross-cutting scenarios (X-1–X-3)
 ```
 
 `FeudCore` re-exports everything in `FeudContent`, so game code and tests only
 ever need `FeudCore`. Storage keys: `gsc-family-feud-state-v1` (the game),
 `gsc-family-feud-draft-v1` (the editor draft), `gsc-sound` (shared 🔊 setting).
 
+`?store=NAME` moves the first two into their own namespace
+(`gsc-family-feud-state-v1-NAME`). The harness runs on `?store=harness`, so a
+test run can never overwrite a real game saved on the same origin. Letters,
+digits and hyphens only.
+
 ---
 
 ## Tests
 
 ```bash
-cd games/family-feud && node --test        # F-U1–F-U10, zero deps
+cd games/family-feud && node --test        # 87 tests, zero deps
 python -m http.server 8620                 # from the repo root, then open
-# http://localhost:8620/games/family-feud/tests/harness.html   → F-I1–F-I6
+# http://localhost:8620/games/family-feud/tests/harness.html
+#   → F-I1–F-I7 (this game) and X-1–X-3 (the cross-cutting round)
 ```
 
 The harness is its own shell: it loads the real page in one host iframe and four
 phone iframes and speaks the bridge protocol from `docs/00-architecture.md` §6
-directly — no PeerJS, no hub. `#summary.ok` means everything passed.
+directly — no PeerJS, no hub. It runs on `?store=harness`, so it cannot touch a
+real saved game on the same origin. `#summary.ok` means everything passed.
 
 ## Known issues
 
