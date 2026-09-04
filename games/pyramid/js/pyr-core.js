@@ -338,6 +338,9 @@
     const decided = pairDone && scores[0] !== scores[1];
     const outOfWords = next < 0;
     const finished = decided || outOfWords;
+    // Only COMPLETE pairs decide it: spec 11 §1 is "one word each", so if the
+    // words run out mid-pair the unmatched word cannot win it — the host picks.
+    const settled = pairDone ? scores : r.tbScores;
     const team = finished ? r.team : (pairDone ? 0 : 1 - r.team);
     // The roles follow the team, so the next word is given by the right player.
     const roles = rolesFor(state, team, playedBy(state, team));
@@ -345,7 +348,7 @@
       words,
       tbScores: scores,
       tbTurns: turns,
-      tbWinner: scores[0] === scores[1] ? null : (scores[0] > scores[1] ? 0 : 1),
+      tbWinner: settled[0] === settled[1] ? null : (settled[0] > settled[1] ? 0 : 1),
       cursor: outOfWords ? r.cursor : next,
       finished,
       team,
