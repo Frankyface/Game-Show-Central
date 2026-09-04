@@ -142,8 +142,9 @@
   function reduce(state, event) {
     if (!state || typeof state !== "object") return state;
     if (!event || typeof event !== "object" || typeof event.type !== "string") return state;
-    const handler = HANDLERS[event.type];
-    if (!handler) return state;
+    // Own-property lookup: a prototype-shaped type ("toString", "__proto__") must never reach a handler.
+    const handler = Object.prototype.hasOwnProperty.call(HANDLERS, event.type) ? HANDLERS[event.type] : null;
+    if (typeof handler !== "function") return state;
     const next = handler(state, event);
     if (!next || next === state) return state;
     if (event.type === "undo") return next;

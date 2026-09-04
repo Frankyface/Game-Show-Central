@@ -439,8 +439,9 @@
       @param {object} state @param {{type:string}} event @param {number} [now] */
   function reduce(state, event, now) {
     if (!state || !isPlainObject(event) || typeof event.type !== "string") return state;
-    const handler = HANDLERS[event.type];
-    if (!handler) return state;
+    // Own-property lookup: a prototype-shaped type ("toString", "__proto__") must never reach a handler.
+    const handler = Object.prototype.hasOwnProperty.call(HANDLERS, event.type) ? HANDLERS[event.type] : null;
+    if (typeof handler !== "function") return state;
     const at = Number.isFinite(now) ? now : 0;
     const next = handler(state, event, at);
     if (!next || next === state) return state;
