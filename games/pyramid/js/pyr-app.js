@@ -11,7 +11,22 @@
 
 "use strict";
 
-const PYR_STORAGE_KEY = "gsc-pyr-state-v1";
+/**
+ * `?store=NAME` moves this page's localStorage into its own namespace. The
+ * loopback harness uses `?store=harness` so a test run cannot leave harness
+ * categories (or a half-played game, or its four fixture players) in the real
+ * host's save on the same origin. Anything but letters, digits and hyphens is
+ * stripped. The 🔊 preference is deliberately NOT namespaced: `gsc-sound` is
+ * shared with the whole hub (architecture 00 §10).
+ */
+function pyrStoreSuffix() {
+  if (typeof location === "undefined") return "";
+  const raw = new URLSearchParams(location.search).get("store") || "";
+  const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+  return clean ? `-${clean}` : "";
+}
+
+const PYR_STORAGE_KEY = `gsc-pyr-state-v1${pyrStoreSuffix()}`;
 const PYR_STUDY_MS = 10000;
 
 /* ============ App state ============ */
@@ -728,6 +743,7 @@ window.PyrApp = {
   showSplash: pyrShowSplash,
   setPhoneCount: (n) => { if (n !== pyrApp.phoneCount) pyrSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: PYR_STORAGE_KEY,
+  storeSuffix: pyrStoreSuffix,
 };
 
 if (document.readyState === "loading") {

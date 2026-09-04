@@ -208,10 +208,9 @@ The spec is normative; these are the places where it left room and I chose.
 - The tiebreak always leads off with Team A.
 - No hand-over button for the Winner's Circle giver in the UI (the core supports
   it).
-- The harness and the real game share `localStorage` on the same origin, so
-  running the harness leaves its fixture as the saved game for the next visit to
-  `games/pyramid/`. Every game in the repo behaves this way; the fix is one
-  click of **Reset to shipped** in the editor, or clearing the save.
+- ~~The harness and the real game share `localStorage` on the same origin~~ —
+  **closed**: the harness runs under `?store=harness` and writes only to its own
+  namespaced keys (see §9).
 - Real-network testing used one browser profile on one machine; a check across
   two physical devices is still worth doing before a game night.
 
@@ -307,6 +306,32 @@ local glow value; the theme's is darker, so every measured pair improved.
   escape ` `, so all three test files are pure printable ASCII and no
   longer read as binary to `grep` and `file`.
 
+
+### `?store=NAME` — the harness no longer writes to the real save
+
+Cross-cutting fix, same shape as `games/price-is-right`. `pyrStoreSuffix()` in
+`pyr-app.js` reads `?store=NAME` and suffixes every localStorage key this page
+owns — `gsc-pyr-state-v1` and, through `PyrApp.storeSuffix()`,
+`gsc-pyr-draft-v1`. Anything outside `[A-Za-z0-9-]` is stripped and the name is
+capped at 24 characters (`?store=../../evil name!` resolves to
+`gsc-pyr-state-v1-evilname`). No parameter means no suffix, so an ordinary visit
+keeps the keys it always had.
+
+`tests/harness.html` now loads both frames with `&store=harness` and clears
+`gsc-pyr-state-v1-harness` / `gsc-pyr-draft-v1-harness` between boots, so a test
+run can no longer leave its fixture categories, its half-played game or its four
+fixture players in the real host's save on the same origin — the known limit
+listed in §8, now closed.
+
+`gsc-sound` is deliberately **not** namespaced: the 🔊 preference is shared with
+the whole hub (architecture 00 §10).
+
+Proved rather than assumed: the harness writes a sentinel into the two real keys
+before it boots anything and asserts in the gates that both still hold it
+(`Y-I6 ?store=harness keeps this run out of the real host's saved game`), then
+removes them. `node --test` → **95 pass, 0 fail**; harness on port 8692 → **All
+67 checks passed** (66 + the new one).
+
 ### Not changed, and why
 
 - **Y-8** is documentation only and is now correct in the README; the
@@ -323,7 +348,7 @@ local glow value; the theme's is darker, so every measured pair improved.
 | --- | --- |
 | `cd games/pyramid && node --test` | **95 pass, 0 fail** (92 before + 3 new for Y-5) |
 | `node --test` at the repo root | **754 pass, 0 fail** |
-| `tests/harness.html` (port 8692) | **All 66 checks passed** (57 before + 9 new for Y-5, Y-6, Y-2/Y-3) |
+| `tests/harness.html` (port 8692) | **All 67 checks passed** (57 before + 9 for Y-5, Y-6, Y-2/Y-3, + 1 for `?store=`) |
 | Real network | room `RVSR` on the live PeerJS broker: adoption, the paused-phone refusal and the host override all confirmed |
 | 1280×720 | no vertical scroll on board, play (hidden and revealed), round-over, mainResult, circle, result, standings — with the new buttons in both toolbars |
 | Contrast | re-walked all seven surfaces against the theme's darker glow: **0 pairs below threshold** |

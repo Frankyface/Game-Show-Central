@@ -12,7 +12,9 @@
 
 "use strict";
 
-const PYR_DRAFT_KEY = "gsc-pyr-draft-v1";
+// Namespaced by ?store= the same way the saved game is (pyr-app.js), which has
+// already run by the time this script is evaluated.
+const PYR_DRAFT_KEY = `gsc-pyr-draft-v1${window.PyrApp.storeSuffix()}`;
 
 let pyrDraft = null;
 

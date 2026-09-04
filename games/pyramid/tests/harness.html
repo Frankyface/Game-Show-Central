@@ -162,9 +162,14 @@
       "fixtures/harness-game.json",
     ];
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-pyr-state-v1", "gsc-pyr-draft-v1"];
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // leaves its fixture categories, its half-played game or its four fixture
+    // players in the real host's save on the same origin.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-pyr-state-v1-harness", "gsc-pyr-draft-v1-harness"];
+    const REAL_KEYS = ["gsc-pyr-state-v1", "gsc-pyr-draft-v1"];
+    const SENTINEL = "harness-must-not-touch-this";
 
     async function refreshAssets() {
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -708,6 +713,15 @@
       check("Y-I6 every @keyframes and animation: is inside prefers-reduced-motion: no-preference",
         outside.length === 0, outside.join(", ") || "none outside the guard");
 
+      const untouched = REAL_KEYS.filter((k) => localStorage.getItem(k) === SENTINEL);
+      REAL_KEYS.forEach((k) => localStorage.removeItem(k));
+      check("Y-I6 ?store=harness keeps this run out of the real host's saved game",
+        HW().PyrApp.STORAGE_KEY === "gsc-pyr-state-v1-harness"
+        && HW().PyrEditor.DRAFT_KEY === "gsc-pyr-draft-v1-harness"
+        && untouched.length === REAL_KEYS.length,
+        `${HW().PyrApp.STORAGE_KEY} + ${HW().PyrEditor.DRAFT_KEY}; `
+        + `${untouched.length}/${REAL_KEYS.length} real keys still hold the sentinel`);
+
       check("Y-I6 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded"), HD().body.className);
     }
@@ -736,6 +750,7 @@
 
     (async function run() {
       try {
+        REAL_KEYS.forEach((k) => localStorage.setItem(k, SENTINEL));
         await refreshAssets();
         await scenarioGiver();
         await scenarioMarks();
