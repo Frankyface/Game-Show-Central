@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Millionaire</title>
+  <meta name="description" content="Who Wants to Be a Millionaire for game night: fifteen questions, one hot seat, three lifelines, Fastest Finger First on phones. Bring your own questions as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/wwm.css">
+  <link rel="stylesheet" href="css/wwm-phone.css">
+</head>
+<body data-gsc-game="millionaire">
+
+  <header class="topbar">
+    <h1 id="wwm-title" class="topbar-title">Millionaire</h1>
+    <div class="topbar-actions">
+      <span id="wwm-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="wwm-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="wwm-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card">
+        <p class="kicker">Fifteen questions. One hot seat.</p>
+        <h2 class="card-title">Who Wants to Be a Millionaire</h2>
+        <p id="wwm-source" class="source-note">Loading questions&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Contestants <span id="wwm-player-count" class="count-badge"></span></h3>
+            <p class="hint">One at a time in the hot seat. The list order is only a suggestion &mdash;
+              Fastest Finger or the host decides who plays next.</p>
+            <ul id="wwm-player-list" class="player-list"></ul>
+            <form id="wwm-add-player" class="inline-form">
+              <label class="visually-hidden" for="wwm-player-name">Contestant name</label>
+              <input id="wwm-player-name" type="text" maxlength="24" placeholder="Contestant name"
+                     autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost" type="submit">+ Add contestant</button>
+            </form>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="wwm-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="wwm-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="wwm-join-note" class="hint hidden">Players open <span id="wwm-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <label class="check"><input id="wwm-fff" type="checkbox"> Fastest Finger First picks the hot seat</label>
+            <p id="wwm-fff-note" class="hint-inline"></p>
+            <fieldset class="lifeline-set">
+              <legend class="setup-heading">Lifelines</legend>
+              <label class="check"><input id="wwm-ll-fifty" type="checkbox"> 50:50</label>
+              <label class="check"><input id="wwm-ll-phone" type="checkbox"> Phone a Friend</label>
+              <label class="check"><input id="wwm-ll-audience" type="checkbox"> Ask the Audience</label>
+              <label class="check"><input id="wwm-ll-switch" type="checkbox"> Switch the Question</label>
+            </fieldset>
+
+            <h3 class="setup-heading">Questions</h3>
+            <div class="inline-form">
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load questions (.json)</button>
+              <input id="wwm-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="wwm-question-count" class="hint"></p>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Fastest Finger / pick ===================== -->
+    <section id="screen-fff" class="screen hidden">
+      <p id="wwm-fff-kicker" class="kicker">Fastest Finger First</p>
+      <h2 id="wwm-fff-q" class="fff-question">Open the question when everyone is ready.</h2>
+
+      <div class="fff-grid">
+        <ol id="wwm-fff-items" class="fff-items"></ol>
+        <div class="fff-side">
+          <h3 class="setup-heading">Arrivals <span id="wwm-fff-count" class="count-badge"></span></h3>
+          <ol id="wwm-fff-arrivals" class="fff-arrivals" aria-live="polite"></ol>
+          <p id="wwm-fff-notice" class="notice" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-fff-open" class="btn btn-gold btn-big" type="button">Open the question</button>
+        <button id="btn-fff-reveal" class="btn btn-blue btn-big" type="button">Reveal the order</button>
+        <button id="btn-fff-seat" class="btn btn-gold btn-big" type="button">To the hot seat</button>
+        <button id="btn-fff-undo" class="btn btn-ghost" type="button">Undo</button>
+      </div>
+
+      <div class="pick-block">
+        <h3 class="setup-heading">Pick the hot seat by hand</h3>
+        <div id="wwm-pick-list" class="pick-row"></div>
+      </div>
+    </section>
+
+    <!-- ===================== Hot seat ===================== -->
+    <section id="screen-hotseat" class="screen hidden">
+      <div class="hs-top">
+        <div class="hs-who">
+          <p id="wwm-hot-name" class="hot-name">&nbsp;</p>
+          <p id="wwm-hot-money" class="hot-money" aria-live="polite">&nbsp;</p>
+        </div>
+        <div id="wwm-lifelines" class="lifelines" aria-label="Lifelines"></div>
+      </div>
+
+      <p id="wwm-request" class="request-banner hidden" role="status" aria-live="polite"></p>
+
+      <div class="hs-grid">
+        <div class="stage">
+          <p id="wwm-q-cat" class="q-cat">&nbsp;</p>
+          <div class="lozenge lozenge-q">
+            <p id="wwm-q-text" class="q-text">&nbsp;</p>
+          </div>
+          <div id="wwm-options" class="options"></div>
+          <p id="wwm-notice" class="notice" role="status" aria-live="polite"></p>
+        </div>
+
+        <aside class="tree-rail" aria-label="Money tree">
+          <ol id="wwm-tree" class="tree"></ol>
+        </aside>
+      </div>
+
+      <div class="controls">
+        <button id="btn-lock" class="btn btn-gold btn-big" type="button">Final answer</button>
+        <button id="btn-reveal" class="btn btn-blue btn-big" type="button">Reveal</button>
+        <button id="btn-next" class="btn btn-blue btn-big" type="button">Next question</button>
+        <button id="btn-walk" class="btn btn-ghost" type="button">Walk away</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-give-up" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="wwm-result-kicker" class="kicker">&nbsp;</p>
+      <h2 id="wwm-result-name" class="winner-name">&nbsp;</h2>
+      <p id="wwm-result-amount" class="final-amount">&nbsp;</p>
+      <ol id="wwm-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-next-contestant" class="btn btn-gold btn-big" type="button">Next contestant</button>
+        <button id="btn-finish" class="btn btn-ghost" type="button">Finish the night</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-play-again" class="btn btn-blue btn-big hidden" type="button">Play again</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Question editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Question editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="wwm-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="wwm-editor-warn" class="notice"></p>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="wwm-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="wwm-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Money tree (comma separated)
+            <input id="wwm-ed-tree" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <ol id="wwm-ed-tree-preview" class="tree-preview" aria-label="Money tree preview"></ol>
+          <label class="field">Safe haven rungs (comma separated)
+            <input id="wwm-ed-havens" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">Phone a Friend seconds
+            <input id="wwm-ed-phone-secs" type="number" min="0" max="120" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Ask the Audience seconds
+            <input id="wwm-ed-audience-secs" type="number" min="0" max="120" step="1" inputmode="numeric">
+          </label>
+          <fieldset class="lifeline-set">
+            <legend class="setup-heading">Lifelines in the file</legend>
+            <label class="check"><input id="wwm-ed-ll-fifty" type="checkbox"> 50:50</label>
+            <label class="check"><input id="wwm-ed-ll-phone" type="checkbox"> Phone a Friend</label>
+            <label class="check"><input id="wwm-ed-ll-audience" type="checkbox"> Ask the Audience</label>
+            <label class="check"><input id="wwm-ed-ll-switch" type="checkbox"> Switch the Question</label>
+            <label class="check"><input id="wwm-ed-ll-fff" type="checkbox"> Fastest Finger First</label>
+          </fieldset>
+
+          <h3 class="setup-heading">Fastest Finger <span id="wwm-ed-fff-count" class="count-badge"></span></h3>
+          <div id="wwm-ed-fff" class="ed-fff"></div>
+          <button id="btn-ed-add-fff" class="btn btn-ghost btn-small" type="button">+ Add a Fastest Finger question</button>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <h3 class="setup-heading">Questions <span id="wwm-ed-count" class="count-badge"></span></h3>
+          <p id="wwm-ed-levels" class="level-badges" aria-label="Questions per level"></p>
+          <div class="inline-form">
+            <button id="btn-ed-add" class="btn btn-ghost btn-small" type="button">+ Add a question</button>
+            <label class="check"><input id="wwm-ed-only-thin" type="checkbox"> Show only levels needing questions</label>
+          </div>
+          <div id="wwm-ed-rows" class="ed-rows"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="wwm-phone-card" class="phone-card">
+        <p id="wwm-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="wwm-phone-headline" class="phone-headline" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="wwm-phone-sub" class="phone-sub">&nbsp;</p>
+        <div id="wwm-phone-choices" class="phone-choices"></div>
+        <div id="wwm-phone-actions" class="phone-actions"></div>
+        <p id="wwm-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== Ask the Audience overlay ===================== -->
+  <div id="wwm-audience" class="overlay hidden" role="dialog" aria-modal="false" aria-label="Ask the Audience">
+    <div class="overlay-card">
+      <p class="overlay-title">Ask the Audience</p>
+      <div id="wwm-audience-chart" class="chart"></div>
+      <p id="wwm-audience-count" class="overlay-sub" aria-live="polite">Votes in: 0</p>
+      <div class="overlay-timer">
+        <span id="wwm-audience-seconds" class="overlay-seconds"></span>
+        <div id="wwm-audience-blocks" class="timer-blocks hidden" aria-hidden="true"></div>
+      </div>
+      <form id="wwm-audience-form" class="pct-form">
+        <p class="hint">No phones? Type what the room says and press Use.</p>
+        <label class="pct-field">A <input id="wwm-pct-0" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+        <label class="pct-field">B <input id="wwm-pct-1" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+        <label class="pct-field">C <input id="wwm-pct-2" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+        <label class="pct-field">D <input id="wwm-pct-3" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+        <button class="btn btn-ghost btn-small" type="submit">Use these</button>
+      </form>
+      <button id="btn-audience-close" class="btn btn-gold btn-big" type="button">Close the vote</button>
+    </div>
+  </div>
+
+  <!-- ===================== Phone a Friend overlay ===================== -->
+  <div id="wwm-phone-overlay" class="overlay hidden" role="dialog" aria-modal="false" aria-label="Phone a Friend">
+    <div class="overlay-card">
+      <p class="overlay-title">Phone a Friend</p>
+      <label class="field">Who are we calling?
+        <input id="wwm-friend" type="text" maxlength="24" autocomplete="off" placeholder="Friend&rsquo;s name">
+      </label>
+      <div class="overlay-timer">
+        <span id="wwm-phone-seconds" class="overlay-seconds"></span>
+        <div id="wwm-phone-blocks" class="timer-blocks hidden" aria-hidden="true"></div>
+      </div>
+      <p class="hint">The clock is a cue only &mdash; nothing happens when it runs out.</p>
+      <button id="btn-phone-done" class="btn btn-gold btn-big" type="button">Done</button>
+    </div>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/wwm-content.js"></script>
+  <script src="js/wwm-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/wwm-sound.js"></script>
+  <script src="js/timer-core.js"></script>
+  <script src="js/wwm-timer.js"></script>
+  <script src="js/wwm-view.js"></script>
+  <script src="js/wwm-app.js"></script>
+  <script src="js/wwm-editor.js"></script>
+  <script src="js/wwm-room.js"></script>
+  <script src="js/wwm-phone.js"></script>
+</body>
+</html>

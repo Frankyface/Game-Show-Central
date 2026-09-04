@@ -1,0 +1,415 @@
+{
+  "title": "Harness Millionaire",
+  "settings": {
+    "currency": "$",
+    "moneyTree": [
+      100,
+      200,
+      300,
+      500,
+      1000,
+      2000,
+      4000,
+      8000,
+      16000,
+      32000,
+      64000,
+      125000,
+      250000,
+      500000,
+      1000000
+    ],
+    "safeHavens": [
+      5,
+      10
+    ],
+    "lifelines": {
+      "fifty": true,
+      "phone": true,
+      "audience": true,
+      "switch": true
+    },
+    "phoneSeconds": 5,
+    "audienceSeconds": 5,
+    "fastestFinger": true
+  },
+  "questions": [
+    {
+      "level": 1,
+      "category": "Harness",
+      "q": "Harness L1 #1?",
+      "options": [
+        "L1-1-A",
+        "L1-1-B",
+        "L1-1-C",
+        "L1-1-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 1,
+      "category": "Harness",
+      "q": "Harness L1 #2?",
+      "options": [
+        "L1-2-A",
+        "L1-2-B",
+        "L1-2-C",
+        "L1-2-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 2,
+      "category": "Harness",
+      "q": "Harness L2 #1?",
+      "options": [
+        "L2-1-A",
+        "L2-1-B",
+        "L2-1-C",
+        "L2-1-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 2,
+      "category": "Harness",
+      "q": "Harness L2 #2?",
+      "options": [
+        "L2-2-A",
+        "L2-2-B",
+        "L2-2-C",
+        "L2-2-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 3,
+      "category": "Harness",
+      "q": "Harness L3 #1?",
+      "options": [
+        "L3-1-A",
+        "L3-1-B",
+        "L3-1-C",
+        "L3-1-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 3,
+      "category": "Harness",
+      "q": "Harness L3 #2?",
+      "options": [
+        "L3-2-A",
+        "L3-2-B",
+        "L3-2-C",
+        "L3-2-D"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 4,
+      "category": "Harness",
+      "q": "Harness L4 #1?",
+      "options": [
+        "L4-1-A",
+        "L4-1-B",
+        "L4-1-C",
+        "L4-1-D"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 4,
+      "category": "Harness",
+      "q": "Harness L4 #2?",
+      "options": [
+        "L4-2-A",
+        "L4-2-B",
+        "L4-2-C",
+        "L4-2-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 5,
+      "category": "Harness",
+      "q": "Harness L5 #1?",
+      "options": [
+        "L5-1-A",
+        "L5-1-B",
+        "L5-1-C",
+        "L5-1-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 5,
+      "category": "Harness",
+      "q": "Harness L5 #2?",
+      "options": [
+        "L5-2-A",
+        "L5-2-B",
+        "L5-2-C",
+        "L5-2-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 6,
+      "category": "Harness",
+      "q": "Harness L6 #1?",
+      "options": [
+        "L6-1-A",
+        "L6-1-B",
+        "L6-1-C",
+        "L6-1-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 6,
+      "category": "Harness",
+      "q": "Harness L6 #2?",
+      "options": [
+        "L6-2-A",
+        "L6-2-B",
+        "L6-2-C",
+        "L6-2-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 7,
+      "category": "Harness",
+      "q": "Harness L7 #1?",
+      "options": [
+        "L7-1-A",
+        "L7-1-B",
+        "L7-1-C",
+        "L7-1-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 7,
+      "category": "Harness",
+      "q": "Harness L7 #2?",
+      "options": [
+        "L7-2-A",
+        "L7-2-B",
+        "L7-2-C",
+        "L7-2-D"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 8,
+      "category": "Harness",
+      "q": "Harness L8 #1?",
+      "options": [
+        "L8-1-A",
+        "L8-1-B",
+        "L8-1-C",
+        "L8-1-D"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 8,
+      "category": "Harness",
+      "q": "Harness L8 #2?",
+      "options": [
+        "L8-2-A",
+        "L8-2-B",
+        "L8-2-C",
+        "L8-2-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 9,
+      "category": "Harness",
+      "q": "Harness L9 #1?",
+      "options": [
+        "L9-1-A",
+        "L9-1-B",
+        "L9-1-C",
+        "L9-1-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 9,
+      "category": "Harness",
+      "q": "Harness L9 #2?",
+      "options": [
+        "L9-2-A",
+        "L9-2-B",
+        "L9-2-C",
+        "L9-2-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 10,
+      "category": "Harness",
+      "q": "Harness L10 #1?",
+      "options": [
+        "L10-1-A",
+        "L10-1-B",
+        "L10-1-C",
+        "L10-1-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 10,
+      "category": "Harness",
+      "q": "Harness L10 #2?",
+      "options": [
+        "L10-2-A",
+        "L10-2-B",
+        "L10-2-C",
+        "L10-2-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 11,
+      "category": "Harness",
+      "q": "Harness L11 #1?",
+      "options": [
+        "L11-1-A",
+        "L11-1-B",
+        "L11-1-C",
+        "L11-1-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 11,
+      "category": "Harness",
+      "q": "Harness L11 #2?",
+      "options": [
+        "L11-2-A",
+        "L11-2-B",
+        "L11-2-C",
+        "L11-2-D"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 12,
+      "category": "Harness",
+      "q": "Harness L12 #1?",
+      "options": [
+        "L12-1-A",
+        "L12-1-B",
+        "L12-1-C",
+        "L12-1-D"
+      ],
+      "answer": 1
+    },
+    {
+      "level": 12,
+      "category": "Harness",
+      "q": "Harness L12 #2?",
+      "options": [
+        "L12-2-A",
+        "L12-2-B",
+        "L12-2-C",
+        "L12-2-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 13,
+      "category": "Harness",
+      "q": "Harness L13 #1?",
+      "options": [
+        "L13-1-A",
+        "L13-1-B",
+        "L13-1-C",
+        "L13-1-D"
+      ],
+      "answer": 2
+    },
+    {
+      "level": 13,
+      "category": "Harness",
+      "q": "Harness L13 #2?",
+      "options": [
+        "L13-2-A",
+        "L13-2-B",
+        "L13-2-C",
+        "L13-2-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 14,
+      "category": "Harness",
+      "q": "Harness L14 #1?",
+      "options": [
+        "L14-1-A",
+        "L14-1-B",
+        "L14-1-C",
+        "L14-1-D"
+      ],
+      "answer": 3
+    },
+    {
+      "level": 14,
+      "category": "Harness",
+      "q": "Harness L14 #2?",
+      "options": [
+        "L14-2-A",
+        "L14-2-B",
+        "L14-2-C",
+        "L14-2-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 15,
+      "category": "Harness",
+      "q": "Harness L15 #1?",
+      "options": [
+        "L15-1-A",
+        "L15-1-B",
+        "L15-1-C",
+        "L15-1-D"
+      ],
+      "answer": 0
+    },
+    {
+      "level": 15,
+      "category": "Harness",
+      "q": "Harness L15 #2?",
+      "options": [
+        "L15-2-A",
+        "L15-2-B",
+        "L15-2-C",
+        "L15-2-D"
+      ],
+      "answer": 1
+    }
+  ],
+  "fastestFinger": [
+    {
+      "q": "Put these harness items in order.",
+      "options": [
+        "One",
+        "Two",
+        "Three",
+        "Four"
+      ],
+      "order": [
+        2,
+        0,
+        3,
+        1
+      ]
+    }
+  ]
+}

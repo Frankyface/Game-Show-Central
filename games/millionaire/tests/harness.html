@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Millionaire harness (M-I1–M-I7)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 62rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 940px; height: 620px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 240px; height: 460px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Millionaire — loopback harness (success states M-I1 … M-I7, spec 08 §8)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
+    no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__WWM_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/wwm-content.js", "../js/wwm-core.js", "../js/data.js", "../js/wwm-sound.js",
+      "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js", "../js/wwm-app.js",
+      "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
+      "../css/wwm.css", "../css/wwm-phone.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "fixtures/harness-game.json",
+    ];
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1";
+    const KEYS = ["gsc-wwm-state-v1", "gsc-wwm-draft-v1"];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().WwmApp.core();
+    const click = (id) => H(id).click();
+
+    async function bootHost(clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().WwmApp && HW().WwmApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.WwmPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).WwmPhone.view();
+    const phoneChoices = (pid) => [...PD(pid).querySelectorAll("#wwm-phone-choices .phone-choice")];
+    const phoneActions = (pid) => [...PD(pid).querySelectorAll("#wwm-phone-actions .btn")];
+    const phoneAction = (pid, text) => phoneActions(pid).find((b) => b.textContent === text);
+
+    /** Click the option the core says is right, from the host screen. */
+    function hostOption(idx) {
+      return HD().querySelector(`#wwm-options .option[data-idx="${idx}"]`);
+    }
+
+    function answerCorrectly() {
+      hostOption(core().question.answer).click();
+      click("btn-lock");
+      click("btn-reveal");
+      click("btn-next");
+    }
+
+    /* ============================================================
+       M-I1 — Fastest Finger with real phones
+       ============================================================ */
+
+    async function scenarioFff() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().WwmApp.state().setup.players.length === 4, "roster from the shell");
+      check("M-I1 the shell roster becomes the contestant list",
+        HW().WwmApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo,Dev",
+        HW().WwmApp.state().setup.players.map((p) => p.name).join(","));
+      check("M-I1 Fastest Finger switches itself on because phones are connected",
+        H("wwm-fff").checked === true && HW().WwmApp.state().phoneCount === 4,
+        `${HW().WwmApp.state().phoneCount} phones`);
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "fff", "fastest finger screen");
+      click("btn-fff-open");
+      await waitFor(() => phoneView("p1").screen === "fff", "phones get the ordering screen");
+      check("M-I1 every phone gets the four items and never the answer order",
+        phoneChoices("p1").length === 4 && JSON.stringify(phoneView("p1")).indexOf("\"order\"") < 0,
+        phoneChoices("p1").map((b) => b.textContent).join(" | "));
+
+      const right = core().fff.question.order.slice();
+      const wrong = [right[1], right[0], right[2], right[3]];
+      await submitOrder("p2", wrong);                 // fast but wrong
+      await sleep(60);
+      await submitOrder("p1", right);                 // slower but right
+      await submitOrder("p3", right);                 // slowest, also right
+      await waitFor(() => core().fff.submissions.length === 3, "three submissions");
+      check("M-I1 arrivals are listed in the order they landed",
+        core().fff.submissions.map((s) => s.pid).join(",") === "p2,p1,p3",
+        core().fff.submissions.map((s) => s.pid).join(","));
+      check("M-I1 correctness is hidden on the host screen until the reveal",
+        HD().querySelectorAll(".arrival-mark").length === 3
+        && [...HD().querySelectorAll(".arrival-mark")].every((n) => n.textContent === ""));
+
+      click("btn-fff-reveal");
+      check("M-I1 the fastest CORRECT order wins the hot seat, not the fastest overall",
+        core().fff.winner === "p1", `winner ${core().fff.winner}`);
+      check("M-I1 the reveal shows ticks, crosses and the correct order",
+        [...HD().querySelectorAll(".arrival-mark")].map((n) => n.textContent.charAt(0)).join("") === "✗✓✓"
+        && HD().querySelectorAll(".fff-item-ordered").length === 4,
+        [...HD().querySelectorAll(".arrival-mark")].map((n) => n.textContent).join(" / "));
+
+      click("btn-fff-seat");
+      await waitFor(() => core().phase === "hotseat", "hot seat");
+      check("M-I1 the winner takes the hot seat",
+        core().current === "p1" && H("wwm-hot-name").textContent === "Ada",
+        H("wwm-hot-name").textContent);
+    }
+
+    /** Tap the four chips in `order` on one phone and press Submit. */
+    async function submitOrder(pid, order) {
+      const before = core().fff.submissions.length;
+      for (const idx of order) phoneChoices(pid)[idx].click();
+      await waitFor(() => phoneAction(pid, "Submit my order") && !phoneAction(pid, "Submit my order").disabled,
+        `${pid} can submit`);
+      phoneAction(pid, "Submit my order").click();
+      await waitFor(() => core().fff.submissions.length === before + 1, `${pid} submission reaches the host`);
+    }
+
+    /* ============================================================
+       M-I2 — the hot seat: phone selects, host locks
+       ============================================================ */
+
+    async function scenarioHotseat() {
+      await waitFor(() => phoneView("p1").screen === "hotseat", "contestant phone");
+      check("M-I2 only the contestant gets the hot-seat screen",
+        phoneView("p1").screen === "hotseat" && phoneView("p2").screen === "wait"
+        && phoneView("p3").screen === "wait",
+        `p2 sees ${phoneView("p2").screen}`);
+      check("M-I2 the contestant's phone never receives the answer",
+        JSON.stringify(phoneView("p1")).indexOf("\"answer\"") < 0);
+
+      // The phone asks for 50:50; nothing happens until the host confirms.
+      phoneAction("p1", "Ask for 50:50").click();
+      await waitFor(() => core().request, "the request reaches the host");
+      check("M-I2 a lifeline request waits for the host",
+        core().request.which === "fifty" && core().lifelines.fifty === true
+        && core().removed.length === 0 && !H("wwm-request").classList.contains("hidden"),
+        H("wwm-request").textContent);
+      HD().querySelector("#wwm-request .btn-gold").click();
+      check("M-I2 the host confirms and 50:50 takes two wrong options away",
+        core().removed.length === 2 && !core().removed.includes(core().question.answer)
+        && core().lifelines.fifty === false && core().request === null,
+        `removed ${core().removed.join(",")} of answer ${core().question.answer}`);
+
+      // The phone selects; the host still has to lock.
+      const answer = core().question.answer;
+      await waitFor(() => phoneChoices("p1")[answer] && !phoneChoices("p1")[answer].disabled, "phone options");
+      phoneChoices("p1")[answer].click();
+      await waitFor(() => core().selected === answer, "the phone's letter reaches the host");
+      check("M-I2 a phone's tap selects but never locks",
+        core().selected === answer && core().locked === false
+        && hostOption(answer).dataset.state === "selected");
+      click("btn-lock");
+      await waitFor(() => phoneView("p1").screen === "locked", "phone shows locked");
+      check("M-I2 locking pushes the phone to the locked screen",
+        PD("p1").getElementById("wwm-phone-headline").textContent === "Locked in");
+      click("btn-reveal");
+      check("M-I2 the reveal is correct and the money climbs",
+        core().correct === true && hostOption(answer).dataset.state === "correct");
+      click("btn-next");
+      check("M-I2 the next question is on rung 2", core().rung === 2, `rung ${core().rung}`);
+    }
+
+    /* ============================================================
+       M-I3 / M-I5 — Ask the Audience, and a reload inside the window
+       ============================================================ */
+
+    async function scenarioAudience() {
+      HD().querySelectorAll("#wwm-lifelines .lifeline")[2].click();
+      await waitFor(() => core().audience.open, "audience window");
+      await waitFor(() => phoneView("p2").screen === "vote", "phones get a ballot");
+      check("M-I3 every phone except the contestant gets a ballot",
+        phoneView("p2").screen === "vote" && phoneView("p3").screen === "vote"
+        && phoneView("p4").screen === "vote" && phoneView("p1").screen === "hotseat",
+        `contestant sees ${phoneView("p1").screen}`);
+      check("M-I3 the ballot carries no answer field",
+        JSON.stringify(phoneView("p2")).indexOf("\"answer\"") < 0);
+
+      phoneChoices("p2")[0].click();
+      await waitFor(() => HW().WwmCore.chart(core()).total === 1, "first vote");
+      const oneVote = H("wwm-audience-count").textContent;
+      phoneChoices("p3")[0].click();
+      phoneChoices("p4")[2].click();
+      await waitFor(() => HW().WwmCore.chart(core()).total === 3, "three votes");
+      const chart = HW().WwmCore.chart(core());
+      check("M-I3 the chart updates live and always totals 100%",
+        chart.pcts.reduce((a, b) => a + b, 0) === 100 && chart.counts[0] === 2 && chart.counts[2] === 1,
+        `${oneVote} -> ${H("wwm-audience-count").textContent}; ${chart.pcts.join("/")}`);
+      check("M-I3 a phone that has voted cannot vote again",
+        phoneChoices("p2").every((b) => b.disabled) && phoneView("p2").myVote === 0);
+
+      // ---- M-I5: reload the host mid-window ----
+      const deadline = core().audience.deadline;
+      const rung = core().rung;
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "hotseat", "resume after reload");
+      check("M-I5 a reload mid-question restores the running audience window",
+        core().audience.open === true && core().audience.deadline === deadline
+        && core().rung === rung && HW().WwmCore.chart(core()).total === 3
+        && !H("wwm-audience").classList.contains("hidden"),
+        `rung ${core().rung}, deadline ${core().audience.deadline === deadline ? "identical" : "CHANGED"}, `
+        + `${HW().WwmCore.chart(core()).total} votes still counted`);
+      check("M-I5 the reload keeps the spent lifelines and the contestant",
+        core().current === "p1" && core().lifelines.fifty === false && core().lifelines.audience === false,
+        JSON.stringify(core().lifelines));
+
+      click("btn-audience-close");
+      const frozen = HW().WwmCore.chart(core()).pcts.join("/");
+      await waitFor(() => phoneView("p3").screen !== "vote", "ballots close", 8000);
+      phoneChoices("p3").forEach((b) => b.click());
+      await sleep(120);
+      check("M-I3 closing the vote freezes the chart",
+        HW().WwmCore.chart(core()).pcts.join("/") === frozen && core().audience.open === false,
+        `frozen at ${frozen}`);
+    }
+
+    /* ============================================================
+       M-I4 — a wrong answer, the next contestant, the standings
+       ============================================================ */
+
+    async function scenarioResult() {
+      while (core().rung < 6) answerCorrectly();
+      check("M-I4 the contestant is past the first safe haven",
+        core().rung === 6 && HW().WwmCore.winningsIfWrong(core()) === 1000,
+        `rung ${core().rung}, safe at ${HW().WwmCore.winningsIfWrong(core())}`);
+
+      const wrong = [0, 1, 2, 3].find((i) => i !== core().question.answer);
+      hostOption(wrong).click();
+      click("btn-lock");
+      click("btn-reveal");
+      check("M-I4 the wrong answer is marked and the right one shown",
+        hostOption(wrong).dataset.state === "wrong"
+        && hostOption(core().question.answer).dataset.state === "correct");
+      click("btn-next");
+      await waitFor(() => core().phase === "result", "result screen");
+      check("M-I4 a wrong answer pays the last safe haven",
+        H("wwm-result-amount").textContent === "$1,000"
+        && core().contestants.find((c) => c.pid === "p1").won === 1000,
+        H("wwm-result-amount").textContent);
+      await waitFor(() => phoneView("p1").screen === "result", "phones see the result");
+      check("M-I4 the contestant's phone shows what they leave with",
+        phoneView("p1").mine === "$1,000", JSON.stringify(phoneView("p1").mine));
+
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "fff", "a new Fastest Finger round");
+      check("M-I4 a contestant who has played is not offered again",
+        [...HD().querySelectorAll("#wwm-pick-list .pick-btn")].map((b) => b.textContent).join(",") === "Ben,Cleo,Dev",
+        [...HD().querySelectorAll("#wwm-pick-list .pick-btn")].map((b) => b.textContent).join(","));
+      HD().querySelectorAll("#wwm-pick-list .pick-btn")[0].click();
+      await waitFor(() => core().phase === "hotseat", "Ben in the hot seat");
+      answerCorrectly();
+      click("btn-walk");
+      await waitFor(() => core().phase === "result", "walk away");
+      check("M-I4 walking away keeps what is banked",
+        core().outcome.reason === "walk" && core().outcome.won === 100,
+        `${core().outcome.reason} with ${core().outcome.won}`);
+
+      click("btn-finish");
+      check("M-I4 the standings list every contestant",
+        [...HD().querySelectorAll("#wwm-standings li")].map((li) => li.textContent).join(" | ")
+          .indexOf("Ada$1,000") === 0,
+        [...HD().querySelectorAll("#wwm-standings li")].map((li) => li.textContent).join(" | "));
+      const scores = shellLog.filter((d) => d.t === "scores").pop();
+      check("M-I4 the night scoreboard is told the totals",
+        !!scores && scores.scores.some((s) => s.pid === "p1" && s.score === 1000),
+        scores ? JSON.stringify(scores.scores) : "no scores frame");
+      check("M-I4 the shell bar subtitle follows the game",
+        shellLog.some((d) => d.t === "title" && /Question \d+ of 15/.test(d.text)),
+        shellLog.filter((d) => d.t === "title").map((d) => d.text).join(" / "));
+    }
+
+    /* ============================================================
+       M-I6 — the editor
+       ============================================================ */
+
+    async function scenarioEditor() {
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "editor opens");
+      const badges = [...HD().querySelectorAll("#wwm-ed-levels .level-badge")].map((b) => b.textContent);
+      check("M-I6 the editor shows a per-level count badge for every rung",
+        badges.length === 15 && badges[0] === "L1: 2" && badges.every((b) => b.endsWith(": 2")),
+        badges.join(" "));
+
+      // Download validates: capture the blob the button hands to the browser.
+      let captured = null;
+      const realCreate = HW().URL.createObjectURL;
+      HW().URL.createObjectURL = (blob) => { captured = blob; return realCreate.call(HW().URL, blob); };
+      click("btn-editor-download");
+      await waitFor(() => captured, "download blob");
+      HW().URL.createObjectURL = realCreate;
+      const text = await captured.text();
+      check("M-I6 Download JSON produces a file that passes validateGame",
+        HW().WwmCore.validateGame(JSON.parse(text)) === true && JSON.parse(text).questions.length === 30,
+        `${text.length} bytes, ${JSON.parse(text).questions.length} questions`);
+
+      // A thin level raises the warning the spec asks for.
+      const draft = HW().WwmEditor.draft();
+      draft.questions = draft.questions.filter((q) => q.level !== 3 || q.q.endsWith("#1?"));
+      HW().WwmEditor.setDraft(draft);
+      check("M-I6 a level with one question is flagged",
+        HD().querySelector("#wwm-ed-levels .level-badge.thin") !== null
+        && H("wwm-editor-warn").textContent.indexOf("3 (1)") > 0,
+        H("wwm-editor-warn").textContent);
+
+      HD().getElementById("wwm-ed-title").value = "Edited in the harness";
+      HD().getElementById("wwm-ed-title").dispatchEvent(new (HW().Event)("input", { bubbles: true }));
+      click("btn-editor-use");
+      await waitFor(() => H("screen-editor").classList.contains("hidden"), "editor closes");
+      check("M-I6 Use in game adopts the draft and clears the finished game",
+        HW().WwmApp.state().game.title === "Edited in the harness"
+        && HW().WwmApp.state().core === null
+        && !H("screen-setup").classList.contains("hidden"),
+        HW().WwmApp.state().source);
+    }
+
+    /* ============================================================
+       M-I7 — static gates (verification plan 06 §4)
+       ============================================================ */
+
+    const SOURCES = [
+      "../index.html", "../questions.json", "../README.md",
+      "../css/wwm.css", "../css/wwm-phone.css",
+      "../js/wwm-content.js", "../js/wwm-core.js", "../js/data.js", "../js/wwm-sound.js",
+      "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js", "../js/wwm-app.js",
+      "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
+      "../tests/wwm-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
+    ];
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("M-I7 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("M-I7 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      // Comments that merely name the rule are allowed; real calls are not.
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("M-I7 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("M-I7 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("M-I7 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("M-I7 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="millionaire"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("M-I7 V8 questions.json validates through validateGame",
+        HW().WwmCore.validateGame(JSON.parse(texts["../questions.json"])) === true);
+      check("M-I7 js/data.js mirrors questions.json and reaches globalThis",
+        JSON.stringify(HW().WWM_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../questions.json"])),
+        HW().WWM_DEFAULT_GAME ? "globalThis.WWM_DEFAULT_GAME is set" : "MISSING");
+      check("M-I7 the embedded page hides the standalone room controls",
+        HD().body.classList.contains("gsc-embedded"),
+        HD().body.className);
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioFff();
+        await scenarioHotseat();
+        await scenarioAudience();
+        await scenarioResult();
+        await scenarioEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>
