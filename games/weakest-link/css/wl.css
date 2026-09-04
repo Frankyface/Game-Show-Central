@@ -77,7 +77,12 @@ html, body { margin: 0; padding: 0; }
    1. Page frame — one screen, never a page scroll (brief §1)
    ============================================================ */
 
-html { height: 100%; }
+/* `html` is the clipper, not just `body`. A body with `overflow: hidden` under
+   an `overflow: visible` html propagates its overflow to the VIEWPORT and
+   computes back to visible itself, which leaves
+   `documentElement.scrollHeight` reporting the union of the content — the
+   number the UI tester measures. Clipping here keeps that honest. */
+html { height: 100%; overflow: hidden; }
 
 body {
   height: 100dvh;
@@ -107,8 +112,12 @@ body {
 
 /* Lists that are allowed to scroll (brief §1: editors and setup may). A block
    box, not a flex one, so a tall card overflows downwards and stays reachable. */
+/* `position: relative` makes each of these a containing block. Without it the
+   editor's sticky table header leaks ~45px of scrollable overflow all the way
+   out to `documentElement.scrollHeight`, even though nothing is visible below
+   the fold — and that is the number the UI tester measures. */
 .screen-setup,
-.screen-editor { display: block; overflow-y: auto; }
+.screen-editor { display: block; position: relative; overflow-y: auto; }
 .screen-phone { overflow-y: auto; }
 
 .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
@@ -128,9 +137,9 @@ body {
   white-space: nowrap;
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-ui, 15px);
   letter-spacing: 0.04em;
-  padding: 0.55em 1.25em;
+  padding: 0.5em 1.2em;
   border-radius: var(--radius);
   border: 1px solid var(--panel-line);
   cursor: pointer;
@@ -182,14 +191,14 @@ body {
   text-transform: uppercase;
   padding: 0.7em 1.7em;
 }
-.btn-small { min-height: 34px; font-size: 0.76rem; padding: 0.4em 0.85em; }
+.btn-small { min-height: 38px; font-size: var(--fs-ui, 15px); padding: 0.35em 0.8em; }
 /* The v1 phone-target size. Declared after `.btn` so it is not flattened by
    it — same specificity, and this sheet is the later one. */
 .btn-tap { min-height: var(--tap, 56px); font-size: 1.05rem; }
 
 .btn kbd {
   font-family: var(--font-ui);
-  font-size: 0.66em;
+  font-size: 14px;
   font-weight: 700;
   opacity: 0.8;
   border: 1px solid currentColor;
@@ -242,7 +251,7 @@ body {
 
 .topbar-eyebrow {
   margin: 0 0 2px;
-  font-size: 10px;
+  font-size: var(--fs-micro, 12px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--track-eyebrow, 0.22em);
@@ -301,7 +310,7 @@ body {
 .kicker {
   text-transform: uppercase;
   letter-spacing: var(--track-eyebrow, 0.22em);
-  font-size: 0.72rem;
+  font-size: var(--fs-micro, 12px);
   font-weight: 700;
   color: var(--stage-blue);
   margin: 0 0 0.25rem;
@@ -317,8 +326,8 @@ body {
   text-shadow: 0 0 46px rgba(111, 168, 232, 0.35);
 }
 
-.source-note, .hint { color: var(--ink-dim); font-size: 0.86rem; margin: 0.3rem 0; }
-.hint-inline { color: var(--ink-dim); font-size: 0.82rem; font-weight: 400; }
+.source-note, .hint { color: var(--ink-dim); font-size: 14px; margin: 0.3rem 0; }
+.hint-inline { color: var(--ink-dim); font-size: 14px; font-weight: 400; }
 
 .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1rem, 3vw, 2.4rem); }
 .setup-col { display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; }
@@ -327,8 +336,8 @@ body {
 .setup-col > .setup-block:first-child { padding-top: 0.9rem; }
 
 .setup-heading {
-  font-size: 0.72rem; text-transform: uppercase; letter-spacing: var(--track-eyebrow, 0.22em);
-  color: var(--ink-mute); margin: 0 0 0.5rem; display: flex; align-items: center; gap: 0.5rem;
+  font-size: 14px; text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--ink-dim); margin: 0 0 0.5rem; display: flex; align-items: center; gap: 0.5rem;
 }
 .setup-actions { margin-top: 1.4rem; display: flex; justify-content: flex-end; }
 
@@ -338,8 +347,8 @@ body {
   border: 1px solid var(--panel-line);
   color: var(--ink);
   border-radius: 999px;
-  padding: 0.1em 0.65em;
-  font-size: 0.72rem;
+  padding: 0.1em 0.6em;
+  font-size: 14px;
   letter-spacing: 0;
 }
 .count-badge.warn { background: var(--stage-gold); border-color: #ffdf95; color: #1e1500; }
@@ -348,7 +357,7 @@ body {
 
 input[type="text"], input[type="number"], textarea, select {
   font-family: var(--font-ui);
-  font-size: 0.92rem;
+  font-size: var(--fs-ui, 15px);
   color: var(--ink);
   background: var(--well);
   border: 1px solid var(--panel-line);
@@ -358,7 +367,7 @@ input[type="text"], input[type="number"], textarea, select {
 input::placeholder, textarea::placeholder { color: var(--ink-mute); }
 textarea { width: 100%; resize: vertical; }
 
-.check { display: inline-flex; gap: 0.45rem; align-items: center; font-size: 0.86rem; color: var(--ink-dim); }
+.check { display: inline-flex; gap: 0.45rem; align-items: center; font-size: var(--fs-ui, 15px); color: var(--ink-dim); }
 .check input { accent-color: var(--stage-blue); width: 17px; height: 17px; }
 
 /* The hidden-answer toggle has to stay obvious on a lit stage. */
@@ -370,8 +379,8 @@ textarea { width: 100%; resize: vertical; }
 }
 .check-toggle input { accent-color: var(--stage-gold); }
 
-.field { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); margin: 0.55rem 0; }
-.field input { display: block; width: 100%; margin-top: 0.25rem; text-transform: none; letter-spacing: 0; font-size: 0.9rem; }
+.field { display: block; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-dim); margin: 0.55rem 0; }
+.field input { display: block; width: 100%; margin-top: 0.25rem; text-transform: none; letter-spacing: 0; font-size: var(--fs-ui, 15px); }
 
 .player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .player-list li {
@@ -384,7 +393,7 @@ textarea { width: 100%; resize: vertical; }
 }
 .player-seat { font-family: var(--font-display); color: var(--stage-blue); min-width: 1.5em; }
 .player-name { flex: 1; font-weight: 600; }
-.player-tag { font-size: 0.66rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.14em; }
+.player-tag { font-size: var(--fs-micro, 12px); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.14em; }
 
 /* ============================================================
    5. Phase banner — .gsc-banner, one look on every screen
@@ -455,7 +464,7 @@ body.gsc-embedded #btn-exit { display: inline-flex; }
   .topbar { padding: 0.3rem 0.7rem; gap: 0.55rem; }
   /* Every control a thumb can reach on a phone clears the 56 px rule,
      the chrome in the toolbar included. */
-  .topbar .btn { min-height: var(--tap, 56px); font-size: 0.85rem; padding: 0.4em 0.9em; }
+  .topbar .btn { min-height: var(--tap, 56px); font-size: var(--fs-ui, 15px); padding: 0.4em 0.9em; }
   .topbar-eyebrow { display: none; }
   .topbar-title { font-size: 1.05rem; }
   .topbar-mark { width: 24px; height: 21px; }
@@ -464,6 +473,8 @@ body.gsc-embedded #btn-exit { display: inline-flex; }
 }
 
 @media (max-width: 780px) {
+  /* Narrow screens scroll normally again: a phone must reach the whole card. */
+  html { height: auto; overflow: visible; }
   body { height: auto; min-height: 100dvh; overflow: visible; }
   .stage-grid { grid-template-columns: 1fr; }
   .chain { flex-direction: row; flex-wrap: wrap; overflow: visible; }

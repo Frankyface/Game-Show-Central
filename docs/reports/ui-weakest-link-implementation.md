@@ -372,3 +372,106 @@ huge"). Flagging it so it does not read as an oversight in UI-9.
 `shared/**`, `tests/**`, other games, `wl-core.js`, `wl-clock.js`,
 `wl-editor.js`, `wl-room.js`, `wl-phone.js`, `wl-sound.js`, `questions.json`,
 `data.js`. No commit or push was made.
+
+---
+
+## 6. After UI verification — D11 (type sizes) and D13 (chain palette)
+
+Follow-up pass answering `docs/reports/ui-upgrade-verification.md` **D11**
+(38 text elements under 13 px on the mid-game host screens, minimum 10 px, the
+whole control layer at 12.16 px) and **D13** (the current chain link was an
+off-palette blue). CSS only — no markup and no JS changed in this pass.
+
+### 6.1 The rule now applied
+
+- **Controls** — every button, input, select and textarea — are on
+  `var(--fs-ui, 15px)` (15 px at 1280). `.btn-small` went 12.16 → 15 px, so the
+  toolbar, "Start clock" and "Show answer" are no longer the smallest text on
+  the stage; its `min-height` went 34 → 38 px to keep the proportions.
+  `.btn kbd` (the `B` / `Space` / `X` hints) went ~11 → 14 px.
+- **Labels, hints and data** are on a hard **14 px** floor: `.hint`,
+  `.hint-inline`, `.source-note`, `.setup-heading`, `.count-badge`, `.field`,
+  `.q-cat`, `.chain-tick`, `.vote-voter`, `.stats-detail`, `.stats` body and
+  **both table header rows** (column headers are labels, not decoration, and
+  the money rail was widened `15rem → 16.5rem` to hold them).
+- **Eyebrows stay at exactly `--fs-micro` (12 px)** and nothing anywhere is
+  below it. The 10 px offenders (`.topbar-eyebrow`, `.money-label`) came *up*
+  to 12. The eyebrows are `.topbar-eyebrow`, `.kicker`, `.rail-label`,
+  `.money-label`, `.stats-kicker`, `.player-tag`, `.phone-kicker` — all
+  uppercase, wide-tracked, decorative or metadata.
+- Several eyebrow colours moved `--ink-mute → --ink-dim` so the smallest type
+  is also the higher-contrast type.
+- The phone got the same floor: `.phone-sub` / `.phone-status` → `--fs-ui`,
+  `.phone-money .k` 9.6 → 12 px, and the SDK join card's `.field-label`
+  12.5 → 14 px.
+
+### 6.2 Measured minimum font size per screen (1280×720)
+
+| Screen | elements | **min font-size** | below 14 px | vertical scroll | horizontal scroll |
+| --- | --- | --- | --- | --- | --- |
+| host toolbar | 4 | **12 px** | `.topbar-eyebrow` (eyebrow) | 0 | 0 |
+| setup | 36 | **12 px** | `.kicker`, `.player-tag` ×5 (eyebrows) | 0 | 0 |
+| round | 54 | **12 px** | `.rail-label`, `.money-label` ×2 (eyebrows) | **0** | 0 |
+| round, clock running | 54 | **12 px** | same three eyebrows | **0** | 0 |
+| voting | 22 | **12 px** | `.stats-kicker` ×2 (eyebrows) | **0** | 0 |
+| vote result | 15 | **14 px** | none | **0** | 0 |
+| goodbye | 2 | **35.2 px** | none | **0** | 0 |
+| final intro | 5 | **12 px** | `.kicker` (eyebrow) | **0** | 0 |
+| head-to-head | 17 | **14 px** | none | **0** | 0 |
+| winner | 9 | **12 px** | `.kicker` (eyebrow) | **0** | 0 |
+| editor | 344 | **14 px** | none | **0** (scrolls internally) | 0 |
+| phone 320×640 | — | **12 px** (`.phone-kicker`) | eyebrow only | n/a | **0** |
+
+Every remaining sub-14 px element is exactly 12 px and is an eyebrow, per the
+brief's "`--fs-micro` 12 px for eyebrows only". The previous 10 px minimum and
+the 12.16 px control layer are both gone.
+
+### 6.3 A layout bug the bigger type exposed
+
+The editor started reporting `documentElement.scrollHeight − innerHeight = 45`.
+Two causes, both fixed:
+
+1. `body { overflow: hidden }` under an `overflow: visible` `html` **propagates
+   to the viewport** and computes back to `visible` on the body itself, so
+   `documentElement.scrollHeight` kept reporting the union of the content.
+   `html` is now the clipper (`html { height: 100%; overflow: hidden }`),
+   released again under 780 px so phones scroll normally.
+2. The editor's `position: sticky` table header leaked scrollable overflow past
+   its own `overflow-y: auto` box. `.screen-setup, .screen-editor` are now
+   `position: relative`, which contains it.
+
+The editor still scrolls internally (`clientHeight 665`, `scrollHeight 916`) —
+brief §1 allows that — but the **page** no longer scrolls on any screen.
+
+### 6.4 D13 — the chain is on the accent tokens
+
+`.chain li.won` and `.chain li.current` were hand-picked sky blues
+(`#8dc0ff` / `#4d8ad8` / `#6fa8e8`). They are now derived entirely from the
+Weakest Link accent in `shared/theme.css`:
+
+```css
+.chain li.current {
+  color: var(--accent-ink, #06101a);
+  background-color: var(--accent);
+  background-image: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 74%, #ffffff 24%) 0%, var(--accent) 100%);
+  border-color: color-mix(in srgb, var(--accent) 56%, #ffffff 40%);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+```
+
+The won rungs and their lit studs use `color-mix` over `--accent` too, so the
+ladder tracks the accent if it ever moves. Contrast on the current rung is
+**6.46:1** (`--accent-ink` on `--accent`).
+
+### 6.5 Re-verification
+
+| Check | Result |
+| --- | --- |
+| `tests/harness.html` on `http://127.0.0.1:8675` | **54/54** |
+| `cd games/weakest-link && node --test` | **98/98** |
+| every play screen at 1280×720 | vertical scroll **0**, horizontal **0** (table §6.2) |
+| contrast, re-sampled after the colour moves | **0 failures** — toolbar 6.69, round 6.46 (the accent chain rung), voting 6.45, editor 6.11 |
+| phone 320×640 | no horizontal scroll; targets 56 / 56 / 56 / 64 px |
+| reduced motion static audit | all three sheets **CLEAN** (no `@keyframes` or `animation:` outside the `no-preference` guard) |
+| no `innerHTML` / `console.log`, files < 800 lines | clean; largest `wl-app.js` 797, `wl.css` 517, `wl-stage.css` 433 |

@@ -17,7 +17,7 @@
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr) minmax(11rem, 15rem);
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr) minmax(12rem, 16.5rem);
   gap: clamp(0.7rem, 1.6vw, 1.6rem);
   align-items: stretch;
 }
@@ -31,7 +31,7 @@
 
 .rail-label {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: var(--fs-micro, 12px);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--track-eyebrow, 0.22em);
@@ -77,23 +77,29 @@
   background: rgba(180, 200, 220, 0.22);
 }
 
+/* The lit rungs are drawn from the Weakest Link accent tokens
+   (steel --accent / --accent-ink in shared/theme.css), not a hand-picked
+   blue, so the ladder stays on-palette if the accent ever moves. */
 .chain li.won {
   color: var(--ink);
-  border-color: rgba(111, 168, 232, 0.5);
-  background: linear-gradient(180deg, rgba(111, 168, 232, 0.22), rgba(29, 74, 134, 0.22));
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background-image: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 28%, transparent),
+    color-mix(in srgb, var(--accent) 11%, transparent));
 }
-.chain li.won::before { background: var(--stage-blue); box-shadow: 0 0 9px var(--stage-blue); }
+.chain li.won::before { background: var(--accent); box-shadow: 0 0 9px var(--accent); }
 
 .chain li.current {
-  color: #04121f;
-  background-color: #6fa8e8;               /* flat surface for the sampler */
-  background-image: linear-gradient(90deg, #8dc0ff 0%, #4d8ad8 100%);
-  border-color: #b9d9ff;
-  box-shadow: 0 0 26px rgba(111, 168, 232, 0.65);
+  color: var(--accent-ink, #06101a);
+  background-color: var(--accent);         /* flat surface for the sampler */
+  background-image: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 74%, #ffffff 24%) 0%, var(--accent) 100%);
+  border-color: color-mix(in srgb, var(--accent) 56%, #ffffff 40%);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 55%, transparent);
 }
-.chain li.current::before { background: #04121f; box-shadow: none; }
+.chain li.current::before { background: var(--accent-ink, #06101a); box-shadow: none; }
 
-.chain-tick { opacity: 0.85; font-family: var(--font-ui); font-size: 0.72em; font-weight: 700; }
+.chain-tick { opacity: 0.9; font-family: var(--font-ui); font-size: 14px; font-weight: 700; }
 
 /* ---- The spotlight: a cold beam, the player's name lit inside it ---- */
 
@@ -142,8 +148,8 @@
   min-height: 1.9em;
   padding: 0.35rem 1.5rem;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  font-size: 14px;
   font-weight: 700;
   color: #d8e7fa;
   background-color: #2b4c6e;               /* flat surface for the sampler */
@@ -179,7 +185,7 @@
   margin: 0;
 }
 
-.notice { color: var(--ink-dim); font-size: 0.9rem; min-height: 1.3em; margin: 0; }
+.notice { color: var(--ink-dim); font-size: var(--fs-ui, 15px); min-height: 1.3em; margin: 0; }
 
 /* ---- The money rail ---- */
 
@@ -190,7 +196,7 @@
   border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius-sm);
   padding: 0.5rem 0.8rem 0.6rem;
 }
-.money-label { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.64rem; color: var(--ink-mute); margin: 0; }
+.money-label { text-transform: uppercase; letter-spacing: 0.16em; font-size: var(--fs-micro, 12px); color: var(--ink-dim); margin: 0; }
 .money-value {
   font-family: var(--font-display);
   font-size: clamp(1.5rem, 2.6vw, 2.2rem);
@@ -206,10 +212,11 @@
   padding: 0.5rem 0.7rem 0.6rem;
 }
 
-.stats { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.stats { width: 100%; border-collapse: collapse; font-size: 14px; }
 .stats th, .stats td { text-align: right; padding: 0.22rem 0.3rem; border-bottom: 1px solid rgba(180, 200, 220, 0.12); }
 .stats th:first-child, .stats td:first-child { text-align: left; }
-.stats thead th { color: var(--ink-mute); font-weight: 700; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.12em; }
+/* Column headers are labels, not eyebrows: they stay on the 14 px floor. */
+.stats thead th { color: var(--ink-dim); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; }
 .stats td { font-variant-numeric: tabular-nums; color: var(--ink-dim); }
 .stats tr.is-turn td { color: #dbe9fa; font-weight: 700; }
 .stats tr.is-turn td:first-child { box-shadow: inset 3px 0 0 var(--stage-blue); padding-left: 0.5rem; }
@@ -241,7 +248,7 @@
   flex: 1 1 auto;
   font-weight: 700;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.82rem; color: var(--ink-dim);
+  text-transform: uppercase; letter-spacing: 0.05em; font-size: 14px; color: var(--ink-dim);
 }
 .vote-mask {
   font-family: var(--font-display); letter-spacing: 0.28em; color: var(--ink-mute); min-width: 3.2rem;
@@ -257,7 +264,7 @@
   border-top-color: var(--stage-gold);
   background: linear-gradient(180deg, rgba(232, 184, 75, 0.12), rgba(0, 0, 0, 0.25));
 }
-.vote-list li select { margin-left: auto; max-width: 9.5rem; font-size: 0.82rem; }
+.vote-list li select { margin-left: auto; max-width: 9.5rem; font-size: var(--fs-ui, 15px); }
 
 /* ---- Statistics: two .gsc-card panels ---- */
 
@@ -269,9 +276,9 @@
   padding: 0.75rem 1rem;
 }
 .stats-card.weak { border-left-color: var(--stage-red); }
-.stats-kicker { text-transform: uppercase; letter-spacing: var(--track-eyebrow, 0.22em); font-size: 0.66rem; color: var(--ink-mute); margin: 0; }
+.stats-kicker { text-transform: uppercase; letter-spacing: var(--track-eyebrow, 0.22em); font-size: var(--fs-micro, 12px); color: var(--ink-dim); margin: 0; }
 .stats-name { font-family: var(--font-display); font-size: 1.8rem; line-height: 1; margin: 0.25rem 0 0.15rem; }
-.stats-detail { color: var(--ink-dim); font-size: 0.82rem; margin: 0; }
+.stats-detail { color: var(--ink-dim); font-size: 14px; margin: 0; }
 
 .panel { padding: 0.9rem 1.1rem; text-align: center; }
 .panel-verdict { border-color: rgba(226, 59, 71, 0.5); box-shadow: var(--shadow-panel), 0 0 44px rgba(226, 59, 71, 0.18); }
@@ -339,7 +346,7 @@
   background: #c31824; border-color: #ffa8ae; color: #ffffff;
   border-radius: 5px;   /* a square miss reads without colour */
 }
-.tally-score { font-family: var(--font-display); font-size: 1rem; color: var(--ink-dim); margin: 0.2rem 0 0; letter-spacing: 0.06em; }
+.tally-score { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink-dim); margin: 0.2rem 0 0; letter-spacing: 0.06em; }
 
 /* ---- Result ---- */
 
@@ -415,12 +422,12 @@
 
 .editor-table-scroll { max-height: 58vh; overflow: auto; margin-top: 0.4rem; }
 
-.editor-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.editor-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .editor-table th, .editor-table td { border-bottom: 1px solid rgba(180, 200, 220, 0.12); padding: 0.25rem 0.3rem; text-align: left; vertical-align: top; }
 .editor-table thead th {
   position: sticky; top: 0; z-index: 1;
   background: #0d1218;
-  color: var(--ink-mute); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--ink-dim); font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em;
 }
-.editor-table td input { width: 100%; font-size: 0.82rem; padding: 0.3em 0.45em; }
+.editor-table td input { width: 100%; font-size: var(--fs-ui, 15px); padding: 0.3em 0.45em; }
 .editor-table td.row-num { color: var(--ink-mute); font-variant-numeric: tabular-nums; padding-top: 0.65rem; }

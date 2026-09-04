@@ -29,6 +29,7 @@
   margin: 0 0 0.9rem;
 }
 #gsc-join .field { margin-bottom: 0.8rem; }
+#gsc-join .field-label { font-size: 14px; letter-spacing: 0.1em; color: var(--ink-dim, #a7b2be); }
 #gsc-join .field-input {
   min-height: var(--tap, 56px);
   font-size: 1.05rem;
@@ -65,7 +66,7 @@
 .phone-kicker {
   text-transform: uppercase;
   letter-spacing: 0.22em;
-  font-size: 0.7rem;
+  font-size: var(--fs-micro, 12px);
   font-weight: 700;
   color: #9ec4ea;
   margin: 0 0 0.4rem;
@@ -85,7 +86,7 @@
 
 .phone-sub {
   color: var(--ink-dim, #a7b2be);
-  font-size: 0.95rem;
+  font-size: var(--fs-ui, 15px);
   margin: 0 0 1rem;
   min-height: 1.2em;
 }
@@ -119,7 +120,7 @@
 
 .phone-status {
   margin: 1rem 0 0;
-  font-size: 0.9rem;
+  font-size: var(--fs-ui, 15px);
   color: var(--ink-dim, #a7b2be);
   min-height: 1.3em;
 }
@@ -134,7 +135,7 @@
   padding: 0.55rem 0.4rem;
 }
 .phone-money p { margin: 0; }
-.phone-money .k { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem; color: var(--ink-mute, #8b96a3); }
+.phone-money .k { text-transform: uppercase; letter-spacing: 0.14em; font-size: var(--fs-micro, 12px); color: var(--ink-dim, #a7b2be); }
 .phone-money .v { font-family: var(--font-display, "Anton", sans-serif); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
 
 /* The goodbye card is the phone's half of the red wipe. */
