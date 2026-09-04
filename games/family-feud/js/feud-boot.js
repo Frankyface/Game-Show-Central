@@ -30,6 +30,7 @@
   function showSplash() {
     const node = document.getElementById("gsc-splash");
     if (!node) return;
+    if (document.body.classList.contains("gsc-embedded")) return; // the hub shows its own splash on switch
     if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const title = document.getElementById("gsc-splash-title");
     const sub = document.getElementById("gsc-splash-sub");

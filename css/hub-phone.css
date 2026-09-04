@@ -68,6 +68,9 @@ body.player-mode { background-attachment: scroll; }
   color: var(--gold-text);
 }
 
+/* UI-5 (brief 09 §1): every phone target is at least one tap tall. */
+.phone-card .field-input { min-height: var(--tap); }
+
 .code-input {
   font-family: var(--font-display);
   font-size: 2.3rem;

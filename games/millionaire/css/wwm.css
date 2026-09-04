@@ -269,7 +269,7 @@ body[data-gsc-game="millionaire"] {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--ink-dim);
+  color: var(--ink); /* UI-3: 4.5:1 on the lifeline gradient */
   line-height: 1;
 }
 
@@ -435,7 +435,7 @@ body[data-gsc-game="millionaire"] {
   font-size: 0.95rem;
 }
 
-.tree-rung { text-align: right; font-size: 0.78rem; color: var(--ink-faint); }
+.tree-rung { text-align: right; font-size: 0.78rem; color: var(--ink-mute); } /* UI-3: --ink-faint is never for text */
 .tree-value { text-align: right; font-variant-numeric: tabular-nums; }
 .tree-safe { color: var(--gold); font-size: 0.8rem; }
 
