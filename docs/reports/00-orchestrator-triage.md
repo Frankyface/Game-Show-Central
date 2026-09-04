@@ -70,6 +70,13 @@ and what is left. Per-component detail lives in the sibling reports.
   (`app.js`, `buzzer-host.js`); each grew by four `// GSC:` lines.
 - Testers ran real-network tiers from one browser profile; a check on two
   physical devices is still worth doing before a big game night.
+- UI minors left open (see `ui-upgrade-verification.md`): Jeopardy has no
+  game splash by design (the hub's covers it), the registry emoji badge sits
+  over the drawn card art on the landing page, Jeopardy's clue modal mixes
+  button shapes, Millionaire's setup title casing; `wheel-draw.js` gained
+  decorative SVG (rim lights, pointer) beyond the brief's "class names only"
+  rule — accepted since geometry and rotation are untouched and all wheel
+  suites pass.
 
 ## Phase 2 (same day): Millionaire + UI upgrade
 
@@ -79,7 +86,7 @@ one implementer per surface, independent testers, defects back to owners.
 | Component | Tester verdict | Notes |
 |---|---|---|
 | millionaire | **ship** | 67 unit tests (34 adversarial), harness 55/55, real-network hub run incl. Fastest Finger and Ask the Audience; all 45 questions fact-checked; six minors closed afterwards (phone vote countdown, Switch-the-Question notice, docs). Safe-haven rule clarified to the TV rule: a haven counts once its question is answered correctly. |
-| ui-upgrade (hub + 5 games) | see `ui-upgrade-verification.md` | Design system v2 in `shared/theme.css` + `shared/theme-components.css` (`docs/design-system.md`); CSS-only upgrade per game (Jeopardy via a new `gsc-look.css`, no JS); every game harness green before and after; game-switch splash (games skip theirs when embedded). |
+| ui-upgrade (hub + 5 games) | fix-then-ship → fixed (double splash in Feud/Wheel when embedded, two Millionaire contrast pairs, hub phone field height; Weakest Link small text raised) | Design system v2 in `shared/theme.css` + `shared/theme-components.css` (`docs/design-system.md`); CSS-only upgrade per game (Jeopardy via a new `gsc-look.css`, no JS); every game harness green before and after; game-switch splash (games skip theirs when embedded). |
 
 UI rules learned: both stops of a gradient under text must clear contrast; every
 `@keyframes`/`animation:` lives inside `prefers-reduced-motion: no-preference`;
