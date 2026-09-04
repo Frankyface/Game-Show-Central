@@ -1,0 +1,548 @@
+/* ============================================================
+   The Price Is Right — host screens
+   Built on design system v2 (shared/theme.css +
+   shared/theme-components.css): the tokens, the `.gsc-*` kit and
+   the motion vocabulary all come from there. This sheet adds the
+   carnival palette, the show's own furniture (podiums with masked
+   bids, the wheel drum, showcase cards) and the page layout.
+
+   Every @keyframes and every `animation:` in this file lives
+   inside `@media (prefers-reduced-motion: no-preference)`.
+   ============================================================ */
+
+/* The stage: a warm, sunlit studio rather than the hub's midnight blue. */
+:root {
+  --stage-deep: #3d1d09;
+  --stage-night: #150a04;
+  --stage-card: #4a230d;
+
+  --tpir-yellow: #ffd23f;
+  --tpir-yellow-deep: #f0a500;
+  --tpir-red: #e63946;
+  --tpir-blue: #1d6fdc;
+  --tpir-blue-deep: #12508f;
+  --tpir-green: #2dc653;
+  --tpir-ink-on-yellow: #2a1a00;
+}
+
+/* The per-game accent block lives in shared/theme.css for the shipped games;
+   this component owns only its own directory, so it sets the same three
+   variables here. This sheet loads after the theme, so it wins. */
+body[data-gsc-game="price-is-right"] {
+  --accent: #ffd23f;
+  --accent-2: #e63946;
+  --accent-ink: #2a1a00;
+  --stage-glow: #8a3d12;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============ Topbar ============ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1.1rem;
+  border-bottom: 1px solid var(--panel-line);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--tpir-yellow);
+  margin: 0;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+#tpir-error { margin: 0.4rem 1.1rem 0; }
+
+/* ============ Screens ============ */
+
+/* A flex column so each screen can claim the leftover height itself: a
+   percentage height would resolve against `auto` and collapse. */
+#tpir-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.7rem 1.1rem 1rem;
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.screen-setup, .screen-editor { overflow-y: auto; }
+
+.controls {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.notice {
+  margin: 0;
+  min-height: 1.35rem;
+  color: var(--tpir-yellow);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hint { margin: 0.3rem 0 0.6rem; color: var(--ink-dim); font-size: 0.85rem; }
+.hint-inline { color: var(--ink-mute); font-size: 0.78rem; font-weight: 400; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--tpir-yellow); }
+
+.setup-heading {
+  margin: 0.9rem 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-mute);
+}
+
+/* A blue that matches the show's palette; the theme ships gold and ghost. */
+.btn-blue {
+  background: linear-gradient(180deg, var(--tpir-blue) 0%, var(--tpir-blue-deep) 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(29, 111, 220, 0.35);
+}
+
+.btn-blue:hover { box-shadow: 0 6px 20px rgba(29, 111, 220, 0.5); }
+
+/* ============ Setup ============ */
+
+.setup-card { max-width: 74rem; margin: 0 auto; width: 100%; }
+
+.setup-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.6rem;
+  margin-top: 0.8rem;
+}
+
+.setup-block { min-width: 0; }
+
+.source-note { margin: 0.2rem 0 0; color: var(--ink-dim); font-size: 0.88rem; }
+
+.plan-note {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border-left: 4px solid var(--tpir-yellow);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.player-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.player-seat {
+  width: 1.6rem; height: 1.6rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--tpir-yellow);
+  color: var(--tpir-ink-on-yellow);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.player-name { font-weight: 700; }
+.player-tag { color: var(--ink-mute); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.player-list li .btn:first-of-type { margin-left: auto; }
+
+.inline-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; }
+
+.inline-form input[type="text"] {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 0.5em 0.7em;
+}
+
+.game-set { border: 1px solid var(--panel-line); border-radius: var(--radius); padding: 0.5rem 0.8rem 0.7rem; }
+.game-set legend { padding: 0 0.3rem; }
+.check { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; font-size: 0.92rem; }
+.check input { width: 1.05rem; height: 1.05rem; accent-color: var(--tpir-yellow); }
+
+.setup-actions { margin-top: 1.1rem; display: flex; justify-content: flex-end; }
+
+/* ============ Contestants' Row ============ */
+
+.row-banner .gsc-banner-title { color: var(--tpir-yellow); }
+
+.price-tag {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: var(--track-display);
+  padding: 0.15em 0.6em;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--tpir-yellow) 0%, var(--tpir-yellow-deep) 100%);
+  color: var(--tpir-ink-on-yellow);
+  white-space: nowrap;
+}
+
+.row-grid {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) 1fr;
+  gap: 1rem;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+.item-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+  border-left: 6px solid var(--tpir-red);
+}
+
+.item-name {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3vw, 2.9rem);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--ink);
+}
+
+.item-note { margin: 0; color: var(--ink-dim); font-size: 1rem; }
+
+.podium-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.7rem;
+  align-items: stretch;
+}
+
+.tpir-podium {
+  align-content: center;
+  text-align: center;
+  border-top: 5px solid var(--tpir-blue);
+}
+
+.tpir-podium.is-winner { border-top-color: var(--tpir-green); }
+.tpir-podium.is-out { border-top-color: var(--tpir-red); }
+
+.tpir-podium-bid {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+  color: var(--tpir-yellow);
+  letter-spacing: 0.04em;
+}
+
+/* ============ Bid entry ============ */
+
+.bid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.bid-field, .guess-field {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+}
+
+.bid-field.is-placed { border-color: var(--tpir-green); }
+.bid-field.is-phone { border-style: dashed; }
+
+.bid-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-width: 4.5rem;
+  color: var(--ink-dim);
+}
+
+.bid-input {
+  flex: 1 1 4rem;
+  min-width: 3.5rem;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--ink-faint);
+  border-radius: var(--radius-sm);
+  padding: 0.35em 0.5em;
+}
+
+.bid-input:disabled { opacity: 0.45; }
+
+/* ============ Showcase Showdown ============ */
+
+.sd-grid {
+  display: grid;
+  grid-template-columns: minmax(13rem, 22rem) 1fr;
+  gap: 1.2rem;
+  min-height: 0;
+  flex: 1;
+}
+
+.drum-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sized against the viewport rather than the flex row: an SVG with a viewBox
+   reports an intrinsic height, which would otherwise stretch the grid row and
+   push the host screen past 720 px. */
+.drum {
+  width: 100%;
+  min-height: 0;
+  max-height: min(27rem, 57vh);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
+}
+
+.drum-text { font-family: var(--font-display); letter-spacing: 0.02em; }
+
+.drum-value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--tpir-yellow);
+  letter-spacing: var(--track-display);
+}
+
+.sd-spinners {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  align-content: start;
+  gap: 0.7rem;
+}
+
+.tpir-spinner { text-align: center; border-top: 5px solid var(--tpir-blue); }
+.tpir-spinner.is-winner { border-top-color: var(--tpir-green); }
+.tpir-spinner.is-out { border-top-color: var(--tpir-red); }
+.tpir-spinner .gsc-podium-score { font-family: var(--font-display); color: var(--tpir-yellow); font-size: 2rem; }
+
+/* ============ Showcase ============ */
+
+.sc-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.sc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 6px solid var(--tpir-blue);
+}
+
+.sc-card.is-winner { border-top-color: var(--tpir-green); background: var(--panel-strong); }
+
+.sc-owner {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--tpir-yellow);
+}
+
+.sc-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
+
+.sc-prizes li {
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--well);
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-prize-name { font-weight: 700; font-size: 1.05rem; }
+.sc-prize-note { color: var(--ink-dim); font-size: 0.82rem; }
+.sc-total { margin: 0; font-weight: 700; color: var(--ink-dim); }
+.sc-card.is-winner .sc-total { color: var(--tpir-yellow); }
+
+/* ============ Standings ============ */
+
+.standings {
+  list-style: none;
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 auto;
+  padding: 0;
+  width: min(46rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.standings li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border-left: 5px solid var(--panel-line);
+}
+
+.standings li.is-top { border-left-color: var(--tpir-yellow); background: var(--panel-strong); }
+
+.stand-place { width: 1.8rem; color: var(--ink-mute); font-weight: 700; }
+.stand-name { flex: 1; font-weight: 700; font-size: 1.15rem; }
+
+.stand-won {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: var(--track-display);
+  color: var(--tpir-yellow);
+}
+
+/* ============ Editor ============ */
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.screen-title { margin: 0; font-family: var(--font-display); font-size: 1.5rem; letter-spacing: var(--track-display); text-transform: uppercase; }
+.editor-bar-actions { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.editor-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.6rem; }
+
+.editor-tab {
+  border: 1px solid var(--panel-line);
+  background: var(--panel);
+  color: var(--ink-dim);
+  border-radius: var(--radius-pill);
+  padding: 0.4em 1em;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.editor-tab[aria-selected="true"] { background: var(--tpir-yellow); color: var(--tpir-ink-on-yellow); border-color: var(--tpir-yellow); }
+
+.editor-panel { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.7rem 0 2rem; }
+
+.ed-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+}
+
+.ed-row.is-bad { border-color: var(--tpir-red); }
+.ed-fields { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ed-actions { display: flex; gap: 0.3rem; align-items: flex-start; }
+
+.ed-field { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.ed-field input, .ed-field select {
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--ink-faint);
+  border-radius: var(--radius-sm);
+  padding: 0.35em 0.5em;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ed-field-wide input { min-width: 16rem; }
+.ed-field-num input { width: 7rem; }
+.ed-sub { margin: 0.3rem 0 0 0.8rem; padding-left: 0.8rem; border-left: 2px solid var(--panel-line); }
+.ed-group-title { margin: 0 0 0.3rem; font-weight: 700; color: var(--tpir-yellow); font-size: 0.9rem; }
+.ed-bad { color: var(--tpir-red); font-size: 0.8rem; margin: 0.3rem 0 0; }
+
+/* ============ Motion ============ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .tpir-podium.is-winner,
+  .sc-card.is-winner,
+  .standings li.is-top {
+    animation: gsc-pop var(--dur) var(--ease-spring) both;
+  }
+
+  .price-tag { animation: gsc-rise var(--dur) var(--ease-out) both; }
+}
+
+/* ============ Narrow host windows ============ */
+
+@media (max-width: 900px) {
+  .setup-cols, .row-grid, .sd-grid, .sc-cards { grid-template-columns: 1fr; }
+  .drum { max-height: 16rem; }
+}
+
+/* ============ Player mode hides every host screen ============ */
+
+body.player-mode .topbar,
+body.player-mode #screen-setup,
+body.player-mode #screen-row,
+body.player-mode #screen-game,
+body.player-mode #screen-showdown,
+body.player-mode #screen-showcase,
+body.player-mode #screen-standings,
+body.player-mode #screen-editor { display: none !important; }
+
+body.player-mode #tpir-main { padding: 0; }
+
+/* Embedded in the hub: the shell owns the room controls and the code chip. */
+body.gsc-embedded #tpir-room-controls,
+body.gsc-embedded #tpir-room-status,
+body.gsc-embedded #tpir-join-note,
+body.gsc-embedded #tpir-room-chip { display: none !important; }

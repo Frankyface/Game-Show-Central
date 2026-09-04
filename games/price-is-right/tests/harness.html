@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Price Is Right harness (P-I1–P-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 62rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 960px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 232px; height: 470px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>The Price Is Right — loopback harness (success states P-I1 … P-I6, spec 10 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself —
+    no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__TPIR_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 6000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const SOURCES = [
+      "../index.html", "../prizes.json", "../README.md",
+      "../css/tpir.css", "../css/tpir-games.css", "../css/tpir-phone.css",
+      "../js/tpir-content.js", "../js/tpir-select.js", "../js/tpir-core.js", "../js/data.js",
+      "../js/tpir-sound.js", "../js/tpir-wheel.js", "../js/tpir-view.js", "../js/tpir-games.js",
+      "../js/tpir-app.js", "../js/tpir-editor.js", "../js/tpir-room.js", "../js/tpir-phone.js",
+      "../tests/helpers.mjs", "../tests/tpir-core.test.mjs", "../tests/tpir-show.test.mjs",
+      "../tests/harness.html", "../tests/fixtures/harness-prizes.json",
+    ];
+    const SHARED = [
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../../../shared/theme.css", "../../../shared/theme-components.css",
+    ];
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-prizes.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1";
+    const KEYS = ["gsc-tpir-state-v1", "gsc-tpir-draft-v1"];
+
+    async function refreshAssets() {
+      await Promise.all(SOURCES.concat(SHARED).map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().TpirApp.core();
+    const click = (id) => H(id).click();
+    const hostText = (id) => (H(id) ? H(id).textContent : "");
+
+    async function bootHost(clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().TpirApp && HW().TpirApp.state().content, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.TpirPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).TpirPhone.view();
+    const phoneButtons = (pid) => [...PD(pid).querySelectorAll("#tpir-phone-body .btn, #tpir-phone-actions .btn")];
+    const phoneButton = (pid, text) => phoneButtons(pid).find((b) => b.textContent === text);
+    const phoneText = (pid, id) => PD(pid).getElementById(id).textContent;
+
+    /** Type a number on the phone's pad and press its action button. */
+    async function phoneType(pid, value, action) {
+      await waitFor(() => phoneButton(pid, action), `${pid} pad (${action})`);
+      const clear = phoneButton(pid, "Clear");
+      if (clear) clear.click();
+      for (const ch of String(value)) {
+        await waitFor(() => phoneButton(pid, ch), `${pid} key ${ch}`);
+        phoneButton(pid, ch).click();
+      }
+      await waitFor(() => phoneButton(pid, action) && !phoneButton(pid, action).disabled, `${pid} can send`);
+      phoneButton(pid, action).click();
+    }
+
+    /** Wait for whatever animation the host is running to finish. */
+    const settled = () => waitFor(() => HW().TpirApp.state().busy === false, "host settled", 9000);
+
+    /* ============================================================
+       P-I1 — Contestants' Row: four phones bid, and nothing leaks
+       ============================================================ */
+
+    async function scenarioRow() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().TpirApp.state().setup.players.length === 4, "line-up from the shell");
+      check("P-I1 the shell roster becomes the line-up",
+        HW().TpirApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo,Dev",
+        HW().TpirApp.state().setup.players.map((p) => p.name).join(","));
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "row", "the row");
+      const price = core().row.item.price;
+      await waitFor(() => phoneView("p1").screen === "bid", "the phones get the bid screen");
+      check("P-I1 every phone gets the bid screen and none of them sees the price",
+        phoneView("p1").screen === "bid" && JSON.stringify(phoneView("p1")).indexOf(String(price)) < 0,
+        `item ${core().row.item.name} at ${price}`);
+
+      await phoneType("p1", 300, "Bid");
+      await waitFor(() => core().row.bids.p1 === 300, "p1 bid reaches the host");
+      await phoneType("p2", price, "Bid");
+      await phoneType("p3", price + 200, "Bid");
+      await waitFor(() => Object.keys(core().row.bids).length === 3, "three bids");
+
+      const podiums = [...HD().querySelectorAll("#tpir-podiums .tpir-podium-bid")].map((n) => n.textContent);
+      check("P-I1 the host screen masks every bid until the reveal",
+        podiums.filter((t) => t === "•••").length === 3 && HD().body.textContent.indexOf("$300") < 0,
+        podiums.join(" | "));
+      check("P-I1 one phone never sees another phone's bid",
+        JSON.stringify(phoneView("p1")).indexOf("300") > 0
+        && JSON.stringify(phoneView("p3")).indexOf("300") < 0,
+        `p3 view: ${JSON.stringify(phoneView("p3").placed)}`);
+      check("P-I1 a phone that has not bid still sees who has",
+        phoneView("p4").placed.map((p) => (p.placed ? "1" : "0")).join("") === "1110");
+
+      click("btn-reveal-bids");
+      await waitFor(() => core().row.revealed, "reveal");
+      check("P-I1 the exact bid wins, takes the bonus and comes on down",
+        core().row.result.pid === "p2" && core().row.result.exact === true
+        && core().winnings.p2 === price + 500,
+        `winner ${core().row.result.pid} for ${core().winnings.p2}`);
+      check("P-I1 the reveal puts the real numbers on the podiums and shows the price",
+        HD().querySelector('#tpir-podiums .tpir-podium[data-pid="p1"] .tpir-podium-bid').textContent === "$300"
+        && hostText("tpir-row-price").indexOf(String(price)) > 0,
+        hostText("tpir-row-price"));
+      check("P-I1 an over-bidder is marked without relying on colour alone",
+        HD().querySelector('#tpir-podiums .tpir-podium[data-pid="p3"] .gsc-podium-note').textContent === "Over");
+    }
+
+    /* ============================================================
+       P-I4 — Take over: the host silences a phone mid-game
+       ============================================================ */
+
+    async function scenarioTakeOver() {
+      click("btn-row-next");
+      await waitFor(() => core().phase === "game", "the pricing game");
+      HD().querySelector('#tpir-game-pick .btn[data-kind="cliffhangers"]').click();
+      await waitFor(() => core().game.kind === "cliffhangers", "Cliff Hangers");
+      await waitFor(() => phoneView("p2").screen === "guess", "the player's guess screen");
+      check("P-I4 only the player who came on down gets the guess screen",
+        phoneView("p2").screen === "guess" && phoneView("p1").screen === "wait",
+        `p1 sees ${phoneView("p1").screen}`);
+
+      const input = HD().querySelector("#tpir-game-controls .bid-input");
+      check("P-I4 the host's own field is disabled while the phone has the controls",
+        input.disabled === true && !!HD().querySelector("#tpir-game-controls .btn"),
+        `disabled=${input.disabled}`);
+
+      const takeOver = [...HD().querySelectorAll("#tpir-game-controls .btn")]
+        .find((b) => b.textContent === "Take over");
+      takeOver.click();
+      await waitFor(() => HD().querySelector("#tpir-game-controls .bid-input").disabled === false,
+        "the field unlocks");
+      check("P-I4 Take over hands the controls back to the host", true, "field enabled");
+
+      const first = core().game.items[0].price;
+      HD().querySelector("#tpir-game-controls .bid-input").value = String(first);
+      HD().querySelector("#btn-guess").click();
+      await waitFor(() => core().game.guesses.length === 1, "the host's guess lands");
+      check("P-I4 the host's typed price is accepted",
+        core().game.guesses[0] === first && core().game.steps === 0,
+        `${core().game.guesses[0]} for ${first}, ${core().game.steps} steps`);
+
+      PW("p2").TpirPhone.me.send({ t: "guess", value: 99 });
+      await sleep(120);
+      check("P-I4 the taken-over phone can no longer play",
+        core().game.guesses.length === 1, `${core().game.guesses.length} guesses`);
+
+      // Finish Cliff Hangers from the host and move on.
+      for (let i = 1; i < 3; i += 1) {
+        const want = core().game.items[core().game.index].price;
+        HD().querySelector("#tpir-game-controls .bid-input").value = String(want);
+        HD().querySelector("#btn-guess").click();
+        await sleep(40);
+      }
+      check("P-I4 three exact prices keep the climber on the mountain and win the prize",
+        core().game.done && core().game.won && core().winnings.p2 > 4000,
+        `steps ${core().game.steps}, won ${core().game.won}`);
+    }
+
+    /* ============================================================
+       P-I2 — Plinko: the chip stops in the slot the core rolled
+       ============================================================ */
+
+    const PLINKO_COL = (460 - 12) / 9;
+    const colX = (pos) => 6 + (pos + 0.5) * PLINKO_COL;
+
+    async function scenarioPlinko() {
+      click("btn-game-next");
+      await waitFor(() => core().phase === "row", "the next row");
+      await phoneType("p1", core().row.item.price, "Bid");
+      await waitFor(() => core().row.bids.p1, "p1 bids again");
+      click("btn-reveal-bids");
+      await waitFor(() => core().row.result && core().row.result.pid === "p1", "p1 comes on down");
+      click("btn-row-next");
+      await waitFor(() => core().phase === "game", "the pricing game");
+      HD().querySelector('#tpir-game-pick .btn[data-kind="plinko"]').click();
+      await waitFor(() => core().game.kind === "plinko", "Plinko");
+      await waitFor(() => phoneView("p1").screen === "plinko", "the Plinko phone screen");
+
+      check("P-I2 the player's phone gets the higher/lower screen and never the real price",
+        phoneView("p1").stage === "answer"
+        && JSON.stringify(phoneView("p1")).indexOf("actual") < 0,
+        JSON.stringify(phoneView("p1").sub));
+
+      const truth = { higher: "Higher", lower: "Lower", correct: "That's right" };
+      for (let i = 0; i < 4; i += 1) {
+        const want = HW().TpirCore.plinkoTruth(core().game.prices[core().game.index]);
+        await waitFor(() => phoneButton("p1", truth[want]), `answer button ${i}`);
+        phoneButton("p1", truth[want]).click();
+        await sleep(60);
+      }
+      await waitFor(() => core().game.stage === "drops", "the drop stage");
+      check("P-I2 four right answers earn the maximum five chips",
+        core().game.chips === 5 && core().game.answers.every((a) => a.right),
+        `${core().game.chips} chips`);
+
+      await waitFor(() => phoneButton("p1", "5"), "the slot picker");
+      const bankedBefore = core().winnings.p1 || 0;
+      phoneButton("p1", "5").click();          // slot index 4, the middle
+      await waitFor(() => core().game.drops.length === 1, "the drop reaches the host");
+      const drop = core().game.lastDrop;
+      check("P-I2 the phone only picks the drop slot — the core rolls the bounce",
+        drop.slot === 4 && Array.isArray(drop.path) && drop.path.length === 13
+        && JSON.stringify(phoneView("p1")).indexOf("path") < 0,
+        `slot ${drop.slot} → landing ${drop.landing}`);
+
+      await settled();
+      const resting = [...HD().querySelectorAll("#tpir-plinko-resting circle")];
+      const last = resting[resting.length - 1];
+      check("P-I2 the drop animation ends on the slot the core chose",
+        resting.length === 1 && Math.abs(Number(last.getAttribute("cx")) - colX(drop.landing)) < 0.6,
+        `chip at cx=${last && last.getAttribute("cx")}, slot ${drop.landing} is cx=${colX(drop.landing).toFixed(1)}`);
+      check("P-I2 the winnings grow by exactly the slot value",
+        (core().winnings.p1 || 0) === bankedBefore + drop.value,
+        `${bankedBefore} + ${drop.value} = ${core().winnings.p1}`);
+
+      for (let i = 1; i < 5; i += 1) {
+        await waitFor(() => phoneButton("p1", "1"), `slot picker ${i}`);
+        phoneButton("p1", "1").click();
+        await waitFor(() => core().game.drops.length === i + 1, `drop ${i + 1}`);
+        await settled();
+      }
+      check("P-I2 the game ends when the last chip has fallen",
+        core().game.done && core().game.dropped === 5
+        && core().game.total === core().game.drops.reduce((s, d) => s + d.value, 0),
+        `${core().game.dropped} chips, ${core().game.total} total`);
+    }
+
+    /* ============================================================
+       P-I3 — the big wheel stops on the segment the core rolled
+       ============================================================ */
+
+    async function scenarioWheel() {
+      click("btn-game-next");
+      await waitFor(() => core().phase === "showdown", "the showdown");
+      const sd = core().showdown;
+      await waitFor(() => phoneView(sd.spinners[0]).screen === "spin", "the spin screen");
+      check("P-I3 both contestants who came on down are at the wheel, lowest winnings first",
+        sd.spinners.length === 2
+        && HW().TpirCore.winningsOf(core(), sd.spinners[0]) <= HW().TpirCore.winningsOf(core(), sd.spinners[1]),
+        sd.spinners.join(","));
+
+      const first = sd.spinners[0];
+      check("P-I3 only the contestant at the wheel gets the spin button",
+        phoneView(first).screen === "spin" && phoneView(sd.spinners[1]).screen === "wait",
+        `${first} sees ${phoneView(first).screen}`);
+
+      await waitFor(() => phoneButton(first, "SPIN"), "the phone spin button");
+      phoneButton(first, "SPIN").click();
+      await waitFor(() => core().showdown.lastSpin, "the spin reaches the host");
+      const spin = core().showdown.lastSpin;
+      await settled();
+      const svg = H("tpir-drum");
+      const at = HW().TpirWheel.segmentAtPointer(HW().TpirWheel.rotationOf(svg), 20);
+      check("P-I3 the wheel animation ends on the segment the core chose",
+        at === spin.index,
+        `core ${spin.index} (${spin.value}), pointer ${at}`);
+      const bands = [...svg.querySelectorAll(".drum-band")];
+      const under = bands[spin.index].childNodes[1];
+      check("P-I3 the value under the pointer is the value that was scored",
+        Math.abs(Number(under.getAttribute("y")) - 210) < 0.6
+        && under.textContent === HW().TpirWheel.label(spin.value),
+        `${under.textContent} at y=${under.getAttribute("y")}`);
+
+      // Finish the showdown from the host so the rest of the run can continue.
+      let guard = 0;
+      while (core().showdown.awaiting !== "done" && guard++ < 12) {
+        if (core().showdown.awaiting === "decide") click("btn-stay");
+        else { click("btn-spin"); }
+        await settled();
+        await sleep(60);
+      }
+      check("P-I3 the showdown ends with one contestant through to the showcase",
+        core().showdown.awaiting === "done" && !!core().showdown.winner
+        && core().showdownWinners.length === 1,
+        `winner ${core().showdown.winner}, totals ${JSON.stringify(core().showdown.totals)}`);
+    }
+
+    /* ============================================================
+       P-I5 — a reload at each segment picks the show back up
+       ============================================================ */
+
+    async function reloadAndCompare(label) {
+      const before = {
+        phase: core().phase, segment: core().segmentIndex,
+        winnings: JSON.stringify(core().winnings), roster: core().roster.length,
+      };
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().TpirApp && HW().TpirApp.core(), `${label} restore`);
+      const after = core();
+      check(`P-I5 a reload during ${label} restores the same show`,
+        after.phase === before.phase && after.segmentIndex === before.segment
+        && JSON.stringify(after.winnings) === before.winnings && after.roster.length === before.roster,
+        `${before.phase}#${before.segment} → ${after.phase}#${after.segmentIndex}`);
+      check(`P-I5 the ${label} screen is painted after the reload`,
+        !H(`screen-${after.phase === "standings" ? "standings" : after.phase}`).classList.contains("hidden"),
+        `screen-${after.phase}`);
+    }
+
+    async function scenarioReload() {
+      await reloadAndCompare("the showdown");
+      await bootPhones();
+      await waitFor(() => phoneView("p1"), "phones back");
+      click("btn-sd-next");
+      await waitFor(() => core().phase === "row", "back to the row");
+      await reloadAndCompare("the row");
+      await bootPhones();
+
+      // Run the rest of the episode to the showcase, then reload there too.
+      await runToShowcase();
+      await reloadAndCompare("the showcase");
+      await bootPhones();
+      await waitFor(() => core().phase === "showcase", "the showcase");
+    }
+
+    /** Drive the host's own buttons until the showcase segment. */
+    async function runToShowcase() {
+      let guard = 0;
+      while (core().phase !== "showcase" && guard++ < 260) {
+        const s = core();
+        if (s.phase === "row" && !s.row.revealed) {
+          const pid = s.row.seats[0];
+          const input = HD().querySelector(`#tpir-bid-form .bid-input[data-pid="${pid}"]`);
+          const take = HD().querySelector(`#tpir-bid-form .bid-take[data-pid="${pid}"]`);
+          if (take && !take.classList.contains("hidden")) take.click();
+          input.value = String(s.row.item.price - 5);
+          HD().querySelector(`#tpir-bid-form .bid-send[data-pid="${pid}"]`).click();
+          click("btn-reveal-bids");
+        } else if (s.phase === "row" && s.row.allOver) click("btn-rebid");
+        else if (s.phase === "row") click("btn-row-next");
+        else if (s.phase === "game" && s.game.pending) {
+          HD().querySelector('#tpir-game-pick .btn[data-kind="luckyseven"]').click();
+        } else if (s.phase === "game" && !s.game.done) await playOneGameStep(s);
+        else if (s.phase === "game") click("btn-game-next");
+        else if (s.phase === "showdown" && s.showdown.awaiting === "spin") { click("btn-spin"); await settled(); }
+        else if (s.phase === "showdown" && s.showdown.awaiting === "decide") click("btn-stay");
+        else if (s.phase === "showdown") click("btn-sd-next");
+        await sleep(35);
+      }
+    }
+
+    async function playOneGameStep(s) {
+      const g = s.game;
+      const takeOver = [...HD().querySelectorAll("#tpir-game-controls .btn")]
+        .find((b) => b.textContent === "Take over");
+      if (takeOver) { takeOver.click(); await sleep(30); return; }
+      if (g.kind === "luckyseven") {
+        HD().querySelector(`#tpir-game-controls .l7-key[data-digit="${g.digits[g.index]}"]`).click();
+        return;
+      }
+      if (g.kind === "cliffhangers") {
+        HD().querySelector("#tpir-game-controls .bid-input").value = String(g.items[g.index].price);
+        HD().querySelector("#btn-guess").click();
+        return;
+      }
+      if (g.stage === "answers") {
+        const want = HW().TpirCore.plinkoTruth(g.prices[g.index]);
+        HD().querySelector(`#tpir-game-controls .plinko-answer[data-answer="${want}"]`).click();
+        return;
+      }
+      HD().querySelector('#tpir-game-controls .plinko-slot[data-slot="4"]').click();
+      await settled();
+    }
+
+    /* ============================================================
+       The showcase, then the standings
+       ============================================================ */
+
+    async function scenarioShowcase() {
+      const sc = core().showcase;
+      check("P-I5 the two showdown winners are the finalists",
+        sc.finalists.length === 2 && !!sc.chooser
+        && sc.finalists.indexOf(sc.chooser) >= 0,
+        `finalists ${sc.finalists.join(",")}, chooser ${sc.chooser}`);
+      check("P-I5 nothing is claimed and no total is shown before the choice",
+        HD().querySelectorAll(".sc-card").length === 2
+        && [...HD().querySelectorAll(".sc-total")].every((n) => n.textContent === "Total hidden"));
+
+      click("btn-sc-pass");
+      await waitFor(() => core().showcase.chosen, "the choice");
+      const passed = core().showcase;
+      check("P-I5 passing sends the first showcase to the other finalist",
+        passed.assignments[passed.chooser] === passed.pair[1],
+        `chooser has showcase index ${passed.assignments[passed.chooser]}`);
+
+      const chooser = passed.chooser;
+      const other = passed.finalists.find((pid) => pid !== chooser);
+      const mine = core().content.showcases[passed.assignments[chooser]].total;
+      const theirs = core().content.showcases[passed.assignments[other]].total;
+      await waitFor(() => phoneView(chooser).screen === "showcase-bid", "the finalist's bid screen");
+      check("P-I5 a finalist's phone lists their prizes but never their total",
+        phoneView(chooser).prizes.length >= 2
+        && JSON.stringify(phoneView(chooser)).indexOf(String(mine)) < 0,
+        `total ${mine} kept off the phone`);
+
+      await phoneType(chooser, mine - 100, "Bid");
+      await waitFor(() => core().showcase.bids[chooser] === mine - 100, "the finalist's bid");
+      const masked = HD().querySelector(`#tpir-sc-bids .bid-field[data-pid="${chooser}"]`);
+      check("P-I5 showcase bids are entered but the totals stay hidden until the reveal",
+        masked.classList.contains("is-placed")
+        && HD().querySelector(".sc-total").textContent === "Total hidden");
+
+      const otherInput = HD().querySelector(`#tpir-sc-bids .bid-input[data-pid="${other}"]`);
+      HD().querySelector(`#tpir-sc-bids .bid-take[data-pid="${other}"]`).click();
+      await waitFor(() => !HD().querySelector(`#tpir-sc-bids .bid-input[data-pid="${other}"]`).disabled, "take over");
+      otherInput.value = String(theirs + 4000);
+      HD().querySelector(`#tpir-sc-bids .bid-send[data-pid="${other}"]`).click();
+      await waitFor(() => core().showcase.bids[other], "the second bid");
+
+      click("btn-sc-reveal");
+      await waitFor(() => core().showcase.revealed, "the reveal");
+      const result = core().showcase.result;
+      check("P-I5 closest without going over, inside the margin, wins both showcases",
+        result.winner === chooser && result.both === true
+        && HW().TpirCore.winningsOf(core(), chooser) >= mine + theirs,
+        `diff ${result.diff}, both ${result.both}`);
+
+      click("btn-sc-next");
+      await waitFor(() => core().phase === "standings", "the standings");
+      await waitFor(() => phoneView("p1").screen === "result", "the phones learn the show is over");
+      check("P-I5 the standings list every player, richest first",
+        HD().querySelectorAll("#tpir-standings li").length === 4
+        && HD().querySelector("#tpir-standings li").classList.contains("is-top"),
+        [...HD().querySelectorAll("#tpir-standings li")].map((n) => n.textContent).join(" | "));
+      check("P-I5 every phone is told the show is over",
+        phoneView("p1").screen === "result" && phoneView("p1").standings.length === 4,
+        phoneText("p1", "tpir-phone-headline"));
+    }
+
+    /* ============================================================
+       P-I6 — the editor round-trips, and the static gates
+       ============================================================ */
+
+    async function scenarioEditor() {
+      click("btn-editor");
+      await waitFor(() => H("screen-editor") && !H("screen-editor").classList.contains("hidden"), "the editor");
+      check("P-I6 the editor opens with a tab per list",
+        [...HD().querySelectorAll(".editor-tab")].map((b) => b.textContent).join(",")
+        === "Settings,One Bid,Cliff Hangers,Plinko,Lucky Seven,Showcases");
+
+      const draft = HW().TpirEditor.draft();
+      draft.oneBid[0].price = 0;
+      HW().TpirEditor.setDraft(draft);
+      check("P-I6 a broken price is explained and blocks Use in game",
+        hostText("tpir-editor-msg").indexOf("whole-dollar price") > 0
+        && H("btn-editor-use").disabled === true,
+        hostText("tpir-editor-msg"));
+
+      draft.oneBid[0].price = 249;
+      draft.title = "Edited in the harness";
+      HW().TpirEditor.setDraft(draft);
+      check("P-I6 fixing it clears the message", H("btn-editor-use").disabled === false,
+        hostText("tpir-editor-warn"));
+
+      let captured = null;
+      const realCreate = HW().URL.createObjectURL;
+      HW().URL.createObjectURL = (blob) => { captured = blob; return realCreate.call(HW().URL, blob); };
+      click("btn-editor-download");
+      await waitFor(() => captured, "download blob");
+      HW().URL.createObjectURL = realCreate;
+      const text = await captured.text();
+      check("P-I6 Download JSON produces a file that passes validateGame",
+        HW().TpirCore.validateGame(JSON.parse(text)) === true
+        && JSON.parse(text).title === "Edited in the harness",
+        `${text.length} bytes`);
+
+      click("btn-editor-use");
+      await waitFor(() => H("screen-editor").classList.contains("hidden"), "the editor closes");
+      check("P-I6 Use in game adopts the draft and clears the finished show",
+        HW().TpirApp.state().content.title === "Edited in the harness"
+        && HW().TpirApp.state().core === null
+        && !H("screen-setup").classList.contains("hidden"),
+        HW().TpirApp.state().source);
+    }
+
+    /* ============================================================
+       P-I6 — the phone at 320 px: thumb-sized targets, no side scroll
+       ============================================================ */
+
+    const PHONE_VIEWS = [
+      ["a bid", { screen: "bid", headline: "A rather long prize name for wrapping", sub: "Whole dollars",
+        currency: "$", myBid: null, won: "$0",
+        placed: [{ name: "Ada", placed: false }, { name: "Ben", placed: true }] }],
+      ["a Lucky Seven digit", { screen: "guess", kind: "luckyseven", headline: "Digit 2 of 5",
+        sub: "You have 7 dollars left.", currency: "$", min: 0, max: 9, known: [2] }],
+      ["a Cliff Hangers price", { screen: "guess", kind: "cliffhangers", headline: "A small item",
+        sub: "25 steps left", currency: "$", min: 1, max: 99, prompt: "Your price" }],
+      ["a Plinko answer", { screen: "plinko", stage: "answer", headline: "Bar soap", sub: "Shown at $3", chips: 2 }],
+      ["a Plinko slot", { screen: "plinko", stage: "slot", headline: "Chip 1 of 3", sub: "Pick a slot", chips: 3, slots: 9 }],
+      ["the wheel", { screen: "spin", headline: "Your spin", sub: "Closest to a dollar", total: "0¢" }],
+      ["a showcase bid", { screen: "showcase-bid", headline: "Your showcase", sub: "One bid", currency: "$",
+        myBid: null, prizes: [{ name: "A trip somewhere sunny", note: "Six nights" }, { name: "A car", note: "" }] }],
+    ];
+
+    async function scenarioPhoneSize() {
+      const frame = phoneFrames.get("p1");
+      frame.style.width = "320px";
+      frame.style.height = "640px";
+      await sleep(80);
+      const small = [];
+      const wide = [];
+      let counted = 0;
+      for (const [label, view] of PHONE_VIEWS) {
+        PW("p1").TpirPhone.onMessage(Object.assign({ t: "view" }, view));
+        await sleep(60);
+        const doc = PD("p1");
+        const buttons = [...doc.querySelectorAll("#tpir-phone-body .btn, #tpir-phone-actions .btn")];
+        counted += buttons.length;
+        buttons.forEach((b) => {
+          if (b.getBoundingClientRect().height < 55.5) small.push(`${label}: ${b.textContent}`);
+        });
+        if (doc.documentElement.scrollWidth > 321) wide.push(`${label}: ${doc.documentElement.scrollWidth}px`);
+      }
+      check("P-I6 every phone target is at least 56 px at 320 px wide",
+        small.length === 0 && counted > 30, `${counted} targets, short: ${small.join(", ")}`);
+      check("P-I6 no phone screen scrolls sideways at 320 px", wide.length === 0, wide.join(", "));
+      frame.style.width = "";
+      frame.style.height = "";
+    }
+
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("P-I6 V1 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("P-I6 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("P-I6 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("P-I6 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("P-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("P-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="price-is-right"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("P-I6 the splash markup is in the page and boot calls showSplash()",
+        html.indexOf('id="gsc-splash"') > 0
+        && (texts["../js/tpir-app.js"] || "").indexOf("tpirShowSplash();") > 0);
+      check("P-I6 V8 prizes.json validates through validateGame",
+        HW().TpirCore.validateGame(JSON.parse(texts["../prizes.json"])) === true);
+      check("P-I6 js/data.js mirrors prizes.json and reaches globalThis",
+        JSON.stringify(HW().TPIR_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../prizes.json"])),
+        HW().TPIR_DEFAULT_GAME ? "globalThis.TPIR_DEFAULT_GAME is set" : "MISSING");
+      check("P-I6 the embedded page hides the standalone room controls and skips its own splash",
+        HD().body.classList.contains("gsc-embedded")
+        && H("gsc-splash").classList.contains("hidden"),
+        HD().body.className);
+
+      const motion = ["../css/tpir.css", "../css/tpir-games.css", "../css/tpir-phone.css"]
+        .filter((u) => texts[u] && animatesOutsideGuard(texts[u]));
+      check("P-I6 every animation sits inside prefers-reduced-motion: no-preference",
+        motion.length === 0, motion.join(", "));
+    }
+
+    /** True when a sheet declares `animation:` or @keyframes outside the guard.
+        Comments are stripped first: a sheet is allowed to talk about the rule. */
+    function animatesOutsideGuard(source) {
+      const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
+      let depth = 0;
+      let guarded = -1;
+      let bad = false;
+      css.split("\n").forEach((line) => {
+        if (/@media[^{]*prefers-reduced-motion:\s*no-preference/.test(line) && guarded < 0) guarded = depth;
+        if (/(^|[\s;{])animation(-name)?\s*:/.test(line) || /@keyframes/.test(line)) {
+          if (guarded < 0) bad = true;
+        }
+        depth += (line.match(/{/g) || []).length;
+        depth -= (line.match(/}/g) || []).length;
+        if (guarded >= 0 && depth <= guarded) guarded = -1;
+      });
+      return bad;
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioRow();
+        await scenarioTakeOver();
+        await scenarioPlinko();
+        await scenarioWheel();
+        await scenarioReload();
+        await scenarioShowcase();
+        await scenarioEditor();
+        await scenarioPhoneSize();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

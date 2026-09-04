@@ -1,0 +1,112 @@
+{
+  "title": "The Price Is Right — Game Night",
+  "settings": {
+    "currency": "$",
+    "exactBidBonus": 500,
+    "showcaseMargin": 250,
+    "wheel": [100, 15, 80, 35, 60, 20, 40, 75, 55, 95, 50, 85, 30, 65, 10, 45, 70, 25, 90, 5],
+    "wheelDollarBonus": 1000,
+    "gamesPerShowdown": 3,
+    "plinko": { "slots": [100, 500, 1000, 0, 10000, 0, 1000, 500, 100], "maxChips": 5 },
+    "pricingGames": ["cliffhangers", "plinko", "luckyseven"]
+  },
+  "oneBid": [
+    { "name": "Espresso machine", "price": 249, "note": "15-bar pump, stainless steel body" },
+    { "name": "Robot vacuum", "price": 389, "note": "Maps the house, empties itself" },
+    { "name": "Electric guitar and amp", "price": 575, "note": "Solid body, 20-watt combo amp" },
+    { "name": "Stand mixer", "price": 429, "note": "5-quart bowl, ten speeds" },
+    { "name": "Air fryer oven", "price": 179, "note": "Eleven presets, glass door" },
+    { "name": "Mountain bike", "price": 820, "note": "Aluminium frame, 27 speeds" },
+    { "name": "Noise-cancelling headphones", "price": 348, "note": "Over-ear, 30-hour battery" },
+    { "name": "Gas grill", "price": 649, "note": "Four burners and a side ring" },
+    { "name": "Sewing machine", "price": 265, "note": "Computerised, 60 stitch patterns" },
+    { "name": "Refractor telescope", "price": 495, "note": "80 mm lens, tripod included" },
+    { "name": "Leather recliner", "price": 739, "note": "Power reclining armchair" },
+    { "name": "Smart watch", "price": 299, "note": "GPS, heart rate, seven-day battery" }
+  ],
+  "cliffhangers": [
+    {
+      "items": [
+        { "name": "Ceramic mug set", "price": 14 },
+        { "name": "Kitchen towel bundle", "price": 22 },
+        { "name": "Wall clock", "price": 38 }
+      ],
+      "prize": { "name": "Weekend cabin getaway", "price": 1800, "note": "Two nights in the pines" }
+    },
+    {
+      "items": [
+        { "name": "Hand mixer", "price": 29 },
+        { "name": "Picture frame", "price": 17 },
+        { "name": "Desk lamp", "price": 46 }
+      ],
+      "prize": { "name": "Home theatre system", "price": 2450, "note": "Soundbar, sub and rears" }
+    },
+    {
+      "items": [
+        { "name": "Insulated travel mug", "price": 19 },
+        { "name": "Garden shears", "price": 33 },
+        { "name": "Bath mat", "price": 25 }
+      ],
+      "prize": { "name": "Trip to Reykjavik", "price": 3100, "note": "Five nights, flights included" }
+    }
+  ],
+  "plinko": [
+    {
+      "smallPrices": [
+        { "name": "Bar soap, four pack", "shown": 3, "actual": 4 },
+        { "name": "Breakfast cereal", "shown": 5, "actual": 5 },
+        { "name": "Box of tea", "shown": 8, "actual": 6 },
+        { "name": "Tortilla chips", "shown": 2, "actual": 2 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Toothpaste", "shown": 4, "actual": 4 },
+        { "name": "Ground coffee", "shown": 7, "actual": 9 },
+        { "name": "Crackers", "shown": 3, "actual": 5 },
+        { "name": "Paper napkins", "shown": 6, "actual": 6 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Shampoo", "shown": 8, "actual": 8 },
+        { "name": "Dried pasta", "shown": 2, "actual": 3 },
+        { "name": "Jar of salsa", "shown": 5, "actual": 4 },
+        { "name": "Batteries, eight pack", "shown": 9, "actual": 9 }
+      ]
+    }
+  ],
+  "luckyseven": [
+    { "car": "Compact hatchback", "price": 21485, "note": "Five doors, manual gearbox" },
+    { "car": "Midsize sedan", "price": 27340, "note": "Hybrid, heated seats" },
+    { "car": "Crossover SUV", "price": 34625, "note": "All-wheel drive, tow package" }
+  ],
+  "showcases": [
+    {
+      "prizes": [
+        { "name": "Living-room set", "price": 3200, "note": "Sofa, two chairs and a rug" },
+        { "name": "Trip to Lisbon", "price": 5400, "note": "Six nights for two" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Home office suite", "price": 2750, "note": "Standing desk and chair" },
+        { "name": "Electric scooter", "price": 1450, "note": "40 km range" },
+        { "name": "Kayak package", "price": 1980, "note": "Two kayaks and a roof rack" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Outdoor kitchen", "price": 4650, "note": "Grill island with a sink" },
+        { "name": "Hot tub", "price": 6900, "note": "Six seats, all the jets" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Ski holiday", "price": 4300, "note": "A week in the Alps" },
+        { "name": "Ski gear package", "price": 2150, "note": "Skis, boots and poles for two" },
+        { "name": "4K projector", "price": 1690, "note": "120-inch screen included" }
+      ]
+    }
+  ]
+}

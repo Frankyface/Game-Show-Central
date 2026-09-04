@@ -1,0 +1,139 @@
+/* ============================================================
+   The Price Is Right — the phone controller
+   320-430 px portrait. Every tappable target is at least
+   var(--tap) = 56 px tall and the page never scrolls sideways.
+   The phone renders exactly the view the host sent and sends back
+   one intent; nothing here decides anything.
+   ============================================================ */
+
+.screen-phone {
+  display: none;
+  padding: 0.8rem;
+  gap: 0.8rem;
+  min-height: 100vh;
+}
+
+body.player-mode .screen-phone:not(.hidden) { display: flex; }
+
+.phone-card {
+  width: 100%;
+  max-width: 26rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--shadow-panel);
+}
+
+.phone-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--tpir-yellow);
+  min-height: 0.9rem;
+}
+
+.phone-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1.05;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.phone-sub { margin: 0; color: var(--ink-dim); font-size: 0.95rem; line-height: 1.35; }
+
+.phone-body { display: flex; flex-direction: column; gap: 0.5rem; }
+.phone-actions { display: flex; flex-direction: column; gap: 0.5rem; }
+.phone-actions .btn, .phone-body .btn { min-height: var(--tap); width: 100%; font-size: 1.02rem; }
+
+.phone-status { margin: 0; min-height: 1.1rem; color: var(--ink-mute); font-size: 0.85rem; }
+
+/* ============ The numeric pad ============ */
+
+.phone-amount {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.7rem;
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  color: var(--tpir-yellow);
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius);
+  padding: 0.35em 0.5em;
+  text-align: right;
+  min-height: 1.2em;
+  overflow-x: auto;
+}
+
+.phone-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.phone-pad .btn { min-height: var(--tap); font-size: 1.3rem; font-family: var(--font-display); letter-spacing: 0.04em; }
+
+/* ============ Plinko on a phone ============ */
+
+.phone-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.phone-slots .btn { min-height: var(--tap); font-family: var(--font-display); font-size: 1.3rem; }
+
+/* ============ Lists ============ */
+
+.phone-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.phone-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--well);
+  font-size: 0.95rem;
+}
+
+.phone-list li span:last-child { color: var(--tpir-yellow); font-weight: 700; }
+.phone-list li.is-placed span:last-child { color: var(--tpir-green); }
+
+.phone-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.phone-prizes li {
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--well);
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-prizes b { font-size: 1rem; }
+.phone-prizes small { color: var(--ink-dim); }
+
+/* ============ The big spin button ============ */
+
+.phone-spin {
+  min-height: 8rem !important;
+  font-family: var(--font-display);
+  font-size: 2rem !important;
+  letter-spacing: var(--track-display);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .phone-spin { animation: gsc-pulse 3.2s ease-in-out infinite; }
+}
+
+/* The SDK's own join card, rendered into #gsc-join in standalone player mode. */
+#gsc-join:not(:empty) { width: 100%; max-width: 26rem; margin: 0 auto; }

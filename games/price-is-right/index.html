@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Price Is Right</title>
+  <meta name="description" content="The Price Is Right for game night: Contestants' Row, Cliff Hangers, Plinko, Lucky Seven, the big wheel and two showcases. Bring your own prizes as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/tpir.css">
+  <link rel="stylesheet" href="css/tpir-games.css">
+  <link rel="stylesheet" href="css/tpir-phone.css">
+</head>
+<body data-gsc-game="price-is-right">
+
+  <header class="topbar">
+    <h1 id="tpir-title" class="topbar-title">The Price Is Right</h1>
+    <div class="topbar-actions">
+      <span id="tpir-room-chip" class="gsc-chip hidden"></span>
+      <span id="tpir-segment-chip" class="gsc-chip hidden"></span>
+      <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">Undo</button>
+      <button id="btn-finish" class="btn btn-ghost btn-small hidden" type="button">End the night</button>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Prize editor</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="tpir-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="tpir-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="gsc-card setup-card">
+        <p class="gsc-eyebrow">Come on down</p>
+        <h2 class="gsc-title">Set up the show</h2>
+        <p id="tpir-source" class="source-note">Loading prizes&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Contestants' Row order <span id="tpir-player-count" class="gsc-badge"></span></h3>
+            <p class="hint">The first four sit in the row; the rest wait in line. Every winner comes on down
+              and the next in line takes their seat.</p>
+            <ol id="tpir-player-list" class="player-list"></ol>
+            <form id="tpir-add-player" class="inline-form">
+              <label class="visually-hidden" for="tpir-player-name">Player name</label>
+              <input id="tpir-player-name" type="text" maxlength="24" placeholder="Player name"
+                     autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost" type="submit">+ Add player</button>
+            </form>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Tonight's plan</h3>
+            <p id="tpir-plan-note" class="plan-note" aria-live="polite"></p>
+
+            <fieldset class="game-set">
+              <legend class="setup-heading">Pricing games</legend>
+              <label class="check"><input id="tpir-pg-cliffhangers" type="checkbox"> Cliff Hangers</label>
+              <label class="check"><input id="tpir-pg-plinko" type="checkbox"> Plinko</label>
+              <label class="check"><input id="tpir-pg-luckyseven" type="checkbox"> Lucky Seven</label>
+            </fieldset>
+            <p id="tpir-content-count" class="hint"></p>
+
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="tpir-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="tpir-room-status" class="hint">Closed &mdash; the host can run every part of the show alone.</p>
+            <p id="tpir-join-note" class="hint hidden">Players open <span id="tpir-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Prizes</h3>
+            <div class="inline-form">
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load prizes (.json)</button>
+              <input id="tpir-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the show</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Contestants' Row ===================== -->
+    <section id="screen-row" class="screen hidden">
+      <div class="gsc-banner row-banner">
+        <p id="tpir-row-kicker" class="gsc-banner-title">Contestants' Row</p>
+        <p id="tpir-row-sub" class="gsc-banner-sub">Bids are hidden until the reveal.</p>
+        <div class="gsc-banner-end">
+          <span id="tpir-row-price" class="price-tag hidden" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div class="row-grid">
+        <article class="gsc-card item-card">
+          <p class="gsc-eyebrow">Up for bid</p>
+          <h2 id="tpir-item-name" class="item-name">&nbsp;</h2>
+          <p id="tpir-item-note" class="item-note">&nbsp;</p>
+        </article>
+
+        <div id="tpir-podiums" class="podium-row" aria-label="Contestants' Row"></div>
+      </div>
+
+      <form id="tpir-bid-form" class="bid-form" aria-label="Enter bids"></form>
+
+      <p id="tpir-row-notice" class="notice" role="status" aria-live="polite"></p>
+
+      <div class="controls">
+        <button id="btn-reveal-bids" class="btn btn-gold btn-big" type="button">Reveal the bids</button>
+        <button id="btn-rebid" class="btn btn-blue btn-big hidden" type="button">Everybody bids again</button>
+        <button id="btn-row-next" class="btn btn-blue btn-big hidden" type="button">Come on down</button>
+      </div>
+    </section>
+
+    <!-- ===================== Pricing game ===================== -->
+    <section id="screen-game" class="screen hidden">
+      <div class="gsc-banner">
+        <p id="tpir-game-title" class="gsc-banner-title">Pricing game</p>
+        <p id="tpir-game-player" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="tpir-game-score" class="gsc-badge"></span>
+        </div>
+      </div>
+
+      <div id="tpir-game-pick" class="game-pick hidden" aria-label="Choose a pricing game"></div>
+      <div id="tpir-game-stage" class="game-stage"></div>
+      <p id="tpir-game-notice" class="notice" role="status" aria-live="polite"></p>
+      <div id="tpir-game-controls" class="controls"></div>
+      <div class="controls">
+        <button id="btn-game-next" class="btn btn-blue btn-big hidden" type="button">On with the show</button>
+      </div>
+    </section>
+
+    <!-- ===================== Showcase Showdown ===================== -->
+    <section id="screen-showdown" class="screen hidden">
+      <div class="gsc-banner">
+        <p id="tpir-sd-kicker" class="gsc-banner-title">Showcase Showdown</p>
+        <p id="tpir-sd-sub" class="gsc-banner-sub">Closest to a dollar without going over.</p>
+        <div class="gsc-banner-end">
+          <span id="tpir-sd-total" class="price-tag" aria-live="polite">0&cent;</span>
+        </div>
+      </div>
+
+      <div class="sd-grid">
+        <div class="drum-wrap">
+          <svg id="tpir-drum" class="drum" viewBox="0 0 300 420" role="img"
+               aria-label="The big wheel"></svg>
+          <p id="tpir-sd-value" class="drum-value" aria-live="polite">&nbsp;</p>
+        </div>
+        <div id="tpir-sd-spinners" class="sd-spinners" aria-label="Spinners"></div>
+      </div>
+
+      <p id="tpir-sd-notice" class="notice" role="status" aria-live="polite"></p>
+
+      <div class="controls">
+        <button id="btn-spin" class="btn btn-gold btn-big" type="button">Spin the wheel</button>
+        <button id="btn-spin-again" class="btn btn-blue btn-big hidden" type="button">Spin again</button>
+        <button id="btn-stay" class="btn btn-ghost btn-big hidden" type="button">Stay</button>
+        <button id="btn-sd-next" class="btn btn-blue btn-big hidden" type="button">On with the show</button>
+      </div>
+    </section>
+
+    <!-- ===================== Showcase ===================== -->
+    <section id="screen-showcase" class="screen hidden">
+      <div class="gsc-banner">
+        <p id="tpir-sc-kicker" class="gsc-banner-title">The Showcase</p>
+        <p id="tpir-sc-sub" class="gsc-banner-sub">&nbsp;</p>
+      </div>
+
+      <div id="tpir-sc-cards" class="sc-cards"></div>
+      <form id="tpir-sc-bids" class="bid-form" aria-label="Showcase bids"></form>
+      <p id="tpir-sc-notice" class="notice" role="status" aria-live="polite"></p>
+
+      <div class="controls">
+        <button id="btn-sc-take" class="btn btn-gold btn-big" type="button">Bid on this one</button>
+        <button id="btn-sc-pass" class="btn btn-blue btn-big" type="button">Pass it over</button>
+        <button id="btn-sc-reveal" class="btn btn-gold btn-big hidden" type="button">Reveal the showcases</button>
+        <button id="btn-sc-next" class="btn btn-blue btn-big hidden" type="button">Final standings</button>
+      </div>
+    </section>
+
+    <!-- ===================== Standings ===================== -->
+    <section id="screen-standings" class="screen hidden">
+      <p class="gsc-eyebrow">That is the show</p>
+      <h2 id="tpir-standings-title" class="gsc-display">Final standings</h2>
+      <ol id="tpir-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-play-again" class="btn btn-gold btn-big" type="button">Play again</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Prize editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Prize editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="tpir-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="tpir-editor-warn" class="notice"></p>
+
+      <div id="tpir-editor-tabs" class="editor-tabs" role="tablist" aria-label="Prize lists"></div>
+      <div id="tpir-editor-panel" class="editor-panel"></div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="tpir-phone-card" class="phone-card">
+        <p id="tpir-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="tpir-phone-headline" class="phone-headline" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="tpir-phone-sub" class="phone-sub">&nbsp;</p>
+        <div id="tpir-phone-body" class="phone-body"></div>
+        <div id="tpir-phone-actions" class="phone-actions"></div>
+        <p id="tpir-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Title card shown for 1.2 s on a game switch ============
+       Same node, ids and classes as the hub's own splash: decorative,
+       pointer-events:none, skipped under prefers-reduced-motion and when the
+       hub is already showing its own (body.gsc-embedded). ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The show plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="js/tpir-content.js"></script>
+  <script src="js/tpir-select.js"></script>
+  <script src="js/tpir-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/tpir-sound.js"></script>
+  <script src="js/tpir-wheel.js"></script>
+  <script src="js/tpir-view.js"></script>
+  <script src="js/tpir-games.js"></script>
+  <script src="js/tpir-app.js"></script>
+  <script src="js/tpir-editor.js"></script>
+  <script src="js/tpir-room.js"></script>
+  <script src="js/tpir-phone.js"></script>
+</body>
+</html>

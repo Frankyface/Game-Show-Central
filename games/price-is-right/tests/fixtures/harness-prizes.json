@@ -1,0 +1,75 @@
+{
+  "title": "Harness prizes",
+  "settings": {
+    "currency": "$",
+    "exactBidBonus": 500,
+    "showcaseMargin": 250,
+    "wheel": [100, 15, 80, 35, 60, 20, 40, 75, 55, 95, 50, 85, 30, 65, 10, 45, 70, 25, 90, 5],
+    "wheelDollarBonus": 1000,
+    "gamesPerShowdown": 2,
+    "plinko": { "slots": [100, 500, 1000, 0, 10000, 0, 1000, 500, 100], "maxChips": 5 },
+    "pricingGames": ["cliffhangers", "plinko", "luckyseven"]
+  },
+  "oneBid": [
+    { "name": "Harness item one", "price": 410, "note": "The first thing up for bid" },
+    { "name": "Harness item two", "price": 260, "note": "The second thing up for bid" },
+    { "name": "Harness item three", "price": 930, "note": "The third thing up for bid" },
+    { "name": "Harness item four", "price": 145, "note": "The fourth thing up for bid" },
+    { "name": "Harness item five", "price": 680, "note": "The fifth thing up for bid" },
+    { "name": "Harness item six", "price": 375, "note": "The sixth thing up for bid" }
+  ],
+  "cliffhangers": [
+    {
+      "items": [
+        { "name": "Cliff item A", "price": 12 },
+        { "name": "Cliff item B", "price": 24 },
+        { "name": "Cliff item C", "price": 36 }
+      ],
+      "prize": { "name": "Harness holiday", "price": 4000, "note": "A week away" }
+    },
+    {
+      "items": [
+        { "name": "Cliff item D", "price": 45 },
+        { "name": "Cliff item E", "price": 18 },
+        { "name": "Cliff item F", "price": 27 }
+      ],
+      "prize": { "name": "Harness home cinema", "price": 2600, "note": "Screen and speakers" }
+    }
+  ],
+  "plinko": [
+    {
+      "smallPrices": [
+        { "name": "Plinko price A", "shown": 3, "actual": 5 },
+        { "name": "Plinko price B", "shown": 6, "actual": 6 },
+        { "name": "Plinko price C", "shown": 9, "actual": 4 },
+        { "name": "Plinko price D", "shown": 2, "actual": 2 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Plinko price E", "shown": 7, "actual": 7 },
+        { "name": "Plinko price F", "shown": 1, "actual": 3 },
+        { "name": "Plinko price G", "shown": 8, "actual": 5 },
+        { "name": "Plinko price H", "shown": 4, "actual": 4 }
+      ]
+    }
+  ],
+  "luckyseven": [
+    { "car": "Harness hatchback", "price": 24680, "note": "Five doors" },
+    { "car": "Harness estate", "price": 31975, "note": "Room for everything" }
+  ],
+  "showcases": [
+    {
+      "prizes": [
+        { "name": "Harness showcase one, prize one", "price": 3000, "note": "The big one" },
+        { "name": "Harness showcase one, prize two", "price": 5000, "note": "The bigger one" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Harness showcase two, prize one", "price": 2000, "note": "Nice" },
+        { "name": "Harness showcase two, prize two", "price": 4000, "note": "Nicer" }
+      ]
+    }
+  ]
+}
