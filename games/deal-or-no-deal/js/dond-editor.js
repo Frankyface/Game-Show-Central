@@ -10,7 +10,9 @@
 
 "use strict";
 
-const DOND_DRAFT_KEY = "gsc-dond-draft-v1";
+// Namespaced by ?store= the same way the saved night is (dond-app.js), which
+// has already run by the time this file is evaluated.
+const DOND_DRAFT_KEY = `gsc-dond-draft-v1${window.DondApp.storeSuffix()}`;
 
 let dondDraft = null;
 

@@ -11,7 +11,22 @@
 
 "use strict";
 
-const DOND_STORAGE_KEY = "gsc-dond-state-v1";
+/**
+ * `?store=NAME` moves this page's localStorage into its own namespace. The
+ * loopback harness uses `?store=harness` so a test run cannot leave a fixture
+ * board (or a half-played night, or its fixture contestants) in the real host's
+ * save on the same origin. Anything but letters, digits and hyphens is
+ * stripped. The shared `gsc-sound` preference is deliberately NOT namespaced:
+ * it belongs to the hub, not to this game (architecture 00 §10).
+ */
+function dondStoreSuffix() {
+  if (typeof location === "undefined") return "";
+  const raw = new URLSearchParams(location.search).get("store") || "";
+  const clean = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+  return clean ? `-${clean}` : "";
+}
+
+const DOND_STORAGE_KEY = `gsc-dond-state-v1${dondStoreSuffix()}`;
 
 /* ============ App state ============ */
 
@@ -548,6 +563,7 @@ window.DondApp = {
   showSplash: dondShowSplash,
   setPhoneCount: (n) => { if (n !== dondApp.phoneCount) dondSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: DOND_STORAGE_KEY,
+  storeSuffix: dondStoreSuffix,
 };
 
 if (document.readyState === "loading") {

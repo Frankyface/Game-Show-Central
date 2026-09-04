@@ -310,3 +310,26 @@ whole dollar or the one-cent floor.
   `console.log`; three external URLs, all Google Fonts; `data-gsc-game` and
   `#gsc-join` present; host play screen still fits 1280×720 with no scroll in
   either axis (banker overlay card 328 px, centred).
+
+### `?store=NAME` — the harness stays out of the host's save (cross-cutting)
+
+A harness run wrote to the real `gsc-dond-state-v1` / `gsc-dond-draft-v1` on the
+same origin, so it left its fixture board and its fixture contestants behind for
+whoever opened the game next. `js/dond-app.js` now has `dondStoreSuffix()` —
+`?store=NAME` (letters, digits and hyphens, capped at 24) suffixes the saved
+night, and `js/dond-editor.js` builds its draft key from the same
+`DondApp.storeSuffix()`. The pattern and the naming are copied from
+`games/price-is-right/js/tpir-app.js`. The shared `gsc-sound` preference is
+deliberately **not** namespaced: it belongs to the hub, not to this game
+(architecture 00 §10).
+
+`tests/harness.html` loads both frames with `store=harness`, so the whole run
+lives in `gsc-dond-state-v1-harness` / `gsc-dond-draft-v1-harness`. A new gate
+proves it: the harness writes a sentinel into the two real keys before anything
+loads and asserts both still hold it at the end, and that the host frame's
+`DondApp.STORAGE_KEY` really is the suffixed one.
+
+`node --test` **89/89**; `tests/harness.html` **64/64** on two consecutive runs
+on port 8693, leaving only the two `-harness` keys behind. A plain visit to
+`games/deal-or-no-deal/` still reports `STORAGE_KEY: "gsc-dond-state-v1"` with
+an empty suffix, so nothing changes for a real host.

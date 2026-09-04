@@ -159,11 +159,19 @@
       "fixtures/harness-board.json",
     ];
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-board.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-dond-state-v1", "gsc-dond-draft-v1"];
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // leaves a fixture board, its contestants or a half-played night in the real
+    // host's save on this origin (dond-app.js dondStoreSuffix).
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-board.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-dond-state-v1-harness", "gsc-dond-draft-v1-harness"];
+    // Written into the REAL keys before anything loads; the gate scenario checks
+    // both are still exactly this, i.e. the run never touched the host's save.
+    const REAL_KEYS = ["gsc-dond-state-v1", "gsc-dond-draft-v1"];
+    const SENTINEL = `untouched-${Date.now()}`;
 
     async function refreshAssets() {
+      REAL_KEYS.forEach((k) => localStorage.setItem(k, SENTINEL));
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
       await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
     }
@@ -683,6 +691,14 @@
       check("N-I6 N-D5 the accent comes from shared/theme.css, not a local override",
         (texts["../css/dond.css"] || "").indexOf("--accent:") < 0 && accent === "#b5121b",
         `body --accent resolves to ${accent}`);
+
+      const kept = REAL_KEYS.filter((k) => localStorage.getItem(k) === SENTINEL);
+      const hostKey = HW().DondApp.STORAGE_KEY;
+      REAL_KEYS.forEach((k) => localStorage.removeItem(k));
+      check("N-I6 ?store=harness keeps the whole run out of the real host's save",
+        kept.length === REAL_KEYS.length && hostKey === "gsc-dond-state-v1-harness"
+        && localStorage.getItem("gsc-dond-draft-v1-harness") !== null,
+        `host key ${hostKey}; untouched: ${kept.join(", ") || "NONE"}`);
 
       check("N-I6 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded")
