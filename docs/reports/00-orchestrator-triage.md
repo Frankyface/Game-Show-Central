@@ -105,6 +105,17 @@ stylesheets or they go ungated.
 | pyramid | fix-then-ship → fixed | tester fixed a tiebreak bias (Team A could win on an unmatched word); implementer blocked phone marks while paused, added name adoption and End the night. 95 unit tests, harness 66/66, real-network run; secret words never reach the host DOM or non-giver phones. |
 | price-is-right | fix-then-ship → fixed | tester fixed a masked bid leaking into a host input (major), the handler-map guard and a flaky harness; implementer removed the local accent override, added plain-English messages for every rejected input, fixed the hub-frame overflow and namespaced harness storage. 106 unit tests, harness 60/60, real-network run; Plinko and the big wheel land where the core decides (18/18). |
 
+## Phase 4 (2026-09-04): Password + Chain Reaction
+
+Ten games in the registry. Process unchanged; new rule from Phase 3 applied from
+the start: game agents declare no local palette override, the hub agent adds the
+`shared/theme.css` accent block and card art.
+
+| Component | Tester verdict | Notes |
+|---|---|---|
+| password | see `password-verification.md` | 54 unit tests, harness 74/74, real-network run; both givers' phones carry the password and the host DOM never does; 200 words. |
+| chain-reaction | see `chain-reaction-verification.md` | 57 unit tests, harness 29/29, real-network run; 18 chains + 4 speed chains re-read pair by pair by the implementer. |
+
 ## Verification pointers
 
 - `node --test` at the repo root runs every suite (shell, shared, all games).
