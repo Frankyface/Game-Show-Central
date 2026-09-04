@@ -475,6 +475,10 @@
         && HW().getComputedStyle(node).pointerEvents === "none",
         node ? `pointer-events: ${HW().getComputedStyle(node).pointerEvents}` : "missing");
 
+      // This frame runs embedded, where the card is deliberately skipped (the
+      // hub plays its own on the switch); drop the class to exercise the
+      // standalone path, and put it back for the embedded check below.
+      HD().body.classList.remove("gsc-embedded");
       HW().WwmApp.showSplash();
       check("M-I6b the splash shows the game name and wears the game accent",
         !node.classList.contains("hidden")
@@ -494,6 +498,12 @@
       HW().matchMedia = realMatch;
       check("M-I6b prefers-reduced-motion skips the splash entirely", skipped,
         skipped ? "stayed hidden" : "SHOWN under reduce");
+
+      HD().body.classList.add("gsc-embedded");
+      HW().WwmApp.showSplash();
+      check("M-I6b an embedded frame skips the card — the hub shows its own",
+        node.classList.contains("hidden"),
+        node.classList.contains("hidden") ? "stayed hidden when embedded" : "SHOWN over the hub's splash");
     }
 
     /* ============================================================
