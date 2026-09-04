@@ -140,6 +140,19 @@
   --accent: #b5121b; --accent-2: #f2c14e; --accent-ink: #ffffff;
   --stage-glow: #4a0810;
 }
+[data-gsc-game="password"] {
+  /* gold on midnight blue. White on this gold is 1.6:1, so the ink is dark. */
+  --accent: #f2c94c; --accent-2: #7aa2ff; --accent-ink: #241a02;
+  --stage-glow: #0d1b4b;
+}
+[data-gsc-game="chain-reaction"] {
+  /* hot pink on near-black. White on the pink is only 3.5:1, so the ink is a
+     near-black plum (5.4:1). --accent-2 is the electric blue LIFTED to #4d7bff:
+     the brand's #0f3bd9 is 2.5:1 on the stage and unreadable as a UI colour —
+     use #0f3bd9 as a background fill (white on it is 7.9:1), not as ink. */
+  --accent: #ff2e88; --accent-2: #4d7bff; --accent-ink: #2a0213;
+  --stage-glow: #10276e;
+}
 
 /* ============================================================
    Base

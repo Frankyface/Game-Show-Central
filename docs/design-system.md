@@ -11,6 +11,10 @@ one-line usage example.
 | `shared/theme.css` | tokens, per-game accents, the stage, v1 utilities/`.btn`/`.field`, type utilities | 338 |
 | `shared/theme-components.css` | the `.gsc-*` component kit + the motion vocabulary | 700 |
 
+The hub's own sheets, for reference: `css/hub.css` (host screens),
+`css/hub-art.css` (the CSS-drawn game art, one `--art` stack per registry id),
+`css/hub-phone.css` (the phone controller).
+
 `theme.css` starts with `@import url("theme-components.css")`, so **any page
 that already links `shared/theme.css` gets the whole system with no markup
 change**. You may also link the components sheet explicitly if you prefer one
@@ -82,6 +86,8 @@ splash card do exactly that):
 | `price-is-right` | `#e63946` | `#ffd23f` carnival yellow | `#123a86` carnival blue |
 | `pyramid` | `#f4b400` | `#2ec4b6` | `#0b3b3c` deep teal |
 | `deal-or-no-deal` | `#b5121b` | `#f2c14e` case gold | `#4a0810` |
+| `password` | `#f2c94c` gold | `#7aa2ff` | `#0d1b4b` midnight blue |
+| `chain-reaction` | `#ff2e88` hot pink | `#4d7bff` | `#10276e` |
 
 ```html
 <body data-gsc-game="family-feud">          <!-- whole page wears Feud red -->
@@ -90,8 +96,16 @@ splash card do exactly that):
 
 `--accent-ink` is the readable text colour on that accent, so it is not always
 white: on Price Is Right's `#e63946` white reaches only 4.2:1, so that block
-uses a near-black `#1a0206` (4.8:1); Pyramid's gold uses `#241a02` (9.3:1).
-Check any accent you change with a contrast calculator before you ship it.
+uses a near-black `#1a0206` (4.8:1); Pyramid's and Password's gold use
+`#241a02` (9.3:1 / 10.8:1); Chain Reaction's hot pink takes `#2a0213` (5.4:1)
+because white on it is only 3.5:1. Check any accent you change with a contrast
+calculator before you ship it.
+
+`--accent-2` is a *UI* colour and sometimes has to be a lifted version of a
+brand colour: Chain Reaction's electric blue `#0f3bd9` measures 2.5:1 on the
+stage and is unreadable as ink, so `--accent-2` is `#4d7bff` (5.2:1). Use the
+brand `#0f3bd9` as a background fill — white on it is 7.9:1 — not as a
+foreground.
 
 Set your own accents by editing that block in `shared/theme.css`, **not** in
 your game's `:root` (a `:root` declaration sets the value on `<html>` and the
