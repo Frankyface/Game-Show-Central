@@ -19,6 +19,7 @@
     <div class="topbar-actions">
       <span id="pyr-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8635; Game lobby</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Category editor</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
@@ -113,10 +114,16 @@
               <input id="pyr-file" class="visually-hidden" type="file" accept="application/json,.json">
             </div>
             <p id="pyr-category-count" class="hint"></p>
+            <!-- The shared library picker mounts here (docs/19 §2). It hides
+                 itself with a plain-English note when sets/index.json cannot be
+                 fetched — opened from disk, say. -->
+            <div id="pyr-library"></div>
           </div>
         </div>
 
         <div class="setup-actions">
+          <p id="pyr-resume-note" class="hint hidden">&nbsp;</p>
+          <button id="btn-resume" class="btn btn-blue btn-big hidden" type="button">Resume the game</button>
           <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
         </div>
       </div>
@@ -253,6 +260,7 @@
         <div class="editor-bar-actions">
           <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
           <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-blue" type="button">Download for the library</button>
           <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
           <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
           <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
@@ -260,6 +268,19 @@
       </div>
       <p id="pyr-editor-msg" class="error-msg hidden" role="alert"></p>
       <p id="pyr-editor-warn" class="notice"></p>
+      <!-- Filled in by "Download for the library": the manifest line to paste
+           and the path to commit it beside. Static hosting cannot write files,
+           so this is the honest workflow (docs/19 §2). -->
+      <div id="pyr-library-howto" class="library-howto hidden">
+        <p class="library-howto-title">Two steps to put this in the library</p>
+        <ol class="library-howto-steps">
+          <li>Save the file that just downloaded as <span id="pyr-howto-path" class="mono"></span></li>
+          <li>Paste this line into the array in <span class="mono">games/pyramid/sets/index.json</span>:</li>
+        </ol>
+        <pre id="pyr-howto-line" class="library-howto-line"></pre>
+        <button id="btn-howto-copy" class="btn btn-ghost btn-small" type="button">Copy the line</button>
+        <button id="btn-howto-close" class="btn btn-ghost btn-small" type="button">Close</button>
+      </div>
 
       <div class="editor-grid">
         <div class="editor-col">
@@ -326,6 +347,22 @@
 
   </main>
 
+  <!-- ============ "Game lobby" confirm (docs/19 §1) ============
+       Two ways back to this game's own setup screen: keep the game in progress
+       so Resume can pick it up exactly where it was, or clear it and start
+       over with the same players, categories and rules. ============ -->
+  <div id="pyr-lobby-modal" class="gsc-modal-backdrop hidden">
+    <div class="gsc-modal" role="dialog" aria-modal="true" aria-labelledby="pyr-lobby-title">
+      <h2 id="pyr-lobby-title" class="gsc-modal-title">Back to the game lobby</h2>
+      <p id="pyr-lobby-body" class="gsc-modal-body">&nbsp;</p>
+      <div class="gsc-modal-actions">
+        <button id="btn-lobby-keep" class="btn btn-gold" type="button">Keep this game</button>
+        <button id="btn-lobby-over" class="btn btn-danger" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ Title card shown for 1.2 s when the hub switches here ============
        Same node, ids and classes as the hub's own splash: decorative,
        pointer-events:none, skipped entirely under prefers-reduced-motion. ============ -->
@@ -344,6 +381,7 @@
   <script src="../../shared/room-host.js"></script>
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
   <script src="js/pyr-content.js"></script>
   <script src="js/pyr-core.js"></script>
   <script src="js/data.js"></script>
@@ -351,6 +389,7 @@
   <script src="js/pyr-clock.js"></script>
   <script src="js/pyr-view.js"></script>
   <script src="js/pyr-app.js"></script>
+  <script src="js/pyr-lobby.js"></script>
   <script src="js/pyr-editor.js"></script>
   <script src="js/pyr-room.js"></script>
   <script src="js/pyr-phone.js"></script>

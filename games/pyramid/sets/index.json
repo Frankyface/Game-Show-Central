@@ -1,0 +1,16 @@
+[
+  {
+    "file": "movies-and-tv.json",
+    "name": "Movies & TV",
+    "description": "Cinema seats, film sets, villains with cats and the orchestra playing you off. Standard 30-second clock.",
+    "by": "Game Show Central",
+    "counts": { "categories": 12, "circles": 2, "words": 84 }
+  },
+  {
+    "file": "kids-night.json",
+    "name": "Kids night",
+    "description": "Playgrounds, dinosaurs and packed lunches, with a slower clock and smaller money so younger givers keep up.",
+    "by": "Game Show Central",
+    "counts": { "categories": 12, "circles": 2, "words": 84 }
+  }
+]

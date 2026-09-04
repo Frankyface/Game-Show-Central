@@ -671,6 +671,53 @@ body {
 .ed-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.35rem; }
 .ed-bad { border-color: var(--red) !important; }
 
+/* ============ The library picker and the "add to the library" note ============ */
+
+/* The shared .gsc-library styling lives in shared/theme-components.css; this
+   only gives it room inside the setup card. */
+#pyr-library { margin-top: 0.6rem; }
+
+/* The shared picker labels its select with --ink-mute, which is 3.5:1 on this
+   game teal glass. Same substitution this sheet makes everywhere else. */
+#pyr-library .gsc-library-label,
+#pyr-library .gsc-library-preview { color: var(--pyr-dim); }
+
+.library-howto {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--panel-strong);
+  border: 1px solid var(--pyr-teal-line);
+  border-left: 5px solid var(--pyr-gold);
+  border-radius: var(--radius);
+}
+
+.library-howto-title {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pyr-gold-soft);
+}
+
+.library-howto-steps { margin: 0 0 0.5rem; padding-left: 1.2rem; font-size: 0.9rem; color: var(--pyr-dim); }
+.library-howto-steps li { margin-bottom: 0.2rem; }
+
+.library-howto-line {
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--well);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--pyr-cream);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
 /* ============ Splash ============ */
 
 .gsc-splash {

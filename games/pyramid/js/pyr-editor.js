@@ -268,23 +268,75 @@ function pyrRenderEditor() {
 
 /* ============ Actions ============ */
 
-function pyrEditorDownload() {
+/** A file name from the draft's title: "Kids night" -> "kids-night.json". */
+function pyrLibraryFileName() {
+  const stem = String(pyrDraft.title || "my-set")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return (stem || "my-set") + ".json";
+}
+
+/** Push a validated draft at the browser as a download. Returns false on a
+    validation failure, having already said why. */
+function pyrDownloadDraft(fileName) {
   try {
     window.PyrCore.validateGame(pyrDraft);
   } catch (err) {
     pyrEditorMessage(`Fix this before downloading: ${err.message}`);
-    return;
+    return false;
   }
   const blob = new Blob([JSON.stringify(pyrDraft, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "categories.json";
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   pyrEditorMessage("");
+  return true;
+}
+
+/**
+ * "Download for the library" (docs/19 §2): the same file, named for the set,
+ * plus the exact manifest line to paste and the path to commit it to. Static
+ * hosting cannot write into the repo, so the honest workflow is to hand the
+ * host both halves and let them commit.
+ */
+function pyrEditorLibrary() {
+  const file = pyrLibraryFileName();
+  if (!pyrDownloadDraft(file)) return;
+  const words = pyrDraft.categories.reduce((n, cat) => n + cat.words.length, 0);
+  const entry = {
+    file,
+    name: String(pyrDraft.title || "My set").slice(0, 60),
+    description: "",
+    by: "",
+    counts: { categories: pyrDraft.categories.length, circles: pyrDraft.circles.length, words },
+  };
+  setText("pyr-howto-path", `games/pyramid/sets/${file}`);
+  setText("pyr-howto-line", `${JSON.stringify(entry, null, 2)},`);
+  show($("pyr-library-howto"), true);
+}
+
+function pyrCopyHowto() {
+  const line = $("pyr-howto-line").textContent;
+  const say = (msg) => setText("pyr-howto-path", msg);
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    say("Select the line above and copy it by hand — this browser has no clipboard access.");
+    return;
+  }
+  navigator.clipboard.writeText(line).then(
+    () => { const btn = $("btn-howto-copy"); if (btn) btn.textContent = "Copied"; },
+    () => say("Copying failed — select the line above and copy it by hand."),
+  );
+}
+
+function pyrEditorDownload() {
+  pyrDownloadDraft("categories.json");
 }
 
 function pyrEditorUse() {
@@ -320,6 +372,9 @@ function pyrWireEditor() {
   $("btn-editor").addEventListener("click", pyrOpenEditor);
   $("btn-editor-close").addEventListener("click", pyrCloseEditor);
   $("btn-editor-download").addEventListener("click", pyrEditorDownload);
+  $("btn-editor-library").addEventListener("click", pyrEditorLibrary);
+  $("btn-howto-copy").addEventListener("click", pyrCopyHowto);
+  $("btn-howto-close").addEventListener("click", () => show($("pyr-library-howto"), false));
   $("btn-editor-use").addEventListener("click", pyrEditorUse);
   $("btn-editor-reset").addEventListener("click", () => {
     pyrDraft = pyrDeepCopy(window.PYR_DEFAULT_GAME || pyrBlankDraft());
@@ -344,6 +399,8 @@ if (!(window.GSC && window.GSC.mode && window.GSC.mode.endsWith("-player"))) {
 
 window.PyrEditor = {
   open: pyrOpenEditor,
+  forLibrary: pyrEditorLibrary,
+  libraryFileName: pyrLibraryFileName,
   close: pyrCloseEditor,
   draft: () => pyrDraft,
   setDraft: (draft) => { pyrDraft = draft; pyrRebuildDraft(); },

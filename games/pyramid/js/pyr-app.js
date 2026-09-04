@@ -40,6 +40,10 @@ let pyrStudyTimer = null;
 function pyrFreshApp() {
   return {
     core: null,
+    // The game the host stepped away from with "Keep this game" (docs/19 §1).
+    // A snapshot with the clocks already stopped, so Resume restores it exactly
+    // and nothing runs down while everybody is looking at the setup screen.
+    resumable: null,
     game: null,
     setup: {
       players: [],
@@ -121,7 +125,7 @@ function pyrCue(event, before, after) {
 
 function pyrSerialise() {
   return {
-    core: pyrApp.core, game: pyrApp.game, setup: pyrApp.setup, usedIds: pyrApp.usedIds,
+    core: pyrApp.core, resumable: pyrApp.resumable, game: pyrApp.game, setup: pyrApp.setup, usedIds: pyrApp.usedIds,
     source: pyrApp.source, sourceKind: pyrApp.sourceKind, sourceUrl: pyrApp.sourceUrl,
     roomCode: pyrApp.roomCode,
   };
@@ -178,9 +182,12 @@ function pyrLoadSaved() {
     if (typeof saved.roomCode !== "string") saved.roomCode = null;
     if (saved.core !== null && saved.core !== undefined && !pyrUsableCore(saved.core)) {
       console.warn("Ignoring a saved game with a damaged state object.");
-      return Object.assign({}, saved, { core: null });
+      return Object.assign({}, saved, { core: null, resumable: null });
     }
-    return Object.assign({}, saved, { core: pyrPauseRestored(saved.core) });
+    // A parked game gets the same treatment: a damaged one is dropped rather
+    // than handed to the reducer by a Resume click a week later.
+    const parked = pyrUsableCore(saved.resumable) ? pyrPauseRestored(saved.resumable) : null;
+    return Object.assign({}, saved, { core: pyrPauseRestored(saved.core), resumable: parked });
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
     return null;
@@ -250,7 +257,7 @@ function pyrUseGame(game, source, kind) {
   window.PyrCore.validateGame(game);
   pyrSet({
     game, source: source || "Custom categories", sourceKind: kind || "upload",
-    sourceUrl: null, core: null, usedIds: [],
+    sourceUrl: null, core: null, resumable: null, usedIds: [],
     setup: Object.assign({}, pyrApp.setup, { settings: pyrSettingsFromGame(game, pyrApp.setup) }),
   });
   pyrError("");
@@ -439,12 +446,15 @@ function pyrBindRoom(code) {
   const players = pyrApp.setup.players.filter((p) => p.manual);
   const seats = pyrApp.setup.seats.map((pair) => pair.map((pid) => (manual.has(pid) ? pid : "")));
   let core = pyrApp.core;
+  let resumable = pyrApp.resumable;
   let message = "";
-  if (core && core.teams.some((t) => t.members.some((m) => !manual.has(m.pid)))) {
-    core = null;
+  const bound = (state) => !!state && state.teams.some((t) => t.members.some((m) => !manual.has(m.pid)));
+  if (bound(core) || bound(resumable)) {
+    if (bound(core)) core = null;
+    if (bound(resumable)) resumable = null;
     message = "This is a new room, so the game in progress was cleared — the phone seats belonged to the old one.";
   }
-  pyrSet({ roomCode: code, core, setup: Object.assign({}, pyrApp.setup, { players, seats }) });
+  pyrSet({ roomCode: code, core, resumable, setup: Object.assign({}, pyrApp.setup, { players, seats }) });
   if (message) pyrError(message);
 }
 

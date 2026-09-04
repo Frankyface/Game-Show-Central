@@ -1,0 +1,59 @@
+{
+  "title": "Pyramid — Kids night",
+  "settings": {
+    "currency": "$",
+    "categorySeconds": 40,
+    "circleSeconds": 75,
+    "tiebreakSeconds": 20,
+    "wordsPerCategory": 7,
+    "categoriesPerTeam": 3,
+    "swapRoles": true,
+    "circleValues": [100, 200, 300, 400, 500, 700],
+    "grandPrize": 5000,
+    "grandPrizeLabel": "$5,000"
+  },
+  "categories": [
+    { "title": "Sweet Tooth", "hint": "Things at a birthday party",
+      "words": ["Cake", "Balloons", "Party hat", "Presents", "Musical chairs", "Pass the parcel", "Jelly"] },
+    { "title": "Playground Rules", "hint": "Things in a playground",
+      "words": ["Swing", "Slide", "Roundabout", "Climbing frame", "Sandpit", "See-saw", "Monkey bars"] },
+    { "title": "Wiggly Ones", "hint": "Animals with no legs",
+      "words": ["Snake", "Worm", "Slug", "Eel", "Jellyfish", "Snail", "Tadpole"] },
+    { "title": "Splash Zone", "hint": "Things you do in the bath",
+      "words": ["Splash", "Blow bubbles", "Wash your hair", "Play with a duck", "Sing", "A beard of foam", "Pull the plug"] },
+    { "title": "Lunchbox Lottery", "hint": "Things in a packed lunch",
+      "words": ["Sandwich", "Apple", "Crisps", "Yoghurt", "Juice box", "A cereal bar", "A note from home"] },
+    { "title": "Big Yellow", "hint": "Things at school",
+      "words": ["Whiteboard", "The register", "Lunch bell", "Homework", "School bus", "Assembly", "A wobbly desk"] },
+    { "title": "Under the Bed", "hint": "Things a child hides",
+      "words": ["Sweets", "A drawing", "A lost sock", "A pet rock", "A comic", "A secret note", "A broken toy"] },
+    { "title": "Roar and Snore", "hint": "Things a dinosaur does",
+      "words": ["Stomp", "Roar", "Hatch", "Chew leaves", "Swing its tail", "Dig", "Thump"] },
+    { "title": "Blast Off", "hint": "Things in space",
+      "words": ["Rocket", "Moon", "Stars", "Astronaut", "Planet", "Comet", "Space station"] },
+    { "title": "Getting Ready", "hint": "Things you put on your feet",
+      "words": ["Socks", "Wellies", "Trainers", "Slippers", "Flippers", "Skates", "Sandals"] },
+    { "title": "Snowy Day", "hint": "Things you do in the snow",
+      "words": ["Build a snowman", "Sledge", "Snow angel", "Snowball fight", "Catch a flake", "Slip over", "Warm your hands"] },
+    { "title": "Farmyard Noise", "hint": "Animals on a farm",
+      "words": ["Cow", "Sheep", "Pig", "Duck", "Horse", "Goat", "Chicken"] }
+  ],
+  "circles": [
+    { "boxes": [
+      { "category": "Things that are soft" },
+      { "category": "Things you find in a park" },
+      { "category": "Things a baby does" },
+      { "category": "Things you ride" },
+      { "category": "Things in a fairy tale" },
+      { "category": "Things that make you laugh" }
+    ] },
+    { "boxes": [
+      { "category": "Things that bounce" },
+      { "category": "Things in a toy box" },
+      { "category": "Things a teacher says" },
+      { "category": "Things that are cold" },
+      { "category": "Things with wheels" },
+      { "category": "Ways to get to school" }
+    ] }
+  ]
+}

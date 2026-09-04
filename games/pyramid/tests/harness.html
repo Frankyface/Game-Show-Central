@@ -40,6 +40,7 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-scenarios.js"></script>
   <script>
   (function () {
     "use strict";
@@ -153,13 +154,15 @@
 
     const ASSETS = [
       "../js/pyr-content.js", "../js/pyr-core.js", "../js/data.js", "../js/pyr-sound.js",
-      "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-editor.js",
-      "../js/pyr-room.js", "../js/pyr-phone.js",
+      "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-lobby.js",
+      "../js/pyr-editor.js", "../js/pyr-room.js", "../js/pyr-phone.js",
+      "../sets/index.json", "../sets/movies-and-tv.json", "../sets/kids-night.json",
       "../css/pyr.css", "../css/pyr-phone.css",
       "../../../shared/theme.css", "../../../shared/theme-components.css",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
-      "fixtures/harness-game.json",
+      "../../../shared/library.js",
+      "harness-scenarios.js", "fixtures/harness-game.json",
     ];
 
     // ?store=harness namespaces this run's localStorage, so a harness run never
@@ -529,139 +532,14 @@
         shellLog.filter((d) => d.t === "title").map((d) => d.text).join(" / "));
     }
 
-    /* ============================================================
-       Y-I6 — the editor round-trip, the splash, and the static gates
-       ============================================================ */
-
-    async function scenarioEditor() {
-      click("btn-editor");
-      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "editor opens");
-      check("Y-I6 the editor shows every category with a field per word",
-        HD().querySelectorAll("#pyr-ed-rows .ed-row").length === 12
-        && HD().querySelectorAll("#pyr-ed-rows .ed-words input").length === 48
-        && HD().querySelectorAll("#pyr-ed-circles .ed-circle").length === 2,
-        `${HD().querySelectorAll("#pyr-ed-rows .ed-row").length} categories, `
-        + `${HD().querySelectorAll("#pyr-ed-rows .ed-words input").length} word fields`);
-
-      let captured = null;
-      const realCreate = HW().URL.createObjectURL;
-      HW().URL.createObjectURL = (blob) => { captured = blob; return realCreate.call(HW().URL, blob); };
-      click("btn-editor-download");
-      await waitFor(() => captured, "download blob");
-      HW().URL.createObjectURL = realCreate;
-      const text = await captured.text();
-      check("Y-I6 Download JSON produces a file that passes validateGame",
-        HW().PyrCore.validateGame(JSON.parse(text)) === true && JSON.parse(text).categories.length === 12,
-        `${text.length} bytes, ${JSON.parse(text).categories.length} categories`);
-
-      // A broken draft is refused with a plain-English reason.
-      const draft = HW().PyrEditor.draft();
-      const keep = draft.categories[0].words[0];
-      draft.categories[0].words[0] = "";
-      HW().PyrEditor.setDraft(draft);
-      check("Y-I6 an empty word blocks Use in game and says why",
-        H("pyr-editor-msg").textContent.indexOf("word 1 is empty") > 0,
-        H("pyr-editor-msg").textContent);
-      draft.categories[0].words[0] = keep;
-      draft.title = "Edited in the harness";
-      HW().PyrEditor.setDraft(draft);
-      click("btn-editor-use");
-      await waitFor(() => H("screen-editor").classList.contains("hidden"), "editor closes");
-      check("Y-I6 Use in game adopts the draft and clears the finished game",
-        HW().PyrApp.state().game.title === "Edited in the harness"
-        && HW().PyrApp.state().core === null
-        && !H("screen-setup").classList.contains("hidden"),
-        HW().PyrApp.state().source);
-    }
-
-    /* ============================================================
-       Y-I6 — End the night, from a running category (defect Y-6)
-       ============================================================ */
-
-    async function scenarioEndNight() {
-      HW().PyrApp.set({ core: null });
-      await waitFor(() => !H("screen-setup").classList.contains("hidden"), "back to setup");
-      click("btn-start");
-      await waitFor(() => core() && core().phase === "board", "a fresh board");
-      freeCards()[0].click();
-      await waitFor(() => core().phase === "play", "a fresh category");
-      click("btn-clock-start");
-      click("btn-correct");
-      check("Y-I6 the play toolbar carries an End the night that needs no word judged",
-        !!H("btn-play-finish") && H("btn-play-finish").textContent === "End the night"
-        && H("btn-next").classList.contains("hidden"),
-        "Next is still hidden mid-round, End the night is not");
-      click("btn-play-finish");
-      await waitFor(() => core().phase === "standings", "straight to the standings");
-      check("Y-I6 End the night mid-category goes to the standings and banks no prize",
-        core().outcome === null && H("pyr-result-amount").textContent === "$0"
-        && HD().querySelectorAll("#pyr-standings li").length === 2,
-        `${H("pyr-result-team").textContent} — ${H("pyr-result-amount").textContent}`);
-      check("Y-I6 the Winner's Circle toolbar carries the same escape",
-        !!H("btn-circle-finish") && H("btn-circle-finish").textContent === "End the night");
-    }
-
-    /* ============================================================
-       Y-I6 — a phone adopts the typed row of the same name (Y-2/Y-3)
-       ============================================================ */
-
-    function scenarioAdopt() {
-      const app = HW().PyrApp;
-      app.set({ setup: Object.assign({}, app.state().setup, { players: [], seats: [["", ""], ["", ""]] }) });
-      app.addPlayer("Zoe", null, true);                 // the host types a name
-      const typed = app.state().setup.players[0].pid;
-      app.setSeat(0, 0, typed);
-      const adopted = app.addPlayer("zoe", "p9", false); // a phone joins under it
-      const row = app.state().setup.players[0];
-      check("Y-I6 a phone sharing a typed player's name takes that row over, not a refusal",
-        adopted === true && app.state().setup.players.length === 1
-        && row.pid === "p9" && row.manual === false && row.name === "Zoe",
-        JSON.stringify(app.state().setup.players));
-      check("Y-I6 the adopted row keeps the seat it was already in",
-        app.state().setup.seats[0][0] === "p9",
-        JSON.stringify(app.state().setup.seats));
-      const twice = app.addPlayer("Zoe");
-      check("Y-I6 a second TYPED player of the same name is still refused, with a reason",
-        twice === false && H("pyr-error").textContent.indexOf("already on the list") > 0,
-        H("pyr-error").textContent);
-      app.error("");
-    }
-
-    async function scenarioSplash() {
-      const node = H("gsc-splash");
-      check("Y-I6 the page carries the shared .gsc-splash title card",
-        !!node && node.classList.contains("gsc-splash")
-        && HW().getComputedStyle(node).pointerEvents === "none",
-        node ? `pointer-events: ${HW().getComputedStyle(node).pointerEvents}` : "missing");
-      HD().body.classList.remove("gsc-embedded");
-      HW().PyrApp.showSplash();
-      check("Y-I6 the splash shows the game name and wears the game accent",
-        !node.classList.contains("hidden") && H("gsc-splash-title").textContent === "Pyramid"
-        && node.dataset.gscGame === "pyramid",
-        `${H("gsc-splash-title").textContent} / ${H("gsc-splash-sub").textContent}`);
-      await waitFor(() => node.classList.contains("hidden"), "the splash clears itself", 2500);
-      const realMatch = HW().matchMedia;
-      HW().matchMedia = (q) => ({ matches: /prefers-reduced-motion/.test(q), media: q,
-        addEventListener() {}, removeEventListener() {} });
-      HW().PyrApp.showSplash();
-      const skipped = node.classList.contains("hidden");
-      HW().matchMedia = realMatch;
-      check("Y-I6 prefers-reduced-motion skips the splash entirely", skipped,
-        skipped ? "stayed hidden" : "SHOWN under reduce");
-      HD().body.classList.add("gsc-embedded");
-      HW().PyrApp.showSplash();
-      check("Y-I6 an embedded frame skips the card — the hub shows its own",
-        node.classList.contains("hidden"),
-        node.classList.contains("hidden") ? "stayed hidden when embedded" : "SHOWN over the hub's splash");
-    }
-
     const SOURCES = [
       "../index.html", "../categories.json", "../README.md",
       "../css/pyr.css", "../css/pyr-phone.css",
       "../js/pyr-content.js", "../js/pyr-core.js", "../js/data.js", "../js/pyr-sound.js",
-      "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-editor.js",
-      "../js/pyr-room.js", "../js/pyr-phone.js",
-      "../tests/pyr-core.test.mjs", "../tests/pyr-adversarial.test.mjs", "../tests/pyr-hostile.test.mjs",
+      "../js/pyr-clock.js", "../js/pyr-view.js", "../js/pyr-app.js", "../js/pyr-lobby.js",
+      "../js/pyr-editor.js", "../js/pyr-room.js", "../js/pyr-phone.js",
+      "../sets/index.json", "../sets/movies-and-tv.json", "../sets/kids-night.json",
+      "../tests/harness-scenarios.js", "../tests/pyr-core.test.mjs", "../tests/pyr-adversarial.test.mjs", "../tests/pyr-hostile.test.mjs",
       "../tests/pyr-fixtures.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
@@ -722,6 +600,15 @@
         `${HW().PyrApp.STORAGE_KEY} + ${HW().PyrEditor.DRAFT_KEY}; `
         + `${untouched.length}/${REAL_KEYS.length} real keys still hold the sentinel`);
 
+      check("X-2 sets/index.json is a valid manifest and every set it names validates",
+        HW().GSCLibrary.parseManifest(JSON.parse(texts["../sets/index.json"])).sets.length === 2
+        && HW().PyrCore.validateGame(JSON.parse(texts["../sets/movies-and-tv.json"])) === true
+        && HW().PyrCore.validateGame(JSON.parse(texts["../sets/kids-night.json"])) === true,
+        JSON.parse(texts["../sets/index.json"]).map((s) => s.file).join(", "));
+      check("X-5 the page loads the shared library module and the lobby glue",
+        html.indexOf("shared/library.js") > 0 && html.indexOf("js/pyr-lobby.js") > 0
+        && html.indexOf('id="btn-game-lobby"') > 0 && html.indexOf('id="pyr-library"') > 0);
+
       check("Y-I6 the embedded page hides the standalone room controls",
         HD().body.classList.contains("gsc-embedded"), HD().body.className);
     }
@@ -746,6 +633,14 @@
       void frame;
     }
 
+    /* ============ The scenarios that live in tests/harness-scenarios.js ============ */
+
+    // Split for the 800-line cap only. The companion gets this page's helpers
+    // and reports into the same list, so the run is still one pass.
+    const S = window.PyrHarnessScenarios({
+      check, waitFor, sleep, H, HD, HW, core, click, hostText, freeCards, phoneView, phoneWord,
+    });
+
     /* ============ Run ============ */
 
     (async function run() {
@@ -758,10 +653,12 @@
         scenarioPhoneGates();
         await scenarioReload();
         await scenarioCircle();
-        await scenarioEndNight();
-        scenarioAdopt();
-        await scenarioSplash();
-        await scenarioEditor();
+        await S.endNight();
+        await S.gameLobby();
+        S.adopt();
+        await S.splash();
+        await S.editor();
+        await S.library();
         await scenarioGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

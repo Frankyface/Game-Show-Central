@@ -25,6 +25,7 @@ Each category has seven words and a 30-second clock.
 | **Pass** | `P` | skip it — a passed word comes back round if time is left |
 | **Illegal clue** | `X` | the giver said the word, part of it, or spelled it: the word is dead for the round and scores nothing |
 | End the night | — | leaves the round or the circle without judging anything and goes to the standings |
+| ⟲ Game lobby | — | back to this game's own setup screen: **Keep this game** (Resume puts it back exactly, clock paused) or **Start over** (players, categories and rules stay) |
 | Start / Pause / Resume | `Enter` | the clock |
 | Undo | `U` | steps back through every pick and every mark |
 | Next | `N` | back to the board |
@@ -137,10 +138,34 @@ has already been played is kept out of the next draw.
 The shipped words are British English throughout ("Tin opener", "Ice lolly",
 "Spirit level", "A toffee apple"). Swap them in the editor for your own room.
 
+## 3b. The set library
+
+`games/pyramid/sets/` holds extra category files committed beside the game,
+listed in `sets/index.json`. The setup screen mounts the shared picker
+(`shared/library.js`) under **Categories**: pick a set, press **Load set**, and
+it goes through the same `validateGame` as everything else before it becomes the
+content. The source line then reads `set: Kids night`. A set brings its own
+rules with it — the "Kids night" set plays on a 40-second clock for $5,000.
+
+| Set | What it is |
+| --- | --- |
+| `movies-and-tv.json` | **Movies & TV** — cinema seats, film sets, villains with cats. 12 categories, 2 circles, the standard 30-second clock |
+| `kids-night.json` | **Kids night** — playgrounds, dinosaurs and packed lunches, on a slower clock with smaller money |
+
+Opened straight from disk the picker cannot fetch the manifest, so it hides
+itself and says why; nothing else on the setup screen changes.
+
+**Adding your own to the library.** Static hosting cannot write files, so the
+editor hands you both halves: **Download for the library** saves the JSON named
+after your set and prints the exact line to paste into `sets/index.json` plus
+the path to commit the file to. Do those two things and the set appears in the
+picker for everyone.
+
 **Loading your own:**
 
-- **Category editor** in the top bar → edit → **Use in game** or
-  **Download JSON**. The draft auto-saves under `gsc-pyr-draft-v1`.
+- **Category editor** in the top bar → edit → **Use in game**,
+  **Download JSON**, or **Download for the library**. The draft auto-saves under
+  `gsc-pyr-draft-v1`.
 - **Load categories (.json)** on the setup screen.
 - `?game=https://example.com/mine.json` — an explicit link always beats the
   saved game unless the save already came from that same link.
@@ -172,6 +197,7 @@ css/pyr-phone.css     phone styles
 js/pyr-content.js     PURE: the JSON contract, normalisation, the nightly draw
 js/pyr-core.js        PURE: the reducer and every selector (UMD -> PyrCore)
 js/pyr-app.js         host glue: state, persistence, buttons, hotkeys, clocks
+js/pyr-lobby.js       the Game lobby confirm and the set-library picker
 js/pyr-view.js        host rendering (split out to stay under 800 lines)
 js/pyr-clock.js       the rAF + interval clock renderer (DOM only)
 js/pyr-sound.js       WebAudio cues behind the shared 🔊 preference
@@ -179,14 +205,19 @@ js/pyr-editor.js      the in-page category editor
 js/pyr-room.js        host glue on GSC.host: roster, masked views, phone intents
 js/pyr-phone.js       the phone controller
 js/data.js            offline mirror of categories.json
+sets/index.json       the library manifest
+sets/*.json           the committed category sets
 tests/pyr-core.test.mjs   node:test suite (Y-U1 … Y-U10)
-tests/harness.html        browser loopback harness (Y-I1 … Y-I6)
+tests/harness.html        browser loopback harness (Y-I1 … Y-I6, X-1 … X-5)
+tests/harness-scenarios.js  the second half of it (the 800-line cap again)
 tests/fixtures/           the small game the harness plays
 ```
 
 State lives in `localStorage` under `gsc-pyr-state-v1` and is restored on
 reload — with both clocks **paused**, so nothing runs down while the host is
-getting the room back.
+getting the room back. A game parked with **Keep this game** is saved beside it,
+so Resume survives a refresh too. Add `?store=NAME` to the URL to move every key
+into its own namespace (the harness runs under `?store=harness`).
 
 ## 6. Running the checks
 

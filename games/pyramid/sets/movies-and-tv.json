@@ -1,0 +1,59 @@
+{
+  "title": "Pyramid — Movies & TV",
+  "settings": {
+    "currency": "$",
+    "categorySeconds": 30,
+    "circleSeconds": 60,
+    "tiebreakSeconds": 15,
+    "wordsPerCategory": 7,
+    "categoriesPerTeam": 3,
+    "swapRoles": true,
+    "circleValues": [200, 300, 400, 500, 800, 1000],
+    "grandPrize": 10000,
+    "grandPrizeLabel": "$10,000"
+  },
+  "categories": [
+    { "title": "Roll the Credits", "hint": "Things at the end of a film",
+      "words": ["The big kiss", "A twist", "Bloopers", "A sequel tease", "Sad music", "The cast list", "Everyone leaving"] },
+    { "title": "Popcorn Weather", "hint": "Things at the cinema",
+      "words": ["Popcorn", "Trailers", "A sticky floor", "A tall person", "A reclining seat", "A ticket stub", "The loud slurp"] },
+    { "title": "Lights, No Camera", "hint": "Things on a film set",
+      "words": ["Clapperboard", "Boom mic", "Stunt double", "Green screen", "A folding chair", "The catering van", "A crowd of extras"] },
+    { "title": "Small Screen, Big Sofa", "hint": "Things you do while watching TV",
+      "words": ["Snack", "Pause it", "Argue about the plot", "Fall asleep", "Rewind", "Check your phone", "Shush someone"] },
+    { "title": "One More Episode", "hint": "Signs you are binge-watching",
+      "words": ["It is 2am", "Autoplay", "The same snack again", "Skipping the intro", "A blanket fort", "Dark circles", "No idea what day it is"] },
+    { "title": "Villain Energy", "hint": "Things a film villain has",
+      "words": ["A cape", "A secret lair", "A long monologue", "A cat on the lap", "A scar", "A henchman", "A dramatic laugh"] },
+    { "title": "Cue the Music", "hint": "Things in a musical",
+      "words": ["A big finale", "Jazz hands", "A love duet", "Tap shoes", "A key change", "A costume change", "The pit orchestra"] },
+    { "title": "Behind the Sofa", "hint": "Things in a horror film",
+      "words": ["A creaky door", "A dark cellar", "A power cut", "Running upstairs", "A jump scare", "Fog", "No phone signal"] },
+    { "title": "Prime Time", "hint": "Types of TV show",
+      "words": ["Soap opera", "Cooking show", "Sitcom", "Documentary", "Quiz show", "Cartoon", "The news"] },
+    { "title": "Sidekick Material", "hint": "Famous animal characters",
+      "words": ["A talking mouse", "A friendly dinosaur", "A lost clownfish", "A wise owl", "A racing snail", "A brave lion cub", "A dog in space"] },
+    { "title": "Take Two", "hint": "Things a director shouts",
+      "words": ["Action", "Cut", "Quiet please", "Rolling", "That is a wrap", "From the top", "Reset"] },
+    { "title": "Red Carpet", "hint": "Things at an awards show",
+      "words": ["A gold statue", "A very long speech", "A limousine", "Photographers", "The envelope", "A borrowed gown", "Being played off"] }
+  ],
+  "circles": [
+    { "boxes": [
+      { "category": "Things in a spaceship" },
+      { "category": "Things a detective says" },
+      { "category": "Things in a haunted house" },
+      { "category": "Things a superhero wears" },
+      { "category": "Things in a courtroom drama" },
+      { "category": "Reasons the hero is late" }
+    ] },
+    { "boxes": [
+      { "category": "Things a talk-show host does" },
+      { "category": "Things in a cooking show" },
+      { "category": "Things a cartoon character does" },
+      { "category": "Things at a film premiere" },
+      { "category": "Things a robot says" },
+      { "category": "Ways a film ends" }
+    ] }
+  ]
+}

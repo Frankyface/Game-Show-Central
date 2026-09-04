@@ -353,3 +353,86 @@ removes them. `node --test` → **95 pass, 0 fail**; harness on port 8692 → **
 | 1280×720 | no vertical scroll on board, play (hidden and revealed), round-over, mainResult, circle, result, standings — with the new buttons in both toolbars |
 | Contrast | re-walked all seven surfaces against the theme's darker glow: **0 pairs below threshold** |
 | Static gates | V2 every file < 800 lines (largest `tests/pyr-core.test.mjs` at 775); V3/V4 clean; the tester's three suites are now in the harness's gate list |
+
+---
+
+## 10. Cross-cutting round (docs/19-cross-cutting-round.md)
+
+### §1 — the Game lobby control (X-1)
+
+`⟲ Game lobby` sits in the host toolbar between Sound and the category editor,
+in every phase and in both modes (the toolbar is hidden only on a phone). It
+opens a confirm that names what is on the table — *"You are on Mellow Shade, 1
+of 7 taken"* — and offers two answers:
+
+- **Keep this game** parks the running game in `app.resumable` with both clocks
+  stopped (`pyrPauseRestored`) and shows setup. A **Resume the game** button
+  appears there with a note saying what is waiting and that the clock is paused.
+  Resume puts the snapshot back as `core` — same slot, same word, same marks,
+  same score, same time left — and clears the parked copy.
+- **Start over** drops the game. The roster, the seats, the content and the
+  rules are untouched.
+
+Neither touches the undo history: the parked snapshot **is** the state, so
+nothing has to be replayed. `resumable` is persisted, revalidated through
+`pyrUsableCore` on load, re-paused on restore, and dropped by `pyrBindRoom` when
+the room code changes and by `pyrUseGame` when the content changes — the same
+three rules the running game already followed. Nothing secret leaks: a parked
+game's words are not on the setup screen (asserted in the harness).
+
+The control disables itself when there is nothing to leave and nothing to
+resume, which is the only state in which it would do nothing.
+
+### §2 — the set library (X-2, X-3)
+
+`shared/library.js`'s picker is mounted under **Categories** on the setup
+screen with the game's own `validateGame` as its gate; a chosen set becomes the
+content through the normal `pyrUseGame` path and the source line reads
+`set: <name>`. Because a set carries its own settings, `pyrSettingsFromGame`
+then drops its clock lengths and board size into the setup fields — loading
+"Kids night" moves the category clock to 40 s and the prize to $5,000.
+
+Two sets ship, written to the same bar as the default file (12 categories × 7
+words, 2 Winner's Circle sets, titles that hide the theme, the plain theme in
+the giver-only `hint`):
+
+| File | Set |
+| --- | --- |
+| `sets/movies-and-tv.json` | **Movies & TV** — Roll the Credits, Behind the Sofa, Villain Energy, Red Carpet… |
+| `sets/kids-night.json` | **Kids night** — Playground Rules, Roar and Snore, Lunchbox Lottery… on a 40 s clock for a $5,000 top prize |
+
+The editor gained **Download for the library**: it validates and downloads the
+draft under a name derived from its title (`Harness Pyramid` →
+`harness-pyramid.json`) and then shows the two honest steps — the path to commit
+the file to, and the exact `sets/index.json` entry to paste, with a Copy button.
+Static hosting cannot write into the repo; this is the workflow, and the README
+documents it.
+
+### A third file, for the third time
+
+`js/pyr-lobby.js` (142 lines) holds the lobby and the library glue, and
+`tests/harness-scenarios.js` (399) holds the second half of the harness. Both
+splits exist only to stay under the 800-line cap — `pyr-app.js` would have been
+864 and `harness.html` 1000. The companion harness file is not a second
+harness: the page hands it its own helpers and awaits the scenarios in order, so
+every check still runs in one pass and reports into the same PASS/FAIL list.
+Largest file in the component is now `css/pyr.css` at 785.
+
+### One shared-token fix
+
+`.gsc-library-label` is styled with `--ink-mute`, which measures **3.46:1** on
+this game's teal glass. `css/pyr.css` substitutes `--pyr-dim` for it inside
+`#pyr-library`, exactly as it already does everywhere else. Worth knowing for
+the shell agent: the shared component sheet's secondary inks are tuned for the
+hub's near-black navy and do not clear 4.5:1 on a lighter stage.
+
+### State after the round
+
+| Check | Result |
+| --- | --- |
+| `cd games/pyramid && node --test` | **95 pass, 0 fail** |
+| `tests/harness.html` (port 8692) | **All 93 checks passed** (67 before + 26 for X-1, X-2, X-3, X-5) |
+| Live at 1280×720 | Game lobby → Keep → Resume walked by hand: confirm names the category and progress, parked clock stopped, Resume returns to `1 / 7` with the clock button reading Resume, no word on the setup screen while parked, no vertical scroll |
+| Live library | picker lists both sets, **Load set** adopts "Kids night" (40 s, $5,000), source line reads `set: Kids night`; the editor's library download validated and printed the manifest line |
+| Contrast | setup with the picker, the editor with the how-to box and the confirm dialog re-walked: **0 pairs below threshold** after the `.gsc-library-label` fix |
+| Static gates | every file < 800 lines (largest `css/pyr.css` at 785); no innerHTML/eval/console.log; the new sets, `pyr-lobby.js` and `harness-scenarios.js` are all in the harness's gate list |

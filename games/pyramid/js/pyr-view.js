@@ -64,6 +64,24 @@ const PyrView = (function () {
 
   /* ============ Setup ============ */
 
+  /**
+   * The Resume button and the toolbar's "Game lobby" control (docs/19 §1).
+   * Resume appears on the setup screen only while a game is parked, and says
+   * what it will put back so the host is never guessing.
+   */
+  function renderLobby(app) {
+    const parked = app.resumable;
+    show($("btn-resume"), !!parked);
+    const note = $("pyr-resume-note");
+    show(note, !!parked);
+    if (parked && window.PyrApp.gameLabel) {
+      note.textContent = `A game is waiting on ${window.PyrApp.gameLabel(parked)} — the clock is paused.`;
+    }
+    const back = $("btn-game-lobby");
+    // Nothing to leave and nothing to resume: the host is already on setup.
+    if (back) back.disabled = !app.core && !parked;
+  }
+
   function renderSetup(app) {
     setText("pyr-source", app.source);
     setText("pyr-player-count", app.setup.players.length ? `${app.setup.players.length}` : "");
@@ -456,6 +474,7 @@ const PyrView = (function () {
   function render(app) {
     const which = screenFor(app);
     SCREENS.forEach((name) => show($(`screen-${name}`), name === which));
+    renderLobby(app);
     if (which === "setup") renderSetup(app);
     if (!app.core) return;
     if (which === "board") renderBoard(app);
@@ -464,7 +483,7 @@ const PyrView = (function () {
     if (which === "result") renderResult(app);
   }
 
-  return { render, screenFor, revealActive, ROWS, CIRCLE_ROWS };
+  return { render, screenFor, revealActive, renderLobby, ROWS, CIRCLE_ROWS };
 })();
 
 window.PyrView = PyrView;
