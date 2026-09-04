@@ -10,12 +10,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/wl.css">
+  <link rel="stylesheet" href="css/wl-stage.css">
   <link rel="stylesheet" href="css/wl-phone.css">
 </head>
 <body data-gsc-game="weakest-link">
 
   <header class="topbar">
-    <h1 id="wl-title" class="topbar-title">Weakest Link</h1>
+    <span class="topbar-mark" aria-hidden="true"></span>
+    <div class="topbar-id">
+      <p class="topbar-eyebrow">Game Show Central</p>
+      <h1 id="wl-title" class="topbar-title">Weakest Link</h1>
+    </div>
     <div class="topbar-actions">
       <span id="wl-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
@@ -30,40 +35,48 @@
 
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
-      <div class="card">
-        <p class="kicker">Tonight&rsquo;s team plays for&hellip;</p>
-        <h2 class="card-title">The Weakest Link</h2>
-        <p id="wl-source" class="source-note">Loading questions&hellip;</p>
+      <div class="card setup-card gsc-card">
+        <header class="setup-head">
+          <p class="kicker">Tonight&rsquo;s team plays for&hellip;</p>
+          <h2 class="card-title">The Weakest Link</h2>
+          <p id="wl-source" class="source-note">Loading questions&hellip;</p>
+        </header>
 
-        <div class="setup-block">
-          <h3 class="setup-heading">Players <span id="wl-player-count" class="count-badge"></span></h3>
-          <p class="hint">Three to twelve. Drag is not needed &mdash; the list order is the order of play.</p>
-          <ul id="wl-player-list" class="player-list"></ul>
-          <form id="wl-add-player" class="inline-form">
-            <label class="visually-hidden" for="wl-player-name">Player name</label>
-            <input id="wl-player-name" type="text" maxlength="24" placeholder="Player name"
-                   autocomplete="off" spellcheck="false">
-            <button class="btn btn-ghost" type="submit">+ Add player</button>
-          </form>
-        </div>
-
-        <div class="setup-block">
-          <h3 class="setup-heading">Phones <span class="hint-inline">(optional &mdash; secret voting)</span></h3>
-          <div id="wl-room-controls" class="inline-form">
-            <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
-            <span id="wl-room-status" class="hint-inline">Closed &mdash; the host can enter every vote instead.</span>
+        <div class="setup-grid">
+          <div class="setup-col">
+            <div class="setup-block">
+              <h3 class="setup-heading">Players <span id="wl-player-count" class="count-badge"></span></h3>
+              <p class="hint">Three to twelve. Drag is not needed &mdash; the list order is the order of play.</p>
+              <ul id="wl-player-list" class="player-list"></ul>
+              <form id="wl-add-player" class="inline-form">
+                <label class="visually-hidden" for="wl-player-name">Player name</label>
+                <input id="wl-player-name" type="text" maxlength="24" placeholder="Player name"
+                       autocomplete="off" spellcheck="false">
+                <button class="btn btn-ghost" type="submit">+ Add player</button>
+              </form>
+            </div>
           </div>
-          <p id="wl-join-note" class="hint hidden">Players join at <span id="wl-join-url" class="mono"></span></p>
-        </div>
 
-        <div class="setup-block">
-          <h3 class="setup-heading">Questions</h3>
-          <div class="inline-form">
-            <button id="btn-load-json" class="btn btn-ghost" type="button">Load questions (.json)</button>
-            <input id="wl-file" class="visually-hidden" type="file" accept="application/json,.json">
-            <label class="check"><input id="wl-shuffle" type="checkbox"> Shuffle the question order</label>
+          <div class="setup-col">
+            <div class="setup-block setup-block-phones">
+              <h3 class="setup-heading">Phones <span class="hint-inline">(optional &mdash; secret voting)</span></h3>
+              <div id="wl-room-controls" class="inline-form">
+                <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+                <span id="wl-room-status" class="hint-inline">Closed &mdash; the host can enter every vote instead.</span>
+              </div>
+              <p id="wl-join-note" class="hint hidden">Players join at <span id="wl-join-url" class="mono"></span></p>
+            </div>
+
+            <div class="setup-block">
+              <h3 class="setup-heading">Questions</h3>
+              <div class="inline-form">
+                <button id="btn-load-json" class="btn btn-ghost" type="button">Load questions (.json)</button>
+                <input id="wl-file" class="visually-hidden" type="file" accept="application/json,.json">
+                <label class="check"><input id="wl-shuffle" type="checkbox"> Shuffle the question order</label>
+              </div>
+              <p id="wl-question-count" class="hint"></p>
+            </div>
           </div>
-          <p id="wl-question-count" class="hint"></p>
         </div>
 
         <div class="setup-actions">
@@ -73,48 +86,56 @@
     </section>
 
     <!-- ===================== Round ===================== -->
-    <section id="screen-round" class="screen hidden">
-      <div class="round-top">
-        <p id="wl-round-label" class="round-label">Round 1</p>
-        <div id="wl-clock" class="clock" role="timer" aria-live="off">2:30</div>
-        <div class="round-top-actions">
+    <section id="screen-round" class="screen screen-round hidden">
+      <div class="round-top gsc-banner">
+        <p id="wl-round-label" class="round-label gsc-banner-title">Round 1</p>
+        <p class="round-sub gsc-banner-sub">Bank it before the chain breaks.</p>
+        <div class="round-top-actions gsc-banner-end">
+          <div id="wl-clock" class="clock" role="timer" aria-live="off">2:30</div>
           <button id="btn-clock" class="btn btn-ghost btn-small" type="button">Start clock</button>
         </div>
       </div>
 
       <div class="stage-grid">
         <aside class="chain-rail" aria-label="Money chain">
+          <p class="rail-label">The chain</p>
           <ol id="wl-chain" class="chain"></ol>
         </aside>
 
         <div class="spotlight">
           <p id="wl-turn-name" class="turn-name">&nbsp;</p>
-          <p id="wl-q-cat" class="q-cat">&nbsp;</p>
-          <p id="wl-q-text" class="q-text">&nbsp;</p>
+          <p id="wl-q-cat" class="q-cat gsc-lozenge gsc-lozenge-sm">&nbsp;</p>
+          <div class="q-plate gsc-panel">
+            <p id="wl-q-text" class="q-text">&nbsp;</p>
+          </div>
           <div class="answer-row">
             <p id="wl-answer" class="answer hidden">&nbsp;</p>
             <button id="btn-show-answer" class="btn btn-ghost btn-small" type="button">Show answer</button>
-            <label class="check"><input id="wl-keep-answers" type="checkbox"> Keep answers on screen</label>
+            <label class="check check-toggle"><input id="wl-keep-answers" type="checkbox"> Keep answers on screen</label>
           </div>
           <p id="wl-notice" class="notice" role="status" aria-live="polite"></p>
         </div>
 
         <aside class="money-rail">
-          <div class="money-box">
-            <p class="money-label">Round bank</p>
-            <p id="wl-bank" class="money-value" aria-live="polite">$0</p>
+          <div class="money-boxes">
+            <div class="money-box gsc-panel">
+              <p class="money-label">Round bank</p>
+              <p id="wl-bank" class="money-value" aria-live="polite">$0</p>
+            </div>
+            <div class="money-box gsc-panel">
+              <p class="money-label">Team total</p>
+              <p id="wl-total" class="money-value money-total" aria-live="polite">$0</p>
+            </div>
           </div>
-          <div class="money-box">
-            <p class="money-label">Team total</p>
-            <p id="wl-total" class="money-value" aria-live="polite">$0</p>
+          <div class="stats-wrap gsc-panel">
+            <table class="stats" aria-label="Player statistics">
+              <thead>
+                <tr><th scope="col">Player</th><th scope="col" abbr="Correct">&#10003;</th>
+                    <th scope="col" abbr="Wrong">&#10007;</th><th scope="col">Banked</th></tr>
+              </thead>
+              <tbody id="wl-stats"></tbody>
+            </table>
           </div>
-          <table class="stats" aria-label="Player statistics">
-            <thead>
-              <tr><th scope="col">Player</th><th scope="col" abbr="Correct">&#10003;</th>
-                  <th scope="col" abbr="Wrong">&#10007;</th><th scope="col">Banked</th></tr>
-            </thead>
-            <tbody id="wl-stats"></tbody>
-          </table>
         </aside>
       </div>
 
@@ -122,55 +143,61 @@
         <button id="btn-bank" class="btn btn-gold btn-big" type="button">Bank <kbd>B</kbd></button>
         <button id="btn-correct" class="btn btn-green btn-big" type="button">Correct <kbd>Space</kbd></button>
         <button id="btn-wrong" class="btn btn-red btn-big" type="button">Wrong / Pass <kbd>X</kbd></button>
+        <span class="controls-split" aria-hidden="true"></span>
         <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
         <button id="btn-end-round" class="btn btn-ghost" type="button">End round</button>
       </div>
     </section>
 
     <!-- ===================== Voting ===================== -->
-    <section id="screen-voting" class="screen hidden">
-      <h2 class="screen-title">Vote for the weakest link</h2>
-      <p id="wl-vote-count" class="vote-count" aria-live="polite">Votes in: 0/0</p>
+    <section id="screen-voting" class="screen screen-voting hidden">
+      <div class="round-top vote-top gsc-banner">
+        <h2 class="screen-title gsc-banner-title">Vote for the weakest link</h2>
+        <p id="wl-vote-count" class="vote-count gsc-banner-sub" aria-live="polite">Votes in: 0/0</p>
+      </div>
 
-      <ul id="wl-vote-list" class="vote-list"></ul>
+      <div class="vote-body">
+        <ul id="wl-vote-list" class="vote-list"></ul>
+
+        <div id="wl-stats-panel" class="stats-panel hidden" role="region" aria-label="Round statistics">
+          <div class="stats-card gsc-card">
+            <p class="stats-kicker">Strongest link</p>
+            <p id="wl-strongest" class="stats-name">&nbsp;</p>
+            <p id="wl-strongest-detail" class="stats-detail">&nbsp;</p>
+          </div>
+          <div class="stats-card weak gsc-card">
+            <p class="stats-kicker">Statistically the weakest link</p>
+            <p id="wl-weakest" class="stats-name">&nbsp;</p>
+            <p id="wl-weakest-detail" class="stats-detail">&nbsp;</p>
+          </div>
+        </div>
+
+        <div id="wl-tie-panel" class="panel gsc-panel hidden" role="region" aria-label="Tied vote">
+          <p id="wl-tie-text" class="panel-text">&nbsp;</p>
+          <div id="wl-tie-choices" class="choice-row"></div>
+        </div>
+
+        <div id="wl-vote-result" class="panel panel-verdict gsc-panel hidden" role="region" aria-label="Vote result">
+          <p id="wl-vote-result-text" class="panel-text">&nbsp;</p>
+          <button id="btn-eliminate" class="btn btn-red btn-big" type="button">You are the weakest link&hellip;</button>
+        </div>
+
+        <div id="wl-goodbye-panel" class="panel gsc-panel hidden">
+          <button id="btn-next-round" class="btn btn-blue btn-big" type="button">Next round</button>
+        </div>
+      </div>
 
       <div class="controls">
-        <button id="btn-show-stats" class="btn btn-ghost" type="button">Show statistics</button>
         <button id="btn-reveal" class="btn btn-blue btn-big" type="button">Reveal a vote</button>
         <button id="btn-reveal-all" class="btn btn-ghost" type="button">Reveal the rest</button>
+        <span class="controls-split" aria-hidden="true"></span>
+        <button id="btn-show-stats" class="btn btn-ghost" type="button">Show statistics</button>
         <button id="btn-vote-undo" class="btn btn-ghost" type="button">Undo</button>
-      </div>
-
-      <div id="wl-stats-panel" class="stats-panel hidden" role="region" aria-label="Round statistics">
-        <div class="stats-card">
-          <p class="stats-kicker">Strongest link</p>
-          <p id="wl-strongest" class="stats-name">&nbsp;</p>
-          <p id="wl-strongest-detail" class="stats-detail">&nbsp;</p>
-        </div>
-        <div class="stats-card weak">
-          <p class="stats-kicker">Statistically the weakest link</p>
-          <p id="wl-weakest" class="stats-name">&nbsp;</p>
-          <p id="wl-weakest-detail" class="stats-detail">&nbsp;</p>
-        </div>
-      </div>
-
-      <div id="wl-tie-panel" class="panel hidden" role="region" aria-label="Tied vote">
-        <p id="wl-tie-text" class="panel-text">&nbsp;</p>
-        <div id="wl-tie-choices" class="choice-row"></div>
-      </div>
-
-      <div id="wl-vote-result" class="panel hidden" role="region" aria-label="Vote result">
-        <p id="wl-vote-result-text" class="panel-text">&nbsp;</p>
-        <button id="btn-eliminate" class="btn btn-red btn-big" type="button">You are the weakest link&hellip;</button>
-      </div>
-
-      <div id="wl-goodbye-panel" class="panel hidden">
-        <button id="btn-next-round" class="btn btn-blue btn-big" type="button">Next round</button>
       </div>
     </section>
 
     <!-- ===================== Final ===================== -->
-    <section id="screen-final" class="screen hidden">
+    <section id="screen-final" class="screen screen-final hidden">
       <div id="wl-final-splash" class="final-splash hidden">
         <p class="kicker">The bank is multiplied</p>
         <p id="wl-final-bank" class="final-bank">$0</p>
@@ -178,13 +205,18 @@
         <div id="wl-final-pick" class="choice-row"></div>
       </div>
 
-      <div id="wl-final-play" class="hidden">
-        <p id="wl-final-phase" class="round-label">Head to head</p>
+      <div id="wl-final-play" class="final-play hidden">
+        <div class="round-top gsc-banner">
+          <p id="wl-final-phase" class="round-label gsc-banner-title">Head to head</p>
+          <p class="round-sub gsc-banner-sub">Five questions each. Most right wins the bank.</p>
+        </div>
         <div id="wl-final-tally" class="final-tally"></div>
         <div class="spotlight">
           <p id="wl-final-turn" class="turn-name">&nbsp;</p>
-          <p id="wl-final-cat" class="q-cat">&nbsp;</p>
-          <p id="wl-final-q" class="q-text">&nbsp;</p>
+          <p id="wl-final-cat" class="q-cat gsc-lozenge gsc-lozenge-sm">&nbsp;</p>
+          <div class="q-plate gsc-panel">
+            <p id="wl-final-q" class="q-text">&nbsp;</p>
+          </div>
           <div class="answer-row">
             <p id="wl-final-answer" class="answer hidden">&nbsp;</p>
             <button id="btn-final-show-answer" class="btn btn-ghost btn-small" type="button">Show answer</button>
@@ -194,19 +226,22 @@
         <div class="controls">
           <button id="btn-final-correct" class="btn btn-green btn-big" type="button">Correct <kbd>Space</kbd></button>
           <button id="btn-final-wrong" class="btn btn-red btn-big" type="button">Wrong <kbd>X</kbd></button>
+          <span class="controls-split" aria-hidden="true"></span>
           <button id="btn-final-undo" class="btn btn-ghost" type="button">Undo</button>
         </div>
       </div>
     </section>
 
     <!-- ===================== Result ===================== -->
-    <section id="screen-result" class="screen hidden">
-      <p class="kicker">Tonight&rsquo;s strongest link</p>
-      <h2 id="wl-winner" class="winner-name">&nbsp;</h2>
-      <p id="wl-winner-total" class="final-bank">$0</p>
-      <ol id="wl-standings" class="standings"></ol>
-      <div class="controls">
-        <button id="btn-play-again" class="btn btn-blue btn-big" type="button">Play again</button>
+    <section id="screen-result" class="screen screen-result hidden">
+      <div class="result-card">
+        <p class="kicker">Tonight&rsquo;s strongest link</p>
+        <h2 id="wl-winner" class="winner-name">&nbsp;</h2>
+        <p id="wl-winner-total" class="final-bank">$0</p>
+        <ol id="wl-standings" class="standings"></ol>
+        <div class="controls">
+          <button id="btn-play-again" class="btn btn-blue btn-big" type="button">Play again</button>
+        </div>
       </div>
     </section>
 
@@ -228,49 +263,59 @@
 
       <div class="editor-grid">
         <div class="editor-col">
-          <h3 class="setup-heading">Settings</h3>
-          <label class="field">Title
-            <input id="wl-ed-title" type="text" maxlength="80" autocomplete="off">
-          </label>
-          <label class="field">Currency symbol
-            <input id="wl-ed-currency" type="text" maxlength="3" autocomplete="off">
-          </label>
-          <label class="field">Money chain (comma separated)
-            <input id="wl-ed-chain" type="text" autocomplete="off" spellcheck="false">
-          </label>
-          <label class="field">Round lengths in seconds (comma separated)
-            <input id="wl-ed-seconds" type="text" autocomplete="off" spellcheck="false">
-          </label>
-          <label class="field">Questions each in the final
-            <input id="wl-ed-final-q" type="number" min="1" max="10" step="1" inputmode="numeric">
-          </label>
-          <label class="field">Final bank multiplier
-            <input id="wl-ed-multiplier" type="number" min="1" max="5" step="1" inputmode="numeric">
-          </label>
-          <label class="check"><input id="wl-ed-top-ends" type="checkbox"> Reaching the top of the chain ends the round</label>
-
-          <h3 class="setup-heading">Import</h3>
-          <p class="hint">Paste one question per line: question, then a tab, then the
-            answer, then an optional tab and category. Commas work too.</p>
-          <label class="visually-hidden" for="wl-ed-paste">Paste questions</label>
-          <textarea id="wl-ed-paste" rows="6" spellcheck="false"
-                    placeholder="In which ocean is Madagascar?&#9;The Indian Ocean&#9;Geography"></textarea>
-          <div class="inline-form">
-            <button id="btn-ed-import" class="btn btn-ghost" type="button">Import lines</button>
-            <button id="btn-ed-add" class="btn btn-ghost" type="button">+ Add empty row</button>
+          <div class="editor-panel gsc-card">
+            <h3 class="setup-heading">Settings</h3>
+            <label class="field">Title
+              <input id="wl-ed-title" type="text" maxlength="80" autocomplete="off">
+            </label>
+            <div class="field-row">
+              <label class="field">Currency symbol
+                <input id="wl-ed-currency" type="text" maxlength="3" autocomplete="off">
+              </label>
+              <label class="field">Questions each in the final
+                <input id="wl-ed-final-q" type="number" min="1" max="10" step="1" inputmode="numeric">
+              </label>
+              <label class="field">Final bank multiplier
+                <input id="wl-ed-multiplier" type="number" min="1" max="5" step="1" inputmode="numeric">
+              </label>
+            </div>
+            <label class="field">Money chain (comma separated)
+              <input id="wl-ed-chain" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="field">Round lengths in seconds (comma separated)
+              <input id="wl-ed-seconds" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="check"><input id="wl-ed-top-ends" type="checkbox"> Reaching the top of the chain ends the round</label>
           </div>
-          <p id="wl-ed-import-msg" class="hint"></p>
+
+          <div class="editor-panel gsc-card">
+            <h3 class="setup-heading">Import</h3>
+            <p class="hint">Paste one question per line: question, then a tab, then the
+              answer, then an optional tab and category. Commas work too.</p>
+            <label class="visually-hidden" for="wl-ed-paste">Paste questions</label>
+            <textarea id="wl-ed-paste" rows="5" spellcheck="false"
+                      placeholder="In which ocean is Madagascar?&#9;The Indian Ocean&#9;Geography"></textarea>
+            <div class="inline-form">
+              <button id="btn-ed-import" class="btn btn-ghost" type="button">Import lines</button>
+              <button id="btn-ed-add" class="btn btn-ghost" type="button">+ Add empty row</button>
+            </div>
+            <p id="wl-ed-import-msg" class="hint"></p>
+          </div>
         </div>
 
         <div class="editor-col editor-col-wide">
-          <h3 class="setup-heading">Questions <span id="wl-ed-count" class="count-badge"></span></h3>
-          <table class="editor-table">
-            <thead>
-              <tr><th scope="col">#</th><th scope="col">Question</th><th scope="col">Answer</th>
-                  <th scope="col">Category</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr>
-            </thead>
-            <tbody id="wl-ed-rows"></tbody>
-          </table>
+          <div class="editor-panel editor-panel-table gsc-card">
+            <h3 class="setup-heading">Questions <span id="wl-ed-count" class="count-badge"></span></h3>
+            <div class="editor-table-scroll">
+              <table class="editor-table">
+                <thead>
+                  <tr><th scope="col">#</th><th scope="col">Question</th><th scope="col">Answer</th>
+                      <th scope="col">Category</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr>
+                </thead>
+                <tbody id="wl-ed-rows"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -295,6 +340,14 @@
     <p class="goodbye-line">You are the weakest link. Goodbye.</p>
   </div>
 
+  <!-- ============ Title card shown for 1.2 s when the game opens ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
   <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
        hub these relay through postMessage; standalone they open a PeerJS room.
        The game plays host-only even if they fail to load. -->
@@ -312,5 +365,6 @@
   <script src="js/wl-editor.js"></script>
   <script src="js/wl-room.js"></script>
   <script src="js/wl-phone.js"></script>
+  <script src="js/wl-splash.js"></script>
 </body>
 </html>

@@ -1,0 +1,426 @@
+/* ============================================================
+   Weakest Link — the stage furniture
+   Split out of css/wl.css only to keep both sheets under the
+   800-line house rule (the same reason shared/theme.css splits
+   off theme-components.css). Loaded after wl.css, so it wins on
+   anything both declare.
+
+   Every `animation:` for these selectors stays in wl.css §14, so
+   the motion rule has exactly one place to be audited.
+   ============================================================ */
+
+/* ============================================================
+   6. Round stage — chain ladder · spotlight · money rail
+   ============================================================ */
+
+.stage-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr) minmax(11rem, 15rem);
+  gap: clamp(0.7rem, 1.6vw, 1.6rem);
+  align-items: stretch;
+}
+
+.chain-rail, .money-rail {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rail-label {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow, 0.22em);
+  color: var(--ink-mute);
+}
+
+/* The chain is a lit ladder: bottom rung first, so the money climbs. */
+.chain {
+  list-style: none; margin: 0; padding: 0;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column-reverse; justify-content: flex-end;
+  gap: 4px;
+}
+
+/* The rungs share the rail out between them, so the ladder is exactly as
+   tall as the stage however long the chain is. */
+.chain li {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 1.9em;
+  max-height: 3.4rem;
+  font-family: var(--font-display);
+  font-size: clamp(0.85rem, 1.35vw, 1.15rem);
+  letter-spacing: 0.03em;
+  padding: 0.3em 0.6em 0.3em 1.4em;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid rgba(180, 200, 220, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.3));
+  color: var(--ink-mute);
+  display: flex; justify-content: space-between; gap: 0.4rem; align-items: center;
+  transition: background-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
+              border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+/* The ladder rail: an unlit stud on every rung, lit on the ones won. */
+.chain li::before {
+  content: "";
+  position: absolute;
+  left: 0.5em; top: 50%;
+  width: 7px; height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: rgba(180, 200, 220, 0.22);
+}
+
+.chain li.won {
+  color: var(--ink);
+  border-color: rgba(111, 168, 232, 0.5);
+  background: linear-gradient(180deg, rgba(111, 168, 232, 0.22), rgba(29, 74, 134, 0.22));
+}
+.chain li.won::before { background: var(--stage-blue); box-shadow: 0 0 9px var(--stage-blue); }
+
+.chain li.current {
+  color: #04121f;
+  background-color: #6fa8e8;               /* flat surface for the sampler */
+  background-image: linear-gradient(90deg, #8dc0ff 0%, #4d8ad8 100%);
+  border-color: #b9d9ff;
+  box-shadow: 0 0 26px rgba(111, 168, 232, 0.65);
+}
+.chain li.current::before { background: #04121f; box-shadow: none; }
+
+.chain-tick { opacity: 0.85; font-family: var(--font-ui); font-size: 0.72em; font-weight: 700; }
+
+/* ---- The spotlight: a cold beam, the player's name lit inside it ---- */
+
+.spotlight {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: clamp(0.6rem, 1.6vh, 1.4rem) 1rem;
+  border-radius: var(--radius-xl, 26px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+}
+
+/* The beam itself is a separate layer, so it can breathe without ever
+   dimming the question sitting on top of it. */
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 90% at 50% -6%, rgba(111, 168, 232, 0.32) 0%, rgba(111, 168, 232, 0.07) 45%, transparent 72%);
+}
+
+.turn-name {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: var(--track-display, -0.015em);
+  font-size: clamp(1.5rem, 3.2vw, 2.6rem);
+  line-height: 1;
+  margin: 0;
+  color: #e6f0fc;
+  text-shadow: 0 0 40px rgba(111, 168, 232, 0.75), 0 0 90px rgba(111, 168, 232, 0.35);
+}
+
+/* The category plate is a `.gsc-lozenge gsc-lozenge-sm`; only the cold-blue
+   fill and the show-caption tracking are ours. */
+.q-cat {
+  margin: 0;
+  min-height: 1.9em;
+  padding: 0.35rem 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #d8e7fa;
+  background-color: #2b4c6e;               /* flat surface for the sampler */
+  background-image: linear-gradient(180deg, rgba(111, 168, 232, 0.42), rgba(29, 74, 134, 0.45));
+}
+.q-cat:empty { visibility: hidden; }
+
+/* A `.gsc-panel` sized for a question read across a room. */
+.q-plate {
+  width: min(38rem, 100%);
+  padding: clamp(0.6rem, 1.6vh, 1.2rem) clamp(1rem, 2.5vw, 2rem);
+}
+
+.q-text {
+  font-size: clamp(1.25rem, 2.4vw, 2.1rem);
+  line-height: 1.18;
+  font-weight: 600;
+  margin: 0;
+  max-width: 26ch;
+  margin-inline: auto;
+}
+
+.answer-row { display: flex; gap: 0.6rem; align-items: center; justify-content: center; flex-wrap: wrap; }
+
+.answer {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffd97a;
+  background: rgba(232, 184, 75, 0.14);
+  border: 1px dashed rgba(232, 184, 75, 0.55);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.35em 0.9em;
+  margin: 0;
+}
+
+.notice { color: var(--ink-dim); font-size: 0.9rem; min-height: 1.3em; margin: 0; }
+
+/* ---- The money rail ---- */
+
+.money-boxes { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.money-box {
+  border-top: 4px solid var(--accent, #7c99b6);
+  border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius-sm);
+  padding: 0.5rem 0.8rem 0.6rem;
+}
+.money-label { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.64rem; color: var(--ink-mute); margin: 0; }
+.money-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.6vw, 2.2rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin: 0.15rem 0 0;
+}
+.money-total { color: var(--gold); }
+
+.stats-wrap {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.7rem 0.6rem;
+}
+
+.stats { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.stats th, .stats td { text-align: right; padding: 0.22rem 0.3rem; border-bottom: 1px solid rgba(180, 200, 220, 0.12); }
+.stats th:first-child, .stats td:first-child { text-align: left; }
+.stats thead th { color: var(--ink-mute); font-weight: 700; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.stats td { font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+.stats tr.is-turn td { color: #dbe9fa; font-weight: 700; }
+.stats tr.is-turn td:first-child { box-shadow: inset 3px 0 0 var(--stage-blue); padding-left: 0.5rem; }
+
+/* ============================================================
+   8. Voting — the ballot as cards
+   ============================================================ */
+
+.vote-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.8rem; }
+
+.vote-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.6rem;
+}
+
+.vote-list li {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-top: 4px solid rgba(180, 200, 220, 0.25);
+  border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  padding: 0.55rem 0.7rem;
+  transition: border-color var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out);
+}
+
+.vote-list li > * { min-width: 0; }
+.vote-voter {
+  flex: 1 1 auto;
+  font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.82rem; color: var(--ink-dim);
+}
+.vote-mask {
+  font-family: var(--font-display); letter-spacing: 0.28em; color: var(--ink-mute); min-width: 3.2rem;
+}
+/* A vote that has arrived: lit dots AND a heavier weight, never colour alone. */
+.vote-mask.in { color: var(--stage-blue); text-shadow: 0 0 12px rgba(111, 168, 232, 0.8); }
+
+.vote-target {
+  margin-left: auto;
+  font-family: var(--font-display); letter-spacing: 0.03em; color: var(--gold); font-size: 1.25rem;
+}
+.vote-list li.revealed {
+  border-top-color: var(--stage-gold);
+  background: linear-gradient(180deg, rgba(232, 184, 75, 0.12), rgba(0, 0, 0, 0.25));
+}
+.vote-list li select { margin-left: auto; max-width: 9.5rem; font-size: 0.82rem; }
+
+/* ---- Statistics: two .gsc-card panels ---- */
+
+.stats-panel { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+/* Each half of the statistics read-out is a `.gsc-card` with a lit rail. */
+.stats-card {
+  flex: 1 1 16rem;
+  border-left: 5px solid var(--stage-blue);
+  padding: 0.75rem 1rem;
+}
+.stats-card.weak { border-left-color: var(--stage-red); }
+.stats-kicker { text-transform: uppercase; letter-spacing: var(--track-eyebrow, 0.22em); font-size: 0.66rem; color: var(--ink-mute); margin: 0; }
+.stats-name { font-family: var(--font-display); font-size: 1.8rem; line-height: 1; margin: 0.25rem 0 0.15rem; }
+.stats-detail { color: var(--ink-dim); font-size: 0.82rem; margin: 0; }
+
+.panel { padding: 0.9rem 1.1rem; text-align: center; }
+.panel-verdict { border-color: rgba(226, 59, 71, 0.5); box-shadow: var(--shadow-panel), 0 0 44px rgba(226, 59, 71, 0.18); }
+.panel-text { font-size: 1.1rem; margin: 0 0 0.7rem; }
+.choice-row { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+
+/* ============================================================
+   9. Final — two podiums, then the result
+   ============================================================ */
+
+.screen-final { justify-content: center; }
+.final-play { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(0.5rem, 1.4vh, 1rem); }
+/* The beam fills whatever the banner and the podiums leave, so the judging
+   buttons always sit on the bottom edge of the stage. */
+.final-play .spotlight { flex: 1 1 auto; min-height: 0; }
+
+.final-splash { text-align: center; margin: auto; }
+.final-bank {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 10vw, 7rem);
+  line-height: 1;
+  color: var(--gold);
+  margin: 0.2rem 0 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 60px rgba(232, 184, 75, 0.4);
+}
+
+.final-tally { flex: 0 0 auto; display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap; }
+
+/* .gsc-podium is on the card in the markup; this tunes it for the tally. */
+.tally-card {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  min-width: 13rem;
+  padding: 0.55rem 1.1rem 0.7rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--panel-line);
+  border-top: 4px solid rgba(180, 200, 220, 0.3);
+  border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius-sm);
+  box-shadow: var(--shadow-panel);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.tally-card.is-turn {
+  transform: translateY(-5px);
+  border-top-color: var(--stage-blue);
+  box-shadow: 0 0 0 1px var(--stage-blue), 0 18px 44px rgba(111, 168, 232, 0.35);
+}
+.tally-name {
+  font-family: var(--font-display); font-size: 1.5rem; line-height: 1; margin: 0;
+  letter-spacing: var(--track-display, -0.015em); text-transform: uppercase; color: var(--ink);
+}
+.tally-dots { display: flex; gap: 0.3rem; margin-top: 0.25rem; }
+
+/* Shape + glyph carry the result; colour only reinforces it (WL-10). */
+.tally-dot {
+  width: 1.5rem; height: 1.5rem;
+  border-radius: 50%;
+  border: 2px solid rgba(180, 200, 220, 0.35);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; font-weight: 700; line-height: 1;
+  color: transparent;
+}
+.tally-dot.hit { background: var(--stage-green); border-color: #8ef0be; color: #03150c; }
+.tally-dot.miss {
+  /* A deeper red than --stage-red so the white glyph clears 4.5:1 (6.0:1). */
+  background: #c31824; border-color: #ffa8ae; color: #ffffff;
+  border-radius: 5px;   /* a square miss reads without colour */
+}
+.tally-score { font-family: var(--font-display); font-size: 1rem; color: var(--ink-dim); margin: 0.2rem 0 0; letter-spacing: 0.06em; }
+
+/* ---- Result ---- */
+
+.screen-result { justify-content: center; align-items: center; }
+.result-card { text-align: center; margin: auto; max-width: 44rem; }
+
+.winner-name {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 8vw, 5.4rem);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: var(--track-display, -0.015em);
+  margin: 0;
+  color: #e6f0fc;
+  text-shadow: 0 0 60px rgba(111, 168, 232, 0.6);
+}
+
+.standings {
+  max-width: 30rem; margin: 0 auto 1.2rem; padding: 0.6rem 0 0.6rem 1.6rem;
+  color: var(--ink-dim); text-align: left;
+  border-top: 1px solid var(--panel-line); border-bottom: 1px solid var(--panel-line);
+}
+.standings li { padding: 0.18rem 0; }
+.standings li.in { color: var(--ink); font-weight: 700; }
+
+/* ============================================================
+   10. The goodbye sting — a full-screen red wipe
+   ============================================================ */
+
+.goodbye {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(70% 70% at 50% 45%, #8f0c16 0%, #3a050a 58%, #120103 100%);
+  box-shadow: inset 0 0 200px rgba(0, 0, 0, 0.7);
+}
+.goodbye-name {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 10vw, 7rem);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: var(--track-display, -0.015em);
+  margin: 0;
+  color: #ffffff;
+  text-shadow: 0 0 70px rgba(255, 90, 102, 0.7);
+}
+.goodbye-line {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 3.4vw, 2.2rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffd0d4;
+  margin: 0.5rem 0 0;
+}
+
+/* ============================================================
+   11. Editor — a tidy form (CSV import kept)
+   ============================================================ */
+
+.editor-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.editor-bar .screen-title {
+  font-family: var(--font-display); text-transform: uppercase;
+  letter-spacing: var(--track-display, -0.015em); font-size: clamp(1.4rem, 2.6vw, 2rem); margin: 0;
+}
+.editor-bar-actions { margin-left: auto; display: flex; gap: 0.45rem; flex-wrap: wrap; }
+
+.editor-grid { display: grid; grid-template-columns: minmax(16rem, 23rem) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
+.editor-col { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
+.editor-panel { padding: 0.9rem 1.1rem 1.1rem; }
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.7rem; }
+.field-row .field { margin: 0.55rem 0 0; }
+
+.editor-table-scroll { max-height: 58vh; overflow: auto; margin-top: 0.4rem; }
+
+.editor-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.editor-table th, .editor-table td { border-bottom: 1px solid rgba(180, 200, 220, 0.12); padding: 0.25rem 0.3rem; text-align: left; vertical-align: top; }
+.editor-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: #0d1218;
+  color: var(--ink-mute); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.14em;
+}
+.editor-table td input { width: 100%; font-size: 0.82rem; padding: 0.3em 0.45em; }
+.editor-table td.row-num { color: var(--ink-mute); font-variant-numeric: tabular-nums; padding-top: 0.65rem; }

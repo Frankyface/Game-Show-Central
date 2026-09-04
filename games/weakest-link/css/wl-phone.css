@@ -1,117 +1,158 @@
 /* ============================================================
    Weakest Link — phone controller
-   320–430 px portrait, thumb-sized targets (>= 56 px), the same
-   black/steel/cold-blue stage as the host screen. Votes are the
-   whole point of this screen, so the buttons are huge and the
-   confirmation is unmistakable.
+   320–430 px portrait, full-bleed, thumb-sized targets (>= 56 px),
+   wearing the game's steel/red accent over the same near-black
+   stage as the host screen. Votes are the whole point of this
+   screen, so the buttons are huge and the confirmation is
+   unmistakable. Every value carries a literal fallback: a phone on
+   a flaky connection may get this sheet before the theme.
    ============================================================ */
 
 .screen-phone {
-  padding: 1rem 0.9rem 2.5rem;
-  max-width: 30rem;
-  margin: 0 auto;
+  padding: 0;
+  max-width: none;
+  gap: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 #gsc-join:empty { display: none; }
+#gsc-join { padding: 1.1rem 1rem 0.2rem; }
 
+/* The join card is the shared SDK's markup (shared/bridge.js); only its
+   look is set here. Every control clears the 56 px target rule. */
+#gsc-join .gsc-join-title {
+  font-family: var(--font-display, "Anton", sans-serif);
+  font-size: 1.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.9rem;
+}
+#gsc-join .field { margin-bottom: 0.8rem; }
+#gsc-join .field-input {
+  min-height: var(--tap, 56px);
+  font-size: 1.05rem;
+  padding: 0.6em 0.9em;
+  border: 2px solid rgba(180, 200, 220, 0.3);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.4);
+}
+#gsc-join .btn { min-height: var(--tap, 56px); width: 100%; font-size: 1.05rem; }
+
+/* Full-bleed: the card IS the screen, edge to edge like a native app. */
 .phone-card {
-  background: linear-gradient(180deg, #15191f 0%, #0f1216 100%);
-  border: 1px solid #2b3138;
-  border-radius: 16px;
-  padding: 1.1rem 1rem 1.3rem;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1.4rem 1.1rem 1.6rem;
   text-align: center;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(124, 153, 182, 0.3) 0%, transparent 62%),
+    linear-gradient(180deg, #0e151d 0%, #05070a 100%);
+}
+
+/* A steel rail across the top, so the screen reads as this game at a glance. */
+.phone-card::before {
+  content: "";
+  display: block;
+  height: 4px;
+  margin: -1.4rem -1.1rem 1.2rem;
+  background: linear-gradient(90deg, var(--accent, #7c99b6), var(--accent-2, #d33));
 }
 
 .phone-kicker {
   text-transform: uppercase;
-  letter-spacing: 0.24em;
-  font-size: 0.68rem;
-  color: var(--stage-blue, #3a7bd5);
+  letter-spacing: 0.22em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #9ec4ea;
   margin: 0 0 0.4rem;
   min-height: 1em;
 }
 
 .phone-headline {
   font-family: var(--font-display, "Anton", sans-serif);
-  font-size: clamp(1.7rem, 9vw, 2.6rem);
-  line-height: 1.05;
+  font-size: clamp(1.8rem, 9.5vw, 2.8rem);
+  line-height: 1.02;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin: 0 0 0.4rem;
-  color: var(--ink, #f6f7f9);
+  letter-spacing: 0.02em;
+  margin: 0 0 0.45rem;
+  color: var(--ink, #f4f7fa);
+  text-shadow: 0 0 44px rgba(124, 153, 182, 0.55);
 }
 
 .phone-sub {
-  color: var(--ink-dim, #9aa3ad);
+  color: var(--ink-dim, #a7b2be);
   font-size: 0.95rem;
-  margin: 0 0 0.9rem;
+  margin: 0 0 1rem;
   min-height: 1.2em;
 }
 
 .phone-choices { display: flex; flex-direction: column; gap: 0.6rem; }
 
 .phone-choice {
-  min-height: 60px;
+  min-height: 64px;          /* well clear of the 56 px rule */
   width: 100%;
   font-family: var(--font-display, "Anton", sans-serif);
-  font-size: 1.4rem;
-  letter-spacing: 0.04em;
+  font-size: 1.45rem;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  border-radius: 12px;
-  border: 2px solid #3c434c;
-  background: #12161b;
-  color: var(--ink, #f6f7f9);
+  border-radius: 14px;
+  border: 2px solid rgba(180, 200, 220, 0.28);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.35));
+  color: var(--ink, #f4f7fa);
   cursor: pointer;
 }
-.phone-choice:focus-visible { outline: 3px solid var(--stage-blue, #3a7bd5); outline-offset: 2px; }
+.phone-choice:focus-visible { outline: 3px solid var(--focus, #ffd35e); outline-offset: 2px; }
+
+/* A chosen name is filled AND ticked — never colour alone. */
 .phone-choice[aria-pressed="true"] {
-  background: linear-gradient(180deg, #3a7bd5 0%, #1d4a86 100%);
-  border-color: #8dc0ff;
-  color: #fff;
+  background-color: #1d5fa8;   /* flat, so white stays at 6.5:1 across the face */
+  background-image: none;
+  border-color: #b9d9ff;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.18), 0 0 22px rgba(111, 168, 232, 0.45);
 }
+.phone-choice[aria-pressed="true"]::after { content: " \2713"; }
 
 .phone-status {
-  margin: 0.9rem 0 0;
+  margin: 1rem 0 0;
   font-size: 0.9rem;
-  color: var(--ink-dim, #9aa3ad);
+  color: var(--ink-dim, #a7b2be);
   min-height: 1.3em;
 }
 
-.phone-money {
-  display: flex;
-  gap: 0.6rem;
-  justify-content: center;
-  margin: 0.6rem 0 0;
-}
+.phone-money { display: flex; gap: 0.6rem; justify-content: center; margin: 0.8rem 0 0; }
 .phone-money div {
   flex: 1 1 0;
-  background: #12161b;
-  border: 1px solid #262b32;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(180, 200, 220, 0.16);
+  border-top: 3px solid var(--accent, #7c99b6);
   border-radius: 10px;
-  padding: 0.5rem;
+  padding: 0.55rem 0.4rem;
 }
 .phone-money p { margin: 0; }
-.phone-money .k { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem; color: var(--ink-dim, #9aa3ad); }
-.phone-money .v { font-family: var(--font-display, "Anton", sans-serif); font-size: 1.3rem; }
+.phone-money .k { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.6rem; color: var(--ink-mute, #8b96a3); }
+.phone-money .v { font-family: var(--font-display, "Anton", sans-serif); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
 
+/* The goodbye card is the phone's half of the red wipe. */
 .phone-card.goodbye-card {
-  background: radial-gradient(80% 80% at 50% 30%, #6b0910 0%, #2a0407 70%);
-  border-color: #7d1119;
+  background:
+    radial-gradient(90% 60% at 50% 26%, #8f0c16 0%, #3a050a 62%, #120103 100%);
 }
-.phone-card.goodbye-card .phone-headline { color: #fff; }
+.phone-card.goodbye-card::before { background: #ff5a66; }
+.phone-card.goodbye-card .phone-headline { color: #ffffff; text-shadow: 0 0 50px rgba(255, 90, 102, 0.7); }
 .phone-card.goodbye-card .phone-sub { color: #ffd0d4; }
 
-.phone-card.winner-card { border-color: var(--stage-gold, #d9a437); }
-.phone-card.winner-card .phone-headline { color: var(--stage-gold, #d9a437); }
+.phone-card.winner-card::before { background: linear-gradient(90deg, #e8b84b, #f0c05a); }
+.phone-card.winner-card .phone-headline { color: #ffd97a; text-shadow: 0 0 50px rgba(232, 184, 75, 0.55); }
 
-.phone-standings { list-style: none; margin: 0.6rem 0 0; padding: 0; text-align: left; }
+.phone-standings { list-style: none; margin: 0.8rem 0 0; padding: 0; text-align: left; }
 .phone-standings li {
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid #23272d;
-  color: var(--ink-dim, #9aa3ad);
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid rgba(180, 200, 220, 0.14);
+  color: var(--ink-dim, #a7b2be);
 }
-.phone-standings li.in { color: var(--ink, #f6f7f9); font-weight: 600; }
-
-@media (prefers-reduced-motion: reduce) {
-  .phone-card { animation: none !important; }
-}
+.phone-standings li.in { color: var(--ink, #f4f7fa); font-weight: 700; }

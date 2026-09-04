@@ -492,7 +492,8 @@ function wlRenderTally(core) {
   const box = $("wl-final-tally");
   box.replaceChildren();
   window.WlCore.finalTally(core).forEach((row) => {
-    const card = el("div", `tally-card${row.pid === core.turnPid ? " is-turn" : ""}`);
+    // + the design-system names; `tally-card`/`is-turn` stay (styling hook only).
+    const card = el("div", `gsc-podium tally-card${row.pid === core.turnPid ? " is-turn is-active" : ""}`);
     card.appendChild(el("p", "tally-name", row.name));
     const dots = el("div", "tally-dots");
     for (let i = 0; i < row.asked; i += 1) {
