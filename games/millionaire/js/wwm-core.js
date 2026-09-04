@@ -16,13 +16,13 @@
 "use strict";
 
 (function (root, factory) {
-  const content = (typeof module === "object" && module.exports)
-    ? require("./wwm-content.js")
-    : root.WwmContent;
-  const api = factory(content);
-  if (typeof module === "object" && module.exports) module.exports = api;
+  const node = typeof module === "object" && module.exports;
+  const content = node ? require("./wwm-content.js") : root.WwmContent;
+  const select = node ? require("./wwm-select.js") : root.WwmSelect;
+  const api = factory(content, select);
+  if (node) module.exports = api;
   root.WwmCore = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (Content) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (Content, Select) {
   "use strict";
 
   const {
@@ -33,12 +33,27 @@
     LIFELINE_KEYS, NAME_MAX, MIN_QUESTIONS,
   } = Content;
 
+  // Everything that reads a state lives in wwm-select.js; the reducer below
+  // uses these and the export re-publishes them, so WwmCore stays one API.
+  const {
+    PID_MAX, LETTERS,
+    tree, havens, rungCount, rungValue, playingRung, bankedValue,
+    winningsIfWalk, winningsIfWrong, isSafeHaven, formatMoney, moneyTreeView,
+    nameOf, isEligible, waitingContestants, standings,
+    publicQuestion, optionState, optionRows,
+    voteCounts, chart, secondsLeft,
+    orderIsCorrect, fffRows, fffAnswer,
+    validatePhoneMsg, phoneView,
+  } = Select;
+  void (tree && havens && isSafeHaven && moneyTreeView && publicQuestion
+    && optionState && optionRows && chart && secondsLeft && fffRows && fffAnswer
+    && phoneView && standings && nameOf && DEFAULT_MONEY_TREE && largestRemainder
+    && LETTERS);
+
   /* ============ Constants ============ */
 
   const MAX_CONTESTANTS = 16;
-  const PID_MAX = 24;           // structural cap on a pid coming off the wire
   const MAX_HISTORY = 60;       // undo depth
-  const LETTERS = ["A", "B", "C", "D"];
 
   /** Phases the host UI switches on. */
   const PHASES = Object.freeze(["setup", "fff", "pick", "hotseat", "result", "standings"]);
@@ -103,7 +118,10 @@
       roster,
       contestants: roster.map((p) => ({ pid: p.pid, name: p.name, won: 0, rung: 0, out: false })),
       current: null,
-      rung: 1,
+      // `rung` is how many questions this contestant has ANSWERED CORRECTLY
+      // (0-15). The question on screen is therefore number `rung + 1`, and
+      // `rung` is exactly the money already banked (spec 08 §1).
+      rung: 0,
       used: [],
       lifelines: Object.assign({}, g.settings.lifelines),
       fff: blankFff(),
@@ -113,276 +131,6 @@
       wrapped: false,
       history: [],
     }, blankQuestionSlate());
-  }
-
-  /* ============ Money selectors ============ */
-
-  function tree(state) {
-    return (state && state.game && state.game.settings.moneyTree) || DEFAULT_MONEY_TREE;
-  }
-
-  function havens(state) {
-    return (state && state.game && state.game.settings.safeHavens) || [];
-  }
-
-  function rungCount(state) {
-    return tree(state).length;
-  }
-
-  /** What the contestant is playing for right now. */
-  function rungValue(state, rung) {
-    const list = tree(state);
-    const n = Number.isInteger(rung) ? rung : state.rung;
-    return n >= 1 && n <= list.length ? list[n - 1] : 0;
-  }
-
-  /** Money already banked: the value of the last question answered correctly. */
-  function bankedValue(state) {
-    return state.rung > 1 ? rungValue(state, state.rung - 1) : 0;
-  }
-
-  /** Walking away before locking keeps everything banked so far (spec 08 §1). */
-  function winningsIfWalk(state) {
-    return bankedValue(state);
-  }
-
-  /**
-   * A wrong answer drops to the last safe haven REACHED — the highest safe
-   * haven rung at or below the rung being played, so a slip on rung 5 still
-   * leaves 1,000 and a slip on rung 10 leaves 32,000 (spec 08 §8, M-U3).
-   */
-  function winningsIfWrong(state) {
-    let best = 0;
-    havens(state).forEach((h) => {
-      if (h <= state.rung) best = Math.max(best, rungValue(state, h));
-    });
-    return best;
-  }
-
-  function isSafeHaven(state, rung) {
-    return havens(state).indexOf(rung) >= 0;
-  }
-
-  function formatMoney(state, amount) {
-    const cur = state && state.game ? state.game.settings.currency : "$";
-    return cur + Number(amount || 0).toLocaleString("en-US");
-  }
-
-  /** The right-hand money column, top rung first. */
-  function moneyTreeView(state) {
-    const list = tree(state);
-    const rows = [];
-    for (let rung = list.length; rung >= 1; rung -= 1) {
-      rows.push({
-        rung,
-        value: list[rung - 1],
-        label: formatMoney(state, list[rung - 1]),
-        safe: isSafeHaven(state, rung),
-        won: state.phase === "hotseat" && rung < state.rung,
-        current: state.phase === "hotseat" && rung === state.rung,
-      });
-    }
-    return rows;
-  }
-
-  /* ============ Roster selectors ============ */
-
-  function nameOf(state, pid) {
-    const found = (state.contestants || []).find((c) => c.pid === pid);
-    if (found) return found.name;
-    const seat = (state.roster || []).find((p) => p.pid === pid);
-    return seat ? seat.name : "";
-  }
-
-  /** Somebody who has not yet had their turn in the hot seat. */
-  function isEligible(state, pid) {
-    return (state.contestants || []).some((c) => c.pid === pid && !c.out);
-  }
-
-  function waitingContestants(state) {
-    return (state.contestants || []).filter((c) => !c.out);
-  }
-
-  /** Highest winnings first; people who have not played yet keep file order. */
-  function standings(state) {
-    return (state.contestants || [])
-      .map((c, i) => ({ ...c, seat: i }))
-      .sort((a, b) => (b.out - a.out) || (b.won - a.won) || (a.seat - b.seat))
-      .map(({ seat, ...row }) => { void seat; return row; });
-  }
-
-  /* ============ Question selectors ============ */
-
-  /** The question with the answer stripped — everything a phone may see. */
-  function publicQuestion(state) {
-    const q = state.question;
-    if (!q) return null;
-    return { q: q.q, category: q.category, level: q.level, options: q.options.slice() };
-  }
-
-  function optionState(state, idx) {
-    if (state.removed.indexOf(idx) >= 0) return "removed";
-    if (state.revealed && state.question && idx === state.question.answer) return "correct";
-    if (state.revealed && idx === state.selected) return "wrong";
-    if (state.locked && idx === state.selected) return "locked";
-    if (idx === state.selected) return "selected";
-    return "idle";
-  }
-
-  /** Row per option for the host lozenges. */
-  function optionRows(state) {
-    if (!state.question) return [];
-    return state.question.options.map((text, idx) => ({
-      idx, letter: LETTERS[idx], text, state: optionState(state, idx),
-    }));
-  }
-
-  /* ============ Ask the Audience ============ */
-
-  function voteCounts(state) {
-    const counts = [0, 0, 0, 0];
-    Object.keys(state.audience.votes || {}).forEach((pid) => {
-      const idx = state.audience.votes[pid];
-      if (isIntIn(idx, 0, 3)) counts[idx] += 1;
-    });
-    return counts;
-  }
-
-  /**
-   * The bar chart: whole percentages that always sum to 100 (largest-remainder
-   * rounding). A frozen chart (host-typed, or the one kept when the window
-   * closed) wins over the live count. @returns {{pcts:number[], counts:number[],
-   * total:number, source:string|null}}
-   */
-  function chart(state) {
-    const counts = voteCounts(state);
-    const total = counts.reduce((a, b) => a + b, 0);
-    if (Array.isArray(state.audience.chart)) {
-      return { pcts: state.audience.chart.slice(), counts, total, source: state.audience.source };
-    }
-    return { pcts: largestRemainder(counts), counts, total, source: total ? "votes" : null };
-  }
-
-  /** Seconds left on a window, for the host overlay. 0 when there is no timer. */
-  function secondsLeft(deadline, now) {
-    if (!Number.isFinite(deadline) || !Number.isFinite(now)) return 0;
-    return Math.max(0, Math.ceil((deadline - now) / 1000));
-  }
-
-  /* ============ Fastest Finger ============ */
-
-  function orderIsCorrect(question, order) {
-    if (!question || !Array.isArray(order)) return false;
-    return question.order.every((v, i) => order[i] === v);
-  }
-
-  /** Arrival list for the host screen: order of arrival, times, ticks on reveal. */
-  function fffRows(state) {
-    const opened = state.fff.openedAt;
-    return state.fff.submissions.map((sub, i) => ({
-      rank: i + 1,
-      pid: sub.pid,
-      name: nameOf(state, sub.pid),
-      at: sub.at,
-      ms: Number.isFinite(opened) && Number.isFinite(sub.at) ? Math.max(0, sub.at - opened) : null,
-      correct: state.fff.revealed ? sub.correct : null,
-      winner: state.fff.revealed && state.fff.winner === sub.pid,
-    }));
-  }
-
-  /** Names in the correct order, for the reveal. */
-  function fffAnswer(state) {
-    const q = state.fff.question;
-    if (!q) return [];
-    return q.order.map((idx, i) => ({ place: i + 1, idx, text: q.options[idx] }));
-  }
-
-  /* ============ Phone payloads ============ */
-
-  /**
-   * Validate a phone->host payload: a narrow copy, or null for junk — callers
-   * ignore null and never throw on a hostile frame. @param {unknown} obj
-   */
-  function validatePhoneMsg(obj) {
-    if (!isPlainObject(obj) || typeof obj.t !== "string") return null;
-    if (obj.t === "fff") {
-      return Content.isPermutation(obj.order) ? { t: "fff", order: obj.order.slice() } : null;
-    }
-    if (obj.t === "answer") return isIntIn(obj.idx, 0, 3) ? { t: "answer", idx: obj.idx } : null;
-    if (obj.t === "vote") return isIntIn(obj.idx, 0, 3) ? { t: "vote", idx: obj.idx } : null;
-    if (obj.t === "walk") return { t: "walk" };
-    if (obj.t === "lifeline") {
-      return LIFELINE_KEYS.indexOf(obj.which) >= 0 ? { t: "lifeline", which: obj.which } : null;
-    }
-    return null;
-  }
-
-  /**
-   * What phone `pid` should render. It never contains the correct answer and
-   * never contains another phone's vote: this is a public surface (M-U10).
-   */
-  function phoneView(state, pid) {
-    const base = {
-      screen: "wait",
-      name: nameOf(state, pid),
-      currency: state.game ? state.game.settings.currency : "$",
-      hotName: nameOf(state, state.current),
-      hotMoney: formatMoney(state, bankedValue(state)),
-      rung: state.rung,
-      rungs: rungCount(state),
-      spectator: !isEligible(state, pid) && !(state.contestants || []).some((c) => c.pid === pid),
-    };
-    if (state.phase === "result" || state.phase === "standings") {
-      return Object.assign(base, {
-        screen: "result",
-        standings: standings(state).map((c) => ({ name: c.name, won: formatMoney(state, c.won), out: c.out })),
-        mine: state.outcome && state.outcome.pid === pid ? formatMoney(state, state.outcome.won) : null,
-      });
-    }
-    if (state.phase === "fff") return Object.assign(base, fffPhoneView(state, pid));
-    if (state.phase === "hotseat") return Object.assign(base, hotseatPhoneView(state, pid));
-    return base;
-  }
-
-  function fffPhoneView(state, pid) {
-    if (!state.fff.question || !state.fff.open || !isEligible(state, pid)) {
-      return { screen: "wait", sub: "Fastest Finger is coming up." };
-    }
-    const mine = state.fff.submissions.find((s) => s.pid === pid);
-    if (mine) return { screen: "wait", sub: "Order sent — watch the host screen." };
-    return {
-      screen: "fff",
-      q: state.fff.question.q,
-      options: state.fff.question.options.slice(),
-    };
-  }
-
-  function hotseatPhoneView(state, pid) {
-    const q = publicQuestion(state);
-    if (state.audience.open && pid !== state.current) {
-      return {
-        screen: "vote",
-        q: q ? q.q : "",
-        options: q ? q.options : [],
-        removed: state.removed.slice(),
-        deadline: state.audience.deadline,
-        seconds: state.audience.seconds,
-        myVote: Object.prototype.hasOwnProperty.call(state.audience.votes, pid) ? state.audience.votes[pid] : null,
-      };
-    }
-    if (pid !== state.current) return { screen: "wait" };
-    if (state.locked || state.revealed) return { screen: "locked", selected: state.selected };
-    return {
-      screen: "hotseat",
-      q: q ? q.q : "",
-      category: q ? q.category : "",
-      options: q ? q.options : [],
-      removed: state.removed.slice(),
-      selected: state.selected,
-      lifelines: Object.assign({}, state.lifelines),
-      playingFor: formatMoney(state, rungValue(state, state.rung)),
-      request: state.request && state.request.pid === pid ? state.request.which : null,
-    };
   }
 
   /* ============ Reducer plumbing ============ */
@@ -416,7 +164,11 @@
   /** Write a finished contestant's result into the line-up and show it. */
   function commitResult(state, outcome) {
     const contestants = state.contestants.map((c) => (c.pid === outcome.pid
-      ? Object.assign({}, c, { won: outcome.won, rung: state.rung, out: true })
+      ? Object.assign({}, c, {
+        won: outcome.won,
+        rung: Number.isInteger(outcome.rung) ? outcome.rung : state.rung,
+        out: true,
+      })
       : c));
     return Object.assign({}, state, { phase: "result", contestants, outcome, request: null });
   }
@@ -564,12 +316,12 @@
     const seated = Object.assign({}, state, blankQuestionSlate(), {
       phase: "hotseat",
       current: pid,
-      rung: 1,
+      rung: 0,
       lifelines: Object.assign({}, state.game.settings.lifelines),
       outcome: null,
       request: null,
     });
-    return Object.assign(seated, questionFor(seated, 1, rng));
+    return Object.assign(seated, questionFor(seated, playingRung(seated), rng));
   }
 
   /* ============ Playing a question ============ */
@@ -594,24 +346,29 @@
   function evReveal(state) {
     if (state.phase !== "hotseat" || !state.locked || state.revealed || !state.question) return state;
     const correct = state.selected === state.question.answer;
-    const last = state.rung >= rungCount(state);
+    const playing = playingRung(state);
     let outcome = null;
-    if (!correct) outcome = { pid: state.current, won: winningsIfWrong(state), reason: "wrong" };
-    else if (last) outcome = { pid: state.current, won: rungValue(state, state.rung), reason: "million" };
+    if (!correct) {
+      outcome = { pid: state.current, won: winningsIfWrong(state), reason: "wrong", rung: state.rung };
+    } else if (playing >= rungCount(state)) {
+      outcome = { pid: state.current, won: rungValue(state, playing), reason: "million", rung: playing };
+    }
     return Object.assign({}, state, { revealed: true, correct, outcome, notice: "" });
   }
 
   function evWalkAway(state) {
     if (state.phase !== "hotseat" || state.locked || state.revealed || !state.current) return state;
-    return commitResult(state, { pid: state.current, won: winningsIfWalk(state), reason: "walk" });
+    return commitResult(state, {
+      pid: state.current, won: winningsIfWalk(state), reason: "walk", rung: state.rung,
+    });
   }
 
   function evNextQuestion(state, ev, rng) {
     if (state.phase !== "hotseat" || !state.revealed) return state;
     if (state.outcome) return commitResult(state, state.outcome);
-    const rung = state.rung + 1;
-    const next = Object.assign({}, state, blankQuestionSlate(), { rung, request: null });
-    return Object.assign(next, questionFor(next, rung, rng));
+    // One more banked; the next question sits one rung higher again.
+    const next = Object.assign({}, state, blankQuestionSlate(), { rung: state.rung + 1, request: null });
+    return Object.assign(next, questionFor(next, playingRung(next), rng));
   }
 
   function evNextContestant(state) {
@@ -621,14 +378,27 @@
     const withFff = state.game.settings.fastestFinger && state.game.fastestFinger.length > 0;
     return Object.assign({}, state, blankQuestionSlate(), {
       phase: withFff ? "fff" : "pick",
-      current: null, rung: 1, outcome: null, request: null, notice: "",
+      current: null, rung: 0, outcome: null, request: null, notice: "",
       fff: Object.assign(blankFff(), { used: state.fff.used.slice() }),
     });
   }
 
+  /**
+   * End the night. A contestant caught mid-question is banked first, at
+   * exactly what walking away would have paid, so nobody is silently recorded
+   * as leaving with nothing.
+   */
   function evFinish(state) {
     if (state.phase === "standings" || state.phase === "setup") return state;
-    return Object.assign({}, state, { phase: "standings", request: null });
+    let next = state;
+    if (state.phase === "hotseat" && state.current && !state.outcome) {
+      next = commitResult(state, {
+        pid: state.current, won: winningsIfWalk(state), reason: "walk", rung: state.rung,
+      });
+    } else if (state.phase === "hotseat" && state.outcome) {
+      next = commitResult(state, state.outcome);
+    }
+    return Object.assign({}, next, { phase: "standings", request: null });
   }
 
   /* ============ Lifelines ============ */
@@ -773,7 +543,7 @@
     // state
     createState, reduce, legalActions,
     // money
-    rungValue, bankedValue, winningsIfWalk, winningsIfWrong, isSafeHaven,
+    rungValue, playingRung, bankedValue, winningsIfWalk, winningsIfWrong, isSafeHaven,
     moneyTreeView, formatMoney, rungCount,
     // roster
     nameOf, isEligible, waitingContestants, standings,

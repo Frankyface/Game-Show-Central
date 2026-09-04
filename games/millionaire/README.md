@@ -49,7 +49,9 @@ python -m http.server 8620                   # then open
    live, or the host types four percentages; **Switch the Question** (off by
    default) swaps in an unused question of the same level.
 5. **Result.** "You leave with $X", then **Next contestant** or **Finish the
-   night** for the standings. The hub's night scoreboard is told each total.
+   night** for the standings. **End the night** from the hot seat also works and
+   banks whoever is playing at their walk-away amount first. The hub's night
+   scoreboard is told each total.
 
 Every lifeline and every walk-away a phone asks for is only a *request*: a
 banner appears on the host screen and nothing happens until the host confirms.
@@ -60,12 +62,23 @@ Default US-style 15 rungs: 100, 200, 300, 500, **1,000**, 2,000, 4,000, 8,000,
 16,000, **32,000**, 64,000, 125,000, 250,000, 500,000, 1,000,000, with safe
 havens at rungs **5** and **10** (bold).
 
-- **Walking away** keeps everything banked — the value of the last question
-  answered correctly (nothing on question 1).
-- **A wrong answer** drops to the highest safe haven at or below the rung being
-  played: 0 up to rung 4, **1,000** on rungs 5–9, **32,000** from rung 10 on.
-  This is spec 08 §8's rule, and it is one notch kinder than the TV show, where
-  reaching rung 5 is not the same as banking it.
+A **rung** is a question *answered correctly*, so a contestant who has got
+four right is on rung 4 and is looking at question 5.
+
+- **Walking away** pays the amount for the current rung — the value of the last
+  question answered correctly, and nothing on question 1.
+- **A wrong answer** drops to the last safe haven **reached**, and a haven is
+  only reached once its own question has been answered correctly. So:
+
+| Right answers so far | A wrong answer on question… | Pays |
+|---:|---:|---:|
+| 0–3 | 1–4 | 0 |
+| 4 | 5 | **0** — rung 5 is not banked yet |
+| 5–9 | 6–10 | 1,000 |
+| 10–14 | 11–15 | 32,000 |
+
+  This is the TV rule: sitting down to question 5 does not protect you; getting
+  question 5 right does.
 
 ## 4. The question file (`questions.json`)
 
@@ -134,7 +147,8 @@ index.html                 host screens + phone screens in one page
 css/wwm.css                host stage, money tree, lozenges, overlays
 css/wwm-phone.css          phone controller
 js/wwm-content.js          PURE: the JSON contract, level assignment, question draw, percentages
-js/wwm-core.js             PURE: the reducer, the selectors, the phone views (UMD -> WwmCore)
+js/wwm-select.js           PURE: every selector that reads a state, incl. the phone views
+js/wwm-core.js             PURE: the reducer and the state machine (UMD -> WwmCore, re-exports the other two)
 js/data.js                 offline mirror of questions.json (globalThis.WWM_DEFAULT_GAME)
 js/wwm-view.js             host rendering
 js/wwm-app.js              host state, persistence, buttons, hotkeys, sound cues
@@ -160,7 +174,9 @@ room it was played in, so a new room never inherits the old room's seats.
   colour is never the only signal. Focus rings are visible throughout.
 - Phone screens work at 320 px wide with ≥ 56 px targets; host screens fit
   1280×720 with no vertical scroll during play.
-- Decorative motion is behind `prefers-reduced-motion`.
+- Decorative motion is behind `prefers-reduced-motion`, including the 1.2 s
+  `.gsc-splash` title card, which is skipped entirely under `reduce` and is
+  `pointer-events: none` so it never eats a click.
 - Sounds are synthesised with WebAudio behind the 🔊 toggle (`gsc-sound`) and
   never play before a click.
 
@@ -170,8 +186,9 @@ Known limits:
   flashes the strip and changes nothing. The host closes the window.
 - Ask the Audience counts the **first** tap from each phone; a phone cannot
   change its vote (one phone, one vote).
-- **End the night** from the hot seat goes straight to the standings without
-  banking the contestant currently playing — walk away or finish the question
-  first if their total matters.
+- **End the night** from the hot seat banks the contestant who is still
+  playing at their walk-away amount (the button says which) and then shows the
+  standings. Contestants who never reached the hot seat are listed as "still to
+  play" with no total.
 - Fastest Finger ties are decided by arrival order at the host, so a slow
   network is a real disadvantage — exactly as the format intends.

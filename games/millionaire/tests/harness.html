@@ -150,9 +150,9 @@
     /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
 
     const ASSETS = [
-      "../js/wwm-content.js", "../js/wwm-core.js", "../js/data.js", "../js/wwm-sound.js",
-      "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js", "../js/wwm-app.js",
-      "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
+      "../js/wwm-content.js", "../js/wwm-select.js", "../js/wwm-core.js", "../js/data.js",
+      "../js/wwm-sound.js", "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js",
+      "../js/wwm-app.js", "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
       "../css/wwm.css", "../css/wwm-phone.css",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
@@ -321,7 +321,10 @@
       check("M-I2 the reveal is correct and the money climbs",
         core().correct === true && hostOption(answer).dataset.state === "correct");
       click("btn-next");
-      check("M-I2 the next question is on rung 2", core().rung === 2, `rung ${core().rung}`);
+      check("M-I2 one banked and question 2 on screen",
+        core().rung === 1 && HW().WwmCore.playingRung(core()) === 2
+        && HW().WwmCore.bankedValue(core()) === 100,
+        `${core().rung} banked, question ${HW().WwmCore.playingRung(core())}`);
     }
 
     /* ============================================================
@@ -382,10 +385,19 @@
        ============================================================ */
 
     async function scenarioResult() {
-      while (core().rung < 6) answerCorrectly();
-      check("M-I4 the contestant is past the first safe haven",
-        core().rung === 6 && HW().WwmCore.winningsIfWrong(core()) === 1000,
-        `rung ${core().rung}, safe at ${HW().WwmCore.winningsIfWrong(core())}`);
+      // Four right is NOT enough: the rung-5 haven only counts once question 5
+      // has been answered correctly (the TV rule, spec 08 §1).
+      while (core().rung < 4) answerCorrectly();
+      check("M-I4 four right does not yet bank the rung-5 safe haven",
+        HW().WwmCore.winningsIfWrong(core()) === 0 && HW().WwmCore.playingRung(core()) === 5,
+        `${core().rung} right, a slip on question ${HW().WwmCore.playingRung(core())} pays `
+        + `${HW().WwmCore.winningsIfWrong(core())}`);
+      answerCorrectly();
+      check("M-I4 the fifth right answer banks the safe haven",
+        core().rung === 5 && HW().WwmCore.winningsIfWrong(core()) === 1000
+        && HW().WwmCore.winningsIfWalk(core()) === 1000,
+        `${core().rung} right, a slip on question ${HW().WwmCore.playingRung(core())} pays `
+        + `${HW().WwmCore.winningsIfWrong(core())}`);
 
       const wrong = [0, 1, 2, 3].find((i) => i !== core().question.answer);
       hostOption(wrong).click();
@@ -418,10 +430,30 @@
         core().outcome.reason === "walk" && core().outcome.won === 100,
         `${core().outcome.reason} with ${core().outcome.won}`);
 
-      click("btn-finish");
+      // A third contestant is stopped mid-question by End the night: they must
+      // be banked at the walk-away amount, not recorded as leaving with nothing.
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "fff", "a third turn");
+      HD().querySelectorAll("#wwm-pick-list .pick-btn")[0].click();
+      await waitFor(() => core().phase === "hotseat", "Cleo in the hot seat");
+      answerCorrectly();
+      answerCorrectly();
+      check("M-I4 End the night says what it will bank",
+        H("btn-give-up").textContent === "End the night (banks $200)",
+        H("btn-give-up").textContent);
+      click("btn-give-up");
+      await waitFor(() => core().phase === "standings", "the night ends");
+      check("M-I4 End the night banks the contestant who was still playing",
+        core().contestants.find((c) => c.pid === "p3").won === 200
+        && core().contestants.find((c) => c.pid === "p3").out === true,
+        JSON.stringify(core().contestants.find((c) => c.pid === "p3")));
+
       check("M-I4 the standings list every contestant",
         [...HD().querySelectorAll("#wwm-standings li")].map((li) => li.textContent).join(" | ")
           .indexOf("Ada$1,000") === 0,
+        [...HD().querySelectorAll("#wwm-standings li")].map((li) => li.textContent).join(" | "));
+      check("M-I4 Dev, who never played, is still listed as waiting",
+        [...HD().querySelectorAll("#wwm-standings li")].some((li) => li.textContent === "Devstill to play"),
         [...HD().querySelectorAll("#wwm-standings li")].map((li) => li.textContent).join(" | "));
       const scores = shellLog.filter((d) => d.t === "scores").pop();
       check("M-I4 the night scoreboard is told the totals",
@@ -430,6 +462,38 @@
       check("M-I4 the shell bar subtitle follows the game",
         shellLog.some((d) => d.t === "title" && /Question \d+ of 15/.test(d.text)),
         shellLog.filter((d) => d.t === "title").map((d) => d.text).join(" / "));
+    }
+
+    /* ============================================================
+       M-I6b - the game-switch splash (09 §3, ui-hub-implementation §5)
+       ============================================================ */
+
+    async function scenarioSplash() {
+      const node = H("gsc-splash");
+      check("M-I6b the page carries the shared .gsc-splash title card",
+        !!node && node.classList.contains("gsc-splash")
+        && HW().getComputedStyle(node).pointerEvents === "none",
+        node ? `pointer-events: ${HW().getComputedStyle(node).pointerEvents}` : "missing");
+
+      HW().WwmApp.showSplash();
+      check("M-I6b the splash shows the game name and wears the game accent",
+        !node.classList.contains("hidden")
+        && H("gsc-splash-title").textContent === "Millionaire"
+        && node.dataset.gscGame === "millionaire"
+        && H("gsc-splash-sub").textContent.length > 0,
+        `${H("gsc-splash-title").textContent} / ${H("gsc-splash-sub").textContent}`);
+      await waitFor(() => node.classList.contains("hidden"), "the splash clears itself", 2500);
+      check("M-I6b the splash clears itself and never blocks the game", true, "hidden again within 1.2 s");
+
+      // Reduced motion: the whole card is skipped, not merely un-animated.
+      const realMatch = HW().matchMedia;
+      HW().matchMedia = (q) => ({ matches: /prefers-reduced-motion/.test(q), media: q,
+        addEventListener() {}, removeEventListener() {} });
+      HW().WwmApp.showSplash();
+      const skipped = node.classList.contains("hidden");
+      HW().matchMedia = realMatch;
+      check("M-I6b prefers-reduced-motion skips the splash entirely", skipped,
+        skipped ? "stayed hidden" : "SHOWN under reduce");
     }
 
     /* ============================================================
@@ -483,9 +547,9 @@
     const SOURCES = [
       "../index.html", "../questions.json", "../README.md",
       "../css/wwm.css", "../css/wwm-phone.css",
-      "../js/wwm-content.js", "../js/wwm-core.js", "../js/data.js", "../js/wwm-sound.js",
-      "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js", "../js/wwm-app.js",
-      "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
+      "../js/wwm-content.js", "../js/wwm-select.js", "../js/wwm-core.js", "../js/data.js",
+      "../js/wwm-sound.js", "../js/timer-core.js", "../js/wwm-timer.js", "../js/wwm-view.js",
+      "../js/wwm-app.js", "../js/wwm-editor.js", "../js/wwm-room.js", "../js/wwm-phone.js",
       "../tests/wwm-core.test.mjs", "../tests/harness.html", "../tests/fixtures/harness-game.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
@@ -521,6 +585,9 @@
 
       check("M-I7 V7 the page declares its game id and provides #gsc-join",
         html.indexOf('data-gsc-game="millionaire"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("M-I7 the splash markup is in the page and boot calls showSplash()",
+        html.indexOf('id="gsc-splash"') > 0
+        && (texts["../js/wwm-app.js"] || "").indexOf("wwmShowSplash();") > 0);
       check("M-I7 V8 questions.json validates through validateGame",
         HW().WwmCore.validateGame(JSON.parse(texts["../questions.json"])) === true);
       check("M-I7 js/data.js mirrors questions.json and reaches globalThis",
@@ -540,6 +607,7 @@
         await scenarioHotseat();
         await scenarioAudience();
         await scenarioResult();
+        await scenarioSplash();
         await scenarioEditor();
         await scenarioGates();
       } catch (err) {

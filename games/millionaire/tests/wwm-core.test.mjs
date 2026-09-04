@@ -73,7 +73,7 @@ function run(state, events, rng = fixed(0), now = 1000) {
   return events.reduce((s, ev) => Core.reduce(s, ev, rng, now), state);
 }
 
-/** Seat p1 and get to the hot seat on rung 1. */
+/** Seat p1 in the hot seat, facing question 1 with nothing banked (rung 0). */
 function seated(game = buildGame()) {
   return run(state0(game), [{ type: "start" }, { type: "fffPick", pid: "p1" }, { type: "seat", pid: "p1" }]);
 }
@@ -193,8 +193,9 @@ test("M-U2 two contestants never see the same question, and the pool wraps", () 
 test("M-U3 select then lock then reveal climbs the money tree", () => {
   let s = seated();
   assert.equal(s.phase, "hotseat");
-  assert.equal(s.rung, 1);
-  assert.equal(Core.rungValue(s, s.rung), 100);
+  assert.equal(s.rung, 0, "nothing answered correctly yet");
+  assert.equal(Core.playingRung(s), 1, "question 1 is on screen");
+  assert.equal(Core.rungValue(s, Core.playingRung(s)), 100);
   s = Core.reduce(s, { type: "select", idx: s.question.answer }, fixed(0), 1);
   assert.equal(s.selected, s.question.answer);
   assert.equal(s.locked, false);
@@ -206,37 +207,48 @@ test("M-U3 select then lock then reveal climbs the money tree", () => {
   assert.equal(s.correct, true);
   assert.equal(s.outcome, null, "a right answer below the top is not an outcome");
   s = Core.reduce(s, { type: "nextQuestion" }, fixed(0), 1);
-  assert.equal(s.rung, 2);
+  assert.equal(s.rung, 1, "one banked");
+  assert.equal(Core.playingRung(s), 2);
   assert.equal(Core.bankedValue(s), 100);
 });
 
 test("M-U3 a wrong answer drops to the last safe haven reached", () => {
+  // A safe haven only protects you once ITS question has been answered
+  // correctly: `correct` right answers, then a slip on question correct + 1.
   const cases = [
-    { rung: 1, expect: 0 }, { rung: 4, expect: 0 },
-    { rung: 5, expect: 1000 }, { rung: 9, expect: 1000 },
-    { rung: 10, expect: 32000 }, { rung: 15, expect: 32000 },
+    { correct: 0, expect: 0 },      // wrong on question 1
+    { correct: 4, expect: 0 },      // wrong on question 5 - the haven is not banked yet
+    { correct: 5, expect: 1000 },   // wrong on question 6
+    { correct: 9, expect: 1000 },   // wrong on question 10
+    { correct: 10, expect: 32000 }, // wrong on question 11
+    { correct: 14, expect: 32000 }, // wrong on question 15
   ];
   for (const c of cases) {
     let s = seated();
-    while (s.rung < c.rung) s = answerCorrect(s);
-    assert.equal(s.rung, c.rung);
+    while (s.rung < c.correct) s = answerCorrect(s);
+    assert.equal(s.rung, c.correct);
+    assert.equal(Core.playingRung(s), c.correct + 1);
     const wrongIdx = [0, 1, 2, 3].find((i) => i !== s.question.answer);
     s = run(s, [{ type: "select", idx: wrongIdx }, { type: "lock" }, { type: "reveal" }]);
     assert.equal(s.correct, false);
     assert.equal(s.outcome.reason, "wrong");
-    assert.equal(s.outcome.won, c.expect, `rung ${c.rung} drops to ${c.expect}`);
+    assert.equal(s.outcome.won, c.expect,
+      `${c.correct} right then wrong on question ${c.correct + 1} pays ${c.expect}`);
     assert.equal(Core.winningsIfWrong(s), c.expect);
     s = Core.reduce(s, { type: "nextQuestion" }, fixed(0), 1);
     assert.equal(s.phase, "result");
-    assert.equal(s.contestants.find((c2) => c2.pid === "p1").won, c.expect);
-    assert.equal(s.contestants.find((c2) => c2.pid === "p1").out, true);
+    const row = s.contestants.find((c2) => c2.pid === "p1");
+    assert.equal(row.won, c.expect);
+    assert.equal(row.rung, c.correct, "the standings record the rung actually reached");
+    assert.equal(row.out, true);
   }
 });
 
 test("M-U3 the top rung pays the million", () => {
   let s = seated();
   for (let i = 0; i < 14; i += 1) s = answerCorrect(s);
-  assert.equal(s.rung, 15);
+  assert.equal(s.rung, 14, "fourteen banked, question 15 on screen");
+  assert.equal(Core.playingRung(s), 15);
   s = run(s, [{ type: "select", idx: s.question.answer }, { type: "lock" }, { type: "reveal" }]);
   assert.equal(s.outcome.won, 1000000);
   assert.equal(s.outcome.reason, "million");
@@ -253,8 +265,8 @@ test("M-U4 walking away keeps the money banked so far, and only before the lock"
   let s = seated();
   assert.equal(Core.winningsIfWalk(s), 0, "walking on question 1 is worth nothing");
   for (let i = 0; i < 6; i += 1) s = answerCorrect(s);
-  assert.equal(s.rung, 7);
-  assert.equal(Core.winningsIfWalk(s), 2000);
+  assert.equal(s.rung, 6, "six banked, question 7 on screen");
+  assert.equal(Core.winningsIfWalk(s), 2000, "the amount for the current rung");
 
   const afterSelect = Core.reduce(s, { type: "select", idx: 0 }, fixed(0), 1);
   const walked = Core.reduce(afterSelect, { type: "walkAway" }, fixed(0), 1);
@@ -677,6 +689,32 @@ test("standings rank the contestants who have played", () => {
   assert.equal(s.phase, "standings");
 });
 
+test("ending the night banks the contestant who is still playing", () => {
+  let s = seated();
+  for (let i = 0; i < 7; i += 1) s = answerCorrect(s);      // 7 banked = 4,000
+  assert.equal(Core.winningsIfWalk(s), 4000);
+  const ended = Core.reduce(s, { type: "finish" }, fixed(0), 1);
+  assert.equal(ended.phase, "standings");
+  const row = ended.contestants.find((c) => c.pid === "p1");
+  assert.deepEqual([row.won, row.rung, row.out], [4000, 7, true],
+    "banked at exactly the walk-away amount, not zero");
+  assert.equal(ended.outcome.reason, "walk");
+
+  // A revealed answer that already has an outcome is banked at THAT amount.
+  const wrongIdx = [0, 1, 2, 3].find((i) => i !== s.question.answer);
+  const revealed = run(s, [{ type: "select", idx: wrongIdx }, { type: "lock" }, { type: "reveal" }]);
+  const stopped = Core.reduce(revealed, { type: "finish" }, fixed(0), 1);
+  assert.equal(stopped.contestants.find((c) => c.pid === "p1").won, 1000, "the safe haven, not the walk-away");
+
+  // Ending from the picking screen simply shows the standings.
+  const picking = run(state0(), [{ type: "start" }]);
+  const done = Core.reduce(picking, { type: "finish" }, fixed(0), 1);
+  assert.equal(done.phase, "standings");
+  assert.equal(done.contestants.every((c) => !c.out), true);
+  // Undo puts the night back.
+  assert.equal(Core.reduce(ended, { type: "undo" }, fixed(0), 1).phase, "hotseat");
+});
+
 test("the money tree view lights the current rung and marks safe havens", () => {
   let s = seated();
   s = answerCorrect(s);
@@ -685,7 +723,7 @@ test("the money tree view lights the current rung and marks safe havens", () => 
   assert.equal(rows[0].rung, 15, "the top rung is drawn first");
   assert.equal(rows[0].label, "$1,000,000");
   const current = rows.find((r) => r.current);
-  assert.equal(current.rung, 2);
+  assert.equal(current.rung, 2, "one banked, so question 2 is lit");
   assert.deepEqual(rows.filter((r) => r.safe).map((r) => r.rung), [10, 5]);
   assert.equal(rows.filter((r) => r.won).length, 1);
   assert.equal(Core.formatMoney(s, 32000), "$32,000");

@@ -193,7 +193,9 @@ const WwmView = (function () {
     const state = app.core;
     const C = core();
     setText("wwm-hot-name", C.nameOf(state, state.current));
-    setText("wwm-hot-money", `Playing for ${C.formatMoney(state, C.rungValue(state, state.rung))}`
+    setText("wwm-hot-money",
+      `Question ${C.playingRung(state)} of ${C.rungCount(state)}`
+      + ` · playing for ${C.formatMoney(state, C.rungValue(state, C.playingRung(state)))}`
       + ` · banked ${C.formatMoney(state, C.bankedValue(state))}`);
     setText("wwm-q-cat", state.question ? state.question.category : "");
     setText("wwm-q-text", state.question ? state.question.q : "No question could be drawn.");
@@ -294,6 +296,12 @@ const WwmView = (function () {
     $("btn-next").textContent = state.outcome ? "See the result" : "Next question";
     $("btn-walk").disabled = legal.indexOf("walkAway") < 0;
     $("btn-undo").disabled = state.history.length === 0;
+    // Ending the night banks whoever is playing, so the button says what it pays.
+    const banked = core().formatMoney(state, core().winningsIfWalk(state));
+    $("btn-give-up").textContent = `End the night (banks ${banked})`;
+    $("btn-give-up").title =
+      `${core().nameOf(state, state.current)} is banked at ${banked} — the walk-away amount — `
+      + "and the standings are shown.";
   }
 
   /* ============ Result and standings ============ */

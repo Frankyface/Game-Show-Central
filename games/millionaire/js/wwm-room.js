@@ -109,7 +109,7 @@
 
   function titleFor(state) {
     if (state.phase === "fff" || state.phase === "pick") return "Choosing the hot seat";
-    if (state.phase === "hotseat") return `Question ${state.rung} of ${core().rungCount(state)}`;
+    if (state.phase === "hotseat") return `Question ${core().playingRung(state)} of ${core().rungCount(state)}`;
     if (state.phase === "result" || state.phase === "standings") return "Standings";
     return "";
   }

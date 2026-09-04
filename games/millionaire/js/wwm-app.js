@@ -427,6 +427,33 @@ function wwmWireChrome() {
   document.addEventListener("visibilitychange", () => { if (document.hidden) wwmSave(); });
 }
 
+/* ============ Splash ============ */
+
+const WWM_SPLASH_MS = 1200;
+let wwmSplashTimer = null;
+
+/**
+ * The 1.2 s title card the hub shows on a game switch, mirrored here so the
+ * embedded frame carries it too (copied from js/hub-host.js showSplash()).
+ * Decorative only: `.gsc-splash` is `pointer-events: none`, and the whole
+ * thing is skipped under prefers-reduced-motion.
+ */
+function wwmShowSplash() {
+  const node = $("gsc-splash");
+  if (!node) return;
+  if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (document.body.classList.contains("gsc-embedded")) return; // the hub shows its own splash on switch
+  setText("gsc-splash-title", "Millionaire");
+  setText("gsc-splash-sub", "Fifteen questions. One hot seat.");
+  node.dataset.gscGame = "millionaire";   // wears the game accent (shared/theme.css)
+  node.classList.remove("hidden");
+  if (wwmSplashTimer) clearTimeout(wwmSplashTimer);
+  wwmSplashTimer = setTimeout(() => {
+    wwmSplashTimer = null;
+    node.classList.add("hidden");
+  }, WWM_SPLASH_MS);
+}
+
 /* ============ Boot ============ */
 
 /** Saved roster first, then any phone the shell added while we were loading. */
@@ -465,6 +492,7 @@ async function wwmBoot() {
   const mode = (window.GSC && window.GSC.mode) || "standalone-host";
   document.body.classList.toggle("player-mode", mode.endsWith("-player"));
   document.body.classList.toggle("gsc-embedded", mode.startsWith("embed-"));
+  wwmShowSplash();                        // embedded and standalone, host and phone
   if (mode.endsWith("-player")) return;   // wwm-phone.js owns the phone page
 
   // Read the saved game BEFORE the first await: wwm-room.js seeds the roster as
@@ -503,6 +531,7 @@ window.WwmApp = {
   wantsFastestFinger: wwmWantsFastestFinger,
   lifelineOn: wwmLifelineOn,
   bindRoom: wwmBindRoom,
+  showSplash: wwmShowSplash,
   setPhoneCount: (n) => { if (n !== wwmApp.phoneCount) wwmSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: WWM_STORAGE_KEY,
 };

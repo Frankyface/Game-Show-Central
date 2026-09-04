@@ -278,6 +278,17 @@
     </div>
   </div>
 
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============
+       Same node, ids and classes as the hub's own splash (js/hub-host.js,
+       docs/reports/ui-hub-implementation.md): decorative, pointer-events:none,
+       skipped entirely under prefers-reduced-motion. ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
   <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
        hub these relay through postMessage; standalone they open a PeerJS room.
        The game plays host-only even if they fail to load. -->
@@ -287,6 +298,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="js/wwm-content.js"></script>
+  <script src="js/wwm-select.js"></script>
   <script src="js/wwm-core.js"></script>
   <script src="js/data.js"></script>
   <script src="js/wwm-sound.js"></script>
