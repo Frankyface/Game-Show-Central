@@ -321,6 +321,7 @@ const HubHost = (function () {
     popoverOpen = false;
     setState({ activeGame: null });
     reduce({ type: "setGame", gameId: null });
+    renderShellBar(); // drop the game accent from the bar as soon as we are back in the lobby
   }
 
   function confirmLeaveGame() {
