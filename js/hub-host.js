@@ -239,6 +239,7 @@ const HubHost = (function () {
     mountFrame(game); // sets frameSession BEFORE the lobby broadcast below
     reduce({ type: "setGame", gameId: id }); // broadcasts the lobby → phones swap
     render();
+    showSplash(game);
   }
 
   function mountFrame(game) {
@@ -409,6 +410,27 @@ const HubHost = (function () {
     } catch (err) { console.warn("Hub: beep failed", err); }
   }
 
+  /* ============ Splash (decoration only) ============ */
+
+  // A 1.2 s title card between the lobby and the game, so a switch on a shared
+  // screen reads like a show coming back from the break. Purely decorative: the
+  // node is pointer-events:none, no message or state waits on it, and it is
+  // skipped entirely when the viewer asks for reduced motion (09 §3).
+  const SPLASH_MS = 1200;
+  let splashTimer = null;
+
+  function showSplash(game) {
+    const node = $("gsc-splash");
+    if (!node || !game) return;
+    if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    $("gsc-splash-title").textContent = game.name;
+    $("gsc-splash-sub").textContent = game.tagline || "";
+    node.dataset.gscGame = game.id; // wears that game's accent (shared/theme.css)
+    node.classList.remove("hidden");
+    if (splashTimer) clearTimeout(splashTimer);
+    splashTimer = setTimeout(() => { splashTimer = null; node.classList.add("hidden"); }, SPLASH_MS);
+  }
+
   /* ============ Rendering ============ */
 
   function joinUrl() {
@@ -446,6 +468,7 @@ const HubHost = (function () {
     if (!list || list.childElementCount) return;
     for (const game of HubRegistry.all()) {
       const li = el("li", "landing-game");
+      li.dataset.game = game.id; // styling hook only: css/hub.css draws the game's art from it
       li.appendChild(el("span", "landing-game-icon", game.icon));
       li.appendChild(el("span", "landing-game-name", game.name));
       list.appendChild(li);
@@ -547,6 +570,7 @@ const HubHost = (function () {
 
   function gameTile(game) {
     const li = el("li", "game-tile");
+    li.dataset.game = game.id; // styling hook only: css/hub.css draws the game's art from it
     li.style.setProperty("--tile-accent", game.accent);
     const head = el("div", "tile-head");
     head.appendChild(el("span", "tile-icon", game.icon));
@@ -590,6 +614,8 @@ const HubHost = (function () {
 
   function renderShellBar() {
     const game = HubRegistry.find(state.activeGame);
+    // Styling hook only: the bar wears the running game's accent (shared/theme.css).
+    $("shell-bar").dataset.gscGame = game ? game.id : "hub";
     $("shell-game-name").textContent = game ? `${game.icon} ${game.name}` : "";
     $("shell-game-sub").textContent = frameError || gameSubtitle;
     $("shell-game-sub").classList.toggle("shell-sub-error", !!frameError);

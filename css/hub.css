@@ -1,160 +1,404 @@
 /* ============================================================
-   Game Show Central — hub shell styles
-   Two audiences in one sheet: a projector-first host lobby (1280×720
-   and up, huge type) and a 320 px-portrait phone controller. The hub
-   keeps the Jeopardy navy/gold stage but takes a warmer marquee red
-   for its own identity, so it never looks like one of its games.
-   Tokens come from shared/theme.css.
+   Game Show Central — hub shell styles (design system v2)
+   The host half: the landing, the lobby, the shell bar and dialogs, for
+   a projector at 1280x720 and up with NO page scroll. The phone
+   controller lives in css/hub-phone.css.
+   The hub keeps a midnight-violet stage with a gold marquee accent so
+   it never looks like one of its games.
+   Tokens and components come from shared/theme.css (+ theme-components.css);
+   nothing here re-invents a token.
    ============================================================ */
 
 :root {
-  --stage-deep: #120626;
-  --stage-night: #06010f;
+  /* v1 stage overrides for the hub. --stage-glow and the v2 accents live
+     on body[data-gsc-game="hub"] in shared/theme.css. */
+  --stage-deep: #150a2c;
+  --stage-night: #05010e;
   --stage-card: #1b0c33;
-  --stage-glow: #2a1046;
   --stage-accent: #e23c50;
-  --marquee: #ff4d5e;
-  --shell-bar-h: 40px;
+  --shell-bar-h: 44px;
 }
 
-body { overflow-x: hidden; }
+body {
+  overflow-x: hidden;
+  font-size: var(--fs-ui);
+}
 
 .screen { padding: 1.5rem; }
 
-/* ============ Landing ============ */
+/* ============================================================
+   The hub opts its v1 .btn family into the v2 button look. A game
+   adopts it by adding `.gsc-btn` in its own markup instead — see
+   docs/design-system.md §"Adopting v2 in three steps".
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  min-height: 38px;
+  padding: 0.5em 1.1em;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: transform var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.btn:hover { background: rgba(255, 255, 255, 0.13); border-color: rgba(255, 255, 255, 0.3); }
+
+.btn-gold {
+  color: var(--accent-ink);
+  /* the flat colour under the gradient, so a DOM contrast checker (and a
+     browser that drops the gradient) reads the real surface */
+  background-color: var(--gold);
+  background-image: linear-gradient(180deg, #ffe08a 0%, var(--gold) 55%, var(--gold-deep) 100%);
+  border-color: rgba(120, 88, 12, 0.65);
+  box-shadow: 0 6px 18px rgba(255, 204, 77, 0.3), var(--shadow-inset);
+}
+
+.btn-gold:hover {
+  background-image: linear-gradient(180deg, #fff0bd 0%, var(--gold) 60%, var(--gold-deep) 100%);
+  box-shadow: 0 10px 26px rgba(255, 204, 77, 0.45), var(--shadow-inset);
+  transform: translateY(-1px);
+}
+
+.btn-ghost { background: transparent; border-color: rgba(255, 255, 255, 0.22); color: var(--ink); }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--gold); color: var(--gold-text); }
+
+.btn-danger { color: #ffd9d9; background: rgba(255, 60, 60, 0.1); border-color: rgba(255, 107, 107, 0.45); }
+.btn-danger:hover { background: rgba(255, 60, 60, 0.2); border-color: var(--red); }
+
+.btn-big { min-height: 58px; padding: 0.7em 1.9em; font-size: 1rem; letter-spacing: 0.08em; }
+.btn-small { min-height: 32px; padding: 0.34em 0.8em; font-size: 0.71rem; }
+.btn-tap { min-height: var(--tap); font-size: 0.95rem; }
+.btn-block { width: 100%; }
+
+/* ============================================================
+   CSS-drawn game art — no images, one --art gradient stack per game.
+   Shared by the lobby game cards and the landing line-up strip.
+   ============================================================ */
+
+.game-tile::before,
+.landing-game::before {
+  content: "";
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--art, linear-gradient(180deg, #2a2350, #100c26));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), inset 0 -14px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* Jeopardy — the board: a gold category strip over a lit blue grid. */
+[data-game="jeopardy"] {
+  --art:
+    repeating-linear-gradient(90deg, transparent 0 calc(25% - 2px), rgba(2, 4, 40, 0.92) calc(25% - 2px) 25%),
+    repeating-linear-gradient(180deg, transparent 0 calc(26% - 2px), rgba(2, 4, 40, 0.92) calc(26% - 2px) 26%),
+    linear-gradient(180deg, #ffcc4d 0 22%, #3a45ff 22%, #060ce9 70%, #04074a 100%);
+}
+
+/* Family Feud — the survey board: three answer slots and their score boxes. */
+[data-game="family-feud"] {
+  --art:
+    linear-gradient(180deg, transparent 0 10%, rgba(255, 255, 255, 0.93) 10% 32%,
+      transparent 32% 39%, rgba(255, 255, 255, 0.93) 39% 61%,
+      transparent 61% 68%, rgba(255, 255, 255, 0.93) 68% 90%, transparent 90%) 7% 0 / 56% 100%,
+    linear-gradient(180deg, transparent 0 10%, rgba(255, 204, 77, 0.95) 10% 32%,
+      transparent 32% 39%, rgba(255, 204, 77, 0.95) 39% 61%,
+      transparent 61% 68%, rgba(255, 204, 77, 0.95) 68% 90%, transparent 90%) 93% 0 / 16% 100%,
+    linear-gradient(180deg, #ff2d4d 0%, #c8102e 50%, #55060f 100%);
+}
+
+/* Wheel of Fortune — a wheel segment ring punched out of the plate. */
+[data-game="wheel-of-fortune"] {
+  --art:
+    radial-gradient(circle at 50% 52%, #1a0a2e 0 15%, transparent 16% 19%, #1a0a2e 20% 23%, transparent 24% 45%, #1a0a2e 46%),
+    conic-gradient(from 200deg at 50% 52%,
+      #9d4edd 0 45deg, #2ec4b6 45deg 90deg, #ffcc4d 90deg 135deg, #e21b3c 135deg 180deg,
+      #9d4edd 180deg 225deg, #2ec4b6 225deg 270deg, #ffcc4d 270deg 315deg, #e21b3c 315deg 360deg);
+}
+
+/* Weakest Link — two interlocking chain rings on cold steel. `closest-side`
+   ties the ring radius to the plate's height so the links always overlap. */
+[data-game="weakest-link"] {
+  --art:
+    radial-gradient(circle closest-side at 38% 50%, transparent 0 52%, #e4eef8 56% 92%, transparent 94%),
+    radial-gradient(circle closest-side at 62% 50%, transparent 0 52%, #7fa3c4 56% 92%, transparent 94%),
+    linear-gradient(180deg, #2b3f53 0%, #0d1721 100%);
+}
+
+/* Millionaire — the concentric hot-seat rings. */
+[data-game="millionaire"] {
+  --art:
+    radial-gradient(circle at 50% 50%,
+      rgba(160, 107, 255, 0.95) 0 13%, transparent 14% 24%,
+      rgba(160, 107, 255, 0.55) 25% 28%, transparent 29% 40%,
+      rgba(160, 107, 255, 0.32) 41% 44%, transparent 45%),
+    linear-gradient(180deg, #3346c8 0%, #131a55 55%, #05071f 100%);
+}
+
+/* ============================================================
+   Landing
+   ============================================================ */
 
 .screen-landing {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
+  padding: clamp(1rem, 3vh, 2.4rem) clamp(1rem, 3vw, 2rem);
+}
+
+.landing-inner {
+  width: min(1060px, 100%);
+  display: grid;
+  gap: clamp(1rem, 3vh, 1.8rem);
 }
 
 .landing-card {
-  width: min(760px, 100%);
+  position: relative;
   text-align: center;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 3rem 2.5rem;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  padding: clamp(1.8rem, 5vh, 3.2rem) clamp(1.4rem, 5vw, 3.4rem) clamp(1.5rem, 4vh, 2.4rem);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(90% 120% at 50% -20%, rgba(255, 204, 77, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(38, 22, 66, 0.92), rgba(10, 6, 24, 0.94));
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--shadow-lift), var(--shadow-inset);
 }
 
 .landing-kicker {
   margin: 0;
-  color: var(--ink-dim);
-  letter-spacing: 0.22em;
+  color: var(--ink-mute);
+  letter-spacing: var(--track-eyebrow);
   text-transform: uppercase;
-  font-size: 0.8rem;
+  font-size: var(--fs-micro);
+  font-weight: 700;
 }
 
 .landing-title {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(3rem, 2rem + 5vw, 5.5rem);
-  line-height: 0.95;
-  margin: 0.15em 0 0.25em;
+  font-size: var(--fs-hero);
+  line-height: 0.9;
+  letter-spacing: var(--track-display);
+  margin: 0.12em 0 0.18em;
   text-transform: uppercase;
   color: var(--gold-text);
-  text-shadow: 0 1px 0 #8a6914, 0 2px 0 #6e530f, 0 4px 0 #523d0a, 0 8px 24px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 2px 0 #8a6914, 0 5px 0 #55400b, 0 14px 40px rgba(255, 204, 77, 0.28);
 }
 
 .landing-pitch {
-  margin: 0 0 2rem;
-  font-size: 1.15rem;
+  margin: 0 auto 1.6rem;
+  max-width: 46ch;
+  font-size: var(--fs-body);
   color: var(--ink-dim);
 }
 
 .landing-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.8rem;
   justify-content: center;
   flex-wrap: wrap;
 }
 
-.landing-join { margin: 1.4rem 0 0; }
-.landing-join a { color: var(--gold-text); }
+.landing-join { text-decoration: none; }
+
+.landing-strip-label {
+  margin: 0 0 0.7rem;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--ink-mute);
+  text-align: center;
+}
 
 .landing-games {
   list-style: none;
-  display: flex;
-  gap: 1.2rem;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin: 2rem 0 0;
-  padding: 1.5rem 0 0;
-  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
 }
 
-.landing-game { display: flex; align-items: center; gap: 0.4rem; color: var(--ink-dim); }
-.landing-game-icon { font-size: 1.3rem; }
+.landing-game {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.6rem;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  color: var(--ink);
+}
 
-/* ============ Lobby ============ */
+.landing-game::before { height: clamp(56px, 8vh, 78px); }
+
+.landing-game-icon {
+  position: absolute;
+  top: 0.95rem;
+  left: 0.95rem;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  font-size: 0.95rem;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.landing-game-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ============================================================
+   Lobby — one screen, never a page scroll at 1280×720
+   ============================================================ */
 
 .screen-lobby {
+  height: 100dvh;
+  padding: clamp(0.8rem, 1.8vh, 1.2rem);
   display: grid;
-  grid-template-columns: minmax(360px, 42%) 1fr;
-  gap: 1.5rem;
-  align-items: start;
-  min-height: 100vh;
+  grid-template-columns: minmax(330px, 33%) 1fr;
+  gap: 1rem;
+  align-items: stretch;
+  overflow: hidden;
 }
 
-.lobby-left { display: flex; flex-direction: column; gap: 1.2rem; }
+.lobby-left {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  min-height: 0;
+}
+
+.lobby-right {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  min-height: 0;
+}
 
 .room-card, .roster-card, .night-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  position: relative;
+  min-height: 0;
+  padding: 1rem 1.15rem 1.1rem;
   border-radius: var(--radius-lg);
-  padding: 1.4rem 1.6rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  box-shadow: var(--shadow-panel), var(--shadow-inset);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
 }
 
-.room-label {
-  margin: 0;
-  font-size: 0.8rem;
-  letter-spacing: 0.2em;
+/* The gold bloom behind the room code — one small decorative layer that
+   breathes; no filter on a large surface. */
+.room-card::after {
+  content: "";
+  position: absolute;
+  top: 8%;
+  left: 4%;
+  width: 70%;
+  height: 46%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 204, 77, 0.3), transparent 68%);
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .room-card::after { animation: gsc-glow 5s ease-in-out infinite; }
+}
+
+.room-label, .card-heading {
+  margin: 0 0 0.35rem;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: var(--track-eyebrow);
   text-transform: uppercase;
-  color: var(--ink-dim);
+  color: var(--ink-mute);
 }
 
 /* The single most important thing on a shared screen. */
 .room-code {
+  position: relative;
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(96px, 12vw, 180px);
-  line-height: 1;
-  letter-spacing: 0.06em;
-  margin: 0.05em 0 0.15em;
+  font-size: clamp(88px, min(10.5vw, 20vh), 150px);
+  line-height: 0.86;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.12em;
   color: var(--gold);
-  text-shadow: 0 4px 0 #6e530f, 0 10px 30px rgba(0, 0, 0, 0.6);
-}
-
-@media (min-width: 1100px) {
-  .room-code { font-size: 140px; }
+  text-shadow: 0 3px 0 #7a5c11, 0 8px 0 #4c390a, 0 18px 46px rgba(255, 204, 77, 0.3);
 }
 
 .room-join-url {
+  position: relative;
   margin: 0 0 0.4rem;
-  font-size: 1.15rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--ink);
   word-break: break-all;
 }
 
-.room-status { margin: 0; color: var(--ink-dim); font-size: 1rem; }
+.room-status { position: relative; margin: 0; color: var(--ink-dim); font-size: 0.95rem; }
 
 .room-controls {
+  position: relative;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
-  margin-top: 0.9rem;
+  margin-top: 0.7rem;
 }
 
-.card-heading {
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+.join-steps {
+  position: relative;
+  list-style: none;
+  counter-reset: none;
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.8rem;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.78rem;
   color: var(--ink-dim);
-  margin: 0 0 0.7rem;
+  background: var(--well);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius);
 }
+
+.join-steps li { display: flex; align-items: center; gap: 0.5rem; }
+
+.join-step-n {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+/* ============ Roster ============ */
+
+.roster-card { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.4rem; }
 
 .roster-head {
   display: flex;
@@ -163,6 +407,7 @@ body { overflow-x: hidden; }
   gap: 0.8rem;
 }
 
+.roster-head .card-heading { margin: 0; }
 .roster-count { color: var(--gold-text); }
 
 .roster-list, .night-list, .wait-roster {
@@ -171,130 +416,244 @@ body { overflow-x: hidden; }
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
 .roster-row, .night-row, .wait-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.45rem 0.6rem;
-  background: rgba(0, 0, 0, 0.25);
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--well);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid transparent;
   border-radius: var(--radius);
 }
 
 .roster-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  width: 10px;
+  height: 26px;
+  border-radius: 3px;
   flex: 0 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
-.roster-avatar { font-size: 1.3rem; }
-.roster-name, .night-name { flex: 1 1 auto; font-weight: 600; }
-.roster-dot { font-size: 0.85rem; }
+.roster-avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: 1.15rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.roster-name, .night-name {
+  flex: 1 1 5rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.roster-dot { font-size: 0.8rem; line-height: 1; }
+
 .roster-tag {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--ink-dim);
+  color: var(--ink-mute);
+  padding: 0.2em 0.5em;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-pill);
 }
-.roster-empty { color: var(--ink-dim); padding: 0.5rem 0.2rem; }
 
-.night-total { font-family: var(--font-display); font-size: 1.4rem; color: var(--gold-text); }
+.roster-row .btn-small { padding: 0.3em 0.6em; font-size: 0.67rem; min-height: 28px; }
 
-/* ============ Game tiles ============ */
+.roster-empty {
+  color: var(--ink-dim);
+  padding: 0.8rem 0.2rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ============ Tonight's leaderboard ============ */
+
+.night-card { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0.4rem; max-height: 34vh; }
+
+.night-list { counter-reset: rank; }
+
+.night-row { position: relative; }
+
+.night-row::before {
+  counter-increment: rank;
+  content: counter(rank);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--ink-mute);
+}
+
+.night-row:first-child { border-left-color: var(--gold); background: rgba(255, 204, 77, 0.1); }
+.night-row:first-child::before { color: var(--gold); }
+.night-row:nth-child(2) { border-left-color: rgba(255, 255, 255, 0.45); }
+.night-row:nth-child(3) { border-left-color: rgba(205, 127, 50, 0.7); }
+
+.night-total {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--gold-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Game cards
+   ============================================================ */
 
 .game-tiles {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 2px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0.7rem;
+  align-content: start;
 }
 
 .game-tile {
   --tile-accent: var(--stage-accent);
+  --art-w: 88px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: 1.2rem 1.3rem 1.3rem;
+  padding: 0.75rem 0.85rem 0.75rem calc(var(--art-w) + 1.6rem);
   border-radius: var(--radius-lg);
-  border: 2px solid var(--tile-accent);
+  border: 1px solid color-mix(in srgb, var(--tile-accent) 45%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tile-accent) 28%, transparent), rgba(0, 0, 0, 0.45));
-  transition: transform var(--duration) var(--ease-out), box-shadow var(--duration) var(--ease-out);
+    linear-gradient(120deg, color-mix(in srgb, var(--tile-accent) 22%, transparent), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.4));
+  box-shadow: var(--shadow-panel), var(--shadow-inset);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
+              border-color var(--dur) var(--ease-out);
 }
 
-.game-tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+/* The art is a full-height rail on the left, out of the text flow so the
+   card is exactly as tall as its copy. */
+.game-tile::before {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: var(--art-w);
+  min-height: 92px;
 }
 
-.tile-head { display: flex; align-items: center; gap: 0.6rem; }
-.tile-icon { font-size: 2rem; }
+.game-tile:hover, .game-tile:focus-within {
+  transform: translateY(-4px);
+  border-color: var(--tile-accent);
+  box-shadow: var(--shadow-lift), 0 0 32px color-mix(in srgb, var(--tile-accent) 32%, transparent);
+}
+
+.tile-head { display: flex; align-items: center; gap: 0.5rem; }
+.tile-icon { font-size: 1.05rem; line-height: 1; }
 
 .tile-name {
   font-family: var(--font-display);
-  font-size: 1.8rem;
-  letter-spacing: 0.03em;
+  font-size: clamp(20px, 1.7vw, 27px);
+  line-height: 1;
+  letter-spacing: var(--track-display);
   text-transform: uppercase;
 }
 
-.tile-tagline { margin: 0; color: var(--ink-dim); }
+.tile-tagline {
+  margin: 0.15rem 0 0.4rem;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+}
 
-.tile-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.tile-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.3rem; }
 
 .tile-chip {
   font-size: 0.72rem;
-  padding: 0.25em 0.6em;
-  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.24em 0.6em;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--ink-faint);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: var(--ink-dim);
 }
 
-.tile-hint { margin: 0; font-size: 0.8rem; color: var(--amber); }
-.tile-play { align-self: flex-start; margin-top: 0.3rem; }
+.tile-hint { margin: 0.35rem 0 0; font-size: 0.75rem; color: var(--amber); }
+.tile-play { align-self: flex-start; margin-top: auto; padding-top: 0.4em; padding-bottom: 0.4em; }
 
-/* ============ Shell bar + the host game frame ============ */
+/* ============================================================
+   Shell bar + the host game frame
+   ============================================================ */
 
 .shell-bar {
+  position: relative;
+  z-index: 30;
   height: var(--shell-bar-h);
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0 0.8rem;
-  background: #000;
-  border-bottom: 1px solid var(--line);
+  gap: 0.8rem;
+  padding: 0 0.7rem;
+  background: rgba(7, 4, 18, 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 55%, transparent), 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .shell-title { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; flex: 1 1 auto; }
 
 .shell-game-name {
   font-family: var(--font-display);
-  font-size: 1.1rem;
-  letter-spacing: 0.04em;
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--accent) 60%, var(--ink));
+}
+
+.shell-game-sub {
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.shell-game-sub { color: var(--ink-dim); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; }
 .shell-sub-error { color: var(--red); }
-.shell-broker { margin: 0; color: var(--amber); font-size: 0.8rem; }
+.shell-broker { margin: 0; color: var(--amber); font-size: 0.78rem; white-space: nowrap; }
 
 .shell-chip {
+  flex: 0 0 auto;
   font-family: var(--font-ui);
+  font-size: 0.78rem;
   font-weight: 700;
+  letter-spacing: 0.05em;
   background: rgba(255, 204, 77, 0.12);
   color: var(--gold-text);
-  border: 1px solid var(--gold-deep);
-  border-radius: 999px;
-  padding: 0.25em 0.9em;
+  border: 1px solid rgba(217, 164, 55, 0.7);
+  border-radius: var(--radius-pill);
+  padding: 0.3em 0.9em;
   cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
+
+.shell-chip:hover { background: rgba(255, 204, 77, 0.22); border-color: var(--gold); }
 
 .shell-popover {
   position: fixed;
@@ -302,164 +661,63 @@ body { overflow-x: hidden; }
   right: 10px;
   z-index: 40;
   width: min(360px, calc(100vw - 20px));
-  background: var(--stage-card);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(32, 22, 58, 0.98), rgba(9, 6, 22, 0.98));
+  border: 1px solid var(--panel-line);
+  border-top: 3px solid var(--gold);
   border-radius: var(--radius-lg);
   padding: 1rem;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+  box-shadow: var(--shadow-lift);
 }
 
-.popover-url { margin: 0 0 0.6rem; color: var(--ink-dim); word-break: break-all; }
+.popover-url { margin: 0 0 0.6rem; color: var(--ink-dim); font-size: 0.85rem; word-break: break-all; }
 
 .screen-game { padding: 0; }
 
 .game-frame-slot, .game-frame {
   width: 100%;
-  height: calc(100vh - var(--shell-bar-h));
+  height: calc(100dvh - var(--shell-bar-h));
   border: 0;
   display: block;
 }
 
 body.in-game { overflow: hidden; }
 
-/* ============ Dialogs ============ */
+/* ============================================================
+   Dialogs
+   ============================================================ */
 
 .dialog-backdrop {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(2, 1, 10, 0.74);
   display: grid;
   place-items: center;
   padding: 1rem;
 }
 
 .dialog {
-  width: min(440px, 100%);
-  background: var(--stage-card);
-  border: 1px solid var(--line);
+  width: min(460px, 100%);
+  padding: 1.4rem 1.5rem 1.2rem;
+  background: linear-gradient(180deg, rgba(34, 24, 62, 0.98), rgba(10, 6, 24, 0.98));
+  border: 1px solid var(--panel-line);
+  border-top: 4px solid var(--gold);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  box-shadow: var(--shadow-lift);
 }
 
-.dialog-title { font-family: var(--font-display); font-size: 1.5rem; margin: 0 0 0.5rem; text-transform: uppercase; }
-.dialog-body { margin: 0 0 1rem; color: var(--ink-dim); }
+.dialog-title {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.dialog-body { margin: 0 0 1rem; color: var(--ink-dim); line-height: 1.5; font-size: 0.92rem; }
 .dialog-row { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1rem; }
 
-/* ============ Phone ============ */
-
-/* Spec §2: in player mode NOTHING of the host UI is on the page. The host
-   screens start visible (the host is the default reader of index.html), so the
-   phone hides them wholesale rather than each script racing to. */
-body.player-mode #screen-landing,
-body.player-mode #screen-lobby,
-body.player-mode #screen-game,
-body.player-mode #shell-bar,
-body.player-mode #shell-popover { display: none !important; }
-
-body.player-mode { background-attachment: scroll; }
-
-.screen-join, .screen-waiting {
-  min-height: 100dvh;
-  display: grid;
-  place-items: start center;
-  padding: 1rem 0.9rem 2rem;
-}
-
-.phone-card {
-  width: min(430px, 100%);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 1.4rem 1.1rem 1.6rem;
-}
-
-.phone-title {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(1.8rem, 1.2rem + 5vw, 2.6rem);
-  line-height: 1.05;
-  margin: 0 0 1rem;
-  text-transform: uppercase;
-  color: var(--gold-text);
-}
-
-.code-input {
-  font-family: var(--font-display);
-  font-size: 2.4rem;
-  letter-spacing: 0.35em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.btn-block { width: 100%; }
-
-.avatar-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.4rem;
-  margin: 0 0 1.1rem;
-}
-
-.avatar-btn {
-  font-size: 1.5rem;
-  line-height: 1;
-  min-height: 48px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 2px solid transparent;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.avatar-btn.chosen { border-color: var(--gold); background: rgba(255, 204, 77, 0.18); }
-.avatar-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-
-.join-tips {
-  margin-top: 1rem;
-  padding: 0.8rem 1rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--radius);
-}
-
-.join-tips-title { margin: 0 0 0.4rem; font-weight: 700; }
-.join-tips-list { margin: 0; padding-left: 1.1rem; color: var(--ink-dim); font-size: 0.9rem; }
-
-.wait-avatar { font-size: 3.5rem; margin: 0; line-height: 1; }
-.wait-sub { color: var(--ink-dim); margin: 0 0 1.4rem; }
-
-/* Phone in a game: the frame owns the screen, minus a 4 px health line. */
-.screen-play { padding: 0; height: 100dvh; display: flex; flex-direction: column; }
-
-.phone-health { height: 4px; background: var(--green); flex: 0 0 auto; }
-.phone-health.down { background: var(--red); }
-
-.phone-frame-slot { flex: 1 1 auto; min-height: 0; }
-
-.phone-frame { width: 100%; height: 100%; border: 0; display: block; }
-
-.phone-banner {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0.9rem 1rem;
-  background: rgba(0, 0, 0, 0.88);
-  color: var(--gold-text);
-  font-weight: 700;
-  text-align: center;
-  border-top: 2px solid var(--gold-deep);
-}
-
-/* ============ Narrow screens ============ */
-
-@media (max-width: 900px) {
-  .screen-lobby { grid-template-columns: 1fr; }
-  .room-code { font-size: clamp(72px, 20vw, 140px); }
-}
-
-@media (max-width: 360px) {
-  .screen-join, .screen-waiting { padding: 0.6rem 0.5rem 1.5rem; }
-  .phone-card { padding: 1rem 0.8rem 1.2rem; }
-  .avatar-grid { grid-template-columns: repeat(4, 1fr); }
-  .code-input { font-size: 2rem; letter-spacing: 0.25em; }
+@media (prefers-reduced-motion: no-preference) {
+  .dialog { animation: gsc-pop var(--dur) var(--ease-spring) both; }
 }

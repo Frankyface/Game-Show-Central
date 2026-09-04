@@ -31,6 +31,11 @@ const GAME_REGISTRY = [
     tagline: "Bank it before the chain breaks.",
     phone: ["secret votes"], players: [3, 12],
   },
+  {
+    id: "millionaire", name: "Millionaire", path: "games/millionaire/", icon: "💎", accent: "#1d2a7a",
+    tagline: "Fifteen questions. One hot seat.",
+    phone: ["fastest finger", "hot seat", "ask the audience"], players: [1, 16],
+  },
 ];
 
 const HubRegistry = (function () {

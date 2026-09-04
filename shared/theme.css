@@ -1,21 +1,30 @@
 /* ============================================================
-   Game Show Central — shared design tokens
+   Game Show Central — shared design tokens (design system v2)
    Every page (hub + games) loads this first, then its own sheet.
-   Games override the --stage-* colours for their own palette; the
-   ink/gold/red/green tokens, the type scale and the .btn family
-   stay identical everywhere so the night feels like one show.
-   Palette lineage: Jeopardy's navy/gold stage (css/styles.css).
+
+   v2 is ADDITIVE: every v1 token, utility and .btn/.field class below
+   keeps its exact v1 name and value, so a game that has not adopted v2
+   yet renders as before. What v2 adds is a layered broadcast stage, a
+   fluid type scale, a motion vocabulary and a component kit
+   (`.gsc-*`, in shared/theme-components.css, imported on the first line
+   so any page that already links this file gets it for free).
+
+   Full reference with a usage example per token and class:
+   docs/design-system.md
+   Palette lineage: Jeopardy's navy/gold stage (games/jeopardy/css/styles.css).
    ============================================================ */
 
+@import url("theme-components.css");
+
 :root {
-  /* Stage — overridable per game */
+  /* ---------- v1 stage (unchanged; games override these) ---------- */
   --stage-deep: #03052e;
   --stage-night: #010117;
   --stage-card: #0a103f;
   --stage-glow: #0a1158;
   --stage-accent: #060ce9;
 
-  /* Ink + signal colours (never overridden) */
+  /* ---------- v1 ink + signal colours (never overridden) ---------- */
   --ink: #f4f5ff;
   --ink-dim: #aab0e0;
   --ink-faint: rgba(170, 176, 224, 0.45);
@@ -27,7 +36,6 @@
   --amber: #ffb347;
 
   --line: rgba(170, 176, 224, 0.25);
-  --panel: linear-gradient(180deg, rgba(20, 28, 96, 0.85), rgba(8, 12, 52, 0.95));
 
   --font-display: "Anton", "Haettenschweiler", "Arial Narrow Bold", Impact, sans-serif;
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -38,7 +46,90 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   --tap: 56px; /* minimum phone touch target */
+
+  /* ---------- v2 ink ---------- */
+  /* --ink / --ink-dim are v1. --ink-mute is the third, quietest step:
+     labels, chips and metadata. Still ≥ 4.5:1 on the stage. */
+  --ink-mute: #8b91c4;
+
+  /* ---------- v2 accents (per-game, see the blocks below) ---------- */
+  --accent: var(--gold);
+  --accent-2: #ff4d5e;
+  --accent-ink: #241a02; /* readable text ON --accent */
+
+  /* ---------- v2 glass ---------- */
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel-strong: rgba(255, 255, 255, 0.1);
+  --panel-line: rgba(255, 255, 255, 0.12);
+  --panel-blur: 12px;
+  --well: rgba(0, 0, 0, 0.28); /* inset row / field background */
+
+  --radius-sm: 6px;
+  --radius-xl: 26px;
+  --radius-pill: 999px;
+
+  --shadow-panel: 0 18px 44px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 22px 56px rgba(0, 0, 0, 0.55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  /* ---------- v2 type scale (fluid, projector-first) ---------- */
+  --fs-hero: clamp(64px, 8.5vw, 140px);
+  --fs-display: clamp(40px, 4.4vw, 72px);
+  --fs-title: clamp(28px, 2.4vw, 40px);
+  --fs-body: clamp(18px, 1.35vw, 22px);
+  --fs-ui: clamp(15px, 1.05vw, 17px);
+  --fs-micro: 12px;
+
+  --track-display: -0.015em; /* Anton wants to be tight */
+  --track-eyebrow: 0.22em;
+
+  /* ---------- v2 motion ---------- */
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 480ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --focus: var(--gold);
 }
+
+/* ============================================================
+   Per-game accent — one block per registry id, keyed on the
+   `data-gsc-game` ATTRIBUTE rather than on `body`, so the hub can put
+   it on a sub-tree too (the shell bar and the splash card wear the
+   running game's accent while the page itself stays the hub).
+   Only v2 tokens live here: a game's own `:root { --stage-* }` block
+   is never overridden, because it sets those on <html> and inherits
+   down past this rule.
+   ============================================================ */
+
+[data-gsc-game="hub"] {
+  --accent: #ffcc4d; --accent-2: #ff4d5e; --accent-ink: #241a02;
+  --stage-glow: #33124f;
+}
+[data-gsc-game="jeopardy"] {
+  --accent: #2b34ff; --accent-2: #ffcc4d; --accent-ink: #ffffff;
+  --stage-glow: #0a1158;
+}
+[data-gsc-game="family-feud"] {
+  --accent: #e21b3c; --accent-2: #ffcc4d; --accent-ink: #ffffff;
+  --stage-glow: #10306b;
+}
+[data-gsc-game="wheel-of-fortune"] {
+  --accent: #9d4edd; --accent-2: #2ec4b6; --accent-ink: #ffffff;
+  --stage-glow: #3d1268;
+}
+[data-gsc-game="weakest-link"] {
+  --accent: #7c99b6; --accent-2: #d33; --accent-ink: #06101a;
+  --stage-glow: #16222e;
+}
+[data-gsc-game="millionaire"] {
+  --accent: #3346c8; --accent-2: #a06bff; --accent-ink: #ffffff;
+  --stage-glow: #141c63;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
 
 * { box-sizing: border-box; }
 
@@ -48,8 +139,16 @@ body {
   min-height: 100vh;
   font-family: var(--font-ui);
   color: var(--ink);
-  background:
-    radial-gradient(120% 90% at 50% 0%, var(--stage-glow) 0%, var(--stage-deep) 45%, var(--stage-night) 100%);
+  /* The stage: a top spill of the game glow, an off-axis accent bloom, a
+     vignette and the deep-to-night base. Declared on the body (not :root)
+     so it resolves against THIS body's --accent. Gradients only — no
+     filters — so a full-screen repaint stays cheap. */
+  --stage-bg:
+    radial-gradient(120% 78% at 50% -14%, var(--stage-glow) 0%, transparent 58%),
+    radial-gradient(56% 42% at 86% 4%, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 72%),
+    radial-gradient(150% 115% at 50% 52%, transparent 38%, rgba(0, 0, 0, 0.62) 100%),
+    linear-gradient(180deg, var(--stage-deep) 0%, var(--stage-night) 100%);
+  background: var(--stage-bg);
   background-attachment: fixed;
 }
 
@@ -79,7 +178,41 @@ body {
   margin: 0.4rem 0 0;
 }
 
-/* ============ Buttons ============ */
+/* ============ Type utilities (v2) ============ */
+
+.gsc-hero, .gsc-display, .gsc-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: var(--track-display);
+  line-height: 0.92;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.gsc-hero { font-size: var(--fs-hero); }
+.gsc-display { font-size: var(--fs-display); }
+.gsc-title { font-size: var(--fs-title); line-height: 1; }
+
+.gsc-eyebrow {
+  margin: 0;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--ink-mute);
+}
+
+.gsc-body { font-size: var(--fs-body); line-height: 1.45; margin: 0; }
+.gsc-dim { color: var(--ink-dim); }
+.gsc-mute { color: var(--ink-mute); }
+
+/* One shared focus ring everywhere: 3px gold, offset, always visible. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ============ Buttons (v1 — unchanged) ============ */
 
 .btn {
   font-family: var(--font-ui);
@@ -152,7 +285,7 @@ body {
   transform: none;
 }
 
-/* ============ Fields ============ */
+/* ============ Fields (v1 shape, v2 surface) ============ */
 
 .field {
   display: block;
@@ -183,10 +316,15 @@ body {
 .field-input:focus-visible {
   outline: none;
   border-color: var(--gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent);
 }
 
 /* ============ Motion ============ */
 
+/* Every v2 animation is declared inside `prefers-reduced-motion: no-preference`
+   (see theme-components.css), so under `reduce` no animation exists at all and
+   getAnimations() is empty. This block stays as the v1 safety net for sheets
+   that have not been converted yet. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

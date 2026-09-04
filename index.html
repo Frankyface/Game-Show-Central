@@ -4,15 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Game Show Central</title>
-  <meta name="description" content="Game shows for your video call — share your screen, players use their phones. Jeopardy, Family Feud, Wheel of Fortune and Weakest Link, no accounts and no server.">
+  <meta name="description" content="Game shows for your video call — share your screen, players use their phones. Jeopardy, Family Feud, Wheel of Fortune, Weakest Link and Millionaire, no accounts and no server.">
   <meta name="color-scheme" content="dark">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/theme.css">
   <link rel="stylesheet" href="css/hub.css">
+  <link rel="stylesheet" href="css/hub-phone.css">
 </head>
-<body>
+<body data-gsc-game="hub">
 
   <!-- ============ HOST: shell bar (only while a game is on) ============ -->
   <header id="shell-bar" class="shell-bar hidden">
@@ -29,37 +30,47 @@
 
   <!-- ============ HOST: landing ============ -->
   <main id="screen-landing" class="screen screen-landing">
-    <div class="landing-card">
-      <p class="landing-kicker">Welcome to</p>
-      <h1 class="landing-title">Game Show Central</h1>
-      <p class="landing-pitch">Game shows for your video call — share your screen, players use their phones.</p>
-      <div class="landing-actions">
-        <button id="btn-host" class="btn btn-gold btn-big" type="button">Host a game night</button>
-        <button id="btn-no-phones" class="btn btn-ghost btn-big" type="button">Play without phones</button>
-      </div>
-      <p class="landing-join"><a id="link-phone" href="?room=">Join on your phone</a></p>
-      <p id="landing-error" class="error-msg" role="status"></p>
-      <ul id="landing-games" class="landing-games"></ul>
+    <div class="landing-inner">
+      <section class="landing-card gsc-marquee">
+        <p class="landing-kicker">Welcome to</p>
+        <h1 class="landing-title">Game Show Central</h1>
+        <p class="landing-pitch">Game shows for your video call — share your screen, players use their phones.</p>
+        <div class="landing-actions">
+          <button id="btn-host" class="btn btn-gold btn-big" type="button">Host a game night</button>
+          <button id="btn-no-phones" class="btn btn-ghost btn-big" type="button">Play without phones</button>
+          <a id="link-phone" class="btn btn-ghost btn-big landing-join" href="?room=">Join on your phone</a>
+        </div>
+        <p id="landing-error" class="error-msg" role="status"></p>
+      </section>
+      <section class="landing-strip">
+        <p class="landing-strip-label">Tonight's line-up</p>
+        <ul id="landing-games" class="landing-games"></ul>
+      </section>
     </div>
   </main>
 
   <!-- ============ HOST: lobby ============ -->
   <main id="screen-lobby" class="screen screen-lobby hidden">
     <section class="lobby-left">
-      <div class="room-card">
+      <div class="room-card gsc-panel-accent">
         <p class="room-label">Room code</p>
         <p id="room-code" class="room-code">— — — —</p>
         <p id="room-join-url" class="room-join-url"></p>
         <p id="room-status" class="room-status" role="status"></p>
         <p id="room-error" class="error-msg" role="alert"></p>
         <div id="room-controls" class="room-controls"></div>
+        <ol class="join-steps">
+          <li><span class="join-step-n">1</span> Open the link above on your phone</li>
+          <li><span class="join-step-n">2</span> Type the code and your name</li>
+          <li><span class="join-step-n">3</span> Watch this screen — play on your phone</li>
+        </ol>
       </div>
       <div class="roster-card">
         <div class="roster-head">
           <h2 class="card-heading">Players <span id="roster-count" class="roster-count"></span></h2>
           <button id="btn-add-manual" class="btn btn-ghost btn-small" type="button">+ Add player</button>
         </div>
-        <ul id="roster-list" class="roster-list"></ul>
+        <ul id="roster-list" class="roster-list gsc-scroll"></ul>
         <p id="roster-hint" class="hint-msg"></p>
       </div>
       <div id="night-card" class="night-card hidden">
@@ -67,12 +78,12 @@
           <h2 class="card-heading">Tonight's scoreboard</h2>
           <button id="btn-reset-night" class="btn btn-ghost btn-small" type="button">Reset night</button>
         </div>
-        <ul id="night-list" class="night-list"></ul>
+        <ul id="night-list" class="night-list gsc-scroll"></ul>
       </div>
     </section>
     <section class="lobby-right">
       <h2 class="card-heading">Pick a game</h2>
-      <ul id="game-tiles" class="game-tiles"></ul>
+      <ul id="game-tiles" class="game-tiles gsc-scroll"></ul>
       <p id="tile-hint" class="hint-msg" role="status"></p>
     </section>
   </main>
@@ -85,7 +96,8 @@
   <!-- ============ PHONE: join ============ -->
   <main id="screen-join" class="screen screen-join hidden">
     <div class="phone-card">
-      <h1 class="phone-title">Game Show Central</h1>
+      <p class="phone-kicker">Game Show Central</p>
+      <h1 class="phone-title">Join the show</h1>
       <label class="field" for="join-code">
         <span class="field-label">Room code</span>
         <input id="join-code" class="field-input code-input" type="text" inputmode="text"
@@ -123,6 +135,14 @@
     <div id="phone-frame-slot" class="phone-frame-slot"></div>
     <div id="phone-banner" class="phone-banner hidden" role="status"></div>
   </main>
+
+  <!-- ============ Title card shown for 1.2 s on a game switch ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
 
   <div id="dialog-root"></div>
 
