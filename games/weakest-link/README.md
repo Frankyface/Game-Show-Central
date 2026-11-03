@@ -68,8 +68,9 @@ Custom questions load three ways, all through the same `validateGame`:
 
 ## The Game lobby button
 
-↺ **Game lobby** in the toolbar goes back to this game's own setup screen from
-any phase, and asks first:
+**Game lobby** in the toolbar goes back to this game's own setup screen from
+any phase of a game, and asks first (on the setup screen itself the button is
+shown but disabled — there is no game to leave):
 
 - **Keep this game** — parks the game and returns to setup, which then offers
   **Resume**. The roster, the money, the stats and the clock all come back
@@ -93,8 +94,8 @@ Two sets ship with the game:
 
 | Set | Questions | Categories |
 |---|---|---|
-| **Pop culture** | 66 | Film, Television, Music, Games & toys, Internet & tech, Famous faces |
-| **Science & nature** | 66 | Space, The human body, Animals, Chemistry, Earth & weather, Plants |
+| **Pop culture** | 126 | Film, Television, Music, Games & toys, Internet & tech, Famous faces |
+| **Science & nature** | 126 | Space, The human body, Animals, Chemistry, Earth & weather, Plants |
 
 `questions.json` (160 questions) stays the default.
 

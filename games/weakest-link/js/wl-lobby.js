@@ -57,17 +57,12 @@
 
   function open() {
     const box = $id("wl-lobby-confirm");
-    if (!box) return;
-    const core = window.WlApp.core();
-    const parked = window.WlApp.state().resumable;
-    // "Keep this game" only means something while a game is running.
-    $id("btn-lobby-keep").disabled = !core;
-    const line = core
-      ? "Leave the game on the table and go back to the setup screen, or throw it away and start again."
-      : parked
-        ? "You are already on the setup screen — the parked game is still waiting under Resume."
-        : "There is no game in progress.";
-    $id("wl-lobby-text").textContent = line;
+    // On setup there is no game to leave: the button is disabled there (all-games
+    // toolbar rule), so this only ever opens over a game in progress.
+    if (!box || !window.WlApp.core()) return;
+    $id("wl-lobby-text").textContent =
+      "Leave the game on the table and go back to the setup screen, or throw it away and start again.";
+    box.setAttribute("aria-modal", "true");
     box.classList.remove("hidden");
     $id("btn-lobby-cancel").focus();
   }
@@ -86,8 +81,16 @@
 
   /* ============ wiring ============ */
 
-  /** The Resume button lives on setup and only exists when a game is parked. */
+  /** Toolbar rule: Game lobby is present on every screen but disabled on setup.
+      The Resume button lives on setup and only exists when a game is parked. */
   function paint() {
+    const lobbyBtn = $id("btn-game-lobby");
+    if (lobbyBtn) {
+      const onSetup = !window.WlApp.core();
+      lobbyBtn.disabled = onSetup;
+      lobbyBtn.title = onSetup ? "You are on the setup screen already" : "";
+      if (onSetup && isOpen()) close();
+    }
     const btn = $id("btn-resume");
     if (!btn) return;
     const parked = window.WlApp.state().resumable;

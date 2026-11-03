@@ -38,12 +38,18 @@ window.WLCross = function (ctx) {
       H("btn-game-lobby").textContent.trim());
 
     click("btn-game-lobby");
-    check("X-1 it opens a confirm offering Keep this game / Start over",
+    check("X-1 it opens a modal confirm offering Keep this game / Start over",
       HL().isOpen() && !H("btn-lobby-keep").disabled
+      && H("wl-lobby-confirm").getAttribute("aria-modal") === "true"
       && /Start over/.test(H("btn-lobby-start-over").textContent),
-      H("wl-lobby-text").textContent);
+      H("wl-lobby-text").textContent + " (aria-modal " + H("wl-lobby-confirm").getAttribute("aria-modal") + ")");
 
     click("btn-lobby-keep");
+    check("X-1 on setup the Game lobby button stays in the toolbar but is disabled",
+      !!H("btn-game-lobby") && H("btn-game-lobby").disabled === true
+      && !H("btn-game-lobby").classList.contains("hidden")
+      && (click("btn-game-lobby"), !HL().isOpen()),
+      "disabled " + H("btn-game-lobby").disabled + ", confirm open " + HL().isOpen());
     check("X-1 Keep this game returns to setup and offers Resume",
       core() === null && !H("screen-setup").classList.contains("hidden")
       && !H("btn-resume").classList.contains("hidden")
@@ -96,7 +102,10 @@ window.WLCross = function (ctx) {
 
   async function library() {
     await bootHost();
-    const picker = await waitFor(() => HD().querySelector("#wl-library .gsc-library"), "picker mounts");
+    // Wait for the manifest to fill the select, not just for the box to mount:
+    // the load is async, and reading the options early races it.
+    const picker = await waitFor(() => { const b = HD().querySelector("#wl-library .gsc-library");
+      return b && (b.querySelectorAll("option").length || b.classList.contains("gsc-library-off")) ? b : null; }, "picker loads");
     const options = [...picker.querySelectorAll("option")].map((o) => o.textContent);
     check("X-2 the library picker lists the shipped sets",
       options.length === 2 && options.indexOf("Pop culture") >= 0
@@ -112,7 +121,7 @@ window.WLCross = function (ctx) {
     picker.querySelector(".gsc-library-load").click();
     await waitFor(() => HW().WlApp.state().sourceKind === "library", "set loaded");
     check("X-2 loading a set validates it and becomes the current content",
-      HW().WlApp.state().game.questions.length === 66
+      HW().WlApp.state().game.questions.length === 126
       && HW().WlApp.state().source === "set: Science & nature"
       && /set: Science & nature/.test(H("wl-source").textContent),
       HW().WlApp.state().game.questions.length + " questions — " + H("wl-source").textContent);

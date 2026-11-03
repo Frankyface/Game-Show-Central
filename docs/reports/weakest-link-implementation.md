@@ -448,3 +448,31 @@ everything else.
 
 **X-4** is the three game-specific fixes (Price Is Right photos, Deal or No Deal
 case animation, Chain Reaction phone column) — none of them this component.
+
+---
+
+## 12. Cross-cutting verification fixes (C-3, lobby dialog, toolbar rule)
+
+`node --test` **98/98**; `tests/harness.html` **75/75** (74 + 1 new), run on
+port 8644 in headless Chrome over CDP (`.scratch/cdp.mjs`). The v3 UI audit
+(`.scratch/wl-ui-audit.mjs`) was re-run with no regressions: no scroll at
+1280×720 / 1280×676, contrast, emoji, glow and reduced-motion checks clean.
+
+| Finding | Fix |
+|---|---|
+| **C-3** — each library set had 66 questions and tripped the game's own "thin set" warning | Both sets now have **126** questions: 10 new, original, checkable questions per category, keeping the themes (Pop culture: Film, Television, Music, Games & toys, Internet & tech, Famous faces; Science & nature: Space, The human body, Animals, Chemistry, Earth & weather, Plants). `.scratch/wl-sets-merge.cjs` appends them round-robin after the existing 66, refuses any question already in the set **or** in the default `questions.json`, refuses a repeated answer within the set, runs `validateGame`, and asserts `warningsFor()` returns nothing. `sets/index.json` counts updated; `questions.json` and `js/data.js` untouched. |
+| Lobby dialog `aria-modal="false"` | `aria-modal="true"` on `#wl-lobby-confirm` (and re-asserted when it opens). The full-screen editor's `role="dialog"` was not flagged and is unchanged. |
+| Toolbar rule: Game lobby on the setup screen | The button stays in the toolbar on setup but is **disabled** (with a `title`), instead of opening a "no game in progress" dialog. `wl-lobby.js` `paint()` sets `disabled = !core` on every render and closes the confirm if the game ends under it; `open()` now only runs over a game in progress. |
+
+Harness changes: X-2 expects 126 questions; X-1 checks `aria-modal="true"` on
+the open confirm, and a new check asserts that on setup the button is present,
+not hidden, disabled, and that clicking it opens nothing.
+
+One harness race fixed along the way: X-2 waited for the picker's box to mount
+and then read its options, but the manifest loads asynchronously, so it could
+read an empty `<select>`. It passed earlier only because the manifest came back
+from cache fast enough. It now waits until the options are filled (or the picker
+reports it is off). Standalone, the picker was always correct.
+
+README: set sizes updated to 126; the Game lobby section says the button is
+disabled on the setup screen.
