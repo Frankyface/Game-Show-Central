@@ -92,7 +92,7 @@
     img.addEventListener("error", function onError() {
       const note = document.createElement("p");
       note.className = "prize-image-failed";
-      note.textContent = "⚠ photo failed to load";
+      note.textContent = "Photo failed to load";
       if (img.parentNode) img.parentNode.replaceChild(note, img);
     });
     return img;

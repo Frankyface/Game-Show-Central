@@ -117,7 +117,7 @@ const TpirGames = (function () {
       mountain.appendChild(rungs);
       const climber = el("div", "cliff-climber");
       climber.id = "tpir-climber";
-      climber.appendChild(el("span", "cliff-climber-icon", "🧗"));
+      climber.appendChild(el("span", "cliff-climber-icon"));
       climber.appendChild(el("span", "cliff-climber-steps", "0"));
       mountain.appendChild(climber);
       mountain.appendChild(el("p", "cliff-edge-label", "The edge — 25 steps"));

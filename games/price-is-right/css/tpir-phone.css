@@ -23,39 +23,34 @@ body.player-mode .screen-phone:not(.hidden) { display: flex; }
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.9rem;
-  border-radius: var(--radius-lg);
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
 .phone-kicker {
   margin: 0;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--tpir-yellow);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-mute);
   min-height: 0.9rem;
 }
 
 .phone-headline {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.7rem;
-  line-height: 1.05;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--ink);
 }
 
-.phone-sub { margin: 0; color: var(--ink-dim); font-size: 0.95rem; line-height: 1.35; }
+.phone-sub { margin: 0; color: var(--ink-dim); font-size: 1rem; line-height: 1.4; }
 
 .phone-body { display: flex; flex-direction: column; gap: 0.5rem; }
 .phone-actions { display: flex; flex-direction: column; gap: 0.5rem; }
 .phone-actions .btn, .phone-body .btn { min-height: var(--tap); width: 100%; font-size: 1.02rem; }
 
-.phone-status { margin: 0; min-height: 1.1rem; color: var(--ink-mute); font-size: 0.85rem; }
+.phone-status { margin: 0; min-height: 1.1rem; color: var(--ink-mute); font-size: 0.95rem; }
 
 /* ============ The numeric pad ============ */
 
@@ -64,9 +59,9 @@ body.player-mode .screen-phone:not(.hidden) { display: flex; }
   font-family: var(--font-display);
   font-size: 2.7rem;
   line-height: 1;
-  letter-spacing: var(--track-display);
-  color: var(--tpir-yellow);
-  background: rgba(0, 0, 0, 0.45);
+  color: var(--tpir-money);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius);
   padding: 0.35em 0.5em;
   text-align: right;
@@ -80,7 +75,7 @@ body.player-mode .screen-phone:not(.hidden) { display: flex; }
   gap: 0.4rem;
 }
 
-.phone-pad .btn { min-height: var(--tap); font-size: 1.3rem; font-family: var(--font-display); letter-spacing: 0.04em; }
+.phone-pad .btn { min-height: var(--tap); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* ============ Plinko on a phone ============ */
 
@@ -90,31 +85,29 @@ body.player-mode .screen-phone:not(.hidden) { display: flex; }
   gap: 0.4rem;
 }
 
-.phone-slots .btn { min-height: var(--tap); font-family: var(--font-display); font-size: 1.3rem; }
+.phone-slots .btn { min-height: var(--tap); font-size: 1.25rem; font-weight: 600; }
 
 /* ============ Lists ============ */
 
-.phone-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.phone-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
 .phone-list li {
   display: flex;
   justify-content: space-between;
   gap: 0.6rem;
-  padding: 0.5rem 0.7rem;
-  border-radius: var(--radius-sm);
-  background: var(--well);
-  font-size: 0.95rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 1rem;
 }
 
-.phone-list li span:last-child { color: var(--tpir-yellow); font-weight: 700; }
-.phone-list li.is-placed span:last-child { color: var(--tpir-green); }
+.phone-list li span:last-child { color: var(--ink-dim); font-weight: 600; }
+.phone-list li.is-placed span:last-child { color: var(--green); }
 
-.phone-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.phone-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
 .phone-prizes li {
-  padding: 0.5rem 0.7rem;
-  border-radius: var(--radius-sm);
-  background: var(--well);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
 }
@@ -126,13 +119,8 @@ body.player-mode .screen-phone:not(.hidden) { display: flex; }
 
 .phone-spin {
   min-height: 8rem !important;
-  font-family: var(--font-display);
-  font-size: 2rem !important;
-  letter-spacing: var(--track-display);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .phone-spin { animation: gsc-pulse 3.2s ease-in-out infinite; }
+  font-size: 1.6rem !important;
+  font-weight: 600;
 }
 
 /* The SDK's own join card, rendered into #gsc-join in standalone player mode. */

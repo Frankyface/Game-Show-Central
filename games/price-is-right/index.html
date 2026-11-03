@@ -18,14 +18,9 @@
   <header class="topbar">
     <h1 id="tpir-title" class="topbar-title">The Price Is Right</h1>
     <div class="topbar-actions">
-      <span id="tpir-room-chip" class="gsc-chip hidden"></span>
-      <span id="tpir-segment-chip" class="gsc-chip hidden"></span>
-      <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">Undo</button>
-      <button id="btn-finish" class="btn btn-ghost btn-small hidden" type="button">End the night</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#10226; Game lobby</button>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Prize editor</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
     </div>
   </header>
 
@@ -33,11 +28,20 @@
 
   <main id="tpir-main">
 
+    <!-- The show's own controls, kept out of the toolbar (docs/21 rule 9). -->
+    <div id="tpir-playbar" class="playbar">
+      <span id="tpir-segment-chip" class="playbar-status hidden"></span>
+      <span id="tpir-room-chip" class="playbar-status hidden"></span>
+      <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">Undo</button>
+      <button id="btn-finish" class="btn btn-ghost btn-small hidden" type="button">End the night</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="gsc-card setup-card">
-        <p class="gsc-eyebrow">Come on down</p>
-        <h2 class="gsc-title">Set up the show</h2>
+        <h2 class="setup-title">Set up the show</h2>
+        <p class="setup-lead">Add the players in seating order, then press Start the show.</p>
         <p id="tpir-source" class="source-note">Loading prizes&hellip;</p>
 
         <div class="setup-cols">
@@ -101,7 +105,6 @@
 
       <div class="row-grid">
         <article class="gsc-card item-card">
-          <p class="gsc-eyebrow">Up for bid</p>
           <h2 id="tpir-item-name" class="item-name">&nbsp;</h2>
           <p id="tpir-item-note" class="item-note">&nbsp;</p>
           <div id="tpir-item-photo" class="prize-photo hidden"></div>
@@ -190,7 +193,6 @@
 
     <!-- ===================== Standings ===================== -->
     <section id="screen-standings" class="screen hidden">
-      <p class="gsc-eyebrow">That is the show</p>
       <h2 id="tpir-standings-title" class="gsc-display">Final standings</h2>
       <ol id="tpir-standings" class="standings"></ol>
       <div class="controls">
@@ -255,7 +257,6 @@
        pointer-events:none, skipped under prefers-reduced-motion and when the
        hub is already showing its own (body.gsc-embedded). ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -270,6 +271,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/tpir-media.js"></script>
   <script src="js/tpir-content.js"></script>
   <script src="js/tpir-select.js"></script>

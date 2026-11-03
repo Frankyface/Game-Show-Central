@@ -25,6 +25,7 @@
   --tpir-blue-deep: #12508f;
   --tpir-green: #2dc653;
   --tpir-ink-on-yellow: #2a1a00;
+  --tpir-money: var(--gold-text);   /* gold is for money only (docs/21 rule 2) */
 }
 
 /* --accent / --accent-2 / --accent-ink / --stage-glow are NOT set here.
@@ -46,18 +47,28 @@ body {
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 1.1rem;
-  border-bottom: 1px solid var(--panel-line);
-  background: rgba(0, 0, 0, 0.28);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .topbar-title {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
-  color: var(--tpir-yellow);
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
   margin: 0;
 }
+
+/* The show's own controls: undo, end, where we are in the episode. */
+.playbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+}
+.playbar:not(:has(> :not(.hidden))) { display: none; }
+.playbar-status { color: var(--ink-dim); font-size: 15px; font-weight: 500; }
+.playbar-status:first-child { margin-right: auto; }
+.playbar .btn-small { min-height: 36px; }
 
 .topbar-actions {
   margin-left: auto;
@@ -78,7 +89,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0.7rem 1.1rem 1rem;
+  padding: 0.6rem 1.1rem 0.8rem;
 }
 
 .screen {
@@ -101,32 +112,33 @@ body {
 .notice {
   margin: 0;
   min-height: 1.35rem;
-  color: var(--tpir-yellow);
+  color: var(--ink);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
-.hint { margin: 0.3rem 0 0.6rem; color: var(--ink-dim); font-size: 0.85rem; }
-.hint-inline { color: var(--ink-mute); font-size: 0.78rem; font-weight: 400; }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--tpir-yellow); }
+.hint { margin: 0.3rem 0 0.6rem; color: var(--ink-dim); font-size: 1rem; }
+.hint-inline { color: var(--ink-mute); font-size: 0.9rem; font-weight: 400; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+
+.setup-title { margin: 0; font-family: var(--font-ui); font-size: var(--fs-title); font-weight: 600; color: var(--ink); }
+.setup-lead { margin: 0.3rem 0 0; color: var(--ink-dim); font-size: 1rem; }
 
 .setup-heading {
   margin: 0.9rem 0 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ink-mute);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-dim);
 }
 
-/* A blue that matches the show's palette; the theme ships gold and ghost. */
+/* v3: .btn-blue is the secondary button — a hairline outline (docs/21 rule 4). */
 .btn-blue {
-  background: linear-gradient(180deg, var(--tpir-blue) 0%, var(--tpir-blue-deep) 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(29, 111, 220, 0.35);
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--hairline);
 }
 
-.btn-blue:hover { box-shadow: 0 6px 20px rgba(29, 111, 220, 0.5); }
+.btn-blue:hover { border-color: var(--ink-mute); }
 
 /* ============ Setup ============ */
 
@@ -141,41 +153,39 @@ body {
 
 .setup-block { min-width: 0; }
 
-.source-note { margin: 0.2rem 0 0; color: var(--ink-dim); font-size: 0.88rem; }
+.source-note { margin: 0.4rem 0 0; color: var(--ink-dim); font-size: 1rem; }
 
 .plan-note {
   margin: 0;
   padding: 0.6rem 0.8rem;
   border-radius: var(--radius);
-  background: var(--well);
-  border-left: 4px solid var(--tpir-yellow);
+  border: 1px solid var(--hairline);
   color: var(--ink);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
-.player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
 .player-list li {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: var(--radius);
-  background: var(--well);
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .player-seat {
   width: 1.6rem; height: 1.6rem;
   display: grid; place-items: center;
   border-radius: 50%;
-  background: var(--tpir-yellow);
-  color: var(--tpir-ink-on-yellow);
-  font-weight: 700;
-  font-size: 0.8rem;
+  border: 1px solid var(--hairline);
+  color: var(--ink-dim);
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
-.player-name { font-weight: 700; }
-.player-tag { color: var(--ink-mute); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.player-name { font-weight: 600; }
+.player-tag { color: var(--ink-mute); font-size: 0.9rem; }
 .player-list li .btn:first-of-type { margin-left: auto; }
 
 .inline-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; }
@@ -184,33 +194,29 @@ body {
   flex: 1 1 10rem;
   min-width: 8rem;
   font-family: var(--font-ui);
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.35);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  min-height: 44px;
   padding: 0.5em 0.7em;
 }
 
-.game-set { border: 1px solid var(--panel-line); border-radius: var(--radius); padding: 0.5rem 0.8rem 0.7rem; }
+.game-set { border: 1px solid var(--hairline); border-radius: var(--radius); padding: 0.5rem 0.8rem 0.7rem; }
 .game-set legend { padding: 0 0.3rem; }
-.check { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; font-size: 0.92rem; }
-.check input { width: 1.05rem; height: 1.05rem; accent-color: var(--tpir-yellow); }
+.check { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; font-size: 1rem; }
+.check input { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); }
 
 .setup-actions { margin-top: 1.1rem; display: flex; justify-content: flex-end; }
 
 /* ============ Contestants' Row ============ */
 
-.row-banner .gsc-banner-title { color: var(--tpir-yellow); }
-
 .price-tag {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  letter-spacing: var(--track-display);
-  padding: 0.15em 0.6em;
-  border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--tpir-yellow) 0%, var(--tpir-yellow-deep) 100%);
-  color: var(--tpir-ink-on-yellow);
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tpir-money);
   white-space: nowrap;
 }
 
@@ -228,15 +234,12 @@ body {
   flex-direction: column;
   justify-content: center;
   gap: 0.4rem;
-  border-left: 6px solid var(--tpir-red);
 }
 
 .item-name {
   font-family: var(--font-display);
   font-size: clamp(1.8rem, 3vw, 2.9rem);
-  line-height: 1;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
+  line-height: 1.05;
   margin: 0;
   color: var(--ink);
 }
@@ -250,23 +253,25 @@ body {
   align-items: stretch;
 }
 
-/* .gsc-podium draws its border and its active glow from --podium-accent, so
-   setting that (rather than border-top-color) keeps the two in step. */
+/* Flat tiles. .gsc-podium draws its border from --podium-accent: the hairline
+   by default, the accent for the one active state (the winner). "Over" and
+   "Comes on down" are said in words, so colour is never the only signal. */
 .tpir-podium {
-  --podium-accent: var(--tpir-blue);
+  --podium-accent: var(--hairline);
   align-content: center;
   text-align: center;
-  border-top: 5px solid var(--podium-accent);
+  border: 1px solid var(--podium-accent);
 }
 
-.tpir-podium.is-winner { --podium-accent: var(--tpir-green); }
-.tpir-podium.is-out { --podium-accent: var(--tpir-red); }
+.tpir-podium.is-winner { --podium-accent: var(--accent); }
+.tpir-podium.is-out { opacity: 0.7; }
 
 .tpir-podium-bid {
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 2.4vw, 2.4rem);
-  color: var(--tpir-yellow);
-  letter-spacing: 0.04em;
+  font-family: var(--font-ui);
+  font-size: clamp(1.5rem, 2.2vw, 2.1rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tpir-money);
 }
 
 /* ============ Bid entry ============ */
@@ -284,16 +289,16 @@ body {
   gap: 0.45rem;
   padding: 0.4rem 0.6rem;
   border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
-.bid-field.is-placed { border-color: var(--tpir-green); }
+.bid-field.is-placed { border-color: var(--green); }
 .bid-field.is-phone { border-style: dashed; }
 
 .bid-name {
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: 600;
+  font-size: 1rem;
   min-width: 4.5rem;
   color: var(--ink-dim);
 }
@@ -303,10 +308,10 @@ body {
   min-width: 3.5rem;
   font-family: var(--font-ui);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.45);
-  border: 2px solid var(--ink-faint);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   padding: 0.35em 0.5em;
 }
@@ -342,18 +347,19 @@ body {
 .drum {
   width: 100%;
   min-height: 0;
-  max-height: min(27rem, calc(100vh - 316px));
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
+  max-height: min(27rem, calc(100vh - 360px));
 }
 
-.drum-text { font-family: var(--font-display); letter-spacing: 0.02em; }
+/* Drawn flat: no cylinder shading over the bands, a hairline frame. */
+.drum rect[fill="url(#drum-shade)"] { display: none; }
+.drum > rect:first-of-type { fill: var(--surface); stroke: var(--hairline); stroke-width: 2px; }
+.drum-text { font-family: var(--font-ui); font-weight: 600; }
 
 .drum-value {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.6rem;
-  color: var(--tpir-yellow);
-  letter-spacing: var(--track-display);
+  font-size: 1.8rem;
+  color: var(--tpir-money);
 }
 
 .sd-spinners {
@@ -363,10 +369,10 @@ body {
   gap: 0.7rem;
 }
 
-.tpir-spinner { --podium-accent: var(--tpir-blue); text-align: center; border-top: 5px solid var(--podium-accent); }
-.tpir-spinner.is-winner { --podium-accent: var(--tpir-green); }
-.tpir-spinner.is-out { --podium-accent: var(--tpir-red); }
-.tpir-spinner .gsc-podium-score { font-family: var(--font-display); color: var(--tpir-yellow); font-size: 2rem; }
+.tpir-spinner { --podium-accent: var(--hairline); text-align: center; border: 1px solid var(--podium-accent); }
+.tpir-spinner.is-active, .tpir-spinner.is-winner { --podium-accent: var(--accent); }
+.tpir-spinner.is-out { opacity: 0.7; }
+.tpir-spinner .gsc-podium-score { font-family: var(--font-ui); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tpir-money); font-size: 1.8rem; }
 
 /* ============ Showcase ============ */
 
@@ -382,34 +388,30 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  border-top: 6px solid var(--tpir-blue);
 }
 
-.sc-card.is-winner { border-top-color: var(--tpir-green); background: var(--panel-strong); }
+.sc-card.is-winner { border-color: var(--accent); }
 
 .sc-owner {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
-  color: var(--tpir-yellow);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.sc-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
+.sc-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; flex: 1; }
 
 .sc-prizes li {
-  padding: 0.4rem 0.6rem;
-  border-radius: var(--radius-sm);
-  background: var(--well);
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
 }
 
-.sc-prize-name { font-weight: 700; font-size: 1.05rem; }
-.sc-prize-note { color: var(--ink-dim); font-size: 0.82rem; }
-.sc-total { margin: 0; font-weight: 700; color: var(--ink-dim); }
-.sc-card.is-winner .sc-total { color: var(--tpir-yellow); }
+.sc-prize-name { font-weight: 600; font-size: 1.05rem; }
+.sc-prize-note { color: var(--ink-dim); font-size: 0.9rem; }
+.sc-total { margin: 0; font-weight: 600; color: var(--ink-dim); }
+.sc-card.is-winner .sc-total { color: var(--tpir-money); }
 
 /* ============ Standings ============ */
 
@@ -422,29 +424,26 @@ body {
   width: min(46rem, 100%);
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
 }
 
 .standings li {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border-left: 5px solid var(--panel-line);
+  padding: 0.6rem 0.2rem;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.standings li.is-top { border-left-color: var(--tpir-yellow); background: var(--panel-strong); }
+.standings li.is-top .stand-place { color: var(--accent); }
 
-.stand-place { width: 1.8rem; color: var(--ink-mute); font-weight: 700; }
-.stand-name { flex: 1; font-weight: 700; font-size: 1.15rem; }
+.stand-place { width: 1.8rem; color: var(--ink-mute); font-weight: 600; }
+.stand-name { flex: 1; font-weight: 600; font-size: 1.15rem; }
 
 .stand-won {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  letter-spacing: var(--track-display);
-  color: var(--tpir-yellow);
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tpir-money);
 }
 
 /* ============ Editor ============ */
@@ -455,27 +454,28 @@ body {
   gap: 0.8rem;
   flex-wrap: wrap;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--panel-line);
+  border-bottom: 1px solid var(--hairline);
 }
 
-.screen-title { margin: 0; font-family: var(--font-display); font-size: 1.5rem; letter-spacing: var(--track-display); text-transform: uppercase; }
+.screen-title { margin: 0; font-family: var(--font-ui); font-size: var(--fs-title); font-weight: 600; }
 .editor-bar-actions { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
 
 .editor-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.6rem; }
 
 .editor-tab {
-  border: 1px solid var(--panel-line);
-  background: var(--panel);
+  border: 1px solid var(--hairline);
+  background: transparent;
   color: var(--ink-dim);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
+  min-height: 40px;
   padding: 0.4em 1em;
   font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-weight: 600;
+  font-size: 15px;
   cursor: pointer;
 }
 
-.editor-tab[aria-selected="true"] { background: var(--tpir-yellow); color: var(--tpir-ink-on-yellow); border-color: var(--tpir-yellow); }
+.editor-tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
 .editor-panel { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.7rem 0 2rem; }
 
@@ -485,43 +485,36 @@ body {
   gap: 0.5rem;
   padding: 0.6rem 0.8rem;
   border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
 .ed-row.is-bad { border-color: var(--tpir-red); }
 .ed-fields { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .ed-actions { display: flex; gap: 0.3rem; align-items: flex-start; }
 
-.ed-field { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; }
+.ed-field { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.9rem; color: var(--ink-dim); }
 
 .ed-field input, .ed-field select {
   font-family: var(--font-ui);
-  font-size: 0.92rem;
+  font-size: 15px;
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px solid var(--ink-faint);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   padding: 0.35em 0.5em;
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .ed-field-wide input { min-width: 16rem; }
 .ed-field-num input { width: 7rem; }
-.ed-sub { margin: 0.3rem 0 0 0.8rem; padding-left: 0.8rem; border-left: 2px solid var(--panel-line); }
-.ed-group-title { margin: 0 0 0.3rem; font-weight: 700; color: var(--tpir-yellow); font-size: 0.9rem; }
-.ed-bad { color: var(--tpir-red); font-size: 0.8rem; margin: 0.3rem 0 0; }
+.ed-sub { margin: 0.3rem 0 0 0.8rem; padding-left: 0.8rem; border-left: 1px solid var(--hairline); }
+.ed-group-title { margin: 0 0 0.3rem; font-weight: 600; color: var(--ink); font-size: 1rem; }
+.ed-bad { color: var(--red); font-size: 0.9rem; margin: 0.3rem 0 0; }
 
 /* ============ Motion ============ */
 
 @media (prefers-reduced-motion: no-preference) {
-  .tpir-podium.is-winner,
-  .sc-card.is-winner,
-  .standings li.is-top {
-    animation: gsc-pop var(--dur) var(--ease-spring) both;
-  }
-
+  /* The one reveal on this screen: the actual retail price arriving. */
   .price-tag { animation: gsc-rise var(--dur) var(--ease-out) both; }
 }
 
@@ -565,7 +558,7 @@ body.gsc-embedded #tpir-room-chip { display: none !important; }
   min-height: 0;
   overflow: hidden;
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--stage-base);
   border: 1px solid var(--panel-line);
 }
 
@@ -600,28 +593,28 @@ body.gsc-embedded #tpir-room-chip { display: none !important; }
 
 .editor-meter {
   margin: 0.4rem 0 0;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   color: var(--ink-mute);
 }
 
-.editor-meter.warn { color: var(--amber); font-weight: 700; }
+.editor-meter.warn { color: var(--amber); font-weight: 600; }
 
 .editor-manifest {
   margin: 0.6rem 0 0;
   padding: 0.7rem 0.9rem;
   border-radius: var(--radius);
-  background: var(--well);
-  border-left: 4px solid var(--tpir-green);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
-.ed-manifest-lead { margin: 0 0 0.4rem; font-size: 0.86rem; color: var(--ink-dim); }
+.ed-manifest-lead { margin: 0 0 0.4rem; font-size: 1rem; color: var(--ink-dim); }
 
 .ed-manifest-line {
   margin: 0;
   padding: 0.5rem 0.7rem;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.45);
-  color: var(--tpir-yellow);
+  background: var(--stage-base);
+  color: var(--ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
   line-height: 1.4;
@@ -639,7 +632,7 @@ body.gsc-embedded #tpir-room-chip { display: none !important; }
   gap: 0.35rem;
   padding: 0.5rem 0.6rem;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.32);
+  background: var(--stage-base);
   border: 1px solid var(--panel-line);
 }
 
@@ -651,8 +644,8 @@ body.gsc-embedded #tpir-room-chip { display: none !important; }
   font-family: var(--font-ui);
   font-size: 0.86rem;
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px solid var(--ink-faint);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   padding: 0.35em 0.5em;
 }
@@ -664,7 +657,7 @@ body.gsc-embedded #tpir-room-chip { display: none !important; }
   height: 3.4rem;
   object-fit: contain;
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--stage-base);
 }
 
 .ed-photo-size { font-size: 0.76rem; color: var(--ink-mute); }

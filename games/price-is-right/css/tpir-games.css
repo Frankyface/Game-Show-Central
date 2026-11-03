@@ -24,7 +24,8 @@
   flex-wrap: wrap;
   padding: 0.6rem 0.8rem;
   border-radius: var(--radius);
-  background: var(--well);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
 .game-pick .gsc-eyebrow { margin-right: 0.4rem; }
@@ -45,9 +46,9 @@
 .cliff-mountain {
   position: relative;
   grid-row: 1 / span 2;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, #23324d 0%, #0d1526 100%);
-  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   overflow: hidden;
   min-height: 15rem;
 }
@@ -56,9 +57,8 @@
 .cliff-slope {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top right, #6d4726 0%, #6d4726 49.6%, transparent 50%);
   clip-path: polygon(0 100%, 100% 8%, 100% 100%);
-  background: linear-gradient(160deg, #8a5a30 0%, #4a2f18 100%);
+  background: #3a3f4b;
 }
 
 .cliff-rungs { position: absolute; inset: 0; }
@@ -69,12 +69,12 @@
   bottom: calc(8% + var(--p) * 74%);
   width: 10px;
   height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 226, 170, 0.5);
+  border-radius: 1px;
+  background: var(--ink-mute);
   transform: translate(-50%, 50%);
 }
 
-.cliff-rung.is-edge { width: 18px; height: 6px; background: var(--tpir-red); }
+.cliff-rung.is-edge { width: 18px; height: 4px; background: var(--red); }
 
 .cliff-climber {
   position: absolute;
@@ -87,50 +87,58 @@
   transition: left 1s var(--ease-out), bottom 1s var(--ease-out);
 }
 
-.cliff-climber-icon { font-size: 2.1rem; line-height: 1; }
-
-.cliff-climber-steps {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  color: var(--tpir-yellow);
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: var(--radius-pill);
-  padding: 0 0.5em;
+.cliff-climber-icon {
+  display: block;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--ink);
 }
 
-.cliff-climber.is-fallen { filter: grayscale(1); opacity: 0.55; }
-.cliff-climber.is-safe .cliff-climber-steps { color: var(--tpir-green); }
+.cliff-climber-steps {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 0 0.45em;
+  margin-top: 0.2rem;
+}
+
+.cliff-climber.is-fallen { opacity: 0.45; }
+.cliff-climber.is-fallen .cliff-climber-icon { background: var(--ink-mute); }
+.cliff-climber.is-safe .cliff-climber-steps { color: var(--green); }
 
 .cliff-edge-label {
   position: absolute;
   top: 0.5rem;
   right: 0.7rem;
   margin: 0;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+  font-size: 15px;
   color: #ff9aa2;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.cliff-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.cliff-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
 .cliff-item {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0 0.6rem;
-  padding: 0.45rem 0.7rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border-left: 4px solid var(--panel-line);
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-bottom-color: var(--hairline);
 }
 
-.cliff-item.is-current { border-left-color: var(--tpir-yellow); background: var(--panel-strong); }
-.cliff-item.is-done { border-left-color: var(--tpir-blue); }
-.cliff-item-name { font-weight: 700; }
-.cliff-item-value { font-family: var(--font-display); font-size: 1.3rem; color: var(--tpir-yellow); }
-.cliff-item-note { grid-column: 1 / -1; color: var(--ink-dim); font-size: 0.8rem; }
-.cliff-prize { margin: 0; font-weight: 700; color: var(--tpir-green); }
+.cliff-item.is-current { border-color: var(--accent); }
+.cliff-item-name { font-weight: 600; }
+.cliff-item-value { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tpir-money); }
+.cliff-item:not(.is-done) .cliff-item-value { color: var(--ink-mute); }
+.cliff-item-note { grid-column: 1 / -1; color: var(--ink-dim); font-size: 0.9rem; }
+.cliff-prize { margin: 0; font-weight: 600; color: var(--ink); }
 
 /* ============================================================
    Plinko
@@ -167,15 +175,14 @@
   align-items: center;
   padding: 0.2rem 0.1rem;
   border-radius: var(--radius-sm);
-  background: rgba(29, 111, 220, 0.22);
-  border: 1px solid rgba(255, 210, 63, 0.35);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
-.plinko-value b { font-size: 0.82rem; color: var(--tpir-yellow); letter-spacing: -0.01em; }
-.plinko-value small { font-size: 0.62rem; color: var(--ink-mute); }
-.plinko-value.is-zero { background: rgba(0, 0, 0, 0.4); }
+.plinko-value b { font-size: 0.85rem; font-weight: 600; color: var(--tpir-money); }
+.plinko-value small { font-size: 0.75rem; color: var(--ink-mute); }
 .plinko-value.is-zero b { color: var(--ink-mute); }
-.plinko-value.is-top { background: rgba(230, 57, 70, 0.3); }
+.plinko-value.is-top { border-color: var(--accent); }
 
 .plinko-head { display: flex; flex-direction: column; gap: 0.7rem; }
 
@@ -186,41 +193,43 @@
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 50%;
-  background: var(--tpir-yellow);
-  border: 2px solid #1a0d05;
+  background: var(--ink);
 }
 
-.chip-dot.is-spent { background: transparent; border-color: var(--ink-faint); }
-.chip-count { color: var(--ink-dim); font-size: 0.85rem; }
+.chip-dot.is-spent { background: transparent; border: 1px solid var(--ink-mute); }
+.chip-count { color: var(--ink-dim); font-size: 0.95rem; }
 
 .small-price {
   padding: 0.7rem 0.9rem;
   border-radius: var(--radius);
-  background: var(--well);
-  border-left: 5px solid var(--tpir-red);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
 
-.small-price-name { margin: 0.2rem 0; font-weight: 700; font-size: 1.1rem; }
+.small-price-name { margin: 0.2rem 0; font-weight: 600; font-size: 1.1rem; }
 
 .small-price-value {
   margin: 0.1rem 0;
   font-family: var(--font-display);
   font-size: 2.6rem;
   line-height: 1;
-  letter-spacing: var(--track-display);
-  color: var(--tpir-yellow);
+  color: var(--tpir-money);
 }
 
-.small-price-ask { margin: 0.2rem 0 0; color: var(--ink-dim); font-size: 0.88rem; }
+.small-price-ask { margin: 0.2rem 0 0; color: var(--ink-dim); font-size: 1rem; }
 
 .plinko-board {
   width: 100%;
   min-height: 0;
-  max-height: min(25rem, 52vh);
-  filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
+  max-height: min(25rem, calc(100vh - 330px));
 }
 
-.plinko-chip { fill: var(--tpir-yellow); stroke: #1a0d05; stroke-width: 3; }
+/* Drawn flat: the board on the surface, pegs as plain dots, solid slots. */
+.plinko-board > rect:first-child { fill: var(--surface); stroke: var(--hairline); stroke-width: 1px; }
+.plinko-pegs circle { fill: var(--ink-mute); }
+.plinko-slot-row rect { stroke: var(--hairline); stroke-width: 1px; }
+.plinko-chip { fill: var(--ink); stroke: var(--stage-base); stroke-width: 2; }
+.plinko-resting circle { fill: var(--ink); stroke: var(--stage-base); }
 
 .plinko-slots { display: flex; gap: 0.3rem; flex-wrap: wrap; }
 .plinko-slot { min-width: 3rem; }
@@ -238,7 +247,7 @@
   width: 100%;
 }
 
-.l7-car { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--ink); }
+.l7-car { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--ink); }
 
 .l7-tiles { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
@@ -246,26 +255,25 @@
   min-width: 5rem;
   padding: 0.6rem 0.4rem;
   border-radius: var(--radius);
-  background: var(--well);
-  border: 2px solid var(--panel-line);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
 
-.l7-tile.is-known { border-color: var(--tpir-blue); }
-.l7-tile.is-current { border-color: var(--tpir-yellow); background: var(--panel-strong); }
+.l7-tile.is-current { border-color: var(--accent); }
 
 .l7-digit {
   font-family: var(--font-display);
   font-size: 3rem;
   line-height: 1;
-  color: var(--tpir-yellow);
+  color: var(--tpir-money);
 }
 
 .l7-tile:not(.is-known) .l7-digit { color: var(--ink-mute); }
-.l7-cost { font-size: 0.72rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; min-height: 1rem; }
+.l7-cost { font-size: 0.85rem; color: var(--ink-mute); min-height: 1rem; }
 
 .l7-wallet { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 
@@ -275,16 +283,16 @@
   display: grid;
   place-items: center;
   border-radius: 4px;
-  /* Both stops clear 4.5:1 against the $1 text (design system, contrast rule). */
-  background: linear-gradient(180deg, #2f7346 0%, #1c5230 100%);
-  border: 2px solid #7ad39a;
+  /* A solid fill that clears 4.5:1 against the $1 text. */
+  background: #2f7346;
+  border: 1px solid #7ad39a;
   color: #eafff0;
   font-style: normal;
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
-.l7-bill.is-spent { background: transparent; border-color: var(--ink-faint); color: var(--ink-mute); }
+.l7-bill.is-spent { background: transparent; border-color: var(--hairline); color: var(--ink-mute); }
 
 .l7-note { margin: 0; color: var(--ink-dim); }
 .l7-pad { display: flex; gap: 0.3rem; flex-wrap: wrap; }
@@ -292,14 +300,9 @@
 
 /* ============ Motion ============ */
 
-@media (prefers-reduced-motion: no-preference) {
-  .cliff-item.is-current,
-  .l7-tile.is-current {
-    animation: gsc-pop var(--dur) var(--ease-spring) both;
-  }
-
-  .small-price-value { animation: gsc-rise var(--dur) var(--ease-out) both; }
-}
+/* No decorative motion here: the climber's step and the chip's fall
+   (transitions / the rAF replay in tpir-games.js) are the motion that
+   carries meaning, and the shared reduce block collapses the step. */
 
 @media (max-width: 900px) {
   .cliff, .plinko { grid-template-columns: 1fr; }

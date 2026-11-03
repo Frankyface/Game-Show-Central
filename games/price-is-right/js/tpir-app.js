@@ -593,11 +593,17 @@ function tpirWirePlay() {
 function tpirWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.TpirSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.TpirSound.enabled ? "Sound" : "Muted";
+    // docs/21 rule 5: an icon beside the label, never an emoji.
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.TpirSound.enabled ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(window.TpirSound.enabled));
   };
   sound.addEventListener("click", () => { window.TpirSound.toggle(); paint(); });
   paint();
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   document.addEventListener("keydown", tpirOnKey);
   window.addEventListener("beforeunload", tpirSave);
   document.addEventListener("visibilitychange", () => { if (document.hidden) tpirSave(); });
@@ -605,7 +611,7 @@ function tpirWireChrome() {
 
 /* ============ Splash ============ */
 
-const TPIR_SPLASH_MS = 1200;
+const TPIR_SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
 let tpirSplashTimer = null;
 
 /**
@@ -620,7 +626,7 @@ function tpirShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return;
   setText("gsc-splash-title", "The Price Is Right");
-  setText("gsc-splash-sub", "Come on down.");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "price-is-right";
   node.classList.remove("hidden");
   if (tpirSplashTimer) clearTimeout(tpirSplashTimer);

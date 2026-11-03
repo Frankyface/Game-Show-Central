@@ -1,7 +1,7 @@
 /* ============================================================
    The Price Is Right — WebAudio cues
    Synthesised, no audio files, nothing plays before a user
-   gesture. The 🔊 preference is shared with the rest of the hub
+   gesture. The sound preference is shared with the rest of the hub
    under localStorage key `gsc-sound` (architecture 00 §10).
    The show's signature is bright and brassy: a two-note "come on
    down", wooden ticks for the wheel and the Plinko pegs, a

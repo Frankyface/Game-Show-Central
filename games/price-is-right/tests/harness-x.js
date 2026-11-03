@@ -64,8 +64,8 @@ window.HarnessX = function buildCrossCuttingScenarios(ctx) {
     && HW().TpirApp.state().content.title === title
     && H("btn-resume").classList.contains("hidden"),
     players + " players, " + title);
-  check("X-1 the toolbar control is put away when no show is running",
-    H("btn-game-lobby").classList.contains("hidden"));
+  check("X-1 the toolbar control stays in the bar but is disabled when no show is running",
+    !H("btn-game-lobby").classList.contains("hidden") && H("btn-game-lobby").disabled === true);
   }
 
   async function scenarioPhotos() {

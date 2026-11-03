@@ -68,7 +68,7 @@ Fewer than four players is fine: the row simply has fewer seats and, with four
 or fewer players, the winner sits back down after their pricing game. One
 player can run the whole show alone.
 
-**⟲ Game lobby** on the toolbar steps out of a running show without losing it.
+**Game lobby** on the toolbar (disabled until a show is running) steps out of a running show without losing it.
 It asks first:
 
 - **Keep this game** parks the show and returns to setup, where a **Resume the
@@ -146,7 +146,7 @@ names the field it is complaining about.
 
 **Prize editor** on the toolbar opens tabs for the settings and each list, with
 add, remove and reorder, and a banner that says exactly why a file would not
-load. Every prize row carries a **📷** button: paste a photo URL, or **Choose
+load. Every prize row carries a **Photo** button: paste a photo URL, or **Choose
 file…** and the browser downscales it (1024 px long edge, JPEG q0.75) and embeds
 it as a data URI. A running **Embedded photos: ~N MB** meter warns before a
 draft gets too big for `localStorage` — link big pictures by URL instead. **Download JSON** writes a file, **Use in game** adopts the draft

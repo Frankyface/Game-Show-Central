@@ -522,3 +522,87 @@ now tags every prize with a photo so whichever item is drawn shows one.
   screen still fits exactly).
 - The from-disk (`file://`) picker path is the shared module's behaviour
   (it hides with a plain-English message); not re-exercised here.
+
+---
+
+## 11. v3 UI pass (docs/21-ui-cleanup-brief.md, design-system §0)
+
+The user said the UI "looked fake". This pass changes the CSS and markup
+only. JS was touched just for icons, the toolbar, the splash timing, the
+Game lobby disabled state and removing emoji. Helper scripts are in
+`.scratch/tpir-v3-*.cjs`.
+
+Verified on `python -m http.server 8691`:
+- `node --test`: 111 / 111 pass.
+- `tests/harness.html`: **All 80 checks passed**, run before and after the pass.
+
+### What changed
+
+- **Stage and surfaces.**
+  - The local carnival look is gone: no gradients, bevels, drop-shadows, glow or wells-inside-panels.
+  - The body paints the shared flat `--stage-bg`, so the red is a 5 % tint.
+  - There is one surface level (`--surface` + 1 px `--hairline` + 8 px radius).
+  - Lists inside cards (players, showcase prizes, Cliff Hangers items, phone lists) are hairline-divided rows, not nested boxes.
+  - The accent rails on the item card, plan note, small price, showcase cards, standings and editor manifest are removed.
+- **Bid podiums are flat tiles.**
+  - Border is the hairline by default and the accent only for the winner (the one active state).
+  - The words "Over" / "Comes on down" / "Bid placed" carry the meaning, so colour is never the only signal.
+- **Set pieces kept, drawn flat.**
+  - Cliff Hangers: a solid slope on the surface, ink-mute rungs and a red edge rung. The climber is a flat accent disc (the 🧗 emoji is gone), and its step transition is kept because the step means something.
+  - Plinko: board on the surface, plain peg dots, hairline slots and an ink chip. The drop replay is kept.
+  - Lucky Seven: hairline digit tiles and solid $1 bills.
+  - Big wheel: the cylinder-shading overlay is hidden and the frame is a hairline. The spin is kept.
+- **Type.**
+  - Inter 400/500/600 everywhere: no uppercase and no letter-spacing anywhere.
+  - Anton appears at most once per play screen (measured): the item name (row), the shown small price (Plinko answers), the digits (Lucky Seven), the wheel readout (showdown) and "Final standings".
+  - The setup title is Inter, with one plain sentence: "Add the players in seating order, then press Start the show."
+  - The eyebrows "Come on down", "Up for bid" and "That is the show" are deleted.
+- **Colour.**
+  - Gold (`--tpir-money` = `--gold-text`) is used only on money: bids, prices, values, winnings, the wheel total.
+  - The accent marks the active state, the primary button and the selected editor tab.
+  - `.btn-blue` is now the secondary hairline-outline button.
+- **Toolbar (rule 9).**
+  - Game name in Inter 600 18 px, then **Sound · Editor · Game lobby**, each an icon from `GSCIcons` plus a text label.
+  - Sound reads "Sound" / "Muted".
+  - **Game lobby is always in the bar and is disabled, not hidden, on the setup screen** (coordinator's toolbar rule; the harness check now asserts disabled-not-hidden).
+  - Undo, End the night, the segment status, the room code and "Back to lobby" moved out of the toolbar into a play bar inside the main area, shown only when it has something to show.
+- **Emoji.**
+  - Host DOM text has none. The editor's 📷 is now the `GSCIcons` edit icon plus "Photo".
+  - "⚠ photo failed to load" is now plain text.
+- **Splash.** A 600 ms plain card with no kicker and no sub line; still skipped when embedded or under reduced motion.
+- **Motion.** Removed the pop on winners and current tiles, the rise on the small price and the idle pulse on the phone SPIN button. Kept the price-reveal rise, the climber step, the Plinko drop and the wheel spin.
+- **Phones.**
+  - Flat card, Inter headings.
+  - The amount being typed stays the Anton hero in gold.
+  - The pad and slot buttons are Inter 600 at 56 px or more.
+
+### C-4 (cross-cutting verification)
+
+`sets/tech-and-gadgets.json` listed "Ultrawide monitor" both as a One Bid item and in Showcase 1. The showcase prize is now "Motorised standing desk" ($720, "Memory presets, oak top"). A scan of all three prize files finds no remaining duplicate names.
+
+### Measurements
+
+| Check | Result |
+| --- | --- |
+| 1280×720 standalone, full episode | every play screen 720 / 720 |
+| 1280×676 (the hub frame), full episode | every play screen 676 / 676; the harness's own 1280×676 embedded frame passes too |
+| Setup screen | scrolls at 720 tall (902 px); setup may scroll (docs/21 §3) |
+| Phone 320×640 | 59 targets measured across 7 screens, none under 56 px; no sideways scroll |
+| Contrast (DOM sample of every visible text node, every screen) | no pair under 4.5:1 |
+| `text-shadow` / `backdrop-filter` / gradient under text | none |
+| Emoji in host DOM text | none |
+| Reduced motion, CSSOM walk incl. the shared sheets | 11 `@keyframes`, 2 `animation:` rules; all inside `prefers-reduced-motion: no-preference` |
+| Toolbar order (UI-12) | Sound · Editor · Game lobby |
+| Files < 800 lines; longest touched functions | `tpirWireChrome` 18, `renderChrome` 13 |
+
+### Per-game checklist (design-system §0)
+
+- [x] `data-gsc-game="price-is-right"`; no local `--accent*` / `--stage-glow`; no body gradient.
+- [x] One Anton hero per screen at most; no uppercase or letter-spacing; decorative eyebrows deleted; body text ≥ 16 px, controls ≥ 15 px.
+- [x] Accent only for the active state, the primary button and the selected tab; gold only on money; no text-shadow, glow or neon.
+- [x] One panel level; no backdrop-filter, nested translucent panels or accent rails; hairline dividers.
+- [x] Buttons are the shared v3 `.btn` (6 px, sentence case, 600); `.btn-blue` is the secondary outline; no gradients.
+- [x] No emoji in host DOM text; `GSCIcons` beside a label on Sound, Editor, Game lobby and Photo.
+- [x] Only meaningful motion; every animation guarded; splash 600 ms plain.
+- [x] Toolbar: name left; Sound · Editor · Game lobby right; nothing else in the bar.
+- [x] Gates: unit tests and harness green; 720 and 676 fit; phone ≥ 56 px; contrast ≥ 4.5.

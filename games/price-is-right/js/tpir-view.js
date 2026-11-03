@@ -75,7 +75,8 @@ const TpirView = (function () {
     const playing = !!state && state.phase !== "setup";
     show($("btn-undo"), playing && state.history.length > 0);
     show($("btn-finish"), playing && state.phase !== "standings");
-    show($("btn-game-lobby"), playing);
+    const lobby = $("btn-game-lobby");
+    if (lobby) { show(lobby, true); lobby.disabled = !playing; }
     const chip = $("tpir-segment-chip");
     if (chip) {
       chip.textContent = segmentLabel(state);

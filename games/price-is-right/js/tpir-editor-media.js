@@ -311,12 +311,13 @@
     const box = el("div", "ed-photo");
     const feedback = el("div", "ed-photo-feedback");
 
-    const toggle = TpirView.button("📷", "btn btn-ghost btn-small ed-photo-toggle", () => {
+    const toggle = TpirView.button("Photo", "btn btn-ghost btn-small ed-photo-toggle", () => {
       const open = panel.classList.contains("hidden");
       show(panel, open);
       toggle.setAttribute("aria-expanded", String(open));
     });
     toggle.setAttribute("aria-expanded", "false");
+    if (window.GSCIcons) window.GSCIcons.prepend(toggle, "edit");
     toggle.title = "Photo for this prize";
     toggle.setAttribute("aria-label", "Photo for this prize");
 
