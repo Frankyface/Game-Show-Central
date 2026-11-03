@@ -92,8 +92,10 @@ function wwmCue(event, before, after) {
 /* ============ Persistence ============ */
 
 function wwmSerialise() {
+  // A live lifeline window is written PAUSED (time left, no deadline) so a
+  // reload resumes it with the time it had, not with the time that passed.
   return {
-    core: wwmApp.core, resumable: wwmApp.resumable,
+    core: window.WwmCore.pauseTimers(wwmApp.core, Date.now()), resumable: wwmApp.resumable,
     game: wwmApp.game, setup: wwmApp.setup, source: wwmApp.source,
     sourceKind: wwmApp.sourceKind, sourceUrl: wwmApp.sourceUrl, roomCode: wwmApp.roomCode,
   };
@@ -314,6 +316,7 @@ function wwmResumeNote(state) {
 
 function wwmOpenLobbyConfirm() {
   const state = wwmApp.core;
+  if (!state) return;   // on setup the control is disabled; nothing to park or clear
   setText("wwm-lobby-sub", state
     ? `Keep ${wwmResumeNote(state)} to come back to it, or start over with the same`
       + " contestants, questions and settings."
@@ -334,7 +337,8 @@ function wwmCloseLobbyConfirm() {
 function wwmLobbyKeep() {
   wwmCloseLobbyConfirm();
   if (!wwmApp.core) return;
-  wwmSet({ resumable: wwmApp.core, core: null });
+  // Parked with its lifeline clock stopped; Resume restarts it from the time left.
+  wwmSet({ resumable: window.WwmCore.pauseTimers(wwmApp.core, Date.now()), core: null });
   wwmError("");
 }
 
@@ -349,7 +353,7 @@ function wwmLobbyRestart() {
 function wwmResume() {
   const parked = wwmApp.resumable;
   if (!parked) return;
-  wwmSet({ core: parked, resumable: null });
+  wwmSet({ core: window.WwmCore.resumeTimers(parked, Date.now()), resumable: null });
   wwmError("");
 }
 
@@ -608,7 +612,7 @@ function wwmChooseContent(saved, loaded) {
   };
   if (saved && saved.setup) patch.setup = wwmMergeRoster(saved.setup, wwmApp.setup.players);
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
-  if (useSaved && saved.core) patch.core = saved.core;
+  if (useSaved && saved.core) patch.core = window.WwmCore.resumeTimers(saved.core, Date.now());
   if (useSaved && saved.resumable) patch.resumable = saved.resumable;
   if (!useSaved && saved && saved.core && !wwmLoadMessage) {
     wwmLoadMessage = "Loaded the questions from the link, so the game in progress was cleared.";

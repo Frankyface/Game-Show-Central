@@ -369,14 +369,17 @@
 
       // ---- M-I5: reload the host mid-window ----
       const deadline = core().audience.deadline;
+      const leftBefore = deadline - HW().Date.now();
       const rung = core().rung;
       await bootHost(false);
       await waitFor(() => core() && core().phase === "hotseat", "resume after reload");
       check("M-I5 a reload mid-question restores the running audience window",
-        core().audience.open === true && core().audience.deadline === deadline
+        core().audience.open === true && core().audience.deadline > deadline
+        && core().audience.deadline - HW().Date.now() > leftBefore - 1500
         && core().rung === rung && HW().WwmCore.chart(core()).total === 3
         && !H("wwm-audience").classList.contains("hidden"),
-        `rung ${core().rung}, deadline ${core().audience.deadline === deadline ? "identical" : "CHANGED"}, `
+        `rung ${core().rung}, paused over the reload: ${Math.round(leftBefore / 100) / 10}s left before, `
+        + `${Math.round((core().audience.deadline - HW().Date.now()) / 100) / 10}s after, `
         + `${HW().WwmCore.chart(core()).total} votes still counted`);
       check("M-I5 the reload keeps the spent lifelines and the contestant",
         core().current === "p1" && core().lifelines.fifty === false && core().lifelines.audience === false,

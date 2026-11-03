@@ -72,37 +72,46 @@ window.WwmXScenarios = function WwmXScenarios(bag) {
       && H("btn-resume").classList.contains("hidden"),
       `${roster} · ${title}`);
 
-    // --- mid-question, with a live audience window: the deadline must survive ---
+    // --- mid-question, with a live audience window: the clock pauses while parked ---
     await seatWithAudienceOpen();
     const live = JSON.parse(JSON.stringify(core()));
     const deadline = core().audience.deadline;
+    const leftAtPark = deadline - HW().Date.now();
     click("btn-game-lobby");
     click("btn-lobby-keep");
-    check("X-1 Keep works from the hot seat too, mid-lifeline",
-      core() === null && HW().WwmApp.state().resumable.audience.open === true
+    const parked = HW().WwmApp.state().resumable;
+    check("X-1 Keep works from the hot seat too, and pauses the audience clock",
+      core() === null && parked.audience.open === true && parked.audience.deadline === null
+      && parked.audience.remainingMs > leftAtPark - 1000 && parked.audience.remainingMs <= leftAtPark + 50
       && H("wwm-audience").classList.contains("hidden"),
-      H("wwm-resume-note").textContent);
+      `${Math.round(parked.audience.remainingMs / 100) / 10}s kept on the shelf`);
     click("btn-resume");
-    check("X-1 Resume restores an OPEN audience window with the same deadline",
-      core().audience.open === true && core().audience.deadline === deadline
+    const restored = JSON.parse(JSON.stringify(core()));
+    restored.audience.deadline = live.audience.deadline;
+    check("X-1 Resume restores an OPEN audience window with the time it had left",
+      core().audience.open === true && core().audience.deadline >= deadline
+      && core().audience.deadline - HW().Date.now() > leftAtPark - 1000
       && HW().WwmCore.chart(core()).total === 1
       && !H("wwm-audience").classList.contains("hidden")
-      && JSON.stringify(core()) === JSON.stringify(live),
-      `deadline ${core().audience.deadline === deadline ? "identical" : "CHANGED"}, `
+      && JSON.stringify(restored) === JSON.stringify(live),
+      `${Math.round((core().audience.deadline - HW().Date.now()) / 100) / 10}s left after Resume, `
       + `${HW().WwmCore.chart(core()).total} vote(s) kept`);
 
-    // --- and the parked game survives a reload ---
+    // --- and the parked game survives a reload, still paused ---
     click("btn-game-lobby");
     click("btn-lobby-keep");
+    const shelfLeft = HW().WwmApp.state().resumable.audience.remainingMs;
     await bootHost(false);
     await waitFor(() => HW().WwmApp.state().resumable, "the parked game comes back");
-    check("X-1 a parked game survives a reload and still resumes",
+    check("X-1 a parked game survives a reload and still resumes, clock still paused",
       core() === null && !H("btn-resume").classList.contains("hidden")
-      && HW().WwmApp.state().resumable.audience.deadline === deadline,
+      && HW().WwmApp.state().resumable.audience.deadline === null
+      && HW().WwmApp.state().resumable.audience.remainingMs === shelfLeft,
       H("wwm-resume-note").textContent);
     click("btn-resume");
     check("X-1 the resumed game is the one that was parked",
-      core().audience.deadline === deadline && core().phase === "hotseat");
+      core().audience.open === true && core().phase === "hotseat"
+      && core().audience.deadline - HW().Date.now() > shelfLeft - 1000);
     click("btn-game-lobby");
     click("btn-lobby-restart");     // leave a clean setup for the library checks
     await waitFor(() => core() === null, "back to a clean setup");

@@ -377,6 +377,15 @@ test("M-U7 phone a friend runs on an injected clock and only cues", () => {
   const later = Core.reduce(s, { type: "select", idx: 1 }, fixed(0), 999999);
   assert.equal(later.selected, 1);
   assert.equal(later.phone.open, true);
+  // Parked or saved, the window stops; it resumes with the time it had left.
+  const paused = Core.pauseTimers(s, 20000);
+  assert.equal(paused.phone.deadline, null);
+  assert.equal(paused.phone.remainingMs, 15000);
+  assert.equal(Core.pauseTimers(paused, 90000), paused, "pausing twice changes nothing");
+  const back = Core.resumeTimers(paused, 500000);
+  assert.equal(back.phone.deadline, 515000, "resumes with 15 s left, not 0");
+  assert.equal("remainingMs" in back.phone, false);
+  assert.equal(Core.resumeTimers(s, 1), s, "a running window is left alone");
   const done = Core.reduce(s, { type: "phoneDone" }, fixed(0), 7000);
   assert.equal(done.phone.open, false);
   assert.equal(done.phone.deadline, null);

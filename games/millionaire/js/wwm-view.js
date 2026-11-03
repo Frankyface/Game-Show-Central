@@ -64,6 +64,12 @@ const WwmView = (function () {
     const wanted = app.editorOpen ? "editor" : phaseScreen(app.core);
     SCREENS.forEach((name) => show($(`screen-${name}`), !app.editorOpen && name === wanted));
     show($("screen-editor"), app.editorOpen);
+    // Toolbar rule: present everywhere, disabled while nothing is in play.
+    const lobby = $("btn-game-lobby");
+    if (lobby) {
+      lobby.disabled = !app.core;
+      lobby.title = app.core ? "" : "No game in progress";
+    }
   }
 
   /* ============ Setup ============ */

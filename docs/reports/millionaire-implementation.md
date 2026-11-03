@@ -479,3 +479,29 @@ seat, vote, locked and result.
 **Checklist:** tokens/stage ✓ · type ✓ · colour ✓ · surfaces ✓ (the shared
 `.gsc-library` picker sits inside the setup card as the design system draws
 it) · buttons ✓ · icons ✓ · motion ✓ · toolbar ✓ · copy ✓ · gates ✓.
+
+## 12. Cross-cutting verification follow-ups (M-1, toolbar rule)
+
+**M-1 — lifeline clocks pause while a game is parked or saved.** This now matches every other game.
+- Two pure helpers were added to `js/wwm-core.js` and exported on `WwmCore`:
+  - `pauseTimers(state, now)` turns an open Phone a Friend or Ask the Audience window's absolute `deadline` into `remainingMs` (deadline `null`).
+  - `resumeTimers(state, now)` rebuilds `deadline = now + remainingMs`.
+- Neither is a reducer event, so neither adds a history step.
+- `js/wwm-app.js` uses them in four places:
+  - **Keep this game** parks the state paused.
+  - **Resume** restarts it.
+  - Every save (including `beforeunload`) writes the live game paused.
+  - Boot resumes a saved game from the time it had left.
+- The parked shelf stays paused across reloads until Resume.
+
+Verified standalone with `.scratch/wwm-m1-check.mjs`. A Phone a Friend window had 26.8 s left. The tab went away for about 5 s and came back. The stored state held `deadline: null, remainingMs: 26635`. After the reload it had 26.1 s left, so it kept its time instead of losing the 5 s.
+
+**Toolbar rule.** On setup (no game in play) `#btn-game-lobby` is present, visible and **disabled**, with the title "No game in progress". It is enabled whenever a game is in play. `wwmOpenLobbyConfirm` now returns early with no game, so the old "nothing in progress" dialog text is never shown.
+
+**Tests.**
+- `node --test` is still **67/67**. M-U7 gained pause/resume assertions (15 s left resumes as 15 s; pausing twice is a no-op; a running window is left alone) without adding a test.
+- `tests/harness.html` is still **79/79**. M-I5 and three X-1 checks now assert the paused behaviour instead of an identical deadline:
+  - the shelf holds `remainingMs` with no deadline;
+  - Resume comes back with the time that was left and is otherwise identical to the game that was parked;
+  - after a reload the shelf is still paused with the same `remainingMs`;
+  - a reload mid-window resumes with a later deadline and the same time left.

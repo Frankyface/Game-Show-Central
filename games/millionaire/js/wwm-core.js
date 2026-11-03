@@ -530,6 +530,44 @@
     return Object.assign({}, state, { request: null });
   }
 
+  /* ============ Pausing the lifeline windows ============ */
+
+  /** Freeze one window: drop the deadline, keep how much time it had left. */
+  function pauseWindow(win, now) {
+    if (!win || !win.open || !Number.isFinite(win.deadline)) return win;
+    return Object.assign({}, win, { deadline: null, remainingMs: Math.max(0, win.deadline - now) });
+  }
+
+  /** Restart a frozen window from the time it had left. */
+  function resumeWindow(win, now) {
+    if (!win || !win.open || !Number.isFinite(win.remainingMs)) return win;
+    const next = Object.assign({}, win, { deadline: now + win.remainingMs });
+    delete next.remainingMs;
+    return next;
+  }
+
+  /**
+   * The Phone a Friend and Ask the Audience clocks stop while a game is
+   * parked ("Keep this game") or sitting in localStorage, and carry on with
+   * the time they had left when it comes back — the same rule every other
+   * game's clock follows. Not reducer events: no history, no undo step.
+   */
+  function pauseTimers(state, now) {
+    if (!state || !state.audience || !state.phone) return state;
+    const audience = pauseWindow(state.audience, now);
+    const phone = pauseWindow(state.phone, now);
+    if (audience === state.audience && phone === state.phone) return state;
+    return Object.assign({}, state, { audience, phone });
+  }
+
+  function resumeTimers(state, now) {
+    if (!state || !state.audience || !state.phone) return state;
+    const audience = resumeWindow(state.audience, now);
+    const phone = resumeWindow(state.phone, now);
+    if (audience === state.audience && phone === state.phone) return state;
+    return Object.assign({}, state, { audience, phone });
+  }
+
   /* ============ Undo ============ */
 
   function evUndo(state) {
@@ -551,7 +589,7 @@
     validateGame, normalizeGame, warningsFor, drawQuestion, drawFff,
     fiftyFiftyPair, largestRemainder, cleanText,
     // state
-    createState, reduce, legalActions, SWITCH_UNAVAILABLE,
+    createState, reduce, legalActions, SWITCH_UNAVAILABLE, pauseTimers, resumeTimers,
     // money
     rungValue, playingRung, bankedValue, winningsIfWalk, winningsIfWrong, isSafeHaven,
     moneyTreeView, formatMoney, rungCount,
