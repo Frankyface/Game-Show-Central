@@ -1,0 +1,16 @@
+[
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Scooters, trampolines and a backyard water park. Smaller bonuses and a gentler Plinko board.",
+    "by": "Game Show Central",
+    "counts": { "one bid": 12, "cliffhangers": 3, "plinko": 3, "lucky seven": 3, "showcases": 4 }
+  },
+  {
+    "file": "tech-and-gadgets.json",
+    "name": "Tech & gadgets",
+    "description": "Keyboards, drones, an OLED wall and three electric cars. Standard bonuses.",
+    "by": "Game Show Central",
+    "counts": { "one bid": 12, "cliffhangers": 3, "plinko": 3, "lucky seven": 3, "showcases": 4 }
+  }
+]

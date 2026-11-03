@@ -81,6 +81,11 @@ const GAME_REGISTRY = [
     tagline: "Fill in the blank. Match the panel.",
     phone: ["secret panel answers", "audience match"], players: [3, 16],
   },
+  {
+    id: "krillion", name: "Krillion", path: "games/krillion/", icon: "🐡", accent: "#2ee6c5",
+    tagline: "The rarest answer wins.",
+    phone: ["everyone answers", "pass the puffer"], players: [2, 16],
+  },
 ];
 
 const HubRegistry = (function () {

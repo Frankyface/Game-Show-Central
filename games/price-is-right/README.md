@@ -19,6 +19,7 @@ never a requirement.
 | **On its own, with phones** | Press **Open room (phones)** on the setup screen and read out the join link. |
 | **From disk** | Double-click `index.html`. `prizes.json` cannot be fetched from `file://`, so the identical copy in `js/data.js` is used instead. |
 | **Your own prizes** | `index.html?game=https://example.com/my-prizes.json`, or **Load prizes (.json)**, or build a file in the **Prize editor**. |
+| **A set from the library** | Pick one under **Saved prize sets** on the setup screen and press **Load set**. |
 
 A `?game=` link always wins over a saved show unless that save came from the
 same link, so a shared link never silently serves somebody's old prizes.
@@ -26,7 +27,7 @@ same link, so a shared link never silently serves somebody's old prizes.
 Tests:
 
 ```bash
-cd games/price-is-right && node --test          # 106 unit tests (P-U1 … P-U10, A1 … A10)
+cd games/price-is-right && node --test          # 111 unit tests (P-U1 … P-U10, A1 … A10, X-2, X-4)
 python -m http.server 8620                      # from the repo root, then open
 #   http://localhost:8620/games/price-is-right/tests/harness.html
 ```
@@ -66,6 +67,15 @@ python -m http.server 8620                      # from the repo root, then open
 Fewer than four players is fine: the row simply has fewer seats and, with four
 or fewer players, the winner sits back down after their pricing game. One
 player can run the whole show alone.
+
+**⟲ Game lobby** on the toolbar steps out of a running show without losing it.
+It asks first:
+
+- **Keep this game** parks the show and returns to setup, where a **Resume the
+  show** button puts it back exactly as it was — including the undo history, and
+  across a reload, because the parked show is saved with everything else.
+- **Start over** clears the show. The line-up, the prizes and the settings all
+  stay, so you can start a fresh episode with the same room.
 
 **Undo** is on the toolbar and steps back through everything, up to 60 moves.
 Hotkeys while the host screen has focus: <kbd>U</kbd> undo, <kbd>N</kbd> next
@@ -109,6 +119,24 @@ segment, <kbd>R</kbd> reveal the bids.
 }
 ```
 
+Every prize also takes an optional **photo**: `image` plus `imageAlt`. It works
+on One Bid items, Cliff Hangers items and their prize, Lucky Seven cars and
+showcase prizes.
+
+| `image` | Allowed? |
+| --- | --- |
+| `img/espresso-machine.svg` — a path inside the repo | yes |
+| `https://example.com/prize.jpg` | yes |
+| `data:image/png;base64,…` — embedded by the editor | yes |
+| `javascript:…`, `data:text/html,…`, `file:…`, `blob:…`, `//host/x.png` | **no** |
+
+One gate (`js/tpir-media.js`) checks every reference — the loaded file, a
+`?game=` URL, an upload and the editor all go through it, and it is the only
+place an `<img>` is built. **Photos never reach a phone**: `phoneView` strips
+`image` and `imageAlt` from every screen it sends, so a player's handset shows
+names and notes only. The shipped file ships two photos as tiny repo SVGs under
+`img/`; write `imageAlt` for every one you add.
+
 The shipped file carries 12 One Bid items, 3 Cliff Hangers sets, 3 Plinko sets,
 3 Lucky Seven cars and 4 showcases — enough for a full six-game episode without
 repeating anything. Every message the validator produces is plain English and
@@ -118,10 +146,43 @@ names the field it is complaining about.
 
 **Prize editor** on the toolbar opens tabs for the settings and each list, with
 add, remove and reorder, and a banner that says exactly why a file would not
-load. **Download JSON** writes a file, **Use in game** adopts the draft
+load. Every prize row carries a **📷** button: paste a photo URL, or **Choose
+file…** and the browser downscales it (1024 px long edge, JPEG q0.75) and embeds
+it as a data URI. A running **Embedded photos: ~N MB** meter warns before a
+draft gets too big for `localStorage` — link big pictures by URL instead. **Download JSON** writes a file, **Use in game** adopts the draft
 immediately, **Reset to shipped** restores the built-in prizes and **Start
-blank** gives a minimal valid file to build on. The draft auto-saves under
+blank** gives a minimal valid file to build on. **Download for the library**
+writes the set under a tidy file name and prints the exact manifest row to paste
+into `sets/index.json` and the path to commit it to. The draft auto-saves under
 `gsc-tpir-draft-v1`, so a reload never loses typing.
+
+---
+
+## The set library
+
+`sets/` holds extra prize files committed beside the game, listed in
+`sets/index.json`:
+
+```json
+[{ "file": "kids-night.json", "name": "Kids' night",
+   "description": "Scooters, trampolines and a backyard water park.",
+   "by": "Game Show Central",
+   "counts": { "one bid": 12, "cliffhangers": 3, "plinko": 3, "lucky seven": 3, "showcases": 4 } }]
+```
+
+Two sets ship: **Kids' night** (smaller bonuses, a gentler Plinko board) and
+**Tech & gadgets** (three electric cars and an OLED wall). Both are full-sized —
+12 One Bid items, three sets of each pricing game, four showcases — so either
+one runs a whole episode on its own. The setup screen's **Saved prize sets**
+picker lists them; **Load set** validates the file through the same
+`validateGame` a `?game=` URL goes through and, on success, the source note
+becomes `set: Kids' night`.
+
+**Adding your own set** — static hosting cannot write files, so the workflow is:
+build it in the editor, press **Download for the library**, drop the file into
+`games/price-is-right/sets/`, and paste the manifest row the editor printed into
+`sets/index.json`. Opened from disk (`file://`) the picker hides itself and says
+why, because it cannot fetch the manifest.
 
 ---
 
@@ -158,35 +219,46 @@ next segment gives every phone its controls back.
 
 | File | Lines | What it holds |
 | --- | --- | --- |
-| `index.html` | 264 | Every host screen and the phone screen, in one page |
-| `prizes.json` | 112 | The shipped prizes |
-| `js/tpir-content.js` | 432 | **Pure**: the JSON contract, validation, normalisation, the draw |
-| `js/tpir-select.js` | 466 | **Pure**: the plan, One Bid, the climb, the bounce, the wheel, the showcase, `phoneView` |
-| `js/tpir-core.js` | 744 | **Pure**: the immutable reducer, `legalActions`, undo |
-| `js/data.js` | 350 | The offline copy of `prizes.json` |
+| `index.html` | 289 | Every host screen and the phone screen, in one page |
+| `prizes.json` | 118 | The shipped prizes |
+| `js/tpir-content.js` | 462 | **Pure**: the JSON contract, validation, normalisation, the draw |
+| `js/tpir-media.js` | 127 | The one gate for a prize photo, and the only place an image element is built |
+| `js/tpir-select.js` | 481 | **Pure**: the plan, One Bid, the climb, the bounce, the wheel, the showcase, `phoneView` |
+| `js/tpir-core.js` | 747 | **Pure**: the immutable reducer, `legalActions`, undo |
+| `js/data.js` | 354 | The offline copy of `prizes.json` |
 | `js/tpir-sound.js` | 136 | WebAudio cues, no audio files |
 | `js/tpir-wheel.js` | 266 | The big wheel drawn as a vertical drum, and its spin |
-| `js/tpir-view.js` | 473 | The host screens (and the shared `$`, `el`, `show`, `setText`) |
-| `js/tpir-games.js` | 471 | The three pricing-game stages and the Plinko chip animation |
-| `js/tpir-app.js` | 694 | Host glue: state, persistence, content loading, buttons, hotkeys |
-| `js/tpir-editor.js` | 410 | The prize editor |
+| `js/tpir-view.js` | 499 | The host screens (and the shared `$`, `el`, `show`, `setText`) |
+| `js/tpir-games.js` | 488 | The three pricing-game stages and the Plinko chip animation |
+| `js/tpir-app.js` | 729 | Host glue: state, persistence, content loading, buttons, hotkeys |
+| `js/tpir-setup.js` | 95 | The Game lobby confirm and the set-library picker |
+| `js/tpir-editor.js` | 471 | The prize editor |
+| `js/tpir-editor-media.js` | 369 | The editor photo control: downscale, embed, thumbnail, size meter |
 | `js/tpir-room.js` | 244 | Host glue on `GSC.host`: intents in, masked views out |
 | `js/tpir-phone.js` | 232 | The phone controller |
-| `css/tpir.css` | 552 | The carnival stage, the host furniture |
-| `css/tpir-games.css` | 308 | The three pricing-game stages |
+| `css/tpir.css` | 671 | The carnival stage, the host furniture |
+| `css/tpir-games.css` | 316 | The three pricing-game stages |
 | `css/tpir-phone.css` | 139 | The phone, 320 px and up |
-| `tests/helpers.mjs` | 123 | Shared unit-test fixtures |
-| `tests/tpir-core.test.mjs` | 396 | P-U1 … P-U5: content, the row, the three games |
+| `tests/helpers.mjs` | 124 | Shared unit-test fixtures |
+| `tests/tpir-core.test.mjs` | 539 | P-U1 … P-U5: content, the row, the three games |
 | `tests/tpir-show.test.mjs` | 410 | P-U6 … P-U10: the wheel, the showcase, the plan, undo, phones |
 | `tests/adversarial-helpers.mjs` | 98 | Shared fixtures for the two adversarial suites |
 | `tests/tpir-adversarial.test.mjs` | 573 | A1 … A6 (tester): row, cliff, plinko, Lucky Seven, wheel, showcase edges |
 | `tests/tpir-adversarial-show.test.mjs` | 449 | A7 … A10 (tester): plan, validator fuzz, phone fuzz, immutability, undo |
-| `tests/harness.html` | 798 | The loopback harness, P-I1 … P-I6 (60 checks) |
+| `tests/harness-lib.js` | 82 | Harness result plumbing and async helpers |
+| `tests/harness-x.js` | 196 | Harness scenarios for the cross-cutting round (X-1 … X-4) |
+| `tests/harness.html` | 759 | The loopback harness: P-I1 … P-I6 plus X-1 … X-4 |
+| `sets/index.json` | 16 | The set-library manifest |
+| `sets/kids-night.json` | 112 | Library set: Kids’ night |
+| `sets/tech-and-gadgets.json` | 113 | Library set: Tech & gadgets |
 
 The four accent tokens (`--accent`, `--accent-2`, `--accent-ink`,
 `--stage-glow`) come from `shared/theme.css`, so the hub shell bar, the
 game-switch splash and this page all wear the same carnival red; the show's own
 yellow, blue and green live in the `--tpir-*` tokens in `css/tpir.css`.
+
+Two tiny CSS-free SVGs live in `img/` — the photos the shipped prize file
+points at.
 
 The core is split across three files (`tpir-content.js` + `tpir-select.js` +
 `tpir-core.js`) and the unit suite across two, to stay under the 800-line house
@@ -208,7 +280,9 @@ leaves harness prizes in the real host page's save. Sound preference:
 - The Plinko board is drawn with 12 peg rows; the core rolls that bounce and
   the animation replays it, so the odds are the core's, not the animation's.
 - A pricing game is played once per contestant; there is no "play it again".
-- Prizes are text only — there is no image hosting (spec 10 §1, non-goals).
+- Prize photos are shown on the host screen only, never on a phone. There is no
+  image hosting: a photo is a repo path, a URL you host, or a data URI embedded
+  in the prize file.
 - With one or two players the Showcase Showdown can have a single spinner, who
   wins it by default; the show still reaches a showcase and a set of standings.
 - **A phone that joins mid-show watches until the next show.** Contestants' Row

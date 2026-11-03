@@ -1,0 +1,112 @@
+{
+  "title": "The Price Is Right — Kids' night",
+  "settings": {
+    "currency": "$",
+    "exactBidBonus": 250,
+    "showcaseMargin": 200,
+    "wheel": [100, 15, 80, 35, 60, 20, 40, 75, 55, 95, 50, 85, 30, 65, 10, 45, 70, 25, 90, 5],
+    "wheelDollarBonus": 500,
+    "gamesPerShowdown": 3,
+    "plinko": { "slots": [50, 250, 500, 0, 5000, 0, 500, 250, 50], "maxChips": 5 },
+    "pricingGames": ["cliffhangers", "plinko", "luckyseven"]
+  },
+  "oneBid": [
+    { "name": "Scooter with light-up wheels", "price": 79, "note": "Folds flat, adjustable bars" },
+    { "name": "Bunk bed", "price": 549, "note": "Solid pine, ladder and rail" },
+    { "name": "Trampoline with safety net", "price": 429, "note": "Ten feet across" },
+    { "name": "Art supply cart", "price": 128, "note": "Three tiers, wheels, and every colour" },
+    { "name": "Dollhouse", "price": 189, "note": "Three floors and furniture" },
+    { "name": "Remote-control monster truck", "price": 96, "note": "Rechargeable, all terrain" },
+    { "name": "Board game bundle", "price": 74, "note": "Six family favourites" },
+    { "name": "Kids' tablet", "price": 149, "note": "Rubber bumper case, parent controls" },
+    { "name": "Bike with training wheels", "price": 168, "note": "Sixteen-inch wheels, bell included" },
+    { "name": "Ball pit and play tent", "price": 85, "note": "Two hundred balls" },
+    { "name": "Karaoke machine", "price": 119, "note": "Two microphones and a disco light" },
+    { "name": "Backyard playhouse", "price": 640, "note": "Cedar, with a slide" }
+  ],
+  "cliffhangers": [
+    {
+      "items": [
+        { "name": "Crayon set", "price": 12 },
+        { "name": "Lunch box", "price": 18 },
+        { "name": "Sticker book", "price": 7 }
+      ],
+      "prize": { "name": "Aquarium trip and a night away", "price": 950, "note": "Family of four" }
+    },
+    {
+      "items": [
+        { "name": "Jump rope", "price": 9 },
+        { "name": "Water bottle", "price": 16 },
+        { "name": "Floor puzzle", "price": 21 }
+      ],
+      "prize": { "name": "Theme-park weekend", "price": 1600, "note": "Two days, two nights" }
+    },
+    {
+      "items": [
+        { "name": "Bubble machine", "price": 24 },
+        { "name": "Colouring book", "price": 6 },
+        { "name": "Kite", "price": 15 }
+      ],
+      "prize": { "name": "Backyard water park", "price": 780, "note": "Slide, sprinklers and a pump" }
+    }
+  ],
+  "plinko": [
+    {
+      "smallPrices": [
+        { "name": "Juice box multipack", "shown": 4, "actual": 4 },
+        { "name": "Box of crayons", "shown": 3, "actual": 5 },
+        { "name": "Bottle of bubbles", "shown": 2, "actual": 2 },
+        { "name": "Sticker sheet pack", "shown": 6, "actual": 4 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Fruit snacks", "shown": 5, "actual": 5 },
+        { "name": "Pavement chalk", "shown": 3, "actual": 2 },
+        { "name": "Tub of play dough", "shown": 7, "actual": 9 },
+        { "name": "Bag of balloons", "shown": 2, "actual": 3 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Colouring pencils", "shown": 8, "actual": 6 },
+        { "name": "Party paper plates", "shown": 4, "actual": 4 },
+        { "name": "Juice pouches", "shown": 6, "actual": 6 },
+        { "name": "Glitter glue pens", "shown": 3, "actual": 5 }
+      ]
+    }
+  ],
+  "luckyseven": [
+    { "car": "Family minivan", "price": 32450, "note": "Seven seats and doors that slide" },
+    { "car": "Camper van", "price": 41875, "note": "Sleeps four, kitchen in the back" },
+    { "car": "Compact SUV", "price": 26390, "note": "Roof rails and a big boot" }
+  ],
+  "showcases": [
+    {
+      "prizes": [
+        { "name": "Treehouse kit", "price": 2400, "note": "Platform, ladder and a rope bridge" },
+        { "name": "Backyard zip line", "price": 1150, "note": "Twenty-five metres" },
+        { "name": "Family camping set", "price": 890, "note": "Six-person tent and sleeping bags" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Playroom cinema", "price": 1750, "note": "Projector, screen and beanbags" },
+        { "name": "Board game library", "price": 620, "note": "Twenty games and a shelf" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Theme-park holiday for four", "price": 5200, "note": "Five nights, park passes included" },
+        { "name": "Luggage set", "price": 480, "note": "Four cases, one per traveller" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Basketball hoop", "price": 690, "note": "Adjustable, in-ground" },
+        { "name": "A bike for everyone", "price": 1980, "note": "Four bikes and four helmets" },
+        { "name": "Skate ramp", "price": 1320, "note": "Quarter pipe and a grind rail" }
+      ]
+    }
+  ]
+}

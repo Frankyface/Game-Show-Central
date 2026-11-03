@@ -33,6 +33,7 @@ const tpirListeners = [];
 function tpirFreshApp() {
   return {
     core: null,
+    resumable: null,   // a show set aside by "Game lobby → Keep this game"
     content: null,
     setup: { players: [], pricingGames: null },
     source: "loading…",
@@ -194,7 +195,8 @@ function tpirAfterSpin(state) {
 
 function tpirSerialise() {
   return {
-    core: tpirApp.core, content: tpirApp.content, setup: tpirApp.setup, source: tpirApp.source,
+    core: tpirApp.core, resumable: tpirApp.resumable,
+    content: tpirApp.content, setup: tpirApp.setup, source: tpirApp.source,
     sourceKind: tpirApp.sourceKind, sourceUrl: tpirApp.sourceUrl, roomCode: tpirApp.roomCode,
     takeover: tpirApp.takeover,
   };
@@ -466,6 +468,35 @@ function tpirDropChip(slot) {
   tpirDispatch({ type: "plinkoDrop", slot });
 }
 
+/* ============ Game lobby (docs/19 §1) ============ */
+
+/**
+ * Step out of the running show to this game's own setup screen, keeping it.
+ * The show is parked in `resumable` (a plain serialisable state, saved with
+ * everything else), so a reload still offers Resume. Undo is untouched: the
+ * parked state carries its own history.
+ */
+function tpirKeepGame() {
+  if (!tpirApp.core) return;
+  tpirSet({ resumable: tpirApp.core, core: null, busy: false });
+  tpirError("");
+}
+
+/** Put the parked show back on screen exactly as it was. */
+function tpirResume() {
+  if (!tpirApp.resumable) return;
+  window.TpirGames.reset();
+  tpirSet({ core: tpirApp.resumable, resumable: null, busy: false });
+  tpirError("");
+}
+
+/** Clear the show. The line-up, the prizes and the settings all stay. */
+function tpirStartOver() {
+  window.TpirGames.reset();
+  tpirSet({ core: null, resumable: null, takeover: [], busy: false });
+  tpirError("");
+}
+
 /** The host takes the controls away from a player's phone for this segment. */
 function tpirTakeOver(pid) {
   if (!pid || tpirApp.takeover.indexOf(pid) >= 0) return;
@@ -556,7 +587,7 @@ function tpirWirePlay() {
   tpirWireButton("btn-sc-reveal", () => tpirDispatch({ type: "revealShowcase" }));
   tpirWireButton("btn-undo", () => tpirDispatch({ type: "undo" }));
   tpirWireButton("btn-finish", () => tpirDispatch({ type: "finish" }));
-  tpirWireButton("btn-play-again", () => { window.TpirGames.reset(); tpirSet({ core: null, takeover: [] }); });
+  tpirWireButton("btn-play-again", tpirStartOver);
 }
 
 function tpirWireChrome() {
@@ -628,6 +659,7 @@ function tpirChooseContent(saved, loaded) {
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (saved && Array.isArray(saved.takeover)) patch.takeover = saved.takeover;
   if (useSaved && saved.core) patch.core = saved.core;
+  if (useSaved && tpirUsableCore(saved.resumable)) patch.resumable = saved.resumable;
   if (tpirLoadFailure) {
     tpirLoadMessage = `Could not load prizes from ${tpirLoadFailure.url}: ${tpirLoadFailure.reason}. `
       + (useSaved ? "Keeping the prizes already loaded." : "Using the built-in set instead.");
@@ -681,6 +713,9 @@ window.TpirApp = {
   gameOn: tpirGameOn,
   effectiveSettings: tpirEffectiveSettings,
   bindRoom: tpirBindRoom,
+  keepGame: tpirKeepGame,
+  resume: tpirResume,
+  startOver: tpirStartOver,
   showSplash: tpirShowSplash,
   start: tpirStart,
   STORAGE_KEY: TPIR_STORAGE_KEY,

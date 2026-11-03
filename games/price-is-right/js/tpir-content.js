@@ -13,10 +13,12 @@
 "use strict";
 
 (function (root, factory) {
-  const api = factory();
-  if (typeof module === "object" && module.exports) module.exports = api;
+  const node = typeof module === "object" && module.exports;
+  const media = node ? require("./tpir-media.js") : root.TpirMedia;
+  const api = factory(media);
+  if (node) module.exports = api;
   root.TpirContent = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (Media) {
   "use strict";
 
   /* ============ Constants ============ */
@@ -201,6 +203,21 @@
     });
   }
 
+  /**
+   * The optional prize photo (docs/19 §3). `image` goes through the one gate
+   * in tpir-media.js — the same allowlist the editor uses — so a file can
+   * never smuggle a javascript: or data:text/html reference into a host screen.
+   */
+  function validateImage(raw, where) {
+    if (raw.image !== undefined) {
+      const res = Media.validateImageRef(raw.image);
+      if (!res.valid) fail(`${where}: ${res.error}`);
+    }
+    if (raw.imageAlt !== undefined && typeof raw.imageAlt !== "string") {
+      fail(`${where}: “imageAlt” must be text.`);
+    }
+  }
+
   /** A name/price pair used by One Bid, Cliff Hangers items and showcase prizes. */
   function validatePrize(raw, where, loPrice, hiPrice) {
     if (!isPlainObject(raw)) fail(`${where} must be an object with a name and a price.`);
@@ -209,6 +226,7 @@
       fail(`${where} needs a whole-dollar price from ${loPrice} to ${hiPrice}.`);
     }
     if (raw.note !== undefined && typeof raw.note !== "string") fail(`${where}: “note” must be text.`);
+    validateImage(raw, where);
   }
 
   function validateOneBid(list) {
@@ -263,6 +281,7 @@
       if (!cleanText(car.car, NAME_MAX)) fail(`${where} needs a name.`);
       if (!isIntIn(car.price, 10000, 99999)) fail(`${where} needs a five-digit price from 10000 to 99999.`);
       if (car.note !== undefined && typeof car.note !== "string") fail(`${where}: “note” must be text.`);
+      validateImage(car, where);
     });
   }
 
@@ -283,12 +302,22 @@
   /* ============ Normalisation ============ */
 
   function cleanPrize(raw, index) {
-    return {
+    return withImage({
       id: `z${index}`,
       name: cleanText(raw.name, NAME_MAX),
       price: raw.price,
       note: cleanText(raw.note, NOTE_MAX),
-    };
+    }, raw);
+  }
+
+  /** Copy a validated photo onto a normalised prize, and nothing when absent. */
+  function withImage(target, raw) {
+    if (typeof raw.image === "string" && Media.validateImageRef(raw.image).valid) {
+      target.image = raw.image;
+      const alt = Media.cleanAlt(raw.imageAlt);
+      if (alt) target.imageAlt = alt;
+    }
+    return target;
   }
 
   function normalizeSettings(raw) {
@@ -351,12 +380,12 @@
   }
 
   function normalizeLuckySeven(list) {
-    return list.map((car, i) => ({
+    return list.map((car, i) => withImage({
       id: `l7${i}`,
       car: cleanText(car.car, NAME_MAX),
       price: car.price,
       note: cleanText(car.note, NOTE_MAX),
-    }));
+    }, car));
   }
 
   function normalizeShowcases(list) {
@@ -428,5 +457,6 @@
     isPlainObject, isIntIn, isPosInt, cleanText, fail, pickIndex, money,
     // content
     validateGame, normalizeGame, normalizeSettings, enabledGames, warningsFor, drawFrom,
+    validateImage, withImage, validateImageRef: Media.validateImageRef, cleanAlt: Media.cleanAlt,
   };
 });

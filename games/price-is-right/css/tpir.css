@@ -550,3 +550,122 @@ body.gsc-embedded #tpir-room-controls,
 body.gsc-embedded #tpir-room-status,
 body.gsc-embedded #tpir-join-note,
 body.gsc-embedded #tpir-room-chip { display: none !important; }
+
+/* ============================================================
+   Prize photos (docs/19 §3)
+   Every <img> here was built by js/tpir-media.js, which is the one
+   gate a reference can reach an <img> through. Phones never get one:
+   TpirCore.phoneView strips `image` before a view is sent.
+   ============================================================ */
+
+.prize-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--panel-line);
+}
+
+.prize-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.prize-image-failed {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--ink-mute);
+}
+
+/* The One Bid card: the photo takes whatever height the card has left. */
+.item-card .prize-photo { flex: 1; min-height: 4rem; margin-top: 0.5rem; }
+
+.prize-photo-sm { width: 6.5rem; height: 4.4rem; flex: none; }
+.prize-photo-xs { width: 3.4rem; height: 2.4rem; flex: none; }
+
+.sc-prizes li { flex-direction: row; align-items: center; gap: 0.6rem; }
+.sc-prize-text { display: flex; flex-direction: column; min-width: 0; }
+
+/* ============ The set library picker (docs/19 §2) ============ */
+
+#tpir-library { margin-top: 0.7rem; }
+
+/* ============ Editor: photos, the size meter, the manifest ============ */
+
+.editor-meter {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-mute);
+}
+
+.editor-meter.warn { color: var(--amber); font-weight: 700; }
+
+.editor-manifest {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border-left: 4px solid var(--tpir-green);
+}
+
+.ed-manifest-lead { margin: 0 0 0.4rem; font-size: 0.86rem; color: var(--ink-dim); }
+
+.ed-manifest-line {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--tpir-yellow);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ed-photo { display: flex; flex-direction: column; gap: 0.35rem; }
+.ed-photo-toggle { align-self: flex-start; font-size: 1rem; line-height: 1; }
+.ed-photo-toggle.has-photo { border-color: var(--tpir-green); }
+
+.ed-photo-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid var(--panel-line);
+}
+
+.ed-photo-row { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+
+.ed-photo-url, .ed-photo-alt {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+  font-family: var(--font-ui);
+  font-size: 0.86rem;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--ink-faint);
+  border-radius: var(--radius-sm);
+  padding: 0.35em 0.5em;
+}
+
+.ed-photo-feedback { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.ed-photo-thumb {
+  width: 5rem;
+  height: 3.4rem;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.ed-photo-size { font-size: 0.76rem; color: var(--ink-mute); }
+.ed-photo-error { margin: 0; font-size: 0.8rem; color: var(--red); }

@@ -300,7 +300,22 @@
     return null;
   }
 
-  /** Never leaks a price, another player's bid, or the Plinko landing slot. */
+  /**
+   * Belt and braces for docs/19 §3: no `image` or `imageAlt` ever leaves for a
+   * phone. Every screen below already builds its own fields by hand, so this
+   * only has to survive a future edit that forgets — and it can only ever see
+   * freshly built objects, never a slice of `state`.
+   */
+  function stripImages(value) {
+    if (Array.isArray(value)) { value.forEach(stripImages); return value; }
+    if (!isPlainObject(value)) return value;
+    delete value.image;
+    delete value.imageAlt;
+    Object.keys(value).forEach((key) => stripImages(value[key]));
+    return value;
+  }
+
+  /** Never leaks a price, another player's bid, a photo, or the Plinko slot. */
   function phoneView(state, pid) {
     const base = {
       screen: "wait", name: nameOf(state, pid), currency: currencyOf(state),
@@ -311,9 +326,9 @@
     if (!state || state.phase === "setup") {
       return Object.assign(base, { headline: "Waiting for the host…", sub: "The show is about to start." });
     }
-    if (state.phase === "standings") return Object.assign(base, resultView(state, pid));
+    if (state.phase === "standings") return stripImages(Object.assign(base, resultView(state, pid)));
     const build = PHONE_SCREENS[state.phase];
-    return Object.assign(base, build ? build(state, pid) : {});
+    return stripImages(Object.assign(base, build ? build(state, pid) : {}));
   }
 
   const PHONE_SCREENS = {
@@ -458,7 +473,7 @@
     showdownWinner, showcaseResult,
     settingsOf, currencyOf, formatMoney, wheelLabel,
     nameOf, isPlayer, winningsOf, standings, currentSegment, activePid, rowSeats,
-    validatePhoneMsg, phoneView,
+    validatePhoneMsg, phoneView, stripImages,
     // re-exported so tpir-core.js has one import
     PID_MAX, MAX_BID, MAX_PRICE, CLIFF_STEPS, CLIFF_ITEMS, PLINKO_SLOTS,
     PLINKO_PRICES, L7_DIGITS, L7_START, ROW_SEATS, GAME_KINDS, GAME_LABELS, cleanText,

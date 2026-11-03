@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 export const Core = require("../js/tpir-core.js");
 export const DEFAULT_GAME = require("../js/data.js");
+export const Media = require("../js/tpir-media.js");
 export const SHIPPED = JSON.parse(readFileSync(new URL("../prizes.json", import.meta.url), "utf8"));
 
 /* ============ Fixtures ============ */

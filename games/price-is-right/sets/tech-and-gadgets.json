@@ -1,0 +1,113 @@
+{
+  "title": "The Price Is Right — Tech & gadgets",
+  "settings": {
+    "currency": "$",
+    "exactBidBonus": 500,
+    "showcaseMargin": 250,
+    "wheel": [100, 15, 80, 35, 60, 20, 40, 75, 55, 95, 50, 85, 30, 65, 10, 45, 70, 25, 90, 5],
+    "wheelDollarBonus": 1000,
+    "gamesPerShowdown": 3,
+    "plinko": { "slots": [100, 500, 1000, 0, 10000, 0, 1000, 500, 100], "maxChips": 5 },
+    "pricingGames": ["cliffhangers", "plinko", "luckyseven"]
+  },
+  "oneBid": [
+    { "name": "Mechanical keyboard", "price": 159, "note": "Hot-swappable switches, aluminium case" },
+    { "name": "Ultrawide monitor", "price": 649, "note": "34 inches, curved, 144 Hz" },
+    { "name": "Noise-cancelling earbuds", "price": 229, "note": "Eight hours a charge, wireless case" },
+    { "name": "Mirrorless camera body", "price": 1299, "note": "Full frame, in-body stabilisation" },
+    { "name": "Portable SSD, 2 TB", "price": 179, "note": "Pocket sized, 1,050 MB a second" },
+    { "name": "Smart doorbell", "price": 189, "note": "Battery powered, two-way talk" },
+    { "name": "E-reader", "price": 149, "note": "Glare-free screen, weeks of battery" },
+    { "name": "Drone with a 4K camera", "price": 799, "note": "Folds up, thirty minutes in the air" },
+    { "name": "Streaming microphone", "price": 129, "note": "USB condenser with a boom arm" },
+    { "name": "Robot lawn mower", "price": 1450, "note": "Cuts to a boundary wire, docks itself" },
+    { "name": "Tablet with a stylus", "price": 599, "note": "11 inches, keyboard folio included" },
+    { "name": "Handheld game console", "price": 349, "note": "Docks to the TV" }
+  ],
+  "cliffhangers": [
+    {
+      "items": [
+        { "name": "USB-C cable, two metres", "price": 14 },
+        { "name": "Phone stand", "price": 22 },
+        { "name": "Screen wipes", "price": 9 }
+      ],
+      "prize": { "name": "Home studio bundle", "price": 2100, "note": "Interface, monitors and a mic" }
+    },
+    {
+      "items": [
+        { "name": "Cable organiser kit", "price": 18 },
+        { "name": "Desk mouse pad", "price": 26 },
+        { "name": "Memory card reader", "price": 31 }
+      ],
+      "prize": { "name": "Smart home starter kit", "price": 1450, "note": "Hub, sensors, lights and locks" }
+    },
+    {
+      "items": [
+        { "name": "Wireless charging pad", "price": 29 },
+        { "name": "Blue-light glasses", "price": 35 },
+        { "name": "Laptop sleeve", "price": 42 }
+      ],
+      "prize": { "name": "Workshop 3D printer", "price": 1890, "note": "Enclosed, with a filament dryer" }
+    }
+  ],
+  "plinko": [
+    {
+      "smallPrices": [
+        { "name": "AA batteries, eight pack", "shown": 5, "actual": 5 },
+        { "name": "Micro SD card", "shown": 9, "actual": 7 },
+        { "name": "Bag of cable ties", "shown": 3, "actual": 2 },
+        { "name": "Lens cloth", "shown": 2, "actual": 2 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Spare earbud tips", "shown": 6, "actual": 4 },
+        { "name": "HDMI adapter", "shown": 8, "actual": 8 },
+        { "name": "Stylus nibs", "shown": 4, "actual": 6 },
+        { "name": "Screen protector", "shown": 7, "actual": 5 }
+      ]
+    },
+    {
+      "smallPrices": [
+        { "name": "Phone grip", "shown": 3, "actual": 3 },
+        { "name": "USB drive", "shown": 8, "actual": 9 },
+        { "name": "Cable clips", "shown": 2, "actual": 4 },
+        { "name": "Keyboard cleaning kit", "shown": 6, "actual": 6 }
+      ]
+    }
+  ],
+  "luckyseven": [
+    { "car": "Electric hatchback", "price": 34990, "note": "400 km of range, fast charging" },
+    { "car": "Electric crossover", "price": 45250, "note": "All-wheel drive, glass roof" },
+    { "car": "Plug-in hybrid sedan", "price": 39680, "note": "60 km on battery alone" }
+  ],
+  "showcases": [
+    {
+      "prizes": [
+        { "name": "Ultrawide monitor", "price": 649, "note": "34 inches, curved" },
+        { "name": "Mirrorless camera kit", "price": 2350, "note": "Body, two lenses and a bag" },
+        { "name": "Studio mic and arm", "price": 410, "note": "Cardioid condenser" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Robot vacuum", "price": 640, "note": "Maps the house, empties itself" },
+        { "name": "Smart lighting, whole house", "price": 780, "note": "Sixteen bulbs and two switches" },
+        { "name": "Video doorbell and smart locks", "price": 520, "note": "Front and back doors" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "77-inch OLED television", "price": 2700, "note": "120 Hz, on a swivel stand" },
+        { "name": "Soundbar and subwoofer", "price": 990, "note": "Atmos, wireless rears" }
+      ]
+    },
+    {
+      "prizes": [
+        { "name": "Camera drone", "price": 799, "note": "4K, folds into a bag" },
+        { "name": "Action camera bundle", "price": 540, "note": "Two batteries and every mount" },
+        { "name": "Electric bike", "price": 2190, "note": "80 km range, hydraulic brakes" }
+      ]
+    }
+  ]
+}

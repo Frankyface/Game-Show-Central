@@ -306,3 +306,11 @@
   .cliff-mountain { grid-row: auto; min-height: 11rem; }
   .plinko-board { max-height: 15rem; }
 }
+
+/* ============ Prize photos inside the pricing games (docs/19 §3) ============ */
+
+.cliff-prize-row, .l7-car-row { display: flex; align-items: center; gap: 0.6rem; }
+.cliff-prize-row .cliff-prize, .l7-car-row .l7-car { margin: 0; }
+.cliff-item { grid-template-columns: auto 1fr auto; align-items: center; }
+.cliff-item .prize-photo-xs { grid-row: span 2; }
+.cliff-item-note { grid-column: 2 / -1; }

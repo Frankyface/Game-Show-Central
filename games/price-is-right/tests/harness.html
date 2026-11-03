@@ -39,66 +39,15 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-lib.js"></script>
+  <script src="harness-x.js"></script>
   <script>
   (function () {
     "use strict";
 
-    /* ============ Result plumbing ============ */
+    /* ============ Result plumbing + async helpers (tests/harness-lib.js) ============ */
 
-    const results = [];
-    let uncaught = null;
-    window.addEventListener("error", (e) => { uncaught = e.message; });
-    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
-
-    function check(label, cond, detail) {
-      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
-      render();
-    }
-
-    function render() {
-      const list = document.getElementById("results");
-      list.replaceChildren();
-      for (const r of results) {
-        const li = document.createElement("li");
-        li.dataset.pass = String(r.pass);
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = r.pass ? "PASS" : "FAIL";
-        li.appendChild(tag);
-        li.appendChild(document.createTextNode(r.label));
-        if (r.detail) {
-          const d = document.createElement("span");
-          d.className = "detail";
-          d.textContent = r.detail;
-          li.appendChild(d);
-        }
-        list.appendChild(li);
-      }
-      const failed = results.filter((r) => !r.pass).length;
-      const summary = document.getElementById("summary");
-      const ok = failed === 0 && !uncaught;
-      summary.className = ok ? "ok" : "bad";
-      summary.textContent = ok
-        ? `All ${results.length} checks passed.`
-        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
-      window.__TPIR_HARNESS__ = { total: results.length, failed, uncaught, results };
-    }
-
-    /* ============ Async helpers ============ */
-
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-    async function waitFor(fn, label, timeout) {
-      const limit = timeout || 6000;
-      const start = Date.now();
-      for (;;) {
-        let value = null;
-        try { value = fn(); } catch (err) { value = null; }
-        if (value) return value;
-        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
-        await sleep(30);
-      }
-    }
+    const { check, render, sleep, waitFor } = window.HarnessLib;
 
     /* ============ The bridge shell (00 §6) ============ */
 
@@ -156,6 +105,8 @@
       "js/tpir-sound.js", "js/tpir-wheel.js", "js/tpir-view.js", "js/tpir-games.js", "js/tpir-app.js",
       "js/tpir-editor.js", "js/tpir-room.js", "js/tpir-phone.js", "tests/helpers.mjs",
       "tests/adversarial-helpers.mjs", "tests/tpir-core.test.mjs", "tests/tpir-show.test.mjs",
+      "tests/harness-lib.js", "tests/harness-x.js", "js/tpir-media.js", "js/tpir-setup.js", "js/tpir-editor-media.js",
+      "sets/index.json", "sets/kids-night.json", "sets/tech-and-gadgets.json",
       "tests/tpir-adversarial.test.mjs", "tests/tpir-adversarial-show.test.mjs", "tests/harness.html",
       "tests/fixtures/harness-prizes.json"].map((f) => `../${f}`);
     const SHARED = ["room-protocol.js", "room-net.js", "room-host.js", "room-player.js",
@@ -222,6 +173,10 @@
       await waitFor(() => phoneButton(pid, action) && !phoneButton(pid, action).disabled, `${pid} can send`);
       phoneButton(pid, action).click();
     }
+
+    // The cross-cutting-round scenarios (docs/19) live in harness-x.js so this
+    // page stays under the 800-line house cap; they get the same helpers.
+    const X = window.HarnessX({ check, waitFor, sleep, H, HD, HW, PD, core, click, phoneView, phoneType });
 
     /** Wait for whatever animation the host is running to finish. */
     const settled = () => waitFor(() => HW().TpirApp.state().busy === false, "host settled", 9000);
@@ -781,14 +736,20 @@
         await scenarioTakeOver();
         await scenarioPlinko();
         await scenarioWheel();
+        await X.gameLobby();
         await scenarioReload();
         await scenarioShowcase();
         await scenarioEditor();
+        await X.startOver();
+        await X.photos();
+        await X.library();
+        await X.libraryDownload();
         await scenarioPhoneSize();
         await scenarioGates();
       } catch (err) {
-        uncaught = err && err.message ? err.message : String(err);
-        check("harness run completed", false, uncaught);
+        const message = err && err.message ? err.message : String(err);
+        window.HarnessLib.fail(message);
+        check("harness run completed", false, message);
       }
       render();
     })();

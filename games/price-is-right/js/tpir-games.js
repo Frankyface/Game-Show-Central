@@ -125,9 +125,14 @@ const TpirGames = (function () {
       const items = el("ol", "cliff-items");
       items.id = "tpir-cliff-items";
       wrap.appendChild(items);
+      const prizeBox = el("div", "cliff-prize-row");
+      const prizePhoto = el("div", "prize-photo prize-photo-sm");
+      prizePhoto.id = "tpir-cliff-prize-photo";
+      prizeBox.appendChild(prizePhoto);
       const prize = el("p", "cliff-prize");
       prize.id = "tpir-cliff-prize";
-      wrap.appendChild(prize);
+      prizeBox.appendChild(prize);
+      wrap.appendChild(prizeBox);
       stage.appendChild(wrap);
     },
 
@@ -142,6 +147,7 @@ const TpirGames = (function () {
       list.replaceChildren();
       g.items.forEach((item, i) => list.appendChild(cliffItem(state, g, item, i)));
       setText("tpir-cliff-prize", `Playing for ${g.prize.name} — ${core().formatMoney(state, g.prize.price)}`);
+      TpirView.photo(stage.querySelector("#tpir-cliff-prize-photo"), g.prize);
     },
 
     controls(state, controls, phone) {
@@ -159,6 +165,11 @@ const TpirGames = (function () {
     const guessed = i < g.guesses.length;
     const li = el("li", `cliff-item${guessed ? " is-done" : ""}${i === g.index && !g.done ? " is-current" : ""}`);
     li.dataset.index = String(i);
+    if (item.image) {
+      const box = el("div", "prize-photo prize-photo-xs");
+      TpirView.photo(box, item);
+      li.appendChild(box);
+    }
     li.appendChild(el("span", "cliff-item-name", item.name));
     if (!guessed) {
       li.appendChild(el("span", "cliff-item-value", "?"));
@@ -391,9 +402,14 @@ const TpirGames = (function () {
   const luckySeven = {
     build(state, stage) {
       const wrap = el("div", "l7");
+      const carRow = el("div", "l7-car-row");
+      const carPhoto = el("div", "prize-photo prize-photo-sm");
+      carPhoto.id = "tpir-l7-photo";
+      carRow.appendChild(carPhoto);
       const car = el("p", "l7-car");
       car.id = "tpir-l7-car";
-      wrap.appendChild(car);
+      carRow.appendChild(car);
+      wrap.appendChild(carRow);
       const tiles = el("div", "l7-tiles");
       tiles.id = "tpir-l7-tiles";
       wrap.appendChild(tiles);
@@ -410,6 +426,7 @@ const TpirGames = (function () {
     paint(state, stage) {
       const g = state.game;
       setText("tpir-l7-car", `${g.car}${g.note ? ` — ${g.note}` : ""}`);
+      TpirView.photo(stage.querySelector("#tpir-l7-photo"), Object.assign({ name: g.car }, g));
       const tiles = stage.querySelector("#tpir-l7-tiles");
       tiles.replaceChildren();
       for (let i = 0; i < core().L7_DIGITS; i += 1) tiles.appendChild(l7Tile(g, i));

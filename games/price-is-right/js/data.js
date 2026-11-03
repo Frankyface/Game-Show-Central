@@ -62,7 +62,9 @@ const TPIR_DEFAULT_GAME = {
     {
       "name": "Espresso machine",
       "price": 249,
-      "note": "15-bar pump, stainless steel body"
+      "note": "15-bar pump, stainless steel body",
+      "image": "img/espresso-machine.svg",
+      "imageAlt": "A stainless-steel espresso machine with a cup under the group head"
     },
     {
       "name": "Robot vacuum",
@@ -87,7 +89,9 @@ const TPIR_DEFAULT_GAME = {
     {
       "name": "Mountain bike",
       "price": 820,
-      "note": "Aluminium frame, 27 speeds"
+      "note": "Aluminium frame, 27 speeds",
+      "image": "img/mountain-bike.svg",
+      "imageAlt": "A blue mountain bike seen from the side"
     },
     {
       "name": "Noise-cancelling headphones",

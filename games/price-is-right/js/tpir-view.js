@@ -75,6 +75,7 @@ const TpirView = (function () {
     const playing = !!state && state.phase !== "setup";
     show($("btn-undo"), playing && state.history.length > 0);
     show($("btn-finish"), playing && state.phase !== "standings");
+    show($("btn-game-lobby"), playing);
     const chip = $("tpir-segment-chip");
     if (chip) {
       chip.textContent = segmentLabel(state);
@@ -100,6 +101,7 @@ const TpirView = (function () {
     setText("tpir-player-count", `${app.setup.players.length}/${core().MAX_PLAYERS}`);
     setText("tpir-source", app.source);
     renderSetupRules(app);
+    show($("btn-resume"), !!app.resumable);
     $("btn-start").disabled = app.setup.players.length < 1 || !app.content;
   }
 
@@ -152,6 +154,19 @@ const TpirView = (function () {
     return p.note;
   }
 
+  /**
+   * Mount a prize photo on a host card. Everything funnels through the one
+   * gate in tpir-media.js, so an unvalidated reference can never reach an
+   * <img>. Phones never get here: TpirCore.phoneView does not carry `image`.
+   * @param {HTMLElement|null} box @param {object|null} prize
+   */
+  function photo(box, prize) {
+    if (!box) return;
+    const media = window.TpirMedia;
+    if (!media || !prize) { if (box) { box.replaceChildren(); box.classList.add("hidden"); } return; }
+    media.mountPrizeImage(box, prize.image, prize.imageAlt || prize.name);
+  }
+
   /* ============ Contestants' Row ============ */
 
   function renderRow(app) {
@@ -163,6 +178,7 @@ const TpirView = (function () {
       : "Bids stay hidden until the reveal.");
     setText("tpir-item-name", row.item ? row.item.name : "");
     setText("tpir-item-note", row.item ? row.item.note : "");
+    photo($("tpir-item-photo"), row.item);
     const price = $("tpir-row-price");
     price.textContent = row.revealed && row.item ? `Actual retail price: ${core().formatMoney(state, row.item.price)}` : "";
     show(price, row.revealed);
@@ -409,8 +425,15 @@ const TpirView = (function () {
     const list = el("ul", "sc-prizes");
     showcase.prizes.forEach((p) => {
       const li = el("li");
-      li.appendChild(el("span", "sc-prize-name", p.name));
-      if (p.note) li.appendChild(el("span", "sc-prize-note", p.note));
+      if (p.image) {
+        const box = el("div", "prize-photo prize-photo-sm");
+        photo(box, p);
+        li.appendChild(box);
+      }
+      const text = el("div", "sc-prize-text");
+      text.appendChild(el("span", "sc-prize-name", p.name));
+      if (p.note) text.appendChild(el("span", "sc-prize-note", p.note));
+      li.appendChild(text);
       list.appendChild(li);
     });
     card.appendChild(list);
@@ -467,7 +490,10 @@ const TpirView = (function () {
     });
   }
 
-  return { render, beginSpin, spinWheel, phaseScreen, segmentLabel, bidField, button, isDrumBusy: () => drumBusy };
+  return {
+    render, beginSpin, spinWheel, phaseScreen, segmentLabel, bidField, button, photo,
+    isDrumBusy: () => drumBusy,
+  };
 })();
 
 window.TpirView = TpirView;

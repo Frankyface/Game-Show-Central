@@ -438,3 +438,87 @@ Nothing in this component. The two items the tester raised that live elsewhere
 are unchanged and belong to the orchestrator: the hub shell bar keeps
 `data-gsc-game="price-is-right"` after Lobby (`js/hub-host.js`), and a check on
 two physical devices is still worth doing before a real game night.
+
+---
+
+## 10. Cross-cutting round (docs/19-cross-cutting-round.md)
+
+Verified on `python -m http.server 8691`: `cd games/price-is-right && node --test`
+→ **111 tests, 0 failures** (106 + 5 new); `tests/harness.html` → **All 80 checks
+passed**, two consecutive runs (60 + 20 new X-checks). Every file < 800 lines,
+longest function 49 lines, no banned DOM API, no `console.log`.
+
+### §3 Prize photos (X-4)
+
+- **`js/tpir-media.js`** — the one gate. `validateImageRef` copies
+  `games/jeopardy/js/media.js` semantics exactly: https/http, `data:image/*`
+  (MIME really checked) and repo-relative paths only; `javascript:` (also
+  padded or tab/newline-split), `data:text/html`, `file:`, `blob:`,
+  protocol-relative `//`, empty, non-string and over-length references are
+  refused with a reason. `buildPrizeImage` / `mountPrizeImage` are the only
+  places an `<img>` is built (src + alt, a broken image swaps to a text note).
+- **Content.** `image` + `imageAlt` are optional on every One Bid item, Cliff
+  Hangers item and prize, Lucky Seven car and showcase prize. `validateGame`
+  runs the gate (so `?game=`, upload, library sets and the editor all share
+  it); `normalizeGame` carries a valid photo through and trims the alt text.
+- **Host.** Photos show on the One Bid card, each Cliff Hangers item and the
+  Cliff Hangers prize, the Lucky Seven car and every showcase prize. The row
+  with a photo still fits 1280×720 with no vertical scroll.
+- **Phones never get them.** Every phone screen already builds its fields by
+  hand; `phoneView` additionally runs `stripImages` over the view it returns,
+  so a future edit cannot leak one. Pinned by a unit test that tags every prize
+  in a file with a photo and checks every phone view in the row, Cliff Hangers,
+  Lucky Seven and standings for `image` and `.png`, and by harness checks that
+  no phone view contains `image`/`.svg` and no phone document has an `<img>`.
+- **Editor.** `js/tpir-editor-media.js` adds a 📷 control to every prize row:
+  paste a URL or **Choose file…** — browser downscale to a 1024 px long edge,
+  JPEG q0.75, the opaque-white fill and the blank/striped corrupt-draw detector
+  with the decode-smaller retry, all from Jeopardy's `editor-media.js` — plus
+  alt text, live thumbnail, per-image size and an **Embedded photos: ~N MB**
+  meter that turns amber above 2.5 MB.
+- **Shipped file.** The Espresso machine and Mountain bike One Bid items carry
+  `img/espresso-machine.svg` and `img/mountain-bike.svg` (774 and 974 bytes,
+  no `<style>`, no script) with real alt text; `js/data.js` regenerated and
+  still byte-identical (asserted).
+
+### §1 Game lobby (X-1)
+
+`⟲ Game lobby` (`#btn-game-lobby`) sits in the toolbar next to Sound / Editor
+whenever a show is running, in every segment, embedded and standalone. It opens
+a `role="dialog"` confirm (`js/tpir-setup.js`): **Keep this game** parks the show
+in `resumable` (saved with everything else, so it survives a reload) and shows
+setup with **Resume the show**; Resume puts back the exact state, history
+included; **Start over** clears the show and keeps the line-up, prizes and
+settings; Cancel, Escape or a backdrop click change nothing. Harness: keep →
+resume compares `JSON.stringify(core())` before and after (mid-showdown).
+
+### §2 Library (X-2, X-3)
+
+- `sets/index.json` + **Kids' night** and **Tech & gadgets**, each a full
+  episode's worth (12 One Bid, 3 of each pricing game, 4 showcases), original
+  content, no `warningsFor` notes. A unit test loads every manifest row,
+  validates the file, checks the counts match and starts a show from it.
+- `GSCLibrary.mountPicker` is mounted under the prize controls with
+  `validate: TpirCore.validateGame`; a pick becomes the content with the source
+  note `set: <name>` and clears any show in progress. A file that fails
+  validation is refused inside the picker with the validator's message.
+- Editor **Download for the library** downloads the draft as a tidy file name
+  (`Office party` → `office-party.json`) and prints the manifest row (which
+  `GSCLibrary.parseManifest` accepts) and the path to commit it to.
+
+### Harness restructuring
+
+`tests/harness.html` was at 798/800 lines, so the result plumbing moved to
+`tests/harness-lib.js` and the new scenarios live in `tests/harness-x.js`,
+handed the same helper bag; the page loads both and still owns the run. All
+three files, `js/tpir-media.js`, `js/tpir-setup.js`, `js/tpir-editor-media.js`
+and the three `sets/` files are in the harness's gated source list. The fixture
+now tags every prize with a photo so whichever item is drawn shows one.
+
+### Known gaps
+
+- The setup screen can scroll at 720 px tall now that it carries the library
+  picker and Resume (allowed: setup and editor screens may scroll; every play
+  screen still fits exactly).
+- The from-disk (`file://`) picker path is the shared module's behaviour
+  (it hides with a plain-English message); not re-exercised here.

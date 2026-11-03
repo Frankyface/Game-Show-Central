@@ -9,8 +9,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import {
-  Core, DEFAULT_GAME, SHIPPED, fixed, seq, PLAYERS, mk, tiny, started, run, toGame, deepFreeze,
+  Core, DEFAULT_GAME, SHIPPED, Media, fixed, seq, PLAYERS, mk, tiny, started, run, toGame, deepFreeze,
 } from "./helpers.mjs";
 
 /* ============================================================
@@ -392,5 +393,147 @@ test("P-U5 running out of money stops the game at once", () => {
   assert.equal(Core.reduce(s, { type: "l7Guess", digit: 8 }, fixed(0)), s);
   for (const digit of [-1, 10, 4.5, "4"]) {
     assert.equal(Core.reduce(toGame("luckyseven"), { type: "l7Guess", digit }, fixed(0)).game.index, 1, String(digit));
+  }
+});
+
+/* ============================================================
+   X-4 — prize photos: the gate, the file, and the phone leak
+   (docs/19-cross-cutting-round.md §3)
+   ============================================================ */
+
+
+const IMAGE_REFS = [
+  ["a repo path", "img/espresso-machine.svg", true],
+  ["a nested repo path", "img/sets/kids/a.png", true],
+  ["a path with a colon in it", "img/a:b.svg", true],
+  ["https", "https://example.com/a.png", true],
+  ["http", "http://example.com/a.png", true],
+  ["a data image", "data:image/png;base64,iVBORw0KGgo=", true],
+  ["a data svg", "data:image/svg+xml;utf8,<svg/>", true],
+  ["javascript:", "javascript:alert(1)", false],
+  ["padded javascript:", "   javascript:alert(1)", false],
+  ["tab-split javascript:", "jav\tascript:alert(1)", false],
+  ["newline-split javascript:", "java\nscript:alert(1)", false],
+  ["data:text/html", "data:text/html,<b>hi</b>", false],
+  ["data with no media type", "data:,hello", false],
+  ["protocol-relative", "//evil.example/a.png", false],
+  ["file:", "file:///etc/passwd", false],
+  ["blob:", "blob:https://x/y", false],
+  ["vbscript:", "vbscript:msgbox", false],
+  ["empty", "", false],
+  ["a number", 7, false],
+  ["null", null, false],
+];
+
+test("X-4 the image gate accepts only https, data:image/* and repo paths", () => {
+  for (const [label, ref, want] of IMAGE_REFS) {
+    const res = Media.validateImageRef(ref);
+    assert.equal(res.valid, want, `${label}: ${JSON.stringify(ref)} -> ${res.error}`);
+    if (!want) assert.ok(typeof res.error === "string" && res.error.length > 10, `${label} needs a reason`);
+  }
+  const huge = "data:image/png;base64," + "A".repeat(Media.MAX_IMAGE_REF_LEN);
+  assert.equal(Media.validateImageRef(huge).valid, false, "an over-length reference is refused");
+});
+
+test("X-4 a photo is optional, validated, and normalised onto the prize", () => {
+  const withPhoto = mk();
+  withPhoto.oneBid[0].image = "img/espresso-machine.svg";
+  withPhoto.oneBid[0].imageAlt = "  An espresso machine  ";
+  assert.equal(Core.validateGame(withPhoto), true);
+  const norm = Core.normalizeGame(withPhoto);
+  assert.equal(norm.oneBid[0].image, "img/espresso-machine.svg");
+  assert.equal(norm.oneBid[0].imageAlt, "An espresso machine", "alt text is trimmed");
+  assert.equal(norm.oneBid[1].image, undefined, "an item without a photo gets no key");
+
+  const bad = [
+    ["One Bid", (g) => { g.oneBid[0].image = "javascript:alert(1)"; }],
+    ["a Cliff Hangers item", (g) => { g.cliffhangers[0].items[0].image = "data:text/html,x"; }],
+    ["a Cliff Hangers prize", (g) => { g.cliffhangers[0].prize.image = "//evil.example/a.png"; }],
+    ["a Lucky Seven car", (g) => { g.luckyseven[0].image = "file:///x"; }],
+    ["a showcase prize", (g) => { g.showcases[0].prizes[0].image = "vbscript:x"; }],
+    ["alt text", (g) => { g.oneBid[0].image = "img/a.png"; g.oneBid[0].imageAlt = 7; }],
+  ];
+  for (const [label, breakIt] of bad) {
+    const g = mk();
+    breakIt(g);
+    assert.throws(() => Core.validateGame(g), /not allowed|must be text|data:image/, label);
+  }
+});
+
+test("X-4 the shipped file ships two photos, by repo-relative path", () => {
+  const photos = SHIPPED.oneBid.filter((item) => item.image);
+  assert.equal(photos.length, 2, "two One Bid items carry a photo");
+  for (const item of photos) {
+    assert.match(item.image, /^img\/[a-z0-9-]+\.svg$/, item.image);
+    assert.equal(Media.validateImageRef(item.image).valid, true);
+    assert.ok(item.imageAlt && item.imageAlt.length > 10, "each photo has real alt text");
+    const onDisk = new URL(`../${item.image}`, import.meta.url);
+    assert.ok(existsSync(onDisk), `${item.image} is committed`);
+    const svg = readFileSync(onDisk, "utf8");
+    assert.ok(svg.length < 4000, `${item.image} is tiny (${svg.length} bytes)`);
+    assert.ok(!/<style|<script|onload=/i.test(svg), `${item.image} carries no CSS or script`);
+  }
+  assert.deepEqual(DEFAULT_GAME, SHIPPED, "js/data.js still mirrors prizes.json");
+});
+
+test("X-4 no phone view ever carries a photo, in any phase", () => {
+  const withPhoto = tiny();
+  withPhoto.oneBid.forEach((item, i) => {
+    item.image = `img/one-bid-${i}.png`;
+    item.imageAlt = `Photo ${i}`;
+  });
+  withPhoto.cliffhangers[0].items.forEach((item) => { item.image = "img/cliff.png"; });
+  withPhoto.cliffhangers[0].prize.image = "img/cliff-prize.png";
+  withPhoto.luckyseven[0].image = "img/car.png";
+  withPhoto.showcases.forEach((sc) => sc.prizes.forEach((p) => { p.image = "img/showcase.png"; }));
+
+  const seen = [];
+  const check = (state, where) => {
+    for (const pid of ["p1", "p2", "p3", "p4", "not-a-player"]) {
+      const text = JSON.stringify(Core.phoneView(state, pid));
+      assert.ok(text.indexOf("image") < 0, `${where} leaked to ${pid}: ${text}`);
+      assert.ok(text.indexOf(".png") < 0, `${where} leaked a file name to ${pid}: ${text}`);
+    }
+    seen.push(where);
+  };
+
+  let s = started(withPhoto);
+  check(s, "the row");
+  s = run(s, [{ type: "bid", pid: s.row.seats[0], amount: 1 }, { type: "revealBids" },
+    { type: "nextSegment" }, { type: "pickGame", kind: "cliffhangers" }]);
+  check(s, "Cliff Hangers");
+  const l7 = Core.reduce(Core.reduce(s, { type: "undo" }, fixed(0)), { type: "pickGame", kind: "luckyseven" }, fixed(0));
+  check(l7, "Lucky Seven");
+  const finished = Core.reduce(s, { type: "finish" }, fixed(0));
+  check(finished, "the standings");
+  assert.equal(seen.length, 4);
+
+  // …and the strip itself, on a hand-built object with a photo buried in it.
+  const stripped = Core.stripImages({ a: 1, image: "x", nested: [{ imageAlt: "y", keep: 2 }] });
+  assert.deepEqual(stripped, { a: 1, nested: [{ keep: 2 }] });
+});
+
+/* ============================================================
+   X-2 — the committed set library
+   ============================================================ */
+
+test("X-2 every set in sets/index.json is committed and plays", () => {
+  const manifest = JSON.parse(readFileSync(new URL("../sets/index.json", import.meta.url), "utf8"));
+  assert.ok(Array.isArray(manifest) && manifest.length >= 2, "at least two sets are shipped");
+  for (const entry of manifest) {
+    assert.match(entry.file, /^[a-z0-9-]+\.json$/, entry.file);
+    assert.ok(entry.name && entry.description && entry.by, `${entry.file} is described`);
+    const url = new URL(`../sets/${entry.file}`, import.meta.url);
+    assert.ok(existsSync(url), `${entry.file} is committed`);
+    const game = JSON.parse(readFileSync(url, "utf8"));
+    assert.equal(Core.validateGame(game), true, entry.file);
+    assert.deepEqual(Core.warningsFor(game), [], `${entry.file} is a full-sized set`);
+    // The same quality bar as the shipped file: a whole episode's worth.
+    assert.ok(game.oneBid.length >= 12, `${entry.file} has ${game.oneBid.length} One Bid items`);
+    assert.ok(game.showcases.length >= 4, `${entry.file} has ${game.showcases.length} showcases`);
+    assert.equal(entry.counts["one bid"], game.oneBid.length, `${entry.file} counts match`);
+    // …and it really plays: a state builds and starts.
+    const state = Core.reduce(Core.createState(game, PLAYERS), { type: "start" }, fixed(0));
+    assert.equal(state.phase, "row", entry.file);
   }
 });

@@ -127,6 +127,20 @@ const TpirEditor = (function () {
   const noteField = (obj) => field("Note", obj.note, (v) => { obj.note = v; },
     { maxLength: 120, className: "ed-field-wide" });
 
+  /**
+   * The camera control for one prize (docs/19 §3). Typing a URL or embedding a
+   * file mutates the draft in place, then saves and refreshes the banner and
+   * the size meter exactly like every other field.
+   */
+  const photoField = (obj) => {
+    const media = window.TpirEditorMedia;
+    if (!media) return el("span", "ed-photo-off", "");
+    return media.buildImageControl({
+      model: obj,
+      onChange: () => { saveDraft(); renderStatus(); },
+    });
+  };
+
   /** Up / down / remove for one entry in a list. */
   function rowActions(list, index, min) {
     const box = el("div", "ed-actions");
@@ -224,7 +238,7 @@ const TpirEditor = (function () {
 
   function oneBidPanel(panel) {
     draft.oneBid.forEach((item, i) => {
-      panel.appendChild(row([nameField(item, "name"), priceField(item), noteField(item)],
+      panel.appendChild(row([nameField(item, "name"), priceField(item), noteField(item), photoField(item)],
         rowActions(draft.oneBid, i, 4)));
     });
     panel.appendChild(addButton("+ Add a One Bid item",
@@ -238,11 +252,11 @@ const TpirEditor = (function () {
       box.appendChild(el("p", "ed-group-title", `Set ${i + 1}`));
       const sub = el("div", "ed-sub");
       set.items.forEach((item) => {
-        sub.appendChild(row([nameField(item, "name"), priceField(item, 1, 99)]));
+        sub.appendChild(row([nameField(item, "name"), priceField(item, 1, 99), photoField(item)]));
       });
       sub.appendChild(row([
         el("p", "ed-group-title", "Prize"), nameField(set.prize, "name"),
-        priceField(set.prize), noteField(set.prize),
+        priceField(set.prize), noteField(set.prize), photoField(set.prize),
       ]));
       box.appendChild(sub);
       group.appendChild(box);
@@ -279,7 +293,7 @@ const TpirEditor = (function () {
         field("Car", car.car, (v) => { car.car = v; }, { maxLength: 60, className: "ed-field-wide" }),
         field("Price (5 digits)", car.price, (v) => { car.price = v; },
           { type: "number", min: 10000, max: 99999, className: "ed-field-num" }),
-        noteField(car),
+        noteField(car), photoField(car),
       ], rowActions(draft.luckyseven, i, 0)));
     });
     panel.appendChild(addButton("+ Add a car",
@@ -294,7 +308,7 @@ const TpirEditor = (function () {
       box.appendChild(el("p", "ed-group-title", `Showcase ${i + 1} — total ${total}`));
       const sub = el("div", "ed-sub");
       sc.prizes.forEach((p, j) => {
-        sub.appendChild(row([nameField(p, "name"), priceField(p), noteField(p)],
+        sub.appendChild(row([nameField(p, "name"), priceField(p), noteField(p), photoField(p)],
           rowActions(sc.prizes, j, 2)));
       });
       sub.appendChild(addButton("+ Add a prize", () => {
@@ -335,6 +349,7 @@ const TpirEditor = (function () {
   function renderStatus() {
     const msg = $("tpir-editor-msg");
     const warn = $("tpir-editor-warn");
+    if (window.TpirEditorMedia) window.TpirEditorMedia.renderMeter(draft, $("tpir-editor-meter"));
     try {
       core().validateGame(draft);
       msg.textContent = "";
@@ -375,16 +390,60 @@ const TpirEditor = (function () {
     }
   }
 
-  function download() {
+  function download(fileName) {
     const blob = new Blob([JSON.stringify(draft, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "prizes.json";
+    link.download = fileName || "prizes.json";
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /** "Kids' night" -> "kids-night.json", always a bare, safe file name. */
+  function setFileName(title) {
+    const stem = String(title || "prizes").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+    return `${stem || "prizes"}.json`;
+  }
+
+  /** What the manifest row for this draft should say. */
+  function manifestEntry(fileName) {
+    const count = (list) => (Array.isArray(list) ? list.length : 0);
+    return {
+      file: fileName,
+      name: draft.title || "Untitled set",
+      description: "",
+      by: "",
+      counts: {
+        "one bid": count(draft.oneBid),
+        cliffhangers: count(draft.cliffhangers),
+        plinko: count(draft.plinko),
+        "lucky seven": count(draft.luckyseven),
+        showcases: count(draft.showcases),
+      },
+    };
+  }
+
+  /**
+   * Static hosting cannot write files, so this is the honest workflow: the
+   * browser downloads the set, and the editor prints the exact manifest row to
+   * paste into sets/index.json and the path to commit it to (docs/19 §2).
+   */
+  function downloadForLibrary() {
+    const fileName = setFileName(draft.title);
+    download(fileName);
+    const box = $("tpir-editor-manifest");
+    if (!box) return;
+    box.replaceChildren();
+    box.appendChild(el("p", "ed-manifest-lead",
+      `Saved ${fileName}. Commit it to games/price-is-right/sets/${fileName}, then add this row to games/price-is-right/sets/index.json:`));
+    const pre = el("pre", "ed-manifest-line");
+    pre.textContent = JSON.stringify(manifestEntry(fileName), null, 2);
+    box.appendChild(pre);
+    show(box, true);
   }
 
   function wire() {
@@ -393,7 +452,8 @@ const TpirEditor = (function () {
     const bind = (id, fn) => { const n = $(id); if (n) n.addEventListener("click", fn); };
     bind("btn-editor-close", close);
     bind("btn-editor-use", useInGame);
-    bind("btn-editor-download", download);
+    bind("btn-editor-download", () => download("prizes.json"));
+    bind("btn-editor-library", downloadForLibrary);
     bind("btn-editor-reset", () => setDraft(clone(globalThis.TPIR_DEFAULT_GAME || blankDraft())));
     bind("btn-editor-blank", () => setDraft(blankDraft()));
   }
@@ -403,6 +463,7 @@ const TpirEditor = (function () {
 
   return {
     open, close, draft: () => draft, setDraft, DRAFT_KEY,
+    setFileName, manifestEntry, downloadForLibrary,
     tab: (key) => { if (key) { tab = key; renderTabs(); renderPanel(); } return tab; },
   };
 })();

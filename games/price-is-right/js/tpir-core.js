@@ -35,7 +35,7 @@
     plan, rowWinner, cliffError, cliffClimb, plinkoTruth, plinkoPath,
     l7Digits, l7Cost, showdownWinner, showcaseResult, PLINKO_ANSWERS, WHEEL_TARGET,
     formatMoney, wheelLabel, nameOf, isPlayer, winningsOf, standings,
-    currentSegment, activePid, rowSeats, validatePhoneMsg, phoneView, settingsOf,
+    currentSegment, activePid, rowSeats, validatePhoneMsg, phoneView, stripImages, settingsOf,
   } = Select;
 
   const PHASES = Object.freeze(["setup", "row", "game", "showdown", "showcase", "standings"]);
@@ -404,6 +404,7 @@
     return {
       slate: {
         setIndex: draw.index, car: car.car, note: car.note, price: car.price, digits,
+        image: car.image, imageAlt: car.imageAlt,
         revealedDigits: [digits[0]], guesses: [], index: 1, wallet: L7_START, lastCost: null,
       },
       kind: "luckyseven", index: draw.index,
@@ -739,6 +740,8 @@
     // reading a state
     formatMoney, wheelLabel, nameOf, isPlayer, winningsOf, standings, rowSeats, settingsOf,
     // phones
-    validatePhoneMsg, phoneView,
+    validatePhoneMsg, phoneView, stripImages,
+    // photos
+    validateImageRef: Content.validateImageRef, cleanAlt: Content.cleanAlt,
   };
 });

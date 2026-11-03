@@ -22,6 +22,7 @@
       <span id="tpir-segment-chip" class="gsc-chip hidden"></span>
       <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">Undo</button>
       <button id="btn-finish" class="btn btn-ghost btn-small hidden" type="button">End the night</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#10226; Game lobby</button>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Prize editor</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
@@ -77,10 +78,12 @@
               <button id="btn-load-json" class="btn btn-ghost" type="button">Load prizes (.json)</button>
               <input id="tpir-file" class="visually-hidden" type="file" accept="application/json,.json">
             </div>
+            <div id="tpir-library"></div>
           </div>
         </div>
 
         <div class="setup-actions">
+          <button id="btn-resume" class="btn btn-blue btn-big hidden" type="button">Resume the show</button>
           <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the show</button>
         </div>
       </div>
@@ -101,6 +104,7 @@
           <p class="gsc-eyebrow">Up for bid</p>
           <h2 id="tpir-item-name" class="item-name">&nbsp;</h2>
           <p id="tpir-item-note" class="item-note">&nbsp;</p>
+          <div id="tpir-item-photo" class="prize-photo hidden"></div>
         </article>
 
         <div id="tpir-podiums" class="podium-row" aria-label="Contestants' Row"></div>
@@ -202,6 +206,7 @@
         <div class="editor-bar-actions">
           <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
           <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-blue" type="button">Download for the library</button>
           <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
           <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
           <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
@@ -209,6 +214,8 @@
       </div>
       <p id="tpir-editor-msg" class="error-msg hidden" role="alert"></p>
       <p id="tpir-editor-warn" class="notice"></p>
+      <p id="tpir-editor-meter" class="editor-meter"></p>
+      <div id="tpir-editor-manifest" class="editor-manifest hidden" role="status"></div>
 
       <div id="tpir-editor-tabs" class="editor-tabs" role="tablist" aria-label="Prize lists"></div>
       <div id="tpir-editor-panel" class="editor-panel"></div>
@@ -229,6 +236,20 @@
 
   </main>
 
+  <!-- ===================== Game lobby confirm (docs/19 §1) ===================== -->
+  <div id="tpir-lobby-modal" class="gsc-modal-backdrop hidden">
+    <div class="gsc-modal" role="dialog" aria-modal="true" aria-labelledby="tpir-lobby-title">
+      <h2 id="tpir-lobby-title" class="gsc-modal-title">Back to the game lobby</h2>
+      <p class="gsc-modal-body">Keep this show so you can pick it up where you left off, or start over with the
+        same players and prizes?</p>
+      <div class="gsc-modal-actions">
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Cancel</button>
+        <button id="btn-lobby-over" class="btn btn-ghost" type="button">Start over</button>
+        <button id="btn-lobby-keep" class="btn btn-gold" type="button">Keep this game</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ Title card shown for 1.2 s on a game switch ============
        Same node, ids and classes as the hub's own splash: decorative,
        pointer-events:none, skipped under prefers-reduced-motion and when the
@@ -248,6 +269,8 @@
   <script src="../../shared/room-host.js"></script>
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
+  <script src="js/tpir-media.js"></script>
   <script src="js/tpir-content.js"></script>
   <script src="js/tpir-select.js"></script>
   <script src="js/tpir-core.js"></script>
@@ -257,6 +280,8 @@
   <script src="js/tpir-view.js"></script>
   <script src="js/tpir-games.js"></script>
   <script src="js/tpir-app.js"></script>
+  <script src="js/tpir-setup.js"></script>
+  <script src="js/tpir-editor-media.js"></script>
   <script src="js/tpir-editor.js"></script>
   <script src="js/tpir-room.js"></script>
   <script src="js/tpir-phone.js"></script>

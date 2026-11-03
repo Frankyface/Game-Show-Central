@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120" role="img" aria-label="Mountain bike">
+  <rect width="160" height="120" fill="#eef3f6"/>
+  <circle cx="42" cy="82" r="26" fill="none" stroke="#2f3742" stroke-width="6"/>
+  <circle cx="118" cy="82" r="26" fill="none" stroke="#2f3742" stroke-width="6"/>
+  <circle cx="42" cy="82" r="4" fill="#5b6470"/>
+  <circle cx="118" cy="82" r="4" fill="#5b6470"/>
+  <path d="M42 82 74 46 96 82 42 82Z" fill="none" stroke="#1d6fdc" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M96 82 74 46" fill="none" stroke="#1d6fdc" stroke-width="6"/>
+  <path d="M96 82 118 82" fill="none" stroke="#1d6fdc" stroke-width="6"/>
+  <path d="M74 46 66 34" fill="none" stroke="#e63946" stroke-width="6" stroke-linecap="round"/>
+  <path d="M54 34 78 34" fill="none" stroke="#2f3742" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="80" cy="82" r="7" fill="none" stroke="#ffd23f" stroke-width="5"/>
+</svg>

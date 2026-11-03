@@ -11,12 +11,18 @@
     "pricingGames": ["cliffhangers", "plinko", "luckyseven"]
   },
   "oneBid": [
-    { "name": "Espresso machine", "price": 249, "note": "15-bar pump, stainless steel body" },
+    {
+      "name": "Espresso machine", "price": 249, "note": "15-bar pump, stainless steel body",
+      "image": "img/espresso-machine.svg", "imageAlt": "A stainless-steel espresso machine with a cup under the group head"
+    },
     { "name": "Robot vacuum", "price": 389, "note": "Maps the house, empties itself" },
     { "name": "Electric guitar and amp", "price": 575, "note": "Solid body, 20-watt combo amp" },
     { "name": "Stand mixer", "price": 429, "note": "5-quart bowl, ten speeds" },
     { "name": "Air fryer oven", "price": 179, "note": "Eleven presets, glass door" },
-    { "name": "Mountain bike", "price": 820, "note": "Aluminium frame, 27 speeds" },
+    {
+      "name": "Mountain bike", "price": 820, "note": "Aluminium frame, 27 speeds",
+      "image": "img/mountain-bike.svg", "imageAlt": "A blue mountain bike seen from the side"
+    },
     { "name": "Noise-cancelling headphones", "price": 348, "note": "Over-ear, 30-hour battery" },
     { "name": "Gas grill", "price": 649, "note": "Four burners and a side ring" },
     { "name": "Sewing machine", "price": 265, "note": "Computerised, 60 stitch patterns" },
