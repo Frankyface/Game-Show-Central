@@ -1,19 +1,18 @@
 /* ============================================================
-   1 vs 100 — phone controller
-   320-430 px portrait, thumb-sized targets (>= 56 px), no
-   horizontal scroll at 320 px. The phone is a thin surface: it
-   paints the view the host sent and sends one intent back.
+   1 vs 100 — phone controller (design system v3)
+   320-430 px portrait, flat: one surface card on the stage,
+   Inter throughout, 56 px targets, no horizontal scroll at
+   320 px. The phone paints the view the host sent and sends one
+   intent back.
    ============================================================ */
 
-body.player-mode {
-  padding: 0;
-}
+body.player-mode { padding: 0; }
 
 .screen-phone {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 0.9rem 0.8rem 1.6rem;
+  padding: 0.9rem 0.8rem 1.4rem;
   gap: 0.6rem;
 }
 
@@ -24,33 +23,25 @@ body.player-mode {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background: linear-gradient(180deg, rgba(10, 61, 77, 0.9), rgba(0, 2, 5, 0.96));
-  border: 1px solid rgba(25, 201, 255, 0.45);
-  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
   padding: 0.9rem 0.8rem 1rem;
 }
 
-.phone-kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--mob);
-  margin: 0;
-  min-height: 1em;
-}
+.phone-kicker { font-size: 15px; font-weight: 500; color: var(--ink-dim); margin: 0; min-height: 1em; }
 
 .phone-headline {
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  line-height: 1.15;
-  letter-spacing: 0.01em;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.25;
   margin: 0;
   color: var(--ink);
   overflow-wrap: anywhere;
 }
 
-.phone-sub { font-size: 0.92rem; color: var(--ink-dim); margin: 0; }
+.phone-sub { font-size: 16px; color: var(--ink-dim); margin: 0; }
 
 .phone-choices { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.3rem; }
 
@@ -62,94 +53,57 @@ body.player-mode {
   width: 100%;
   text-align: left;
   font-family: var(--font-ui);
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 500;
   color: var(--ink);
-  background: linear-gradient(180deg, rgba(18, 102, 127, 0.55), rgba(0, 2, 5, 0.9));
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.9rem;
+  background: var(--stage-base);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.9rem;
   cursor: pointer;
 }
 
-.phone-choice:focus-visible { outline: 3px solid var(--mob); outline-offset: 2px; }
+.phone-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Your own pick: the accent border plus aria-pressed, never colour alone. */
 .phone-choice[aria-pressed="true"] {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, rgba(255, 204, 77, 0.3), rgba(70, 48, 4, 0.9));
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
 }
-.phone-choice[disabled] { opacity: 0.45; cursor: not-allowed; }
-.phone-choice[aria-pressed="true"][disabled] { opacity: 1; }          /* your own pick stays readable */
-.phone-choice[aria-pressed="true"] .phone-letter { color: var(--ink); }  /* cyan on the gold stop was 3.3:1 */
+.phone-choice[disabled] { opacity: 0.5; cursor: not-allowed; }
+.phone-choice[aria-pressed="true"][disabled] { opacity: 1; }          /* your own pick stays readable (D5) */
 
-.phone-letter {
-  font-family: var(--font-display);
-  color: var(--mob);
-  font-size: 1.2rem;
-  min-width: 1.2em;
-}
+.phone-letter { font-weight: 600; color: var(--ink-dim); min-width: 1.2em; }
+.phone-choice[aria-pressed="true"] .phone-letter { color: var(--ink); }
 .phone-choice-text { flex: 1; overflow-wrap: anywhere; }
 
 .phone-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
 .phone-actions .btn { flex: 1 1 45%; min-height: var(--tap); }
 
-.phone-status { font-size: 0.82rem; color: var(--ink-dim); margin: auto 0 0; }
+.phone-status { font-size: 15px; color: var(--ink-dim); margin: auto 0 0; }
 
-.phone-stats { display: flex; gap: 1.2rem; margin-top: 0.4rem; flex-wrap: wrap; }
-.phone-stats .k {
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--ink-dim);
-  margin: 0;
-}
-.phone-stats .v { font-family: var(--font-display); font-size: 1.2rem; color: var(--gold-text); margin: 0; }
+.phone-stats { display: flex; gap: 1.4rem; margin-top: 0.4rem; flex-wrap: wrap; }
+.phone-stats .k { font-size: 14px; color: var(--ink-mute); margin: 0; }
+.phone-stats .v { font-weight: 600; font-size: 20px; color: var(--ink); margin: 0; }
 
-.phone-poll {
-  flex: 1 1 100%;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(25, 201, 255, 0.35);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.7rem;
-}
-.phone-poll-title {
-  margin: 0 0 0.2rem;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--mob);
-}
-.phone-poll-row { display: flex; justify-content: space-between; margin: 0.1rem 0; font-size: 0.95rem; }
-.phone-poll-k { font-family: var(--font-display); color: var(--mob); }
-.phone-poll-v { font-family: var(--font-display); color: var(--gold-text); }
+.phone-poll { flex: 1 1 100%; border-top: 1px solid var(--hairline); padding: 0.4rem 0 0; }
+.phone-poll-title { margin: 0 0 0.2rem; font-size: 15px; font-weight: 600; color: var(--ink-dim); }
+.phone-poll-row { display: flex; justify-content: space-between; margin: 0.1rem 0; font-size: 17px; }
+.phone-poll-k { font-weight: 600; color: var(--ink-dim); }
+.phone-poll-v { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-.phone-card.out-card { border-color: var(--red); }
-.phone-card.contestant-card { border-color: var(--gold); }
-.phone-card.winner-card { border-color: var(--green); }
+.phone-card.out-card { border-color: rgba(255, 107, 107, 0.6); }
+.phone-card.contestant-card { border-color: var(--accent); }
+.phone-card.winner-card { border-color: var(--accent); }
 
 /* The answer-window countdown under the three options. Decorative: the strip
-   is aria-hidden and the words beneath it carry the meaning, and nothing at
-   all happens on the phone when it reaches zero — the host closes the Mob. */
-.phone-clock {
-  flex: 1 1 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.2rem;
-}
-
-.phone-clock-label {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--ink-dim);
-  font-variant-numeric: tabular-nums;
-}
-
+   is aria-hidden and the words beneath it carry the meaning, and nothing
+   happens on the phone when it reaches zero — the host closes the Mob. */
+.phone-clock { flex: 1 1 100%; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; margin-top: 0.2rem; }
+.phone-clock-label { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .phone-clock.is-urgent .phone-clock-label { color: var(--red); }
 
 @media (max-width: 360px) {
-  .phone-headline { font-size: 1.25rem; }
-  .phone-choice { font-size: 0.98rem; padding: 0.6rem 0.7rem; }
-  .screen-phone { padding: 0.7rem 0.55rem 1.4rem; }
+  .phone-headline { font-size: 20px; }
+  .phone-choice { font-size: 16px; padding: 0.55rem 0.7rem; }
+  .screen-phone { padding: 0.7rem 0.55rem 1.2rem; }
 }

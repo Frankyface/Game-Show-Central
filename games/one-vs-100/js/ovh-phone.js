@@ -17,6 +17,7 @@
   let me = null;
   let view = { screen: "wait" };
   let connected = true;
+  let localDeadline = null;   // this phone's own clock + the host's msLeft
 
   /** The answer-window countdown's repaint interval; ephemeral, never sent. */
   let clockTicker = null;
@@ -58,13 +59,14 @@
   }
 
   /**
-   * Repaint the strip and the seconds from the deadline the host sent. Hitting
+   * Repaint the strip and the seconds from the time left the host sent (D12:
+   * turned into a deadline on THIS phone's clock when the view arrived). Hitting
    * zero changes nothing at all on the phone: the host closes the window.
    */
   function paintClock(box) {
     const total = Number.isFinite(view.seconds) ? view.seconds : 0;
-    const left = Number.isFinite(view.deadline)
-      ? Math.max(0, Math.ceil((view.deadline - Date.now()) / 1000)) : total;
+    const left = Number.isFinite(localDeadline)
+      ? Math.max(0, Math.ceil((localDeadline - Date.now()) / 1000)) : total;
     const label = box.querySelector(".phone-clock-label");
     if (label) {
       label.textContent = left > 0
@@ -82,7 +84,7 @@
 
   /** A .gsc-timer strip plus a plain seconds line, under the three options. */
   function buildClock(actions) {
-    if (!Number.isFinite(view.deadline)) return;
+    if (!Number.isFinite(localDeadline) || !(view.seconds > 0)) return;
     const box = el("div", "phone-clock");
     const strip = el("div", "gsc-timer");
     strip.setAttribute("aria-hidden", "true");
@@ -197,6 +199,7 @@
   function onMessage(raw) {
     if (!raw || typeof raw !== "object" || raw.t !== "view") return;
     view = raw;
+    localDeadline = Number.isFinite(raw.msLeft) ? Date.now() + raw.msLeft : null;
     render();
   }
 

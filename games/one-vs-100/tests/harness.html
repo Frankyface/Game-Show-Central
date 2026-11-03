@@ -175,6 +175,9 @@
     const KEYS = ["gsc-ovh-state-v1-harness", "gsc-ovh-draft-v1-harness"];
 
     const texts = {};
+    // D6: a real host may have played on this origin; the harness must leave
+    // that save exactly as it found it, not require that it never existed.
+    const REAL_SAVE_BEFORE = localStorage.getItem("gsc-ovh-state-v1");
 
     async function refreshAssets() {
       await Promise.all(ASSETS.map(async (u) => {
@@ -303,6 +306,8 @@
       check("O-I2 the host sees the live count reach everybody",
         H("ovh-mob-answered").textContent === "Answered 5/5",
         H("ovh-mob-answered").textContent);
+      await waitFor(() => phoneView("p2").mine === 0 && phoneChoices("p2").every((b) => b.disabled),
+        "p2's own view shows its locked answer", 8000).catch(() => null);
       check("O-I2 an answered Mob phone cannot answer twice",
         phoneChoices("p2").every((b) => b.disabled) && phoneView("p2").mine === 0,
         `mine=${phoneView("p2").mine}`);
@@ -609,7 +614,7 @@
         !/body\[data-gsc-game/.test(cssNoComments));
       check("O-I6 the harness storage is namespaced away from a real host's save",
         HW().OvhApp.STORAGE_KEY === "gsc-ovh-state-v1-harness"
-        && localStorage.getItem("gsc-ovh-state-v1") === null,
+        && localStorage.getItem("gsc-ovh-state-v1") === REAL_SAVE_BEFORE,
         HW().OvhApp.STORAGE_KEY);
       check("O-I6 the host reported standings up to the shell",
         shellLog.some((d) => d.t === "title"), `${shellLog.length} shell frames`);
@@ -666,6 +671,26 @@
         `${HD().querySelectorAll("#ovh-result-mob .standing-row").length} rows`);
     }
 
+    /* ============================================================
+       D4 — a phone that joins mid-game plays from the next game
+       ============================================================ */
+
+    async function scenarioLateJoiner() {
+      const neo = { pid: "p7", name: "Neo", color: "#ff8c1a", avatar: "🦁", connected: true, manual: false };
+      PLAYERS.push(neo);
+      post(hostFrame, { t: "player-join", player: neo });
+      await waitFor(() => /Neo joined/.test(H("ovh-error").textContent), "the mid-game join notice");
+      check("D4 a mid-game joiner is told they play from the next game, and is not seated yet",
+        !HW().OvhApp.state().setup.players.some((p) => p.pid === "p7"),
+        H("ovh-error").textContent);
+      click("btn-play-again");
+      await waitFor(() => HW().OvhApp.state().setup.players.some((p) => p.pid === "p7"), "Neo seated", 4000)
+        .catch(() => null);
+      check("D4 after Play again the late joiner is on the setup roster",
+        HW().OvhApp.state().setup.players.some((p) => p.pid === "p7" && p.name === "Neo"),
+        HW().OvhApp.state().setup.players.map((p) => p.name).join(","));
+    }
+
     /* ============ Run ============ */
 
     (async function run() {
@@ -679,6 +704,7 @@
         await scenarioLobbyAndLibrary();
         await scenarioGates();
         await scenarioSimulated();
+        await scenarioLateJoiner();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);
         check("harness run completed", false, uncaught);

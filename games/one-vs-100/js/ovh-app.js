@@ -517,14 +517,22 @@ function ovhWireResult() {
   ovhWireButton("btn-play-again", () => ovhSet({ core: null, stashed: null, pick: null }));
 }
 
+/** An inline SVG beside a toolbar label (shared/icons.js); harmless without it. */
+function ovhIcon(node, name) {
+  if (node && window.GSCIcons && typeof window.GSCIcons.prepend === "function") window.GSCIcons.prepend(node, name);
+}
+
 function ovhWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
     sound.textContent = window.OvhSound.enabled ? "Sound on" : "Sound off";
+    ovhIcon(sound, window.OvhSound.enabled ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(window.OvhSound.enabled));
   };
   sound.addEventListener("click", () => { window.OvhSound.toggle(); paint(); });
   paint();
+  ovhIcon($("btn-editor"), "edit");
+  ovhIcon($("btn-game-lobby"), "lobby");
   $("btn-game-lobby").addEventListener("click", () => ovhLobbyOpen(true));
   $("btn-lobby-keep").addEventListener("click", () => ovhLobbyChoice(true));
   $("btn-lobby-restart").addEventListener("click", () => ovhLobbyChoice(false));
@@ -566,7 +574,7 @@ function ovhMountLibrary() {
 
 /* ============ Splash ============ */
 
-const OVH_SPLASH_MS = 1200;
+const OVH_SPLASH_MS = 600;   // docs/21 rule 8: a plain 600 ms title card
 let ovhSplashTimer = null;
 
 /**
@@ -581,7 +589,7 @@ function ovhShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return;
   setText("gsc-splash-title", "1 vs 100");
-  setText("gsc-splash-sub", "One player. The whole room is the Mob.");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "one-vs-100";
   node.classList.remove("hidden");
   if (ovhSplashTimer) clearTimeout(ovhSplashTimer);

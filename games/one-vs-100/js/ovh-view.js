@@ -46,9 +46,9 @@ const OvhView = (function () {
   };
 
   const HELP_LABELS = {
-    poll: { badge: "📊", name: "Poll the Mob" },
-    ask: { badge: "🗣", name: "Ask the Mob" },
-    trust: { badge: "🤝", name: "Trust the Mob" },
+    poll: { name: "Poll the Mob" },
+    ask: { name: "Ask the Mob" },
+    trust: { name: "Trust the Mob" },
   };
 
   /* ============ Screen switching ============ */
@@ -85,7 +85,12 @@ const OvhView = (function () {
     renderRules(app);
     show($("btn-resume"), !!app.stashed);
     const start = $("btn-start");
-    if (start) start.textContent = app.stashed ? "Start a new game" : "Start the game";
+    if (start) {
+      start.textContent = app.stashed ? "Start a new game" : "Start the game";
+      // One primary at a time: with a parked game, Resume is the primary.
+      start.classList.toggle("btn-gold", !app.stashed);
+      start.classList.toggle("btn-ghost", !!app.stashed);
+    }
   }
 
   function renderPlayers(app) {
@@ -172,7 +177,6 @@ const OvhView = (function () {
       const label = HELP_LABELS[key];
       const on = !!state.helps[key];
       const chip = el("span", `gsc-chip help-chip ${on ? "is-on" : "is-spent"}`);
-      chip.appendChild(el("span", "help-badge", label.badge));
       chip.appendChild(el("span", "help-name", label.name));
       chip.appendChild(el("span", "help-state", on ? "ready" : "used"));
       box.appendChild(chip);
@@ -192,14 +196,14 @@ const OvhView = (function () {
     const grid = $("ovh-mob-grid");
     if (!grid) return;
     grid.replaceChildren();
-    grid.classList.toggle("is-big", size > 35);   // 36-40 normal tiles overflowed at 1280x676
+    grid.classList.toggle("is-big", size > 28);   // 29+ normal tiles overflow the 1280x628 hub frame
     C.mobTiles(state).forEach((tile) => {
       const node = el("li", "mob-tile");
       node.classList.toggle("is-out", !tile.alive);
       node.classList.toggle("is-answered", tile.alive && tile.answered && !state.q.closed);
       node.classList.toggle("is-just-out", !!tile.justOut);
       node.appendChild(el("span", "mob-seat", tile.seat));
-      const mark = el("span", "mob-mark", tile.alive ? (tile.answered ? "•" : "") : "✕");
+      const mark = el("span", "mob-mark", tile.alive ? (tile.answered ? "•" : "") : "out");
       node.appendChild(mark);
       node.title = tile.alive
         ? `${tile.name}${tile.answered ? " — answered" : ""}`
@@ -304,10 +308,18 @@ const OvhView = (function () {
   /* ============ Result and standings ============ */
 
   const RESULT_COPY = {
-    win: { kicker: "The Mob is wiped out", sub: "Every tile dark. The bank, doubled." },
+    win: { kicker: "The Mob is wiped out", sub: "" },   // sub built from the bonus (D10)
     walk: { kicker: "Walked away", sub: "Took the money and left the Mob standing." },
     lose: { kicker: "Wrong answer", sub: "The game ends there — and the survivors take the bank." },
   };
+
+  /** D10: the wipe-out line names the bonus this game actually pays. */
+  function winLine(state) {
+    const n = state.game.settings.bonusMultiplier;
+    if (n === 1) return "Every tile dark. The contestant takes the bank.";
+    if (n === 2) return "Every tile dark. The bank is doubled.";
+    return `Every tile dark. The bank is multiplied by ${n}.`;
+  }
 
   function renderResult(app) {
     const state = app.core;
@@ -320,7 +332,7 @@ const OvhView = (function () {
     setText("ovh-result-amount", C.formatMoney(state, out.won));
     setText("ovh-result-sub", standings
       ? `${state.qNumber} question${state.qNumber === 1 ? "" : "s"} played.`
-      : copy.sub);
+      : (out.reason === "win" ? winLine(state) : copy.sub));
     renderResultMob(app, out);
     renderMoneyLines(app, out);
     show($("btn-standings"), !standings);

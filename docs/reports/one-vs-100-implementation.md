@@ -106,3 +106,62 @@ and under reduced motion. The phone page hides every host screen.
    My server on 8712 is stopped.
 5. Known minor: the **setup** screen scrolls about 20 px inside the 1280×676 hub
    frame (play screens do not).
+
+---
+
+## Round 2 (2026-11-03): tester defects and the v3 UI pass
+
+The tester's in-place fixes D1, D2, D3 and D5 are kept. Their D1 tile tuning
+was retuned in this pass (below). One edit to their suite: in
+`tests/ovh-adversarial.test.mjs` the allowed Mob-view key `deadline` became
+`msLeft`, because D12 renamed that field.
+
+### Defects
+
+| ID | Fix |
+|---|---|
+| D4 (major) | `ovh-room.js` `seatWaitingPhones()`: whenever no game is in progress, every connected non-manual phone missing from `setup.players` is added. A name already on the list is skipped. It runs on join, on a phone coming back up, and from the subscribe callback when the core becomes null (Play again, Start over). New harness check: Neo joins mid-game, is told "next game", and is on the roster after Play again. |
+| D6 | The harness snapshots `gsc-ovh-state-v1` before the run and requires it unchanged, instead of requiring it absent. |
+| D7 | O-I2 waits up to 8 s for p2's own view to show its locked answer before asserting. |
+| D8 | Setup restructured: Start/Resume moved into the setup header, the player list is two columns, the timer and bonus fields share a row, the helps sit inline, and the duplicate hint is gone. Setup now fits 1280×628 (the hub frame) with 6 players. A full 12-player room still scrolls, but Start stays on screen. Was 82 px of scroll. |
+| D9 | Every host text ≥ 14 px (the gate below found none smaller). Body ≥ 16 px, controls ≥ 15 px. Seat numbers are 17 px (14 px on big grids). |
+| D10 | The win line is built from `bonusMultiplier`: ×1 "takes the bank", ×2 "the bank is doubled", otherwise "multiplied by N". |
+| D11 | `ovhSlug` turns a title of "index" into `index-set.json`. Reset and Start blank hide the library recipe. |
+| D12 | Phones get `msLeft` (time left at send, from `phoneView(state, pid, now)`). The phone turns it into a deadline on its own clock when the view arrives. |
+| D13 | After a loss, every surviving Mob member is reported to the hub scoreboard even when the share is $0. |
+
+### v3 UI pass (docs/21, design-system §0)
+
+Two sheets were rewritten: `css/ovh.css` and `css/ovh-phone.css`. Markup changes: the setup header, the field row, plain toolbar labels, no splash kicker, and `shared/icons.js` loaded. JS was touched only for class names (`is-big` cut-off, which button is the primary on setup), `GSCIcons.prepend` (Sound/Editor/Game lobby, again after each Sound toggle), removing the help emoji and the tile "✕" text, and the splash (600 ms, empty sub).
+
+- **Stage, surfaces and colour:** the stage is the shared flat one (cyan mixed in at 5 %). There is one surface level with a hairline. No gradients anywhere: buttons, tiles, options and phone card are all flat. The question plate is flat with one hairline and no hex cut. No glow or hover lift. The accent is used for the active state and primary buttons. Gold is only on money (bank, per-member value, winnings, ladder values).
+- **Type:** Anton is used for one hero per screen only: the game name on setup, the bank in play, the amount on the result. The editor has none. Everything else is Inter in sentence case. The decorative setup eyebrow was replaced by one plain sentence of what to do next.
+- **The Mob:** flat tiles with a count label above ("63 of 100 still in"). A tile that is still in has the accent tinted into the surface. An eliminated tile is the stage colour, with its number struck through so the state does not rest on colour. An answered tile gets an accent border and a dot. Only the knocked-out tiles flip on a reveal.
+- **Grid sizing (D1 retuned):** the big grid now starts above 28 tiles (was above 35), at 1.75 rem. Measured: 16, 28, 29, 35, 36, 40, 60 and 100 tiles all fit with no hidden rows at 1280×720, 676 and 628, with the simulated-Mob form open.
+
+**Checklist (design-system §0):**
+
+- [x] data-gsc-game; no local accent override; no gradient stage
+- [x] one Anton hero per screen; no uppercase or tracking; no decorative eyebrows; body ≥ 16 / controls ≥ 15
+- [x] accent for active state, primary and rule only; gold only on money; no text-shadow or glow
+- [x] one surface level with a hairline; no backdrop-filter; no accent rails
+- [x] buttons 6 px radius, 44–48 px host / 56 px phone, sentence case, flat
+- [x] no emoji in the host DOM; GSCIcons beside labels
+- [x] only meaningful motion (the elimination flip); every animation inside no-preference; splash 600 ms plain
+- [x] toolbar is Sound · Editor · Game lobby, icon + label
+- [x] plain setup sentence
+- [x] JS edits limited as above
+
+**Verification (headless Chrome over CDP; scripts in `.scratch/ovh-*`):**
+
+| Check | Result |
+|---|---|
+| `node --test` | 86/86 |
+| `tests/harness.html` (port 8712) | 68/68 (66 + two D4 checks) |
+| Real network (PeerJS broker, Mob phone + contestant phone) | PASS: room MWN9, "Answered 1/1", "Mob wiped out / $200", no console errors |
+| Play / result / standings, 1280×720, 676, 628 | no vertical or horizontal scroll |
+| Setup | fits 720 and 676; fits 628 with ≤ 6 players |
+| Phone 320×640 | smallest target 56 px; no horizontal scroll on mob-answer, contestant, mob-eliminated or result |
+| Live DOM walk (setup, lobby modal, window open, picked, locked, revealed, result, standings, editor) | 0 emoji, 0 backdrop-filter, 0 text-shadow, 0 gradients under text, 0 uppercase or tracked text outside Anton, 0 text < 14 px, minimum contrast 5.62:1 |
+| Reduced motion (emulated) | `getAnimations()` is 0 after a reveal. CSSOM walk found no @keyframes or animation outside no-preference, and no hover lifts. |
+| Static | V3 grep clean across `games/one-vs-100` (harness included), no `console.log`, every file < 800 lines (largest `ovh-core.js` 734) |

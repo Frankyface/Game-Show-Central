@@ -19,8 +19,8 @@
     <div class="topbar-actions">
       <span id="ovh-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8634; Game lobby</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
   </header>
@@ -32,22 +32,40 @@
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="card">
-        <p class="kicker">One player. The whole room is the Mob.</p>
-        <h2 class="card-title">1 vs 100</h2>
-        <p id="ovh-source" class="source-note">Loading questions&hellip;</p>
+        <div class="setup-head">
+          <div class="setup-head-text">
+            <h2 class="card-title">1 vs 100</h2>
+            <p class="hint">Pick the contestant, choose phones or a simulated Mob, then press Start.</p>
+            <p id="ovh-source" class="source-note">Loading questions&hellip;</p>
+          </div>
+          <!-- Start sits in the header, so it is on screen even when a full room
+               makes the columns below taller than the hub frame (D8). -->
+          <div class="setup-actions">
+            <button id="btn-resume" class="btn btn-cyan btn-big hidden" type="button">Resume the game in progress</button>
+            <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
+          </div>
+        </div>
 
         <div class="setup-cols">
           <div class="setup-block">
             <h3 class="setup-heading">The contestant</h3>
-            <p class="hint">One player faces the Mob. Everyone else on a phone <em>is</em> the Mob.</p>
             <ul id="ovh-player-list" class="player-list"></ul>
             <form id="ovh-add-player" class="inline-form">
               <label class="visually-hidden" for="ovh-player-name">Player name</label>
               <input id="ovh-player-name" type="text" maxlength="24" placeholder="Add a player by name"
                      autocomplete="off" spellcheck="false">
-              <button class="btn btn-ghost" type="submit">+ Add</button>
+              <button class="btn btn-ghost" type="submit">Add</button>
             </form>
 
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="ovh-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="ovh-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="ovh-join-note" class="hint hidden">Players open <span id="ovh-join-url" class="mono"></span></p>
+          </div>
+
+          <div class="setup-block">
             <h3 class="setup-heading">The Mob</h3>
             <div class="mob-choice">
               <label class="check"><input id="ovh-mob-phones" type="radio" name="ovh-mob-source" value="phones">
@@ -59,23 +77,16 @@
               <input id="ovh-mob-size" type="number" min="1" max="100" step="1" inputmode="numeric">
             </label>
             <p id="ovh-mob-note" class="hint"></p>
-          </div>
-
-          <div class="setup-block">
-            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
-            <div id="ovh-room-controls" class="inline-form">
-              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
-            </div>
-            <p id="ovh-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
-            <p id="ovh-join-note" class="hint hidden">Players open <span id="ovh-join-url" class="mono"></span></p>
 
             <h3 class="setup-heading">Rules</h3>
-            <label class="field field-narrow">Answer window (seconds)
-              <input id="ovh-secs" type="number" min="0" max="120" step="1" inputmode="numeric">
-            </label>
-            <label class="field field-narrow">Bonus for wiping out the Mob (&times; the bank)
-              <input id="ovh-bonus" type="number" min="1" max="10" step="1" inputmode="numeric">
-            </label>
+            <div class="field-row">
+              <label class="field field-narrow">Answer window (seconds)
+                <input id="ovh-secs" type="number" min="0" max="120" step="1" inputmode="numeric">
+              </label>
+              <label class="field field-narrow">Wipe-out bonus (&times; bank)
+                <input id="ovh-bonus" type="number" min="1" max="10" step="1" inputmode="numeric">
+              </label>
+            </div>
             <fieldset class="help-set">
               <legend class="setup-heading">Helps</legend>
               <label class="check"><input id="ovh-help-poll" type="checkbox"> Poll the Mob</label>
@@ -95,11 +106,6 @@
             <h3 class="setup-heading">Question-set library</h3>
             <div id="ovh-library" class="library-box"></div>
           </div>
-        </div>
-
-        <div class="setup-actions">
-          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
-          <button id="btn-resume" class="btn btn-cyan btn-big hidden" type="button">Resume the game in progress</button>
         </div>
       </div>
     </section>
@@ -293,7 +299,6 @@
        Same node, ids and classes as the hub's own splash: decorative,
        pointer-events:none, skipped entirely under prefers-reduced-motion. ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -308,6 +313,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/ovh-content.js"></script>
   <script src="js/ovh-phoneview.js"></script>
   <script src="js/ovh-core.js"></script>

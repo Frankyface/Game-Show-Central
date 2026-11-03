@@ -34,9 +34,7 @@
     if (app.core) {
       const known = app.core.roster.some((p) => p.pid === player.pid);
       if (!known) window.OvhApp.error(`${player.name} joined — they can play from the next game.`);
-    } else if (!app.setup.players.some((p) => p.pid === player.pid)) {
-      window.OvhApp.addPlayer(player.name, player.pid, false);
-    }
+    } else seatWaitingPhones();
     countPhones();
     pushViews(window.OvhApp.core());
   }
@@ -45,7 +43,31 @@
   function onPlayerStatus(pid, connected) {
     delete lastSent[pid];
     countPhones();
+    if (connected && !window.OvhApp.core()) seatWaitingPhones();
     if (connected) pushViews(window.OvhApp.core());
+  }
+
+  /**
+   * D4: whenever no game is in progress (first boot, Play again, Start over,
+   * a phone reload), every connected phone the setup list is missing joins
+   * it, so "you can play from the next game" is true. A name already taken
+   * on the list is skipped rather than renamed.
+   */
+  let seating = false;
+  function seatWaitingPhones() {
+    if (seating || !room || !room.players || window.OvhApp.core()) return;
+    seating = true;
+    try {
+      room.players().forEach((p) => {
+        if (p.manual || p.connected === false || !p.pid || !p.name) return;
+        const players = window.OvhApp.state().setup.players;
+        if (players.some((x) => x.pid === p.pid)) return;
+        if (players.some((x) => x.name.toLowerCase() === String(p.name).toLowerCase())) return;
+        window.OvhApp.addPlayer(p.name, p.pid, false);
+      });
+    } finally {
+      seating = false;
+    }
   }
 
   function onPlayerLeave(pid) {
@@ -86,7 +108,7 @@
     room.players().forEach((p) => {
       if (p.manual) return;
       const view = state
-        ? Object.assign({ t: "view" }, core().phoneView(state, p.pid))
+        ? Object.assign({ t: "view" }, core().phoneView(state, p.pid, Date.now()))
         : { t: "view", screen: "wait", sub: "The host is still setting up." };
       const key = JSON.stringify(view);
       if (lastSent[p.pid] === key) return;
@@ -100,7 +122,8 @@
     if (room.setTitle) room.setTitle(titleFor(state));
     if (room.reportScores && (state.phase === "result" || state.phase === "standings")) {
       room.reportScores(core().standings(state)
-        .filter((row) => row.won > 0 || row.kind === "contestant")
+        .filter((row) => row.won > 0 || row.kind === "contestant"
+          || (state.outcome && state.outcome.reason === "lose" && row.alive))
         .map((row) => ({ pid: row.pid, name: row.name, score: row.won })));
     }
   }
@@ -190,7 +213,10 @@
     if (room.onStatus) {
       room.onStatus(() => { window.OvhApp.bindRoom(room.code); paintRoom(); });
     }
-    window.OvhApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
+    window.OvhApp.subscribe((state) => {
+      if (!state) seatWaitingPhones();
+      pushViews(state); reportProgress(state); paintRoom();
+    });
     wireRoomButton();
     (room.players ? room.players() : []).forEach(onPlayerJoin);
     paintRoom();

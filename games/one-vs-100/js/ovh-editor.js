@@ -295,8 +295,10 @@ function ovhDownload(name, text) {
 
 /** A safe bare `*.json` file name from the set's title. */
 function ovhSlug(title) {
-  const slug = String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return `${slug || "my-set"}.json`.slice(0, 60);
+  const slug = String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 55);
+  // D11: "index" is the library manifest itself; never offer to overwrite it.
+  const safe = !slug ? "my-set" : (slug === "index" ? "index-set" : slug);
+  return `${safe}.json`;
 }
 
 function ovhValidateDraft() {
@@ -393,9 +395,14 @@ function ovhWireEditor() {
   $("btn-editor-use").addEventListener("click", ovhEditorUse);
   $("btn-editor-reset").addEventListener("click", () => {
     ovhDraft = ovhDeepCopy(window.OVH_DEFAULT_GAME || ovhBlankDraft());
+    show($("ovh-editor-library"), false);     // D11: the old recipe no longer applies
     ovhTouchDraft();
   });
-  $("btn-editor-blank").addEventListener("click", () => { ovhDraft = ovhBlankDraft(); ovhTouchDraft(); });
+  $("btn-editor-blank").addEventListener("click", () => {
+    ovhDraft = ovhBlankDraft();
+    show($("ovh-editor-library"), false);
+    ovhTouchDraft();
+  });
   $("btn-ed-add").addEventListener("click", () => {
     const counts = ovhLevelCounts();
     const thinnest = counts.reduce((a, b) => (b.count < a.count ? b : a), counts[0]);

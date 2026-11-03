@@ -40,7 +40,7 @@ Hotkeys (host, when not typing): `A/B/C` or `1/2/3` pick, `Enter` locks,
 
 ### Toolbar
 
-**Sound** · **Question editor** · **⟲ Game lobby** (`btn-game-lobby`):
+**Sound** · **Editor** · **Game lobby** (`btn-game-lobby`), each an icon plus a label:
 *Keep this game* parks the game behind a **Resume** button on setup; *Start
 over* clears it. The players, questions and settings stay either way.
 
@@ -88,9 +88,12 @@ you commit both files yourself.
 | `result` | everyone | what they personally take home |
 
 Phone → host: `{t:"mob",idx}`, `{t:"lock",idx}`. Nothing else is accepted.
+Host → phone views carry the answer window as `msLeft` (time left when the
+view was sent), so a phone with a wrong clock still counts down correctly.
 The host is authoritative: a phone can't open, close, reveal, use a help or
 advance. A Mob phone's view never contains the correct answer or any other
-member's pick. Phones joining mid-game watch and play from the next game.
+member's pick. Phones joining mid-game watch, and are added to the setup list as soon as
+no game is in progress (Play again, Start over, or the phone reloading).
 
 ## Layout
 
@@ -104,11 +107,12 @@ js/ovh-core.js          PURE reducer + selectors (UMD → OvhCore)
 js/ovh-view.js          host rendering + DOM helpers
 js/ovh-app.js           host glue: state, persistence, clock, setup, hotkeys, lobby, library
 js/ovh-editor.js        editor (Download JSON / for the library / Use / Reset / Blank)
-js/ovh-room.js          GSC.host glue;  js/ovh-phone.js  GSC.player glue
+js/ovh-room.js          GSC.host glue (seats waiting phones between games);  js/ovh-phone.js  GSC.player glue
 js/ovh-sound.js         WebAudio cues behind the shared gsc-sound toggle
 css/ovh.css, css/ovh-phone.css
 tests/ovh-core.test.mjs node:test, O-U1…O-U10 (43 tests)
-tests/harness.html      loopback: harness = shell, 5 Mob phones + 1 contestant (O-I1…O-I6)
+tests/ovh-adversarial.test.mjs  the independent tester's suite (43 tests)
+tests/harness.html      loopback: harness = shell, 5 Mob phones + 1 contestant (O-I1…O-I6, 68 checks)
 ```
 
 Storage: `gsc-ovh-state-v1` and `gsc-ovh-draft-v1`, with a `-NAME` suffix
@@ -119,14 +123,15 @@ presses **Resume the Mob window**.
 ## Testing
 
 ```bash
-cd games/one-vs-100 && node --test          # 43 unit tests
-python -m http.server 8712 --bind 127.0.0.1  # then open games/one-vs-100/tests/harness.html (66 checks)
+cd games/one-vs-100 && node --test          # 86 unit tests
+python -m http.server 8712 --bind 127.0.0.1  # then open games/one-vs-100/tests/harness.html (68 checks)
 ```
 
 ## Known issues
 
-- At 1280×676 (the hub frame) the **setup** screen scrolls about 20 px. Play,
-  result and standings screens fit with no scroll at 1280×720 and 1280×676.
-- `shared/theme.css` has no `[data-gsc-game="one-vs-100"]` accent block yet, so
-  shared `--accent` components fall back to the hub gold. The game's own cyan
-  (`--mob`) is defined locally on `:root`.
+- A full room (about 12 players) makes the setup columns taller than the hub's
+  1280×628 frame, so setup scrolls. **Start** and **Resume** sit in the setup
+  header and stay on screen. Up to 6 players fit at 628 px. Play, result and
+  standings never scroll at 1280×720, 1280×676 or 1280×628.
+- Undoing an automatic close (the window ran out) gives back a window with
+  0 seconds left, which closes again at once. The answers already in are kept.

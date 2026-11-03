@@ -48,7 +48,7 @@
      * member's answer and never contains the correct answer before the reveal
      * (O-U10, spec 16 §4).
      */
-    function phoneView(state, pid) {
+    function phoneView(state, pid, now) {
       const base = {
         screen: "wait",
         name: nameOf(state, pid),
@@ -61,7 +61,7 @@
       if (state.phase === "result" || state.phase === "standings") return resultPhoneView(state, pid, base);
       if (state.phase === "setup") return Object.assign(base, { sub: "The host is still setting up." });
       if (pid === state.contestant) return Object.assign(base, contestantPhoneView(state));
-      return Object.assign(base, mobPhoneView(state, pid));
+      return Object.assign(base, mobPhoneView(state, pid, now));
     }
 
     function resultPhoneView(state, pid, base) {
@@ -103,7 +103,7 @@
       };
     }
 
-    function mobPhoneView(state, pid) {
+    function mobPhoneView(state, pid, now) {
       const me = memberOf(state, pid);
       if (!me) return { screen: "wait", sub: "You are watching this one — the Mob is already set." };
       if (!me.alive) {
@@ -127,7 +127,11 @@
         category: pub.category,
         options: pub.options,
         mine,
-        deadline: q.deadline,
+        // D12: time LEFT, not the host's wall clock, so a phone whose clock is
+        // off still counts down correctly. Without `now`, the stored remainder.
+        msLeft: Number.isFinite(q.deadline) && Number.isFinite(now)
+          ? Math.max(0, q.deadline - now)
+          : (Number.isFinite(q.remainingMs) ? q.remainingMs : (q.seconds || 0) * 1000),
         seconds: q.seconds,
         sub: mine === null ? "Tap your answer before the window closes." : "Answer in — good luck.",
       };

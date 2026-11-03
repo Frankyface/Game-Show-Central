@@ -481,7 +481,7 @@ test("ADV validatePhoneMsg fuzz", () => {
 /* ============ Leak tests ============ */
 
 const MOB_VIEW_KEYS = new Set(["screen", "name", "bank", "qNumber", "alive", "mobSize", "sub", "seat", "mine",
-  "q", "category", "options", "deadline", "seconds", "out", "reason", "contestant", "won"]);
+  "q", "category", "options", "msLeft", "seconds", "out", "reason", "contestant", "won"]);
 
 test("ADV leak: no Mob view carries the answer or anybody else's pick before reveal", () => {
   let s = phones(5, {}, () => 2);
