@@ -299,7 +299,7 @@ const FeudEditor = (function () {
 
   function sumBadge(question) {
     const sum = question.answers.reduce((t, a) => t + (Number.parseInt(a.count, 10) || 0), 0);
-    return el("span", `editor-sum${sum > 100 ? " over" : ""}`, `Sum ${sum}${sum > 100 ? " ⚠" : ""}`);
+    return el("span", `editor-sum${sum > 100 ? " over" : ""}`, `Sum ${sum}${sum > 100 ? " — over 100" : ""}`);
   }
 
   function questionTools(key, index, label) {

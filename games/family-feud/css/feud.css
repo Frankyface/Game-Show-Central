@@ -1,548 +1,369 @@
 /* ============================================================
-   Family Feud — shell, setup and final standings (spec 03 §3)
-   Design system v2 (docs/design-system.md): the page links
-   shared/theme.css, which imports the .gsc-* component kit, and
-   <body data-gsc-game="family-feud"> supplies --accent (Feud red),
-   --accent-2 (gold) and the stage glow.
+   Family Feud — host chrome: toolbar, setup, standings, dialogs
+   Design system v3 (docs/21-ui-cleanup-brief.md, design-system §0).
 
-   Feud identity is preserved deliberately: a deep BLUE stage,
-   GOLD numbers and RED strikes. The board chrome lives in
-   css/feud-board.css, the phone + editor in css/feud-phone.css.
-
-   Every value carries a literal fallback so the page is fully
-   styled when opened on its own (or straight from disk).
-   Motion rule: every @keyframes AND every animation: below sits
-   inside @media (prefers-reduced-motion: no-preference).
+   The stage, the type scale, the .btn family, focus rings and the
+   .gsc-* kit all come from shared/theme.css (+ theme-components).
+   This sheet only lays the game out on top of them:
+   - a flat stage: the body paints nothing of its own;
+   - ONE surface level: var(--surface) + 1px var(--hairline);
+   - Inter everywhere; Anton for the one hero per screen (the game
+     name on setup, the board numbers + bank in play, the Fast Money
+     total, the final scores);
+   - the Feud accent (#e21b3c) only for: the active state, the
+     primary button, and one rule;
+   - no gradients, glows, text-shadows, blur, uppercase or tracking.
+   The board / Fast Money screens live in feud-board.css.
    ============================================================ */
 
 :root {
-  --stage-deep: #071634;
-  --stage-blue: #0b1e4a;
-  --stage-night: #04091c;
-  --stage-card: #0e2559;
-  --tile-top: #1b3f8f;
-  --tile-bottom: #0a1c48;
-  --tile-face: #123a86;
-  --gold: #f2b632;
-  --gold-deep: #c98d16;
-  --gold-text: #ffd775;
-  --red: #e4002b;
-  --red-soft: #ff6b6b;
-  --green: #51d88a;
-  --amber: #ffc14d;
-  --ink: #f4f5ff;
-  --ink-dim: #a9b6d8;
-  --ink-mute: #9aa9cc;
-  --team-a: #f2b632;
-  --team-b: #9fc4e8;
-
-  /* Chrome: the brushed frame around the survey board and the rails. */
-  --chrome-hi: #6f809f;
-  --chrome-mid: #2c3d63;
-  --chrome-lo: #0c1631;
-  --panel-line: rgba(169, 182, 216, 0.22);
-
-  --font-display: "Anton", "Haettenschweiler", "Arial Narrow Bold", Impact, sans-serif;
-  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-
-  --radius: 10px;
-  --radius-lg: 18px;
-  --duration: 180ms;
-  --dur-fast: 120ms;
-  --dur: 220ms;
-  --dur-slow: 480ms;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --tap: 56px;
-  --focus: #f2b632;
+  --feud-topbar: 60px;
+  --feud-gutter: 24px;
 }
 
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
+body.gsc-embedded { --feud-topbar: 56px; }
 
-/* The stage: a blue spill from the top, a red accent bloom off-axis,
-   a vignette and the deep→night base. Gradients only, no filters. */
-body {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  font-family: var(--font-ui);
-  color: var(--ink);
-  /* flat colour under the gradients so a DOM contrast checker has an
-     opaque base to composite against */
-  background-color: var(--stage-blue);
-  background-image:
-    radial-gradient(120% 78% at 50% -12%, #17408c 0%, transparent 58%),
-    radial-gradient(52% 40% at 88% 2%, rgba(226, 27, 60, 0.22) 0%, transparent 72%),
-    radial-gradient(150% 115% at 50% 52%, transparent 36%, rgba(0, 0, 0, 0.62) 100%),
-    linear-gradient(180deg, var(--stage-deep) 0%, var(--stage-night) 100%);
-  background-attachment: fixed;
-}
+/* Host controls are 44–48 px (rule 4). */
+.btn { min-height: 44px; }
+.btn-small { min-height: 44px; font-size: 0.95rem; padding: 0.4em 0.9em; }
+.btn-big { min-height: 48px; }
 
-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.warn-msg { color: var(--amber); font-size: 0.95rem; margin: 0.5rem 0 0; }
 
-.hidden { display: none !important; }
-
-.visually-hidden {
-  position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px; padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.error-msg { color: var(--red-soft); font-weight: 600; margin: 0.6rem 0; min-height: 1.2em; }
-.warn-msg { color: var(--amber); font-weight: 600; margin: 0.6rem 0; }
-
-:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-
-/* ============ Buttons ============
-   Aliased to the v2 .gsc-btn shape (docs/design-system.md §4 step 2)
-   rather than adding classes in markup, so no script or harness
-   selector moves. .btn-gold stays the Feud gold key. */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45em;
-  min-height: 40px;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 0.55em 1.15em;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              background-color var(--dur-fast) var(--ease-out);
-}
-
-.btn:hover { background: rgba(255, 255, 255, 0.13); border-color: rgba(255, 255, 255, 0.3); }
-.btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.btn:active { transform: translateY(1px); }
-
-.btn-gold {
-  color: #2b1d00;
-  background-color: var(--gold);
-  background-image: linear-gradient(180deg, #ffd06b 0%, var(--gold) 45%, var(--gold-deep) 100%);
-  border-color: rgba(120, 82, 8, 0.9);
-  box-shadow: 0 6px 18px rgba(201, 141, 22, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-}
-.btn-gold:hover {
-  background-color: #ffc94f;
-  background-image: linear-gradient(180deg, #ffdd93 0%, #ffc94f 45%, var(--gold-deep) 100%);
-  box-shadow: 0 10px 26px rgba(242, 182, 50, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  transform: translateY(-1px);
-}
-
-.btn-ghost { background: transparent; color: var(--ink); border-color: rgba(169, 182, 216, 0.45); }
-.btn-ghost:hover { border-color: var(--gold); color: var(--gold-text); background: rgba(242, 182, 50, 0.1); }
-
-.btn-danger {
-  color: #fff;
-  background-color: #c9002a;
-  background-image: linear-gradient(180deg, #ff3b58 0%, var(--red) 55%, #a80020 100%);
-  border-color: rgba(255, 120, 140, 0.5);
-  box-shadow: 0 6px 18px rgba(228, 0, 43, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-}
-.btn-danger:hover { background-color: #e4002b; box-shadow: 0 10px 26px rgba(228, 0, 43, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.28); }
-
-.btn-big { min-height: 52px; font-size: 0.98rem; padding: 0.7em 1.9em; letter-spacing: 0.08em; }
-.btn-small { min-height: 34px; font-size: 0.72rem; padding: 0.36em 0.8em; }
-.btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
-
-/* ============ Host toolbar ============
-   One consistent bar on every host screen: identity on the left,
-   room chip + undo + sound + editor + new game on the right. When
-   the hub embeds the game its own shell bar sits above this one and
-   owns the Lobby button (docs/09 §3). */
+/* ============ Host toolbar (rule 9) ============ */
 
 .topbar {
-  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--feud-topbar);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 54px;
-  padding: 0.45rem 1.1rem;
-  flex-wrap: wrap;
-  background-color: #081434;
-  background-image: linear-gradient(180deg, rgba(9, 22, 54, 0.86), rgba(6, 14, 38, 0.62));
-  border-bottom: 1px solid rgba(242, 182, 50, 0.28);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  padding: 0 var(--feud-gutter);
+  background: var(--stage-bg);
+  border-bottom: 1px solid var(--hairline);
 }
 
-.topbar-brand { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
-
-/* A CSS-drawn mic disc — the Feud mark, no images. */
-.topbar-mark {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.55) 0 12%, transparent 42%),
-    linear-gradient(180deg, #ff3b58 0%, var(--red) 60%, #8c001b 100%);
-  box-shadow: 0 0 14px rgba(228, 0, 43, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
-}
+.topbar-brand { display: flex; align-items: center; min-width: 0; }
 
 .topbar-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.15rem, 0.9rem + 1.1vw, 1.7rem);
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   margin: 0;
-  color: var(--gold-text);
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.topbar-actions { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; }
+.topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; }
 
 .room-chip {
-  font-family: var(--font-display);
-  letter-spacing: 0.18em;
-  font-size: 1.05rem;
-  color: var(--gold-text);
-  border: 2px solid rgba(242, 182, 50, 0.5);
-  border-radius: var(--radius);
-  padding: 0.18em 0.7em;
-  background: rgba(242, 182, 50, 0.1);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+  padding: 0 0.4rem;
 }
 
-/* Hidden by the shell: the hub owns the room + the "leave" affordance. */
-body.gsc-embedded .standalone-only { display: none !important; }
+/* "New game" is superseded by Game lobby → Start over; the node stays
+   (scripts wire it) but it is never shown. */
+#btn-new-game { display: none !important; }
 
-/* Embedded, the hub's own shell bar sits above this one (and owns Lobby), so
-   the game bar gets tighter to hand the stage back its height. */
-body.gsc-embedded .topbar { min-height: 46px; padding: 0.3rem 1rem; }
-body.gsc-embedded .topbar-mark { width: 20px; height: 20px; }
+/* Undo is a game control, not toolbar chrome: it sits bottom-left of the
+   stage so the toolbar keeps exactly Sound · Editor · Game lobby. */
+.host-undo {
+  position: fixed;
+  left: var(--feud-gutter);
+  bottom: 16px;
+  z-index: 25;
+  background: var(--stage-bg);
+}
 
-/* ============ Setup — a clean two-column card ============ */
+/* Embedded: the hub's shell bar owns the room chip and Lobby. */
+body.gsc-embedded .standalone-only,
+body.gsc-embedded .room-chip { display: none !important; }
 
-.screen { flex: 1 1 auto; min-height: 0; padding: 0.6rem 1.2rem 1rem; }
-.screen-setup { display: grid; place-items: start center; padding: 1rem 1rem 1.6rem; overflow-y: auto; }
+/* ============ Screens ============ */
+
+.screen { padding: 16px var(--feud-gutter) 24px; }
+
+/* ============ Setup ============ */
+
+.screen-setup { display: flex; justify-content: center; padding-top: 28px; padding-bottom: 48px; }
 
 .setup-card {
-  width: min(1000px, 100%);
-  /* flat colour under the gradient so a DOM contrast checker reads it */
-  background-color: #101f4a;
-  background-image: linear-gradient(180deg, rgba(19, 47, 106, 0.82), rgba(8, 20, 52, 0.9));
-  border: 1px solid var(--panel-line);
-  border-top: 4px solid var(--red);
-  border-radius: var(--radius-lg);
-  padding: 1.3rem 1.6rem 1.2rem;
-  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  width: min(1120px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 28px 32px 32px;
 }
 
-.setup-head { border-bottom: 1px solid var(--panel-line); padding-bottom: 0.9rem; }
-.setup-kicker { margin: 0; color: var(--ink-dim); letter-spacing: 0.22em; text-transform: uppercase; font-size: 0.75rem; font-weight: 700; }
+.setup-head { margin: 0 0 24px; }
 
+/* The one hero on the setup screen: the game name. */
 .setup-title {
+  margin: 0 0 10px;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 1.4rem + 3vw, 3.2rem);
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: -0.005em;
-  margin: 0.15rem 0 0.35rem;
-  color: var(--gold-text);
-  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  font-size: var(--fs-display);
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
 }
 
-.source-note { color: var(--ink-dim); font-size: 0.85rem; margin: 0; }
+.setup-lede { margin: 0 0 6px; font-size: var(--fs-body); line-height: 1.5; color: var(--ink); }
+.source-note { margin: 0; font-size: 0.95rem; color: var(--ink-dim); }
 
 .setup-cols {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 2rem;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 40px;
 }
 
-.setup-col { min-width: 0; display: flex; flex-direction: column; }
-.setup-section { margin-top: 1.1rem; }
+.setup-section { padding: 18px 0; border-top: 1px solid var(--hairline); }
 
 .setup-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--gold-text);
-  margin: 0 0 0.7rem;
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
 }
 
-.setup-heading::after {
-  content: "";
-  flex: 1 1 auto;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(242, 182, 50, 0.4), transparent);
-}
+.setup-hint { margin: 10px 0 0; font-size: 0.95rem; line-height: 1.5; color: var(--ink-dim); }
 
-.setup-hint { color: var(--ink-dim); font-size: 0.82rem; margin: 0.6rem 0 0; line-height: 1.45; }
-
-.setup-grid, .team-name-row { display: flex; flex-wrap: wrap; gap: 0.8rem 1.2rem; align-items: flex-end; }
-.team-name-row .setup-field { flex: 1 1 9rem; }
-.setup-grid .setup-field { flex: 1 1 10rem; max-width: 14rem; }
+.setup-grid, .team-name-row { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-end; }
 
 .setup-field {
   display: flex;
   flex-direction: column;
-  min-width: 0; /* a bare <input> has a wide intrinsic min-content size */
-  gap: 0.3rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--ink-dim);
 }
 
-.setup-field input, .add-player-form input {
+.setup-field input,
+.add-player-form input,
+.fm-team-select {
+  min-height: 44px;
+  min-width: 11rem;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 400;
-  letter-spacing: normal;
-  text-transform: none;
   color: var(--ink);
-  background: rgba(4, 9, 28, 0.6);
-  border: 1px solid rgba(169, 182, 216, 0.35);
-  border-radius: var(--radius);
-  padding: 0.5em 0.7em;
-  min-width: 0;
-  width: 100%;
+  background: var(--stage-base);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-sm);
+  padding: 0.5em 0.75em;
 }
 
-.add-player-form input { min-width: 8rem; }
+.setup-field input:focus-visible,
+.add-player-form input:focus-visible,
+.fm-team-select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
 
-.setup-field input:focus-visible, .add-player-form input:focus-visible {
-  outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(242, 182, 50, 0.28);
-}
+.setup-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 1rem; color: var(--ink); }
+.setup-check input { width: 20px; height: 20px; accent-color: var(--accent); }
 
-.setup-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: var(--ink); }
-.setup-check input { width: 18px; height: 18px; accent-color: var(--red); }
-.setup-load { display: flex; gap: 0.55rem; flex-wrap: wrap; }
-.add-player-form { display: flex; gap: 0.55rem; margin-top: 0.7rem; flex-wrap: wrap; }
-.add-player-form input { flex: 1 1 10rem; }
+.setup-load { display: flex; flex-wrap: wrap; gap: 10px; }
+.add-player-form { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 
-.setup-foot {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1.2rem;
-  flex-wrap: wrap;
-  margin-top: 1.1rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--panel-line);
-}
-
-.setup-foot .error-msg { flex: 1 1 12rem; margin: 0; }
-
-/* --- Roster --- */
-
-.roster-list { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.roster-list { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--hairline); }
 
 .roster-row {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.4rem 0.7rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 3px solid rgba(242, 182, 50, 0.55);
-  border-radius: var(--radius);
+  gap: 12px;
+  min-height: 52px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.roster-name { flex: 1 1 auto; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-.roster-tag { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); }
-.roster-toggle { display: flex; gap: 0.25rem; }
+.roster-name { flex: 1 1 auto; min-width: 0; font-size: 1rem; font-weight: 500; overflow-wrap: anywhere; }
+.roster-tag { font-size: 0.9rem; color: var(--ink-mute); }
+.roster-empty { padding: 12px 0; font-size: 0.95rem; line-height: 1.5; color: var(--ink-dim); border-bottom: 1px solid var(--hairline); }
+
+/* A / B / – segmented toggle: the selected segment is the active state. */
+.roster-toggle { display: flex; }
 
 .roster-toggle button {
+  min-width: 44px;
+  min-height: 40px;
   font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
-  min-width: 2.4rem;
-  min-height: 30px;
-  padding: 0.2em 0.5em;
-  cursor: pointer;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(169, 182, 216, 0.4);
-  border-radius: 8px;
-}
-
-.roster-toggle button[aria-pressed="true"] { background: var(--gold); color: #2b1d00; border-color: var(--gold); }
-.roster-toggle button.pick-b[aria-pressed="true"] { background: var(--team-b); border-color: var(--team-b); color: #06152f; }
-
-.roster-empty {
-  color: var(--ink-dim);
-  font-size: 0.85rem;
-  line-height: 1.45;
-  padding: 0.7rem 0.8rem;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px dashed rgba(169, 182, 216, 0.28);
-  border-radius: var(--radius);
-}
-
-.remove-btn {
-  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--ink-dim);
   background: transparent;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   cursor: pointer;
-  padding: 0.2em 0.4em;
-  border-radius: 6px;
 }
-.remove-btn:hover { color: var(--red-soft); background: rgba(228, 0, 43, 0.15); }
+
+.roster-toggle button + button { border-left: 0; }
+.roster-toggle button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.roster-toggle button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.roster-toggle button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+.remove-btn {
+  min-width: 40px;
+  min-height: 40px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink-mute);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.remove-btn:hover { color: var(--red); border-color: rgba(255, 107, 107, 0.5); }
+
+.questions-library { margin-top: 14px; }
+
+/* The shared picker is a surface of its own; inside the setup surface it
+   would be a nested panel, so it sits flat here (one panel level). */
+.questions-library .gsc-library { padding: 0; background: none; border: 0; border-radius: 0; }
+
+.setup-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px 20px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+
+.setup-foot .error-msg { margin: 0 auto 0 0; min-height: 0; }
+
+/* Resume card: inside the setup surface, so it is a row, not a panel. */
+.resume-card {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.resume-title { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink); }
+.resume-card .setup-hint { margin: 0; flex: 1 1 16rem; color: var(--ink-dim); }
+.resume-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 
 /* ============ Final standings ============ */
 
-.screen-final { display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.screen-final { max-width: 960px; margin: 0 auto; padding-top: 40px; }
 
 .final-heading {
-  font-family: var(--font-display);
+  margin: 0 0 24px;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--gold-text);
-  font-size: clamp(1.6rem, 1.2rem + 2vw, 2.8rem);
-  margin: 0 0 1.2rem;
-  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  color: var(--ink);
 }
 
-.final-standings { display: flex; justify-content: center; align-items: flex-end; gap: 1.6rem; flex-wrap: wrap; }
+.final-standings { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 .final-team {
-  min-width: 240px;
-  padding: 1.3rem 1.6rem 1.5rem;
-  border-radius: var(--radius-lg) var(--radius-lg) 6px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 20px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
 }
 
-.final-team.team-a { --podium-accent: var(--team-a); }
-.final-team.team-b { --podium-accent: var(--team-b); }
-.final-team.team-a .team-name { color: var(--team-a); }
-.final-team.team-b .team-name { color: var(--team-b); }
-/* the score is a <p> here, not a button — kill the UA margin */
-.final-team .team-score { cursor: default; margin: 0.35rem 0 0; font-size: clamp(2.6rem, 2rem + 3vw, 4.4rem); }
-.final-team.winner { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 20px 50px rgba(242, 182, 50, 0.28); }
-.final-team.winner .team-badge { color: var(--gold-text); }
-.final-note { text-align: center; color: var(--ink-dim); margin-top: 1.2rem; }
+/* The winner is the active state: an accent outline, nothing else. */
+.final-team.winner { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.final-team .team-name { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--ink); }
+
+.final-team .team-score {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--fs-display);
+  line-height: 1;
+  color: var(--ink);
+  cursor: default;
+}
+
+.final-team .team-badge { font-size: 0.95rem; font-weight: 600; color: var(--ink); min-height: 1.2em; }
+.final-note { margin: 18px 0 0; text-align: center; font-size: var(--fs-body); color: var(--ink-dim); }
+.screen-final .controls { margin-top: 28px; }
+
+/* ============ Dialogs ============ */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 6, 9, 0.8);
+}
+
+.modal-card {
+  width: min(560px, 100%);
+  padding: 24px 24px 22px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+.modal-title { margin: 0 0 8px; font-size: var(--fs-title); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.modal-sub { margin: 0 0 20px; font-size: 1rem; line-height: 1.5; color: var(--ink-dim); }
+.modal-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.modal-actions .btn-ghost { margin-left: auto; }
+
+/* ============ Editor: the library manifest note ============ */
+
+.editor-library-note {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}
+
+.editor-library-title { margin: 0 0 6px; font-weight: 600; }
+.editor-library-steps { margin: 0; padding-left: 1.2rem; color: var(--ink-dim); font-size: 0.95rem; line-height: 1.6; }
+.editor-library-steps code, .editor-library-line code { font-size: 0.9em; color: var(--ink); }
+
+.editor-library-line {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+}
+
+/* ============ Splash (600 ms plain title card) ============ */
+
+/* The shared .gsc-splash is already v3; only the kicker is dropped. */
+.gsc-splash-kicker { display: none; }
 
 /* ============ Responsive ============ */
 
 @media (max-width: 900px) {
   .setup-cols { grid-template-columns: 1fr; }
-  .setup-col + .setup-col .setup-section:first-child { margin-top: 1.1rem; }
-}
-
-/* ============ Motion ============ */
-
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes feud-rise {
-    0% { transform: translateY(12px); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
-  }
-  .setup-card { animation: feud-rise var(--dur) var(--ease-out) both; }
-  .final-team { animation: feud-rise var(--dur) var(--ease-out) both; }
-}
-
-/* ============ Game lobby confirm (19 §1) ============ */
-
-.modal {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1.2rem;
-  background: rgba(4, 9, 28, 0.78);
-  z-index: 60;
-}
-
-.modal-card {
-  width: min(560px, 100%);
-  background: linear-gradient(180deg, var(--stage-card) 0%, var(--stage-deep) 100%);
-  border: 1px solid rgba(169, 182, 216, 0.28);
-  border-radius: 18px;
-  padding: 1.6rem 1.6rem 1.8rem;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
-  text-align: center;
-}
-
-.modal-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.3rem, 1rem + 1.4vw, 2rem);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--gold-text);
-  margin: 0 0 0.6rem;
-}
-
-.modal-sub { color: var(--ink-dim); margin: 0 0 1.3rem; line-height: 1.45; }
-
-.modal-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
-
-/* ============ Resume card (19 §1) ============ */
-
-.resume-card {
-  margin: 0 auto 1.1rem;
-  padding: 0.9rem 1.1rem 1.1rem;
-  max-width: 640px;
-  background: rgba(4, 9, 28, 0.5);
-  border: 1px solid rgba(242, 182, 50, 0.4);
-  border-left: 4px solid var(--gold);
-  border-radius: var(--radius);
-  text-align: left;
-}
-
-.resume-title {
-  margin: 0 0 0.2rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gold-text);
-  font-weight: 700;
-}
-
-.resume-card .setup-hint { margin-top: 0.15rem; color: var(--ink); }
-.resume-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-top: 0.9rem; }
-
-/* The shared picker (shared/theme-components.css) sits under Questions. */
-.questions-library { margin-top: 0.9rem; }
-
-/* ============ Editor: the library manifest note ============ */
-
-.editor-library-note {
-  margin: 1rem 0 0;
-  padding: 0.9rem 1rem;
-  background: rgba(4, 9, 28, 0.5);
-  border: 1px solid rgba(169, 182, 216, 0.22);
-  border-left: 4px solid var(--green);
-  border-radius: var(--radius);
-}
-
-.editor-library-title { margin: 0 0 0.4rem; font-weight: 700; }
-.editor-library-steps { margin: 0; padding-left: 1.2rem; color: var(--ink-dim); font-size: 0.9rem; line-height: 1.6; }
-.editor-library-steps code, .editor-library-line code { font-size: 0.85em; }
-
-.editor-library-line {
-  margin: 0.7rem 0 0;
-  padding: 0.6rem 0.7rem;
-  overflow-x: auto;
-  background: rgba(0, 0, 0, 0.45);
-  border-radius: var(--radius-sm, 6px);
-  color: var(--gold-text);
+  .setup-card { padding: 20px; }
+  .final-standings { grid-template-columns: 1fr; }
+  .topbar { padding: 0 12px; }
 }

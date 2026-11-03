@@ -126,7 +126,7 @@ const FeudPhone = (function () {
     const input = $("player-fm-input");
     if (document.activeElement !== input) input.value = fm.rows[fmIndex].text || "";
     $("player-fm-prev").disabled = fmIndex === 0;
-    $("player-fm-next").textContent = fmIndex === total - 1 ? "Done" : "Submit →";
+    $("player-fm-next").textContent = fmIndex === total - 1 ? "Done" : "Submit";
     $("player-fm-note").textContent = answeredNote(fm);
     syncPhoneTimer(fm);
   }

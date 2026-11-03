@@ -244,7 +244,7 @@ window.FeudHarnessX = function (kit) {
     localStorage.removeItem(DRAFT_KEY);
     resetPhones();
     await bootHost();
-    clickHost("Question Editor");
+    clickHost("Question editor");
     await waitFor(() => !HD().getElementById("screen-editor").classList.contains("hidden"),
       "editor open");
     const win = HW();

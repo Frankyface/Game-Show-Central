@@ -21,7 +21,7 @@
   }
 
   /**
-   * The 1.2 s `.gsc-splash` title card, shown on the host screen and on every
+   * The 600 ms plain `.gsc-splash` title card, shown on the host screen and on every
    * phone as the game opens (docs/design-system.md §3). Copied from
    * `showSplash()` in js/hub-host.js. Decorative only: the node is
    * `pointer-events: none`, nothing waits on it, no message is delayed by it,
@@ -35,10 +35,10 @@
     const title = document.getElementById("gsc-splash-title");
     const sub = document.getElementById("gsc-splash-sub");
     if (title) title.textContent = "Family Feud";
-    if (sub) sub.textContent = "Survey says…";
+    if (sub) sub.textContent = ""; // v3: the name and one accent rule, nothing else
     node.dataset.gscGame = "family-feud"; // wears the Feud accent (shared/theme.css)
     node.classList.remove("hidden");
-    window.setTimeout(() => node.classList.add("hidden"), 1200);
+    window.setTimeout(() => node.classList.add("hidden"), 600); // SPLASH_MS in js/hub-host.js
   }
 
   showSplash();

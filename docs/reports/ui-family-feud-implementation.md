@@ -329,3 +329,106 @@ glow, carries `data-gsc-game="family-feud"`, computes to
 5. `css/feud.css` and `css/feud-phone.css` are full rewrites, so `git diff` is
    large for them even though the markup they style barely moved. The JS diff
    (§3) is the one worth reading line by line.
+
+---
+
+## v3 cleanup pass (docs/21-ui-cleanup-brief.md, design-system §0)
+
+The user's verdict on the v2 look was "looks fake". This pass replaces it with
+the v3 broadcast look. **Behaviour unchanged**: `node --test` 87/87 and
+`tests/harness.html` 84/84 (`All 84 loopback checks passed`, `uncaught: null`)
+before and after, on 127.0.0.1:8642.
+
+### What changed
+
+- **CSS rewritten, not patched** (v2 copies kept in `.scratch/feud-ui/`):
+  `feud.css` 548→369, `feud-board.css` 720→457, `feud-phone.css` 442→251,
+  `timer.css` 85→47. The game no longer redefines `.btn`, tokens or the stage —
+  it uses shared v3 and only lays the game out.
+- **Stage:** flat `--stage-bg` (Feud red at 5 %); every radial, vignette and
+  gradient removed, including the phone's.
+- **Board:** answer slots are flat surfaces with a hairline; the revealed face
+  is one step lighter (`--panel-strong`) with the count behind a hairline. No
+  cabinet frame, bevels, rivets or light sweep. **Kept:** the rotateX flip (a
+  transition; off under reduced motion) and the strike X's — empty slots are
+  outlines, a strike is a filled accent square with a white X, plus the full-
+  screen X overlay (lifted red so it clears 4.5:1). Slot height follows the
+  viewport (`clamp(44px, 8.2vh, 68px)`).
+- **Type:** Inter 400/500/600 everywhere, sentence case, zero tracking. Anton is
+  the one hero per screen: the game name on setup; the slot numbers + bank on the
+  board; the total on Fast Money; the scores on final standings. Team scores on
+  the board are Inter so the board keeps the hero.
+- **Accent** (`#e21b3c`) used only for: the active state (team in control,
+  selected A/B, armed buzzer, winner card, strikes), the primary button, and one
+  rule (the 3 px underline on the phase line). No gold anywhere (no money in Feud).
+- **Surfaces:** one level — setup card, team panels, FM table, dialogs, editor
+  question blocks. The shared library picker is flattened inside the setup card
+  so it isn't a nested panel. Dividers are hairlines.
+- **Markup:** removed the "Survey says…" eyebrow (replaced with one plain
+  sentence of what to do next), the two "Family Feud"/"Fast Money" phase
+  eyebrows, the splash kicker and the CSS-drawn mic mark; arrows removed from
+  phone Back/Submit.
+- **Toolbar (rule 9):** game name (Inter 600, 18 px), then **Sound · Question
+  editor · Game lobby**, each with a `GSCIcons` icon (`sound`/`sound-off`,
+  `edit`, `lobby`). Undo moved out of the toolbar to a fixed bottom-left game
+  control (with the `undo` icon); "New game" is never shown (Game lobby → Start
+  over replaces it; the node stays because scripts wire it). Room chip shows only
+  standalone.
+- **Emoji:** none left in host DOM text. 🔊/🔇 → "Sound"/"Sound off" + icon; the
+  🎙 podium marker → `.podium` (bold + " · at the podium" via CSS); ⚠ removed from
+  the save warning and the editor sum badge ("Sum 140 — over 100").
+- **Splash:** 600 ms plain card, empty sub line, no kicker (`feud-boot.js`).
+
+**JS touched (allowed scope only):** `feud-app.js` (sound label + icon, icons on
+editor/lobby/undo, two emoji strings), `feud-editor.js` (one emoji), `feud-phone.js`
+("Submit →" → "Submit"), `feud-boot.js` (splash 600 ms, empty sub). Harness:
+`"Question Editor"` → `"Question editor"` in two `clickHost` calls.
+
+### Measurements (`.scratch/feud-ui/audit.js`, driven through 14 in-play states)
+
+States: face-off (8-answer board, long question, long team name), face-off
+buzzed, play-or-pass, play, steal, round over (+ revealed), round over (5),
+Fast Money play / reveal 1 / cover / reveal 2 / done, final standings.
+
+| Check | 1280×720 standalone | 1280×676 embedded | 320×640 phone |
+| --- | --- | --- | --- |
+| Vertical scroll in play | none (docH 720 in all 14) | none (docH 676 in all 14) | — |
+| Horizontal scroll | — | — | none on any panel |
+| Min text contrast | 4.71 (white on the accent button) | 4.71 | 4.71 |
+| Targets ≥ 56 px | — | — | team 72, buzzer 200, input/Back/Submit 56 |
+| UI-10 emoji in host text | 0 | 0 | — |
+| UI-11 backdrop-filter / text-shadow / gradient under text | 0 | 0 | 0 |
+| Uppercase / tracking > 0 | 0 | 0 | 0 |
+| Reduced motion (CSSOM walk of the game sheets) | every `@keyframes`/`animation` inside `no-preference` (strike pop, timer blink); the flip transition is off under `reduce` | same | same |
+| UI-12 toolbar order | Sound · Question editor · Game lobby | same (room chip hidden) | — |
+
+The strike overlay was also audited while up (1.0 s after a strike): passes.
+
+### Checklist (design-system §0)
+
+- [x] `data-gsc-game="family-feud"`; no local accent overrides; body paints nothing
+- [x] Anton for one hero per screen; no uppercase/tracking; eyebrows deleted;
+      body ≥ 16 px, controls ≥ 15 px
+- [x] Accent only for active state / primary / one rule; no gold; no glow
+- [x] One surface level, hairlines, no blur, no rails, no nested panel
+- [x] 6 px radius, 44–48 px host / 56 px phone, sentence case 600; primary/
+      secondary/danger per rule 4 (shared `.btn`)
+- [x] Zero emoji in host DOM text; `GSCIcons` beside text labels
+- [x] Only meaningful motion; all keyframes inside `no-preference`; splash 600 ms plain
+- [x] Toolbar: name left; Sound, Editor, Game lobby right; nothing else embedded
+- [x] One plain next-step sentence on setup; errors unchanged
+- [x] Gates: tests + harness green; 1280×720 / 1280×676 no scroll; phone targets;
+      contrast ≥ 4.5; every file < 800 lines
+
+### Notes for the UI tester
+
+- **Game lobby is hidden on the setup screen** (there is nothing to park), so at
+  setup the toolbar reads Sound · Question editor. Order is unchanged in every
+  other phase; X-1 asserts this behaviour.
+- The editor button label is **"Question editor"**, not "Editor" — it says what
+  it edits; the order is the rule-9 order.
+- Unused strike slots render the X at `font-size: 0` (the slot's `aria-label`
+  says "Strike n unused"), so a contrast sampler that reads text nodes at size 0
+  will see a hidden glyph; it is never painted.
+- Screenshots in the in-app pane were scaled oddly by the shared pane, so the
+  evidence above is measured from the DOM, not from captures.

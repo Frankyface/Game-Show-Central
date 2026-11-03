@@ -21,15 +21,15 @@
 
   <header class="topbar">
     <div class="topbar-brand">
-      <span class="topbar-mark" aria-hidden="true"></span>
       <h1 id="game-title" class="topbar-title">Family Feud</h1>
     </div>
+    <!-- Rule 9: Sound · Editor · Game lobby, in that order, icon + label
+         (GSCIcons, js/feud-app.js). The room chip shows only standalone. -->
     <div class="topbar-actions">
       <span id="room-chip" class="room-chip hidden"></span>
-      <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button">&#8630; Undo</button>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; Sound</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#10226; Game lobby</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question Editor</button>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
       <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
     </div>
   </header>
@@ -37,12 +37,15 @@
   <p id="save-warning" class="error-msg hidden" role="alert"></p>
 
   <main>
+    <!-- Undo is a game control: bottom-left of the stage, not in the toolbar. -->
+    <button id="btn-undo" class="btn btn-ghost btn-small host-undo hidden" type="button">Undo</button>
+
     <!-- ===== Setup ===== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="setup-card">
         <div class="setup-head">
-          <p class="setup-kicker">Survey says&hellip;</p>
           <h2 id="setup-title" class="setup-title">Family Feud</h2>
+          <p class="setup-lede">Name the two teams, add players if you like, then start the first face-off.</p>
           <p id="source-note" class="source-note"></p>
         </div>
 
@@ -126,7 +129,6 @@
     <!-- ===== Board ===== -->
     <section id="screen-board" class="screen screen-board hidden">
       <div class="phase-bar gsc-banner">
-        <p class="phase-eyebrow gsc-eyebrow">Family Feud</p>
         <p id="phase-banner" class="phase-banner gsc-banner-title" aria-live="polite"></p>
       </div>
       <h2 id="round-question" class="round-question"></h2>
@@ -156,11 +158,10 @@
     <!-- ===== Fast Money ===== -->
     <section id="screen-fm" class="screen screen-fm hidden">
       <div class="phase-bar gsc-banner">
-        <p class="phase-eyebrow gsc-eyebrow">Fast Money</p>
         <p id="fm-banner" class="phase-banner gsc-banner-title" aria-live="polite"></p>
       </div>
       <div id="fm-cover" class="fm-cover hidden">
-        <p class="fm-cover-title">Player 2 &mdash; cover your ears!</p>
+        <p class="fm-cover-title">Player 2, cover your ears</p>
         <p class="fm-cover-sub">Mute the call or step away. The host will bring you back in.</p>
       </div>
       <div id="fm-table" class="fm-table"></div>
@@ -207,9 +208,8 @@
     <span id="strike-overlay-marks" class="strike-overlay-marks"></span>
   </div>
 
-  <!-- ============ Title card shown for 1.2 s when the game opens ============ -->
+  <!-- ============ 600 ms plain title card when the game opens ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -311,8 +311,8 @@
       <input id="player-fm-input" type="text" maxlength="60" autocomplete="off" spellcheck="false"
              placeholder="Type your answer">
       <div class="player-fm-actions">
-        <button id="player-fm-prev" class="btn btn-ghost btn-big" type="button">&#8592; Back</button>
-        <button id="player-fm-next" class="btn btn-gold btn-big" type="button">Submit &#8594;</button>
+        <button id="player-fm-prev" class="btn btn-ghost btn-big" type="button">Back</button>
+        <button id="player-fm-next" class="btn btn-gold btn-big" type="button">Submit</button>
       </div>
       <div id="player-fm-timer" class="timer-bar timer-bar-phone gsc-timer hidden" aria-hidden="true"></div>
       <p id="player-fm-note" class="player-panel-note"></p>
@@ -342,6 +342,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/feud-app.js"></script>
   <script src="js/feud-setup.js"></script>
   <script src="js/feud-fm.js"></script>

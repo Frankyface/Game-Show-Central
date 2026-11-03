@@ -93,7 +93,7 @@ function saveState() {
   } catch (err) {
     console.warn("Could not save the game:", err);
     setSaveWarning(
-      "⚠ This browser can’t save the game — its storage is full. The game still " +
+      "This browser can’t save the game — its storage is full. The game still " +
       "works, but do NOT refresh this tab: it would revert to an earlier state."
     );
   }
@@ -394,7 +394,7 @@ function teamRoster(team) {
   state.teams[team].players.forEach((pid) => {
     const player = state.roster.find((p) => p.pid === pid);
     const item = el("li", podium[team] === pid ? "podium" : null,
-      (podium[team] === pid ? "🎙 " : "") + (player ? player.name : pid));
+      player ? player.name : pid); // `.podium` marks the player at the podium (CSS)
     list.appendChild(item);
   });
   return list;
@@ -533,7 +533,8 @@ function wireSoundToggle() {
   const btn = $("btn-sound");
   const paint = () => {
     const on = window.FeudSound ? window.FeudSound.isOn() : false;
-    btn.textContent = on ? "🔊 Sound" : "🔇 Muted";
+    btn.textContent = on ? "Sound" : "Sound off";
+    window.GSCIcons?.prepend(btn, on ? "sound" : "sound-off");
     btn.setAttribute("aria-pressed", String(on));
   };
   btn.addEventListener("click", () => {
@@ -577,6 +578,11 @@ function wireHostEvents() {
     dispatch({ type: "setFastMoney", on: $("fast-money-on").checked });
   });
   wireSoundToggle();
+  // Rule 5/9: icon + text label on every toolbar control (shared/icons.js).
+  [["btn-editor", "edit"], ["btn-game-lobby", "lobby"], ["btn-undo", "undo"]].forEach(([id, icon]) => {
+    const node = $(id);
+    if (node) window.GSCIcons?.prepend(node, icon);
+  });
   wireSpaceToArm();
   wireEscape();
 }
