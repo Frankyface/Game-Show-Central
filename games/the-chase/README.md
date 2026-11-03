@@ -19,11 +19,11 @@ Per contestant:
 | Round | What the host does | Hotkeys |
 |---|---|---|
 | Cash Builder | Start the clock, read each question aloud (the answer is on screen for the host), mark Correct / Wrong / Pass. At the buzzer judge the question in flight or wave it away, then **On to the offers**. | Enter clock · Space correct · W wrong · P pass · N next · U undo |
-| Offers | Click the amount the contestant takes: higher (×5, one step nearer the Chaser), what they built, or lower (÷2, one step nearer home). | U undo |
+| Offers | Click the amount the contestant takes: higher (×5, one step nearer the Chaser), what they built, or lower (÷2, one step nearer home). With $0 built the offers are worked out from one Cash Builder answer: $5,000 / $1,000 / $500 with the default $1,000 value. | U undo |
 | Head to head | Both sides lock A/B/C in secret — on phones, or the host presses the contestant's spoken letter and the Chaser's choice. The screen shows only "Locked in". **Reveal contestant**, then **Reveal Chaser**; markers slide. Caught or home ends the chase. | 1 reveal contestant · 2 reveal Chaser · N next question / next contestant |
-| Final Chase | Team: 2 minutes, one step per correct (head start 1 step per finalist). Chaser: 2 minutes to reach the total; a **Wrong** is offered to the team as a pushback — **Team got it** moves him back a step. | Enter clock · Space / W / P · Space/W also answer a pushback |
+| Final Chase | Team: 2 minutes, one step per correct (head start 1 step per finalist). Chaser: 2 minutes to reach the total; every miss (**Wrong** or **Pass**) is offered to the team as a pushback and his clock stops while they answer — **Team got it** moves him back a step (on the start line it cannot, and the screen says so). | Enter clock · Space / W / P · Space/W also answer a pushback |
 
-**⟲ Game lobby** (toolbar) returns to setup: **Keep this game** parks it
+**Game lobby** (toolbar: Sound · Editor · Game lobby) returns to setup: **Keep this game** parks it
 (clocks frozen) and shows **Resume**; **Start over** clears the game but keeps
 team, questions and rules. **Undo** works everywhere; a reload brings the game
 back with any running clock paused.
@@ -49,7 +49,7 @@ back with any running clock paused.
 | `settings.cashBuilderValue` / `cashBuilderSeconds` | 1–1,000,000 / 15–300 |
 | `settings.higherMultiplier` / `lowerDivisor` | 2–100 / 2–10 |
 | `settings.finalSeconds` | 30–600, each half of the Final Chase |
-| `settings.headStartPerMember` / `minHeadStart` | 0–3 / 0–4 |
+| `settings.headStartPerMember` / `minHeadStart` | 0–3 / 1–4 (a target of 0 is refused) |
 | `settings.chaserIsHost`, `chaserName`, `currency` | boolean, ≤ 24, ≤ 3 |
 | `rapid[]` | ≥ 80 (editor warns below 200); `q` ≤ 200, `a` ≤ 80, unique questions |
 | `multi[]` | ≥ 40; exactly 3 distinct `options` (≤ 60 each), `answer` 0–2 |
@@ -115,9 +115,9 @@ tests/harness.html          CH-I1 … CH-I6 loopback (serve the repo root)
 ## Tests
 
 ```bash
-cd games/the-chase && node --test                    # 54 unit tests
+cd games/the-chase && node --test                    # 75 unit tests (incl. the tester's adversarial suite)
 python -m http.server 8711 --bind 127.0.0.1          # from the repo root
-# open http://127.0.0.1:8711/games/the-chase/tests/harness.html  → "All 63 checks passed."
+# open http://127.0.0.1:8711/games/the-chase/tests/harness.html  → "All 64 checks passed."
 ```
 
 ## Known issues

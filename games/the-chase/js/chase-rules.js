@@ -258,16 +258,20 @@
    * The three amounts, and the step each one starts the contestant on. Higher
    * is one step closer to the Chaser, lower one step nearer home; both are
    * clamped to the board. A contestant who built nothing is still offered a
-   * real high and low, the way the show does.
+   * real offer, the way the show does (D5): with nothing built the offers are
+   * worked out as if one Cash Builder answer had landed — higher = value x
+   * multiplier, middle = one value, lower = value / divisor — so the three
+   * still run high > middle > low and no offer is ever $0.
    */
   function offersFor(state) {
     const s = state.game.settings;
-    const cash = state.results[state.seat].cash;
-    const higher = cash > 0 ? cash * s.higherMultiplier : s.cashBuilderValue * s.higherMultiplier;
-    const lower = cash > 0 ? Math.max(1, Math.round(cash / s.lowerDivisor)) : s.cashBuilderValue;
+    const built = state.results[state.seat].cash;
+    const base = built > 0 ? built : s.cashBuilderValue;
+    const higher = base * s.higherMultiplier;
+    const lower = Math.max(1, Math.round(base / s.lowerDivisor));
     return {
       higher: { amount: higher, step: Math.min(s.startStep + 1, s.steps - 1) },
-      middle: { amount: cash, step: s.startStep },
+      middle: { amount: base, step: s.startStep },
       lower: { amount: lower, step: Math.max(s.startStep - 1, 1) },
     };
   }
@@ -501,6 +505,7 @@
   function evFinalChaserStart(state, ev, at) {
     const f = state.final;
     if (state.phase !== "finalChaser" || !f || f.chaserFinished || f.chaserExpired) return state;
+    if (f.pushback) return state;   // the clock restarts when the pushback is settled (D4)
     if (f.chaserClock.running || f.chaserClock.remainingMs <= 0) return state;
     return withFinal(state, { chaserStarted: true, chaserClock: startClock(f.chaserClock, at) });
   }
@@ -522,31 +527,31 @@
   }
 
   /**
-   * The Chaser answers. A miss is not simply lost: it is offered to the team,
-   * and the round waits for `pushback` before the next question.
+   * The Chaser answers. Every miss — wrong OR pass — is offered to the team
+   * (spec 15 §1, D3), and while the team answer his clock is stopped, as on
+   * the show (D4); `pushback` restarts it.
    */
   function evFinalChaserMark(state, ev, at) {
     const f = state.final;
     if (state.phase !== "finalChaser" || !f || f.chaserFinished || f.pushback) return state;
     if (!f.chaserClock.running) return state;
     if (MARKS.indexOf(ev.result) < 0) return state;
-    if (ev.result === "wrong") {
+    if (ev.result !== "correct") {
       return withFinal(state, {
-        chaserWrong: f.chaserWrong + 1,
-        pushback: { q: f.item ? f.item.q : "", a: f.item ? f.item.a : "" },
-        log: f.log.concat([{ who: "chaser", result: "wrong" }]).slice(-80),
+        chaserWrong: f.chaserWrong + (ev.result === "wrong" ? 1 : 0),
+        chaserPassed: f.chaserPassed + (ev.result === "pass" ? 1 : 0),
+        pushback: { q: f.item ? f.item.q : "", a: f.item ? f.item.a : "", miss: ev.result },
+        chaserClock: pauseClock(f.chaserClock, at),
+        log: f.log.concat([{ who: "chaser", result: ev.result }]).slice(-80),
       });
     }
-    const right = ev.result === "correct";
-    const chaserSteps = f.chaserSteps + (right ? 1 : 0);
-    const caught = chaserSteps >= f.teamSteps;
+    const chaserSteps = f.chaserSteps + 1;
     const moved = withFinal(state, {
       chaserSteps,
-      chaserCorrect: f.chaserCorrect + (right ? 1 : 0),
-      chaserPassed: f.chaserPassed + (right ? 0 : 1),
-      log: f.log.concat([{ who: "chaser", result: ev.result }]).slice(-80),
+      chaserCorrect: f.chaserCorrect + 1,
+      log: f.log.concat([{ who: "chaser", result: "correct" }]).slice(-80),
     });
-    return caught ? catchTeam(moved, at) : advanceChaser(moved);
+    return chaserSteps >= f.teamSteps ? catchTeam(moved, at) : advanceChaser(moved);
   }
 
   /** The catch stops the Chaser's clock where it stood: "with N seconds to spare". */
@@ -563,18 +568,27 @@
       { item: drawn.item });
   }
 
-  /** The team take the Chaser's miss. A correct answer pushes him back a step. */
-  function evPushback(state, ev) {
+  /**
+   * The team take the Chaser's miss. A correct answer pushes him back a step;
+   * with the Chaser still on the start line there is nowhere to push him, so it
+   * changes nothing and the screen says so (D4). Either way his clock restarts
+   * from the time that was left.
+   */
+  function evPushback(state, ev, at) {
     const f = state.final;
     if (state.phase !== "finalChaser" || !f || !f.pushback || f.chaserFinished) return state;
     if (typeof ev.correct !== "boolean") return state;
     const back = ev.correct && f.chaserSteps > 0;
-    return advanceChaser(withFinal(state, {
+    const left = f.chaserClock.remainingMs;
+    const settled = withFinal(state, {
       chaserSteps: back ? f.chaserSteps - 1 : f.chaserSteps,
-      pushbacks: f.pushbacks + (ev.correct ? 1 : 0),
+      pushbacks: f.pushbacks + (back ? 1 : 0),
       pushback: null,
-      log: f.log.concat([{ who: "pushback", result: ev.correct ? "correct" : "wrong" }]).slice(-80),
-    }));
+      chaserClock: left > 0 ? startClock(f.chaserClock, at) : f.chaserClock,
+      log: f.log.concat([{ who: "pushback", result: ev.correct ? "correct" : "wrong", moved: back }]).slice(-80),
+    });
+    if (left <= 0) return settleFinal(withFinal(settled, { chaserExpired: true, chaserFinished: true, item: null }), true);
+    return advanceChaser(settled);
   }
 
   /* ============ Settling up ============ */

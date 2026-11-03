@@ -153,12 +153,16 @@ test("CH-U3 the three amounts and the three starting steps", () => {
   assert.equal(o.lower.step, 2, "one step nearer home");
 });
 
-test("CH-U3 a contestant who built nothing is still offered a high and a low", () => {
+test("CH-U3 a contestant who built nothing is offered as if one answer had landed (D5)", () => {
   const s = buildCash(started(), 0);
   const o = Core.offers(s);
-  assert.equal(o.middle.amount, 0);
   assert.equal(o.higher.amount, 5000);
-  assert.equal(o.lower.amount, 1000);
+  assert.equal(o.middle.amount, 1000);
+  assert.equal(o.lower.amount, 500);
+});
+
+test("CH-U5 a zero head start is refused by the validator (D9)", () => {
+  assert.throws(() => Core.validateGame(tinyGame({ minHeadStart: 0 })), /between 1 and 4/);
 });
 
 test("CH-U3 the offers honour the file's own multipliers and board", () => {

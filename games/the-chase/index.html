@@ -20,8 +20,8 @@
     <div class="topbar-actions">
       <span id="chase-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8634; Game lobby</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
   </header>
@@ -33,15 +33,14 @@
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="card">
-        <p class="kicker">Build the cash. Outrun the Chaser. Bring it home.</p>
         <h2 class="card-title">The Chase</h2>
+        <p class="kicker">Add up to four contestants in hot-seat order, choose who plays the Chaser, then start.</p>
         <p id="chase-source" class="source-note">Loading questions&hellip;</p>
 
         <div class="setup-cols">
           <div class="setup-block">
             <h3 class="setup-heading">The team <span id="chase-player-count" class="count-badge"></span></h3>
-            <p class="hint">Up to four contestants, in the order they take the hot seat.
-              Drag is overkill &mdash; use the arrows.</p>
+            <p class="hint">They take the hot seat in this order; use Up and Down to change it.</p>
             <ol id="chase-player-list" class="player-list"></ol>
             <form id="chase-add-player" class="inline-form">
               <label class="visually-hidden" for="chase-player-name">Contestant name</label>
@@ -444,7 +443,6 @@
 
   <!-- ============ Title card shown for 1.2 s when the hub switches here ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -459,6 +457,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/chase-content.js"></script>
   <script src="js/chase-rules.js"></script>
   <script src="js/chase-core.js"></script>

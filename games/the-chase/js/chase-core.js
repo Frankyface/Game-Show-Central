@@ -370,7 +370,7 @@
     if (teamHalf) {
       return mine ? "Final Chase — shout the answers." : "The finalists are building their target.";
     }
-    if (f.pushback) return mine ? "He missed it — this one is yours." : "The team have a pushback.";
+    if (f.pushback) return mine ? "He missed it — this one is yours. His clock is stopped." : "The team have a pushback.";
     return `${state.chaser.name} needs ${Math.max(0, f.teamSteps - f.chaserSteps)} more.`;
   }
 

@@ -90,3 +90,47 @@ running clock (now frozen); Chaser's clock zeroed at a catch so the result read
   own tabs, closed them, cleared my `?store=manualt4` keys and stopped my server.
 - Not run: the in-hub embedded run with real phones (the loopback harness
   covers the embedded bridge path); physical second device.
+
+## Round 2 — tester's rule minors (2026-11-03)
+
+Tester fixes D1, D2, D6, D7 kept as applied. Remaining minors from
+`the-chase-verification.md`:
+
+| # | Change | Where |
+|---|---|---|
+| D3 | Every Chaser miss — **Wrong or Pass** — opens a pushback (`pushback.miss` records which). | `chase-rules.js` `evFinalChaserMark` |
+| D4 | The Chaser's clock **pauses** when a pushback opens and restarts from the time left on `pushback`; `finalChaserStart` and `finalChaserExpired` are refused while one is pending. A pushback with the Chaser on 0 is a no-op (not counted in `pushbacks`), and the host screen says "He is still on the start line, so a right answer cannot move him back." | `chase-rules.js` `evPushback`, `chase-view.js` `finalState` |
+| D5 | With $0 built the offers are worked out as if one Cash Builder answer landed: higher = value × multiplier (one step up), middle = one value (start step), lower = value ÷ divisor (one step down) — $5,000 / $1,000 / $500 by default; documented in the README and on the offers screen. | `chase-rules.js` `offersFor` |
+| D8 | "pushed back 1 time / n times". | `chase-view.js` |
+| D9 | `minHeadStart` must be 1–4, so a Final Chase target of 0 cannot exist. | `chase-content.js` |
+| harness | New check: no host `.screen` is displayed on any phone (tester's D2 suggestion). | `tests/harness.html` |
+
+Tests that pinned the old rules were updated (`ADV-OFFER`, `ADV-FINAL
+pushbacks`, `CH-U3`) and one added (`CH-U5` zero head start). **`node --test`
+75/75.** Harness CH-I4 now expects the D5 amounts.
+
+## Round 2 — v3 UI pass (docs/21, design-system §0)
+
+CSS rewritten flat (`chase.css` 271, `chase-play.css` 319, `chase-phone.css`
+111 lines); markup/JS limited to copy, class names, `GSCIcons.prepend`,
+the `shared/icons.js` script tag and the splash timing.
+
+Checklist:
+- [x] `data-gsc-game="the-chase"`, no local accent override; stage is flat:
+      `color-mix(#2a5bd7 6%, --stage-base)` — the show's blue-black as a tint, no gradient, spotlight or vignette.
+- [x] Anton only for one hero per screen: setup "The Chase", Cash Builder total, caught/home name, result amount, phone headline. Everything else Inter 400/500/600, sentence case, no tracking, no uppercase.
+- [x] Decorative eyebrows removed (setup tagline → one plain sentence: "Add up to four contestants in hot-seat order, choose who plays the Chaser, then start."; splash kicker gone). Labels kept only where they name a group. Body ≥ 16 px, controls ≥ 15 px.
+- [x] Accent (#d10000) only on the primary button, the Chaser's marker / active underline and the pushback rule; gold only on money.
+- [x] One surface level (`--surface` + `--hairline` + 8 px); inner lists are hairline rows; no blur, rails, nested panels, glow or text-shadow.
+- [x] Buttons 6 px radius, 44–48 px host / 56 px phone, sentence case 600; primary accent, secondary hairline, danger red outline, "Correct" green outline. No gradients.
+- [x] Board = flat steps with two flat markers (blue #2f6fd0 white ink 4.9:1; Chaser accent fill, white 5.7:1); marker glyphs are initials (no ▼), "Right answer" tag (no ✓), Up/Down text (no arrows). Zero emoji in host DOM text.
+- [x] Toolbar: name (Inter 600 18 px) · Sound · Editor · Game lobby, each with a `GSCIcons` icon + text label.
+- [x] Motion: only the marker slide and the caught/home card; offer hover lift, option fade, clock pulse and phone rise removed; all inside `prefers-reduced-motion: no-preference`. Splash 600 ms, plain (name only).
+- [x] Phone screens flat (one card, hairline stat row, option rows 56 px, "locked"/"you" in words).
+
+Verification (headless Chrome over CDP, `.scratch/chase-v3-check.mjs`, server 127.0.0.1:8711):
+- `tests/harness.html`: **All 64 checks passed**.
+- 1280×720 and 1280×676: scrollHeight = viewport on cash, offer, board (locked / revealed / home / caught), Final Chase (intro / team / pushback), result, standings, lobby modal; no text clipped. Setup scrolls (allowed).
+- DOM walk on every one of those screens and all four 320 px phone frames: no text pair under 4.5:1 (3:1 for large / disabled), no emoji, no `backdrop-filter`, no `text-shadow`, no gradient under text.
+- CSSOM walk: no `@keyframes`, `animation` or `transition` outside the no-preference guard; under emulated `reduce`, `document.getAnimations()` is 0.
+- Phones: no horizontal scroll at 320 px, option buttons ≥ 56 px, no host screen displayed.

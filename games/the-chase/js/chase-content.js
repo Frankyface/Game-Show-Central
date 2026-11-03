@@ -116,7 +116,8 @@
     ["lowerDivisor", 2, 10, "divisor for the lower offer"],
     ["finalSeconds", 30, 600, "seconds in each half of the Final Chase"],
     ["headStartPerMember", 0, 3, "head start per finalist"],
-    ["minHeadStart", 0, 4, "smallest head start"],
+    // At least 1: a target of 0 would mean the team start the Chaser's half already caught (D9).
+    ["minHeadStart", 1, 4, "smallest head start"],
   ];
 
   const FLAGS = ["chaserIsHost"];

@@ -139,7 +139,13 @@ function chaseWireChrome() {
   const paint = () => {
     sound.textContent = window.ChaseSound.enabled ? "Sound on" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.ChaseSound.enabled));
+    // v3 toolbar (docs/21 rule 9): icon + text label; textContent above drops it.
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.ChaseSound.enabled ? "sound" : "sound-off");
   };
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   sound.addEventListener("click", () => { window.ChaseSound.toggle(); paint(); });
   paint();
   chaseWireButton("btn-game-lobby", chaseOpenLobby);

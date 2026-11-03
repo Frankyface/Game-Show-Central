@@ -1,10 +1,12 @@
 /* ============================================================
    The Chase — the board, the Final Chase, the result and the
-   editor. Split out of chase.css so both sheets stay well under
-   the 800-line house limit; chase.css defines every token and
-   loads first.
+   editor (design system v3). Split out of chase.css so both
+   sheets stay well under the 800-line house limit; chase.css
+   defines every token and loads first.
 
-   Every @keyframes and every `animation:` in this file sits
+   The board is flat steps with two markers. The only motion
+   kept is the one that carries meaning — a marker sliding to its
+   new step and the caught/home card appearing — and it sits
    inside @media (prefers-reduced-motion: no-preference).
    ============================================================ */
 
@@ -14,338 +16,235 @@
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.5fr) var(--rail);
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.5fr) 290px;
   gap: 0.9rem;
   position: relative;
 }
 
 .board-col, .board-mid, .board-rail {
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  border-radius: var(--radius-lg);
-  padding: 0.7rem 0.8rem;
+  padding: 0.8rem 0.9rem;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.board {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-}
+.board { position: relative; flex: 1 1 auto; min-height: 0; }
 
-.board-rungs {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-}
+.board-rungs { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 4px; }
 
-.board-rung {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0 0.4rem;
-  border-bottom: 1px solid var(--slab-line);
-}
-
-.board-rung:last-child { border-bottom: 0; }
+.board-rung { flex: 1 1 0; display: flex; align-items: center; gap: 0.5rem; min-height: 0; }
 
 .rung-num {
-  width: 3.2rem;
+  width: 2.8rem;
   flex: 0 0 auto;
   color: var(--ink-mute);
-  font-family: var(--font-display);
   font-size: 0.95rem;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .rung-bar {
   flex: 1 1 auto;
-  height: 62%;
+  height: 100%;
   border-radius: var(--radius-sm);
-  background: var(--slab);
-  border: 1px solid var(--slab-line);
+  background: var(--step);
+  border: 1px solid var(--hairline);
 }
 
-.board-rung.is-live .rung-bar { background: var(--slab-live); border-color: rgba(77, 155, 255, 0.4); }
-.board-rung.is-taken .rung-bar { background: rgba(209, 0, 0, 0.18); border-color: rgba(209, 0, 0, 0.45); }
-.board-rung.is-home .rung-num { color: var(--gold-text); }
-.board-rung.is-home .rung-bar {
-  background: linear-gradient(90deg, rgba(255, 204, 77, 0.28), rgba(255, 204, 77, 0.1));
-  border-color: rgba(255, 204, 77, 0.55);
-}
+.board-rung.is-live .rung-bar { background: rgba(255, 255, 255, 0.075); }
+.board-rung.is-taken .rung-bar { background: transparent; border-style: dashed; }
+.board-rung.is-home .rung-num { color: var(--ink); font-weight: 600; }
+.board-rung.is-home .rung-bar { border-color: rgba(255, 255, 255, 0.3); }
 
 .board-marker {
   position: absolute;
-  left: 0.4rem;
-  right: 0.4rem;
+  left: calc(2.8rem + 0.5rem);
+  right: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0 0.5rem;
-  border-radius: var(--radius);
+  padding: 0 0.6rem;
+  border-radius: var(--radius-sm);
   pointer-events: none;
-}
-
-.marker-contestant {
-  /* White ink on both stops: 4.9:1 on #2f6fd0, 12:1 on #12336e. */
-  background: linear-gradient(90deg, #2f6fd0, #12336e);
-  border: 2px solid #9dc2ff;
   color: #ffffff;
 }
 
-.marker-chaser {
-  /* Near-white ink on both stops: 5.5:1 on #d10000, 13:1 on #5a0000. */
-  background: linear-gradient(90deg, #d10000, #5a0000);
-  border: 2px solid #ff9a9a;
-  color: #fff2f2;
-}
+.marker-contestant { background: var(--chase-blue); }
+.marker-chaser { background: var(--accent); color: var(--accent-ink); }
 
-.marker-glyph {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  width: 1.6rem;
-  text-align: center;
-}
+.marker-glyph { font-weight: 600; width: 1.3rem; text-align: center; }
 
 .marker-name {
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-weight: 600;
+  font-size: 0.95rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.h2h-q {
-  margin: 0 0 0.7rem;
-  font-size: clamp(20px, 2.2vw, 34px);
-  line-height: 1.22;
-  font-weight: 600;
-}
+.board-col .col-note { font-size: 0.9rem; }
 
-.options { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.h2h-q { margin: 0 0 0.8rem; font-size: clamp(20px, 2.1vw, 32px); line-height: 1.25; font-weight: 600; }
+
+.options { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
 
 .option {
   display: flex;
   align-items: center;
   gap: 0.7rem;
   padding: 0.55rem 0.8rem;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--well);
-  border: 1px solid var(--panel-line);
-  font-size: clamp(15px, 1.4vw, 21px);
+  border: 1px solid var(--hairline);
+  font-size: clamp(16px, 1.4vw, 21px);
 }
 
-.option-letter {
-  width: 1.9rem;
-  height: 1.9rem;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--panel-strong);
-  font-family: var(--font-display);
-  color: var(--gold-text);
-}
-
+.option-letter { width: 1.4rem; flex: 0 0 auto; color: var(--ink-mute); font-weight: 600; }
 .option-text { flex: 1 1 auto; }
 .option-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 
 .tag {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--panel-line);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
 }
 
-.tag-right { background: rgba(81, 216, 138, 0.22); border-color: var(--green); color: #d6ffe8; }
-.tag-c { background: rgba(77, 155, 255, 0.22); border-color: var(--chase-blue); color: #dbeaff; }
-.tag-h { background: rgba(209, 0, 0, 0.28); border-color: var(--chase-red-lift); color: #ffe0e0; }
+.tag-right { color: var(--green); border-color: rgba(81, 216, 138, 0.6); }
+.tag-c { color: var(--chase-blue-ink); border-color: rgba(141, 184, 255, 0.5); }
+.tag-h { color: var(--chase-red-ink); border-color: rgba(255, 122, 122, 0.5); }
 
-.option.is-right { border-color: var(--green); background: rgba(81, 216, 138, 0.12); }
+.option.is-right { border-color: rgba(81, 216, 138, 0.7); }
 
-.lock-plate {
-  padding: 0.5rem 0.65rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  margin-bottom: 0.5rem;
-}
-
-.lock-contestant { border-left: 5px solid var(--chase-blue); }
-.lock-chaser { border-left: 5px solid var(--chase-red-lift); }
-
-.lock-plate .k {
-  margin: 0;
-  color: var(--ink-mute);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.lock-state { margin: 0.15rem 0 0.4rem; font-family: var(--font-display); font-size: 1.25rem; color: var(--ink-dim); }
-.lock-state.is-locked { color: var(--gold-text); }
+/* The rail: two lock rows and the seat list, divided by hairlines. */
+.lock-plate { padding: 0 0 0.7rem; margin-bottom: 0.7rem; border-bottom: 1px solid var(--hairline); }
+.lock-plate .k { margin: 0; color: var(--ink-mute); font-size: 0.9rem; font-weight: 500; }
+.lock-state { margin: 0.15rem 0 0.4rem; font-size: 1.2rem; font-weight: 600; color: var(--ink-dim); }
+.lock-state.is-locked { color: var(--ink); }
 .lock-buttons { display: flex; gap: 0.35rem; }
 
-.seat-strip { margin-top: auto; display: grid; gap: 0.3rem; }
+.seat-strip { margin-top: auto; }
 
 .seat-chip {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  padding: 0.3rem 0.55rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  font-size: 0.82rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.95rem;
 }
 
-.seat-chip.is-current { border-color: var(--chase-blue); background: rgba(77, 155, 255, 0.12); }
-.seat-chip.is-home { border-color: var(--green); }
-.seat-chip.is-caught { opacity: 0.55; }
-.seat-chip.is-caught .seat-name { text-decoration: line-through; }
-.seat-name { font-weight: 700; }
-.seat-note { color: var(--ink-mute); margin-left: auto; font-size: 0.74rem; }
+.seat-name { font-weight: 600; }
+.seat-note { color: var(--ink-mute); margin-left: auto; font-size: 0.9rem; }
+.seat-chip.is-current .seat-name { color: var(--ink); text-decoration: underline;
+  text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.seat-chip.is-caught .seat-name { text-decoration: line-through; color: var(--ink-mute); }
 
+/* Caught / home: a flat card over the board — the screen's one hero. */
 .interstitial {
   position: absolute;
-  inset: 12% 8%;
+  inset: 14% 10%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  border-radius: var(--radius-xl);
-  border: 3px solid var(--panel-line);
-  background: linear-gradient(180deg, rgba(2, 9, 31, 0.96), rgba(4, 20, 58, 0.96));
-  box-shadow: var(--shadow-lift);
+  gap: 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  background: var(--panel-strong);
   text-align: center;
   padding: 1rem;
 }
 
-.interstitial.is-home { border-color: var(--green); }
-.interstitial.is-caught { border-color: var(--chase-red-lift); }
+.interstitial.is-home { border-color: rgba(81, 216, 138, 0.7); }
+.interstitial.is-caught { border-color: var(--accent); }
 .interstitial.hidden { display: none !important; }
 
-.inter-kicker {
-  margin: 0;
-  font-size: var(--fs-micro);
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
+.inter-kicker { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.is-home .inter-kicker { color: var(--green); }
+.is-caught .inter-kicker { color: var(--chase-red-ink); }
 
 .inter-name {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(40px, 6vw, 88px);
+  font-weight: 400;
+  font-size: clamp(48px, 6vw, 88px);
   line-height: 1;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
 }
 
-.is-home .inter-name { color: var(--green); }
-.is-caught .inter-name { color: var(--chase-red-lift); }
-.inter-sub { margin: 0.3rem 0 0; color: var(--ink-dim); font-size: clamp(14px, 1.3vw, 20px); }
+.inter-sub { margin: 0.3rem 0 0; color: var(--ink-dim); font-size: clamp(16px, 1.3vw, 20px); }
 
 /* ============ The Final Chase ============ */
 
-.track-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; width: 100%; }
+.track-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; width: 100%; margin-top: 0.6rem;
+  padding-top: 0.8rem; border-top: 1px solid var(--hairline); }
 
-.track {
-  padding: 0.5rem 0.6rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  text-align: center;
-}
+.track { text-align: center; }
+.track .k { margin: 0; color: var(--ink-mute); font-size: 0.95rem; font-weight: 500; }
+.track .v { margin: 0.05rem 0 0.35rem; font-size: 2.4rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.track-team .v { color: var(--chase-blue-ink); }
+.track-chaser .v { color: var(--chase-red-ink); }
 
-.track-team { border-left: 5px solid var(--chase-blue); }
-.track-chaser { border-left: 5px solid var(--chase-red-lift); }
-
-.track .k { margin: 0; color: var(--ink-mute); font-size: 0.7rem; letter-spacing: 0.1em;
-  text-transform: uppercase; }
-.track .v { margin: 0.05rem 0 0.3rem; font-family: var(--font-display); font-size: 2.4rem; line-height: 1; }
-
-.pips { display: flex; flex-wrap: wrap; gap: 0.22rem; justify-content: center; }
-
-.pip {
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 3px;
-  background: var(--slab);
-  border: 1px solid var(--slab-line);
-}
-
-.pip-team.is-lit { background: var(--chase-blue); border-color: #9dc2ff; }
-.pip-chaser.is-lit { background: var(--chase-red); border-color: #ff9a9a; }
+.pips { display: flex; flex-wrap: wrap; gap: 0.25rem; justify-content: center; }
+.pip { width: 0.8rem; height: 0.8rem; border-radius: 2px; background: var(--step); border: 1px solid var(--hairline); }
+.pip-team.is-lit { background: var(--chase-blue); border-color: var(--chase-blue); }
+.pip-chaser.is-lit { background: var(--accent); border-color: var(--accent); }
 
 .pushback {
-  margin-top: 0.7rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: var(--radius);
-  border: 2px solid var(--gold);
-  background: rgba(255, 204, 77, 0.12);
+  margin-top: 0.8rem;
+  padding: 0.8rem 0 0;
+  border-top: 2px solid var(--accent);
 }
 
 .pushback.hidden { display: none !important; }
-.pushback-title { margin: 0 0 0.5rem; font-weight: 700; color: var(--gold-text); }
+.pushback-title { margin: 0 0 0.5rem; font-weight: 600; font-size: 1.05rem; }
 .pushback-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
 /* ============ Result and standings ============ */
 
 #screen-result { align-items: center; justify-content: center; text-align: center; }
 
-.winner-name {
-  margin: 0.2rem 0 0;
-  font-family: var(--font-display);
-  font-size: clamp(40px, 5.6vw, 84px);
-  line-height: 1;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
-}
+.winner-name { margin: 0.2rem 0 0; font-size: clamp(26px, 2.6vw, 38px); font-weight: 600; line-height: 1.15; }
 
+/* The result's one hero: the money. */
 .final-amount {
   margin: 0.2rem 0;
   font-family: var(--font-display);
-  font-size: clamp(34px, 4.6vw, 66px);
+  font-weight: 400;
+  font-size: clamp(48px, 5.6vw, 84px);
+  line-height: 1;
   color: var(--gold-text);
-  letter-spacing: var(--track-display);
 }
 
-.result-sub { margin: 0 0 0.6rem; color: var(--ink-dim); font-size: 1rem; max-width: 46rem; }
+.result-sub { margin: 0 0 0.6rem; color: var(--ink-dim); font-size: 1.05rem; max-width: 46rem; }
 
 .standings {
   list-style: none;
   margin: 0 0 0.6rem;
-  padding: 0;
-  display: grid;
-  gap: 0.35rem;
+  padding: 0.2rem 1rem;
   width: min(46rem, 100%);
   overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
 }
 
 .standing-row {
   display: grid;
   grid-template-columns: minmax(6rem, 1fr) auto minmax(8rem, 1.2fr) auto;
-  gap: 0.7rem;
+  gap: 0.8rem;
   align-items: baseline;
-  padding: 0.45rem 0.7rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--hairline);
   text-align: left;
 }
 
-.standing-row.is-home { border-left: 5px solid var(--green); }
-.standing-row.is-caught { border-left: 5px solid var(--chase-red-lift); }
-.standing-name { font-weight: 700; }
-.standing-built, .standing-note { color: var(--ink-mute); font-size: 0.8rem; }
-.standing-money { font-family: var(--font-display); font-size: 1.3rem; color: var(--gold-text); }
+.standing-row:last-child { border-bottom: 0; }
+.standing-name { font-weight: 600; }
+.standing-row.is-caught .standing-name { text-decoration: line-through; color: var(--ink-dim); }
+.standing-built, .standing-note { color: var(--ink-mute); font-size: 0.95rem; }
+.standing-money { font-weight: 600; font-size: 1.15rem; color: var(--gold-text); font-variant-numeric: tabular-nums; }
 
 /* ============ Editor ============ */
 
@@ -353,38 +252,26 @@
 
 .editor-bar { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
 .editor-bar-actions { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.screen-title { margin: 0; font-size: 1.3rem; font-weight: 600; }
 
-.screen-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
-}
+.editor-grid { display: grid; grid-template-columns: minmax(220px, 0.6fr) minmax(0, 1.6fr); gap: 1.4rem; margin-top: 0.6rem; }
 
-.editor-grid {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.6fr) minmax(0, 1.6fr);
-  gap: 1.2rem;
-  margin-top: 0.6rem;
-}
-
-.ed-lines { width: 100%; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; }
-.ed-lines.ed-bad { border-color: var(--chase-red-lift); }
+.ed-lines { width: 100%; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; }
+.ed-lines.ed-bad { border-color: rgba(255, 107, 107, 0.7); }
 
 .manifest-box {
   margin: 0.5rem 0;
-  padding: 0.7rem 0.9rem;
+  padding: 0.8rem 1rem;
   border-radius: var(--radius);
-  border: 1px solid var(--gold);
-  background: rgba(255, 204, 77, 0.1);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
 }
 
 .manifest-box.hidden { display: none !important; }
-.manifest-title { margin: 0 0 0.35rem; font-weight: 700; color: var(--gold-text); }
-.manifest-step { margin: 0.2rem 0; font-size: 0.85rem; color: var(--ink-dim); }
+.manifest-title { margin: 0 0 0.35rem; font-weight: 600; }
+.manifest-step { margin: 0.2rem 0; font-size: 0.95rem; color: var(--ink-dim); }
 .manifest-line { display: block; margin: 0.4rem 0 0; padding: 0.5rem 0.6rem; border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.4); word-break: break-all; color: var(--ink); }
+  background: var(--stage-base); word-break: break-all; color: var(--ink); }
 
 /* ============ Embedded / player mode ============ */
 
@@ -397,19 +284,20 @@ body.player-mode .topbar,
 body.player-mode #chase-error { display: none !important; }
 body.player-mode #chase-main { padding: 0; }
 
-/* ============ Tight heights (1280x676 with no vertical scroll) ============ */
+/* ============ Tight heights (1280x676 inside the hub bar) ============ */
 
 @media (max-height: 780px) {
-  .topbar { padding: 0.35rem 1rem; }
-  .topbar-title { font-size: 1.25rem; }
-  #chase-main { padding: 0.5rem 0.9rem 0.7rem; }
-  .giant-clock { font-size: clamp(48px, 6.4vw, 84px); }
-  .giant-money { font-size: clamp(28px, 3.6vw, 48px); }
-  .rapid-q { font-size: clamp(20px, 2.1vw, 30px); }
-  .rapid-a { font-size: clamp(22px, 2.3vw, 34px); }
-  .h2h-q { font-size: clamp(18px, 1.9vw, 27px); }
+  .topbar { padding: 0.3rem 1rem; }
+  #chase-main { padding: 0.5rem 0.9rem 0.6rem; }
+  .screen { gap: 0.5rem; }
+  .giant-clock { font-size: clamp(48px, 6vw, 80px); }
+  .giant-money { font-size: clamp(34px, 3.6vw, 52px); }
+  .rapid-q { font-size: clamp(20px, 2vw, 30px); }
+  .rapid-a { font-size: clamp(20px, 2vw, 30px); }
+  .h2h-q { font-size: clamp(18px, 1.8vw, 26px); }
   .option { padding: 0.42rem 0.7rem; }
   .track .v { font-size: 2rem; }
+  .lock-plate { padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
 }
 
 @media (max-width: 1100px) {
@@ -418,33 +306,14 @@ body.player-mode #chase-main { padding: 0; }
   .setup-cols, .editor-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ============ Motion (all of it, guarded) ============ */
+/* ============ Motion: only what carries meaning ============ */
 
 @media (prefers-reduced-motion: no-preference) {
-  @keyframes chase-marker-land {
-    0% { transform: scale(1); }
-    45% { transform: scale(1.06); }
-    100% { transform: scale(1); }
+  @keyframes chase-card-in {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: none; }
   }
 
-  @keyframes chase-slab {
-    from { opacity: 0.25; }
-    to { opacity: 1; }
-  }
-
-  .board-marker {
-    transition: top var(--dur-slow) var(--ease-spring);
-    animation: chase-marker-land var(--dur-slow) var(--ease-out) both;
-  }
-
-  .board-rung .rung-bar { transition: background var(--dur) var(--ease-out),
-    border-color var(--dur) var(--ease-out); }
-
-  .interstitial { animation: gsc-pop var(--dur) var(--ease-spring) both; }
-  .option { animation: chase-slab var(--dur) var(--ease-out) both; }
-  .offer-card { transition: border-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
-  .offer-card:hover { transform: translateY(-2px); }
-  .pip { transition: background var(--dur-fast) var(--ease-out); }
-  .giant-clock.danger { animation: gsc-pulse 1s ease-in-out infinite; }
+  .board-marker { transition: top var(--dur-slow) var(--ease-out); }
+  .interstitial { animation: chase-card-in var(--dur) var(--ease-out) both; }
 }

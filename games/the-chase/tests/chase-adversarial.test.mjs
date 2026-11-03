@@ -100,10 +100,11 @@ test("ADV-CB a clock frozen at 0 ms (restore after the deadline) — reducer has
 test("ADV-OFFER maths: rounding, $0 builder, clamps", () => {
   let s = buildCash(started(), 0);
   let o = Core.offers(s);
-  assert.deepEqual([o.higher.amount, o.middle.amount, o.lower.amount], [5000, 0, 1000]);
+  // D5 (fixed by the implementer): with $0 built the offers are worked out as if
+  // one Cash Builder answer had landed, so they run high > middle > low.
+  assert.deepEqual([o.higher.amount, o.middle.amount, o.lower.amount], [5000, 1000, 500]);
   assert.deepEqual([o.higher.step, o.middle.step, o.lower.step], [4, 3, 2]);
-  // Rule choice noted in the report: with $0 built the LOWER offer pays more than the middle.
-  assert.ok(o.lower.amount > o.middle.amount);
+  assert.ok(o.higher.amount > o.middle.amount && o.middle.amount > o.lower.amount);
   s = buildCash(started({ settings: { cashBuilderValue: 333 } }), 1);
   o = Core.offers(s);
   assert.equal(o.lower.amount, 167, "333 / 2 rounds half up");
@@ -229,23 +230,27 @@ function chaserHalf(target, homes) {
   return Core.reduce(s, { type: "finalChaserStart" }, 200000);
 }
 
-test("ADV-FINAL pushbacks: only on Wrong (a Pass is NOT offered), at zero it is wasted", () => {
+test("ADV-FINAL pushbacks: every miss is offered, the clock stops, at zero it is a no-op", () => {
   let s = chaserHalf(5);
+  // D3: a Pass is a miss too, and is offered to the team.
   const passed = Core.reduce(s, { type: "finalChaserMark", result: "pass" }, 200100);
-  assert.equal(passed.final.pushback, null, "implementer's rule: a Pass is not offered to the team");
+  assert.ok(passed.final.pushback, "a Pass is offered to the team");
+  assert.equal(passed.final.pushback.miss, "pass");
   s = Core.reduce(s, { type: "finalChaserMark", result: "wrong" }, 200100);
+  // D4: the Chaser's clock stops while the team answer, and cannot be restarted under it.
+  assert.equal(s.final.chaserClock.running, false);
+  assert.equal(s.final.chaserClock.remainingMs, 119900);
+  assert.equal(Core.reduce(s, { type: "finalChaserStart" }, 200150), s);
+  assert.equal(Core.reduce(s, { type: "finalChaserExpired" }, 999999), s, "no expiry mid-pushback");
   const at0 = Core.reduce(s, { type: "pushback", correct: true }, 200200);
   assert.equal(at0.final.chaserSteps, 0, "a pushback at 0 changes nothing (no extra team step)");
   assert.equal(at0.final.teamSteps, 5);
-  assert.equal(at0.final.pushbacks, 1);
+  assert.equal(at0.final.pushbacks, 0, "only a pushback that moved him counts");
+  assert.equal(at0.final.chaserClock.running, true, "the clock restarts after the pushback");
+  assert.equal(at0.final.chaserClock.deadline, 200200 + 119900);
   for (const correct of ["yes", 1, null, undefined]) {
     assert.equal(Core.reduce(s, { type: "pushback", correct }, 1), s);
   }
-  // the clock keeps running during a pushback; expiry mid-pushback = the team win
-  assert.equal(s.final.chaserClock.running, true);
-  const timeUp = Core.reduce(s, { type: "finalChaserExpired" }, 999999);
-  assert.equal(timeUp.outcome.teamWon, true);
-  assert.equal(timeUp.final.pushback, null);
 });
 
 test("ADV-FINAL both endings and the split per member", () => {

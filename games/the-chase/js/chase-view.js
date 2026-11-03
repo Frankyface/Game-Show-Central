@@ -99,8 +99,8 @@ const ChaseView = (function () {
       li.appendChild(el("span", "player-seat", `${i + 1}`));
       li.appendChild(el("span", "player-name", p.name));
       li.appendChild(el("span", "player-kind", p.manual ? "typed in" : "on a phone"));
-      li.appendChild(moveButton("↑ Up", i, -1, i === 0));
-      li.appendChild(moveButton("↓ Down", i, 1, i === app.setup.players.length - 1));
+      li.appendChild(moveButton("Up", i, -1, i === 0));
+      li.appendChild(moveButton("Down", i, 1, i === app.setup.players.length - 1));
       const drop = el("button", "btn btn-ghost btn-small", "Remove");
       drop.type = "button";
       drop.addEventListener("click", () => window.ChaseApp.removePlayer(p.pid));
@@ -202,7 +202,8 @@ const ChaseView = (function () {
       setText(`chase-offer-${key}-step`, `${offer.step} ${offer.step === 1 ? "step" : "steps"} from home`);
     });
     setText("chase-offer-notice",
-      o.middle.amount === 0 ? "Nothing built — the middle offer is zero, so it is high or low." : "");
+      state.results[state.seat].cash === 0
+        ? "Nothing built, so the offers are worked out from one Cash Builder answer." : "");
     $("btn-offer-undo").disabled = !state.history.length;
   }
 
@@ -256,7 +257,7 @@ const ChaseView = (function () {
     const tags = el("span", "option-tags");
     if (i === h.q.answer) {
       li.classList.add("is-right");
-      tags.appendChild(el("span", "tag tag-right", "✓ right"));
+      tags.appendChild(el("span", "tag tag-right", "Right answer"));
     }
     if (h.locks.contestant === i) tags.appendChild(el("span", "tag tag-c", core().hotSeat(state).name));
     if (h.locks.chaser === i) tags.appendChild(el("span", "tag tag-h", state.chaser.name));
@@ -383,7 +384,10 @@ const ChaseView = (function () {
     const clock = team ? f.teamClock : f.chaserClock;
     const started = team ? f.teamStarted : f.chaserStarted;
     if (team && f.teamFinished) return "Time. Bring on the Chaser.";
-    if (!team && f.pushback) return "Pushback — the team can take this one back.";
+    if (!team && f.pushback && f.chaserSteps === 0) {
+      return "Pushback — clock stopped. He is still on the start line, so a right answer cannot move him back.";
+    }
+    if (!team && f.pushback) return "Pushback — clock stopped. A right answer moves him back a step.";
     if (clock.running) return "Running.";
     return started ? "Paused." : "Press Start when everyone is ready.";
   }
@@ -446,7 +450,8 @@ const ChaseView = (function () {
     if (!out.played) return "Nobody got home, so there was no Final Chase.";
     if (out.teamWon) {
       return `${out.teamSteps} steps built, ${state.chaser.name} reached ${out.chaserSteps}`
-        + `${out.pushbacks ? `, pushed back ${out.pushbacks} times` : ""}. Split between the finalists.`;
+        + `${out.pushbacks ? `, pushed back ${out.pushbacks} ${out.pushbacks === 1 ? "time" : "times"}` : ""}`
+        + ". Split between the finalists.";
     }
     return `${state.chaser.name} caught the team with ${
       core().secondsLeft(state.final ? state.final.chaserClock : null, Date.now())} seconds to spare.`;
@@ -484,7 +489,7 @@ const ChaseView = (function () {
 
   /* ============ The splash ============ */
 
-  const SPLASH_MS = 1200;
+  const SPLASH_MS = 600;   // docs/21 rule 8: a plain 600 ms card
   let splashTimer = null;
 
   /**
@@ -499,7 +504,7 @@ const ChaseView = (function () {
     if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (document.body.classList.contains("gsc-embedded")) return;
     setText("gsc-splash-title", "The Chase");
-    setText("gsc-splash-sub", "Build the cash. Outrun the Chaser.");
+    setText("gsc-splash-sub", "");
     node.dataset.gscGame = "the-chase";
     node.classList.remove("hidden");
     if (splashTimer) clearTimeout(splashTimer);

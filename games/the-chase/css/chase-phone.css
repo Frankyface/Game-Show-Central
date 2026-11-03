@@ -1,96 +1,61 @@
 /* ============================================================
-   The Chase — phone screens
-   320–430 px portrait, thumb-sized targets (≥ 56 px), never a
-   sideways scroll. The three options are full-width rows so a
-   contestant can lock without looking, and the locked row is
-   marked with a word ("locked"), not only a colour.
-   Every `animation:` sits inside prefers-reduced-motion:
-   no-preference at the bottom of the file.
+   The Chase — phone screens (design system v3)
+   320–430 px portrait, 56 px targets, never a sideways scroll.
+   One flat card, hairlines, Inter; the headline is the one
+   Anton word on the phone. The three options are full-width
+   rows, and the locked row is marked with a word ("locked"),
+   not only a colour. No animation.
    ============================================================ */
 
-.screen-phone {
-  display: none;
-  padding: 0.7rem 0.6rem 1rem;
-  gap: 0.6rem;
-}
+.screen-phone { display: none; padding: 0.7rem 0.6rem 1rem; gap: 0.6rem; }
 
 body.player-mode .screen-phone:not(.hidden) { display: flex; }
-/* Tester fix: the host setup screen starts visible in the markup; a phone never shows it. */
+/* Tester fix (D2): the host setup screen starts visible in the markup; a phone never shows it. */
 body.player-mode .screen:not(.screen-phone) { display: none !important; }
 
 .phone-card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
   padding: 0.9rem 0.8rem 1rem;
-  border-radius: var(--radius-lg);
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
-.phone-card.is-answer { border-color: var(--chase-blue); }
-.phone-card.is-chaser { border-color: var(--chase-red-lift); }
-.phone-card.is-pushback { border-color: var(--gold); }
-.phone-card.is-result { border-color: var(--green); }
+.phone-card.is-pushback { border-color: var(--accent); }
 
-.phone-kicker {
-  margin: 0;
-  color: var(--ink-mute);
-  font-size: 0.7rem;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-}
+.phone-kicker { margin: 0; color: var(--ink-dim); font-size: 0.95rem; font-weight: 500; }
 
 .phone-headline {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(30px, 11vw, 48px);
+  font-weight: 400;
+  font-size: clamp(32px, 11vw, 46px);
   line-height: 1.02;
-  letter-spacing: var(--track-display);
   overflow-wrap: anywhere;
 }
 
-.is-chaser .phone-headline { color: var(--chase-red-lift); }
-.is-answer .phone-headline { color: var(--chase-blue); }
+.is-chaser .phone-headline { color: var(--chase-red-ink); }
 
-.phone-sub { margin: 0; color: var(--ink-dim); font-size: 0.92rem; line-height: 1.4; }
+.phone-sub { margin: 0; color: var(--ink-dim); font-size: 1rem; line-height: 1.4; }
 
-.phone-question {
-  margin: 0.3rem 0 0;
-  font-size: 1.05rem;
-  line-height: 1.35;
-  font-weight: 600;
-  color: var(--ink);
-}
+.phone-question { margin: 0.2rem 0 0; font-size: 1.05rem; line-height: 1.35; font-weight: 600; }
 
-.phone-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.phone-meta { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; padding: 0.4rem 0;
+  border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
 
-.phone-stat {
-  flex: 1 1 4.5rem;
-  min-width: 4.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  text-align: center;
-}
+.phone-meta:empty { display: none; }
 
-.phone-stat .k {
-  margin: 0;
-  color: var(--ink-mute);
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.phone-stat .v { margin: 0.05rem 0 0; font-family: var(--font-display); font-size: 1.3rem; line-height: 1.1; }
+.phone-stat { flex: 1 1 4rem; min-width: 4rem; }
+.phone-stat .k { margin: 0; color: var(--ink-mute); font-size: 0.85rem; }
+.phone-stat .v { margin: 0.05rem 0 0; font-size: 1.25rem; font-weight: 600; line-height: 1.15;
+  font-variant-numeric: tabular-nums; }
 .phone-stat.is-value .v { color: var(--gold-text); }
-.phone-stat.is-steps .v { color: var(--ink); }
-.phone-stat.is-clock .v { font-variant-numeric: tabular-nums; }
-.phone-stat.is-clock.is-urgent { border-color: var(--chase-red-lift); }
-.phone-stat.is-clock.is-urgent .v { color: var(--chase-red-lift); }
+.phone-stat.is-clock.is-urgent .v { color: var(--chase-red-ink); }
 .phone-stat.is-clock.is-done .v { color: var(--ink-mute); }
 
 .phone-options { display: grid; gap: 0.5rem; margin-top: 0.2rem; }
@@ -98,78 +63,49 @@ body.player-mode .screen:not(.screen-phone) { display: none !important; }
 .btn-option {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.6rem;
   width: 100%;
   min-height: var(--tap);
-  padding: 0.6rem 0.7rem;
+  padding: 0.55rem 0.7rem;
   text-align: left;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--well);
-  border: 2px solid var(--panel-line);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--ink);
   font: inherit;
   font-size: 1rem;
+  font-weight: 500;
 }
 
-.btn-option .opt-letter {
-  flex: 0 0 auto;
-  width: 2rem;
-  height: 2rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--panel-strong);
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  color: var(--gold-text);
-}
-
+.btn-option .opt-letter { flex: 0 0 auto; width: 1.3rem; color: var(--ink-mute); font-weight: 600; }
 .btn-option .opt-text { flex: 1 1 auto; overflow-wrap: anywhere; }
+.btn-option .opt-tag { flex: 0 0 auto; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
 
-.btn-option .opt-tag {
-  flex: 0 0 auto;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.15rem 0.45rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid currentColor;
-}
-
-.btn-option.is-mine { border-color: var(--gold); background: rgba(255, 204, 77, 0.14); }
-.is-chaser .btn-option.is-mine { border-color: var(--chase-red-lift); background: rgba(209, 0, 0, 0.18); }
-.btn-option.is-right { border-color: var(--green); background: rgba(81, 216, 138, 0.16); }
-.btn-option.is-wrong { border-color: var(--chase-red-lift); background: rgba(209, 0, 0, 0.16); }
-.btn-option:disabled { opacity: 0.72; cursor: default; }
-.btn-option:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn-option.is-mine { border: 2px solid var(--ink); }
+.is-chaser .btn-option.is-mine { border-color: var(--accent); }
+.btn-option.is-right { border: 2px solid var(--green); }
+.btn-option.is-wrong { border: 2px solid var(--red); }
+.btn-option:disabled { opacity: 0.75; cursor: default; }
 
 .phone-actions { display: grid; gap: 0.5rem; }
+.phone-actions:empty { display: none; }
 .phone-actions .btn { min-height: var(--tap); }
 
-.phone-status { margin: 0; color: var(--ink-mute); font-size: 0.8rem; min-height: 1.1em; }
+.phone-status { margin: 0; color: var(--ink-mute); font-size: 0.95rem; min-height: 1.1em; }
 
-.phone-standings { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
+.phone-standings { list-style: none; margin: 0.2rem 0 0; padding: 0; }
 
 .phone-standings li {
   display: flex;
   justify-content: space-between;
   gap: 0.6rem;
-  padding: 0.4rem 0.55rem;
-  border-radius: var(--radius);
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  font-size: 0.88rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.95rem;
 }
 
 @media (max-width: 340px) {
-  .phone-headline { font-size: 30px; }
-  .phone-stat { flex: 1 1 4rem; min-width: 4rem; }
-  .btn-option { font-size: 0.92rem; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .btn-option { transition: border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out); }
-  .phone-card { animation: gsc-rise var(--dur) var(--ease-out) both; }
+  .phone-headline { font-size: 32px; }
+  .btn-option { font-size: 0.95rem; }
 }

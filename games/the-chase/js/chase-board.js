@@ -70,7 +70,7 @@
       box.dataset.shape = key;
       buildRungs(box, view);
       buildMarker(box, "contestant", initial(view.name), view.name);
-      buildMarker(box, "chaser", "▼", view.chaserName);
+      buildMarker(box, "chaser", initial(view.chaserName), view.chaserName);
     }
     const pct = rowPercent(view.steps);
     const rungs = box.querySelectorAll(".board-rung");

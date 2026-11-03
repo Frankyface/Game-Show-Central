@@ -155,7 +155,7 @@
       "../../../shared/theme.css", "../../../shared/theme-components.css",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js",
-      "../../../shared/bridge.js", "../../../shared/library.js",
+      "../../../shared/bridge.js", "../../../shared/library.js", "../../../shared/icons.js",
       "fixtures/harness-game.json",
     ];
 
@@ -300,6 +300,8 @@
       await tapOption("p4", hIdx);
       await waitFor(() => core().h2h.locks.contestant !== null && core().h2h.locks.chaser !== null,
         "both locks");
+      await waitFor(() => phoneView("p1").myLock === cIdx && phoneView("p4").myLock === hIdx,
+        "the locks echoed back to their own phones");
       check("CH-I1 a tap on a phone is the only way an answer is locked, and both landed",
         core().h2h.locks.contestant === cIdx && core().h2h.locks.chaser === hIdx,
         JSON.stringify(core().h2h.locks));
@@ -447,10 +449,11 @@
 
     async function scenarioFinalReload() {
       await takeHome("p2");
-      // Ben built nothing, so the lower offer is the floor: one Cash Builder answer.
+      // Ben built nothing, so the offers are worked out from one $1,000 answer (D5):
+      // the lower offer is $500.
       check("CH-I4 two right answers on the lower offer take the contestant home",
         core().h2h.outcome === "home" && core().results[1].outcome === "home"
-        && core().results[1].amount === 1000,
+        && core().results[1].amount === 500,
         `Ben banked ${core().results[1].amount}`);
       click("btn-next-contestant");
       await waitFor(() => core().phase === "cashBuilder" && core().seat === 2, "Cleo's Cash Builder");
@@ -459,7 +462,7 @@
       await takeHome("p3");
       // Cleo built $1,000 and took the lower offer: half of it.
       check("CH-I4 a second contestant home adds their amount to the bank",
-        HW().ChaseCore.bank(core()) === 1500, `bank ${HW().ChaseCore.bank(core())}`);
+        HW().ChaseCore.bank(core()) === 1000, `bank ${HW().ChaseCore.bank(core())}`);
       click("btn-next-contestant");
       await waitFor(() => core().phase === "finalTeam", "the Final Chase");
       check("CH-I4 the head start is one step per finalist",
@@ -513,8 +516,8 @@
       await waitFor(() => core().phase === "result", "the result");
       check("CH-I4 time up with the Chaser short: the team split the bank to the last dollar",
         core().outcome.teamWon === true
-        && core().outcome.share.reduce((n, x) => n + x.amount, 0) === 1500
-        && H("chase-result-amount").textContent === "$1,500",
+        && core().outcome.share.reduce((n, x) => n + x.amount, 0) === 1000
+        && H("chase-result-amount").textContent === "$1,000",
         core().outcome.share.map((x) => `${x.name} ${x.amount}`).join(", "));
       check("CH-I4 the standings show what each contestant built, played and won",
         HD().querySelectorAll("#chase-standings .standing-row").length === 3
@@ -523,7 +526,7 @@
       await waitFor(() => shellLog.some((m) => m.t === "scores"), "a score report").catch(() => null);
       check("CH-I4 the shell was handed a score row per contestant",
         shellLog.some((m) => m.t === "scores" && m.scores.length === 3
-          && m.scores.reduce((n, s) => n + s.score, 0) === 1500),
+          && m.scores.reduce((n, s) => n + s.score, 0) === 1000),
         JSON.stringify((shellLog.filter((m) => m.t === "scores").pop() || {}).scores));
     }
 
@@ -542,7 +545,8 @@
       const built = H("chase-cash-total").textContent;
 
       check("CH-I5 X-1 the toolbar carries the Game lobby control",
-        H("btn-game-lobby") && H("btn-game-lobby").textContent.indexOf("Game lobby") > 0,
+        H("btn-game-lobby") && H("btn-game-lobby").textContent.indexOf("Game lobby") >= 0
+        && !!H("btn-game-lobby").querySelector("svg.gsc-icon"),
         H("btn-game-lobby").textContent);
       click("btn-game-lobby");
       await sleep(20);
@@ -742,6 +746,10 @@
         const d = PD(p).documentElement;
         return d.scrollWidth > d.clientWidth + 1;
       });
+      const shown = [...phoneFrames.keys()].filter((p) => [...PD(p).querySelectorAll(".screen:not(.screen-phone)")]
+        .some((s) => PW(p).getComputedStyle(s).display !== "none"));
+      check("CH-I6 V-phone no host screen is displayed on any phone (tester D2)",
+        shown.length === 0, shown.join(", ") || "every host screen is display:none on all four phones");
       check("CH-I6 V-phone no phone scrolls sideways at 320 px — contestant, Chaser or spectator",
         wide.length === 0,
         wide.length ? wide.join(", ")
@@ -767,6 +775,7 @@
         check("harness run completed", false, uncaught);
       }
       render();
+      window.__CHASE_HARNESS_DONE__ = true;
     })();
   })();
   </script>
