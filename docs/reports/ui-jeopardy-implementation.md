@@ -311,3 +311,156 @@ controls that previously relied on the browser default now have the house ring.
 5. When capturing "after" screenshots, note that the browser pane only paints
    on demand — take the screenshot twice, since the first one starts the paint
    and may catch a card mid-`clip-path`.
+
+
+---
+
+## v3 pass — "make it look real" (docs/21, design-system §0)
+
+Date: 2026-11-03. CSS-first rework of Jeopardy's look against the v3
+checklist. **No upstream JS or CSS file was edited**; everything is an
+override in `css/gsc-look.css` (rewritten) and `css/gsc-extras.css`, plus
+icon/toolbar work in our own `js/gsc-extras.js` and one `<!-- GSC: -->`
+script tag for `shared/icons.js`. The v2 sheet is kept for reference at
+`.scratch/jeopardy-gsc-look-v2.css`.
+
+### What changed
+
+- **Stage:** flat `color-mix(#2b34ff 5%, #0b0d12)`; upstream's radial body
+  gradient, the topbar gradient and its gold rule are gone.
+- **Board:** true board blue `#060ce9`, flat, black 6 px gutters, gold Anton
+  money (6.6:1), categories white Inter 600 in source case (9.4:1); used
+  tiles a flat dark navy; hover = a slightly brighter blue, no lift, no glow.
+- **Clue / Final cards:** the same flat board blue, a white hairline under
+  the category ribbon, Anton clue text in white, gold only on the dollar
+  value and standings money. Judge chips are hairline outlines, ✓/✗ are
+  6 px squares.
+- **Surfaces:** one level — `#151820` + 10 % hairline + 8 px radius — for
+  the setup card, podiums, editor categories, popover, dialog and phone
+  cards. Setup sections, the buzzer-room block and the library picker are
+  now hairline-divided areas inside that one surface, not nested panels.
+- **Type:** a single `body *` reset forces Inter, no uppercase, no
+  tracking, no text-shadow; Anton is re-allowed only on the heroes
+  (`.setup-title`, `.buzzer-code`, `.cell-clue`, `.podium-score`,
+  `.clue-val`, `.clue-text`, `.dd-title`, `.final-heading`,
+  `.standings-score`, `.player-buzz-btn`). The phone code input keeps its
+  tracking (the one allowed exception). The "This is…" kicker is hidden.
+- **Buttons:** 6 px radius, 44 px (48 px `btn-big`) on host, 56 px on the
+  phone, sentence case, 600. `.btn-gold` = flat accent `#2b34ff` + white
+  (6.9:1); everything else is a hairline outline. One primary per screen:
+  with a parked game, Resume is primary and Start becomes secondary; in the
+  editor "Use in game" is primary and "Download JSON" secondary.
+- **Toolbar (UI-12):** name (Inter 600 18 px) left; right: `Final Jeopardy`
+  (game control, only on the board) · **Sound** · **Editor** · **Game
+  lobby**, each with a `GSCIcons` icon beside its text. Sound is a new
+  `#btn-sound` that drives `BuzzerHost.toggleSound()` and persists the
+  hub-wide `gsc-sound` key; the buzzer panel's own emoji sound button is
+  retired by CSS so there is exactly one toggle. Embedded, the standalone
+  room chip is hidden (the shell bar carries it).
+- **Phone:** flat discs per buzzer state — idle surface, reading red
+  `#d92b2b` (white 4.9:1), armed green `#1e9e57` (dark ink 5.3:1), won blue
+  `#1a5fe6` (white 5.5:1), locked dark red — no radial domes, no glow.
+- **Motion:** only the clue/Final card reveal (clip-path, 300 ms, inside
+  `no-preference`). The v2 ribbon flip and the armed-glow restatement are
+  gone; upstream's armed pulse/glow are set to `animation: none` because
+  they only animated a glow v3 removes. Timer flash at zero stays (it
+  carries meaning).
+- **Splash:** Jeopardy has no splash of its own — the game-switch card is
+  the hub's (`js/hub-host.js`, already 600 ms plain). Nothing to change here.
+
+### Checklist (design-system §0)
+
+Tokens and stage
+- [x] No local `--stage-glow`; `--accent*` declared once in gsc-look.css
+      (Jeopardy's v2 pair kept, matching theme.css's jeopardy block).
+      `data-gsc-game` is not on `<body>` — adding it is a markup hook beyond
+      docs/02's allowed list; the stage tint is applied by token instead.
+- [x] Body paints no gradient/spotlight/vignette.
+
+Type
+- [x] Anton only on heroes (audit: `antonNonHero` empty on every screen).
+- [x] No uppercase / tracking outside the phone code input (audit empty).
+- [x] Kicker removed; remaining headings name control groups.
+- [x] No host text under 15 px except the 14 px score tip (audit
+      `smallText` empty bar the collapsed crown glyph, see below).
+
+Colour
+- [x] Accent = primary buttons + active board hover only.
+- [x] Gold only on money (board values, clue value, podium/standings money).
+- [x] No text-shadow, no glow box-shadow (audit empty).
+
+Surfaces
+- [x] One level; no backdrop-filter (audit empty); no accent rails.
+
+Buttons
+- [x] 6 px, 44–48 px host / 56 px phone, sentence case, 600; no gradients.
+
+Icons
+- [~] Toolbar icons via `GSCIcons` (sound / sound-off, edit, lobby, play on
+      Resume). **Residual upstream emoji** — see below.
+
+Motion
+- [x] Only the reveal; every animation this sheet adds is in no-preference;
+      under `reduce` `document.getAnimations()` is `[]` with a clue open.
+
+Toolbar / copy / gates
+- [x] Order Sound · Editor · Game lobby on every screen, standalone and
+      embedded. No tagline-speak added.
+- [x] JS edits limited to icon insertion, the Sound control and toolbar
+      order (all in our own gsc-extras.js).
+
+### Verification
+
+Run headless (Chrome over CDP, `node .scratch/cdp.mjs
+.scratch/jeopardy-v3-check.mjs`; screenshots in `.scratch/jeopardy-ui/`)
+against `http://127.0.0.1:8631/`.
+
+| Gate | Result |
+| --- | --- |
+| `cd games/jeopardy && node --test` | **49/49** |
+| `tests/gsc-embed-harness.html` | **18/18** |
+| `tests/harness.html` | **70/70** |
+| `tests/photo-harness.html` | **26/26** |
+| Board 1280×720 | `scrollHeight 720 / innerHeight 720` — no scroll |
+| Board 1280×676 (the iframe under the hub bar) | `676 / 676` — no scroll |
+| Clue, Daily Double, Final wagers, standings, lobby dialog at 1280×720 | all `720 / 720` |
+| Phone 320×640 | `scrollWidth 320`, no horizontal scroll; targets code 70 px, name 56, Join 56; buzzer disc 269 px |
+| Contrast ≥ 4.5 (DOM sampler, every visible text node, alpha-blended bg) | **0 failures** on setup (25 nodes), board (42), clue (46), DD (47), Final (52), standings (54), dialog (47), editor (313), phone join and all five buzzer states |
+| UI-11 backdrop-filter / text-shadow / gradient under text | **0** on every screen |
+| UI-12 toolbar | board: `Final Jeopardy, Sound on, Question Editor, Game lobby`; setup: `Sound on, Question Editor`; embedded: `Sound on, Question Editor` (chip hidden) |
+| Reduced motion | CSSOM: every keyframes / animation outside `no-preference` is upstream (`buzzer-pulse`, `buzzer-glow`, `timer-flash`) and each is set to `none` under `reduce` by upstream itself; live `getAnimations()` with a clue open = `[]` |
+
+### Known gaps — UI-10 (emoji in host DOM text)
+
+CSS cannot rewrite a text node, and this pass may not edit upstream JS, so
+these upstream strings still put an emoji into host DOM text. Each is a
+one-string change in an upstream file (not made, per the brief):
+
+| String | Where | Seen | Mitigation now |
+| --- | --- | --- | --- |
+| `👑` leader rank | `app.js:935` | standings | glyph collapsed (`font-size:0`), a plain "1" drawn via `::before` — **visually fixed, DOM text remains** |
+| `📷 Clue N images` | `editor.js:330` | editor | none (visible) |
+| `🔔 Buzzers armed — Space locks`, `🔔 <name>` | `buzzer-host.js:694, 705` | clue bar, phones in room | none |
+| `🚫 too soon: …` | `buzzer-host.js:671` | clue bar | none |
+| `📱 <name> is wagering…` | `buzzer-wagers.js:204` | DD splash | none |
+| `🔒 from phone` | `buzzer-wagers.js:364` | Final wagers | none |
+| `<CODE> · N 🔔` | `buzzer-host.js:637` | standalone chip | hidden when embedded |
+| `🔊 Sound on` / `🔇 Sound off` | `buzzer-host.js:618` | buzzer panel | **hidden** — replaced by toolbar Sound |
+| `🟢` / `🔴` | `buzzer-host.js:606` | room roster | allowed (roster status dots) |
+
+`✓ ✗ ✕ ⚠` are dingbats/symbols used as button glyphs and are left as is.
+If the orchestrator authorises upstream string edits, the six "none" rows
+are each a delete of the leading emoji plus a `GSCIcons.prepend` where an
+icon helps; that would close UI-10 fully.
+
+### Files
+
+| File | Lines |
+| --- | ---: |
+| `games/jeopardy/css/gsc-look.css` (rewritten for v3) | 765 |
+| `games/jeopardy/css/gsc-extras.css` | 102 |
+| `games/jeopardy/js/gsc-extras.js` (+ Sound, icons) | 464 |
+| `games/jeopardy/index.html` (+1 `<!-- GSC: -->` tag for icons.js) | 324 |
+
+Helpers: `.scratch/jeopardy-v3-check.mjs`, `.scratch/jeopardy-v3-embedbar.mjs`,
+`.scratch/jeopardy-v3-js.py`. No git commands.

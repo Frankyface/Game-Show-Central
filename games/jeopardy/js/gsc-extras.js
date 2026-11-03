@@ -67,11 +67,12 @@ const GscExtras = (function () {
     if ($$("btn-game-lobby")) return;
     const original = $$("btn-new-game");
     if (!original || !original.parentNode) return;
-    const btn = el("button", "btn btn-ghost hidden", "⟲ Game lobby");
+    const btn = el("button", "btn btn-ghost hidden", "Game lobby");
     btn.id = "btn-game-lobby";
     btn.type = "button";
     btn.setAttribute("aria-haspopup", "dialog");
     btn.addEventListener("click", openLobbyDialog);
+    icon(btn, "lobby");
     original.parentNode.insertBefore(btn, original);
     document.body.classList.add("gsc-has-lobby");
     syncLobbyButton();
@@ -184,6 +185,63 @@ const GscExtras = (function () {
     close();
   }
 
+  /* ---- v3 toolbar (docs/21 rule 9): Sound · Editor · Game lobby ---- */
+
+  /** Icon beside a text label, never instead of one (no-op without icons.js). */
+  function icon(button, name) {
+    if (button && window.GSCIcons && typeof window.GSCIcons.prepend === "function") {
+      window.GSCIcons.prepend(button, name);
+    }
+  }
+
+  const SOUND_KEY = "gsc-sound"; // the hub-wide preference (docs/00 §10)
+  let soundOn = true;            // BuzzerHost also starts with sound on
+
+  /**
+   * Jeopardy's only sound is the host buzz beep, toggled inside the buzzer
+   * panel. v3 wants Sound in the toolbar in the same place as every other
+   * game, so this button drives BuzzerHost.toggleSound() and the panel's copy
+   * is retired by CSS (body.gsc-has-sound) — one toggle, so the two can never
+   * disagree. The saved preference is applied once at boot.
+   */
+  function mountSoundButton() {
+    if ($$("btn-sound")) return;
+    const editor = $$("btn-editor");
+    const host = window.BuzzerHost;
+    if (!editor || !editor.parentNode || !host || typeof host.toggleSound !== "function") return;
+    const btn = el("button", "btn btn-ghost", "Sound on");
+    btn.id = "btn-sound";
+    btn.type = "button";
+    btn.addEventListener("click", () => setSound(!soundOn));
+    editor.parentNode.insertBefore(btn, editor);
+    document.body.classList.add("gsc-has-sound");
+    let saved = null;
+    try { saved = localStorage.getItem(SOUND_KEY); } catch (err) { saved = null; }
+    if (saved === "off") setSound(false);
+    else renderSound();
+  }
+
+  function setSound(on) {
+    if (on !== soundOn && window.BuzzerHost) window.BuzzerHost.toggleSound();
+    soundOn = on;
+    try { localStorage.setItem(SOUND_KEY, on ? "on" : "off"); } catch (err) { /* private mode */ }
+    renderSound();
+  }
+
+  function renderSound() {
+    const btn = $$("btn-sound");
+    if (!btn) return;
+    btn.textContent = soundOn ? "Sound on" : "Sound off";
+    btn.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    icon(btn, soundOn ? "sound" : "sound-off");
+  }
+
+  /** Upstream's editor button keeps its text; it only gains the icon. */
+  function decorateEditorButton() {
+    const btn = $$("btn-editor");
+    if (btn && !btn.querySelector(".gsc-icon")) icon(btn, "edit");
+  }
+
   /* ---- Resume, on the setup screen ---- */
 
   /**
@@ -195,13 +253,14 @@ const GscExtras = (function () {
     if ($$("btn-resume")) return;
     const start = $$("btn-start");
     if (!start || !start.parentNode) return;
-    const btn = el("button", "btn btn-gold btn-big hidden", "▸ Resume game");
+    const btn = el("button", "btn btn-gold btn-big hidden", "Resume game");
     btn.id = "btn-resume";
     btn.type = "button";
     btn.addEventListener("click", () => {
       if (!hasResumableGame()) return;
       appSetState({ phase: "board" });
     });
+    icon(btn, "play");
     start.parentNode.insertBefore(btn, start);
     syncResumeButton();
   }
@@ -375,6 +434,8 @@ const GscExtras = (function () {
 
   function boot() {
     if (isPlayerMode()) return; // phones have no setup screen and no editor
+    mountSoundButton();
+    decorateEditorButton();
     mountLobbyButton();
     mountResumeButton();
     mountLibrary();

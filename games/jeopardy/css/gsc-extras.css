@@ -24,13 +24,12 @@
 .gsc-library-note {
   margin: 0 0 0.8rem;
   padding: 0.8rem 0.9rem;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--line, rgba(170, 176, 224, 0.25));
-  border-left: 4px solid var(--gold);
+  background-color: var(--surface, #151820);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius);
-  color: var(--ink-dim);
+  color: var(--ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.78rem;
+  font-size: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -54,31 +53,28 @@ body.gsc-has-lobby #btn-new-game { display: none; }
   align-items: center;
   justify-content: center;
   padding: 1.2rem;
-  background: rgba(1, 1, 23, 0.72);
+  background-color: rgba(5, 6, 10, 0.8);
 }
 
 .gsc-dialog {
   width: min(30rem, 100%);
   padding: 1.6rem;
-  background: var(--blue-card, #0a103f);
-  border: 1px solid var(--line, rgba(170, 176, 224, 0.25));
-  border-radius: var(--radius-lg, 18px);
-  box-shadow: var(--shadow-panel);
+  background-color: var(--surface, #151820);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius, 8px);
 }
 
 .gsc-dialog-title {
   margin: 0 0 0.6rem;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(1.4rem, 1.1rem + 1.4vw, 1.9rem);
-  letter-spacing: 0.01em;
-  color: var(--gold-text);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .gsc-dialog-body {
   margin: 0 0 1.2rem;
   color: var(--ink-dim);
-  font-size: 0.95rem;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -92,10 +88,15 @@ body.gsc-has-lobby #btn-new-game { display: none; }
   .gsc-dialog-actions .btn { flex: 1 1 100%; min-height: var(--tap); }
 }
 
+/* v3 toolbar: Final · Sound · Editor · Game lobby. Sound is ours (#btn-sound)
+   and is the only sound toggle, so the panel's duplicate is retired. */
+body.gsc-has-sound .buzzer-controls .btn:first-child { display: none; }
+body.gsc-has-sound .buzzer-controls:not(:has(.btn:not(:first-child))) { display: none; }
+
 @media (prefers-reduced-motion: no-preference) {
   .gsc-dialog { animation: gsc-dialog-in var(--dur) var(--ease-out) both; }
   @keyframes gsc-dialog-in {
-    from { transform: translateY(12px); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 }
