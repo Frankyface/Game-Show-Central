@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Game harness (MG-I1–MG-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1280px; height: 720px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Match Game — loopback harness (success states MG-I1 … MG-I6, spec 18 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an embedded
+    host plus five embedded phones — three panelists and two audience members — and speaks the bridge protocol
+    from architecture 00 §6 itself. No PeerJS, no hub. The two contestants have no phones: the host types what
+    they say. The load-bearing assertion: while a prompt is open, no panel answer is anywhere in the host
+    document, and no phone holds another seat's answer.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__MG_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Brett", color: "#ff8c1a", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Fannie", color: "#e6b800", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Charles", color: "#6b8e23", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dot", color: "#8cb0ff", avatar: "🦉", connected: true, manual: false },
+      { pid: "p5", name: "Ed", color: "#c1121f", avatar: "🐢", connected: true, manual: false },
+    ];
+    const ROOM = { code: "MGHA", players: PLAYERS };
+    const PANEL = ["p1", "p2", "p3"];
+    const AUDIENCE = ["p4", "p5"];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard) ============ */
+
+    const JS = ["mg-content.js", "mg-select.js", "mg-core.js", "data.js", "mg-sound.js", "mg-view.js",
+      "mg-super.js", "mg-app.js", "mg-editor.js", "mg-room.js", "mg-phone.js"];
+    const CSS = ["mg.css", "mg-phone.css"];
+    const ASSETS = JS.map((f) => `../js/${f}`).concat(CSS.map((f) => `../css/${f}`)).concat([
+      "../../../shared/theme.css", "../../../shared/theme-components.css", "../../../shared/library.js",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../sets/index.json", "../sets/kids-night.json", "../sets/movies-and-tv.json",
+      "fixtures/harness-game.json", "../prompts.json",
+    ]);
+
+    // ?store=harness namespaces this run's localStorage so the fixture game and
+    // roster never reach the real host's save on the same origin.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness"
+      + "&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-mg-state-v1-harness", "gsc-mg-draft-v1-harness"];
+    const REAL_KEYS = ["gsc-mg-state-v1", "gsc-mg-draft-v1"];
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().MgApp.core();
+    const click = (id) => H(id).click();
+    const hostText = () => HD().body.textContent;
+
+    async function bootHost(clear) {
+      // Clear BEFORE the frame loads a page, never while one is unloading.
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().MgApp && HW().MgApp.state().game
+        && HW().MgApp.state().sourceKind === "url", "host boot with the fixture");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.MgPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const view = (pid) => PW(pid).MgPhone.view();
+    const phoneText = (pid) => PD(pid).body.textContent;
+
+    async function phoneSays(pid, text) {
+      PW(pid).MgPhone.type(text);
+      PW(pid).MgPhone.button().click();
+    }
+
+    function select(id, value) {
+      const node = typeof id === "string" ? H(id) : id;
+      node.value = value;
+      node.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function typeInto(id, value) {
+      const node = H(id);
+      node.value = value;
+      node.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function submit(formId, fieldId, value) {
+      H(fieldId).value = value;
+      H(formId).dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+
+    const backs = () => [...HD().querySelectorAll("#mg-cards .card-back")].map((n) => n.textContent);
+
+    /* ============================================================
+       MG-I1 — three panel phones write in secret
+       ============================================================ */
+
+    const SECRETS = ["zqalpha", "zqbravo", "zqcharlie"];
+
+    async function scenarioSecret() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().MgApp.state().setup.players.length === 5, "roster from the shell");
+      check("MG-I1 all five phones from the shell roster reach the setup screen",
+        HW().MgApp.state().setup.players.map((p) => p.name).join(",") === "Brett,Fannie,Charles,Dot,Ed",
+        HW().MgApp.state().setup.players.map((p) => p.name).join(","));
+      check("MG-I1 the fixture's own rules land on the setup screen (three seats, one round)",
+        H("mg-set-panel").value === "3" && H("mg-set-rounds").value === "1"
+        && HD().querySelectorAll("#mg-panel-seats .seat-row").length === 3,
+        `${H("mg-set-panel").value} seats, ${H("mg-set-rounds").value} round`);
+
+      // The host's line-up: two contestants with no phones, three phones on the panel.
+      select("mg-c1-pid", ""); select("mg-c2-pid", "");
+      typeInto("mg-c1-name", "Marcy"); typeInto("mg-c2-name", "Otis");
+      PANEL.forEach((pid, slot) => select(HD().querySelectorAll("#mg-panel-seats .seat-pid")[slot], pid));
+      const setup = HW().MgApp.state().setup;
+      check("MG-I1 the host seats three phones on the panel and types for both contestants",
+        setup.panel.map((p) => p.pid).join(",") === "p1,p2,p3"
+        && setup.contestants.every((c) => c.pid === ""),
+        JSON.stringify(setup.panel.map((p) => p.pid)));
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "prompt", "the first prompt");
+      await waitFor(() => PANEL.every((pid) => view(pid).screen === "panel"), "the panel phones");
+      const prompt = core().current.text;
+      check("MG-I1 each panel phone shows the prompt and a field to write in",
+        PANEL.every((pid) => PW(pid).MgPhone.promptText() === prompt
+          && !PD(pid).getElementById("mg-phone-form").classList.contains("hidden")),
+        prompt);
+      check("MG-I1 the audience phones wait while the panel writes",
+        AUDIENCE.every((pid) => view(pid).screen === "wait"), view("p4").sub);
+
+      for (let i = 0; i < 3; i += 1) await phoneSays(PANEL[i], SECRETS[i]);
+      await waitFor(() => Object.keys(core().current.answers).length === 3, "three answers reach the host");
+      check("MG-I1 the host's counter reads answered 3 / 3 and every card says “answered”",
+        H("mg-answered").textContent === "3 / 3"
+        && [...HD().querySelectorAll("#mg-cards .card-front")].every((n) => n.textContent === "answered"),
+        H("mg-answered").textContent);
+      check("MG-I1 NO PANEL ANSWER IS ANYWHERE IN THE HOST DOCUMENT",
+        SECRETS.every((s) => hostText().indexOf(s) < 0), `searched ${hostText().length} characters`);
+      await waitFor(() => view("p1").sent, "the sent tick");
+      check("MG-I1 each panelist gets their own answer back with a sent tick — and only theirs",
+        PANEL.every((pid, i) => phoneText(pid).indexOf(SECRETS[i]) >= 0
+          && SECRETS.every((s, j) => j === i || phoneText(pid).indexOf(s) < 0)
+          && PD(pid).getElementById("mg-phone-status").textContent.indexOf("Sent") === 0),
+        PD("p1").getElementById("mg-phone-status").textContent);
+      check("MG-I1 the audience phones never see a panel answer",
+        AUDIENCE.every((pid) => SECRETS.every((s) => phoneText(pid).indexOf(s) < 0)));
+      const before = Object.assign({}, core().current.answers);
+      PW("p4").MgPhone.me.send({ t: "panel", text: "zqintruder" });
+      PW("p1").MgPhone.me.send({ t: "audience", text: "zqwrongscreen" });
+      PW("p2").MgPhone.me.send({ t: "judge", match: true });
+      await sleep(150);
+      check("MG-I1 a panel frame from a non-panelist, or a frame for the wrong screen, is ignored",
+        JSON.stringify(core().current.answers) === JSON.stringify(before), JSON.stringify(core().current.answers));
+    }
+
+    /* ============================================================
+       MG-I5 — a reload mid-prompt keeps the answers; game lobby keep / resume
+       ============================================================ */
+
+    async function scenarioReload() {
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "prompt", "the restored prompt");
+      check("MG-I5 a host reload mid-prompt keeps all three answers, still face down",
+        Object.keys(core().current.answers).length === 3 && H("mg-answered").textContent === "3 / 3"
+        && SECRETS.every((s) => hostText().indexOf(s) < 0),
+        JSON.stringify(Object.keys(core().current.answers)));
+      await waitFor(() => view("p1").sent && view("p1").mine === SECRETS[0], "the phone view after the reload");
+      check("MG-I5 the panel phones keep their own answer after the host reloads",
+        PANEL.every((pid, i) => view(pid).mine === SECRETS[i]), view("p2").mine);
+
+      click("btn-game-lobby");
+      check("MG-I5 X-1 ⟲ Game lobby opens the keep / start-over dialog",
+        !H("mg-lobby-modal").classList.contains("hidden")
+        && H("mg-lobby-modal").querySelector("[role=dialog]") !== null);
+      click("btn-lobby-keep");
+      check("MG-I5 X-1 Keep this game returns to setup with a Resume button",
+        !H("screen-setup").classList.contains("hidden") && !H("btn-resume").classList.contains("hidden")
+        && core() === null);
+      click("btn-resume");
+      check("MG-I5 X-1 Resume restores the exact prompt with all three answers",
+        core() && core().phase === "prompt" && Object.keys(core().current.answers).length === 3,
+        core() && core().current.text);
+    }
+
+    /* ============================================================
+       MG-I2 — reveal order, one card at a time, the host judges
+       ============================================================ */
+
+    async function scenarioReveal() {
+      check("MG-I2 nothing can be revealed before the contestant's answer is locked in",
+        H("btn-reveal").disabled === true);
+      submit("mg-guess-form", "mg-guess-text", "zqalpha");
+      check("MG-I2 the locked answer shows on the host screen",
+        H("mg-guess-shown").textContent.indexOf("zqalpha") >= 0 && H("btn-reveal").disabled === false,
+        H("mg-guess-shown").textContent);
+      click("btn-reveal");
+      await waitFor(() => view("p1").locked, "pencils down");
+      check("MG-I2 the first flip shows card 1 and only card 1",
+        JSON.stringify(backs()) === JSON.stringify(["zqalpha", "", ""])
+        && hostText().indexOf("zqbravo") < 0 && hostText().indexOf("zqcharlie") < 0,
+        JSON.stringify(backs()));
+      check("MG-I2 a second flip waits for the judgement; Match is live",
+        H("btn-reveal").disabled === true && H("btn-match").disabled === false);
+      check("MG-I2 once a card is flipped the panel phones are pencils-down",
+        PANEL.every((pid) => view(pid).locked
+          && PD(pid).getElementById("mg-phone-form").classList.contains("hidden")),
+        PD("p1").getElementById("mg-phone-status").textContent);
+      click("btn-match");
+      click("btn-reveal");
+      check("MG-I2 the second flip is card 2, in seat order",
+        JSON.stringify(backs()) === JSON.stringify(["zqalpha", "zqbravo", ""]), JSON.stringify(backs()));
+      click("btn-no-match");
+      click("btn-reveal");
+      click("btn-match");
+      const marks = [...HD().querySelectorAll("#mg-cards .card-mark")].map((n) => n.textContent);
+      check("MG-I2 every card carries its judgement in words, and the points add up",
+        JSON.stringify(marks) === JSON.stringify(["match", "no match", "match"])
+        && core().contestants[0].points === 2 && core().current.done,
+        `${marks.join(", ")} · ${core().contestants[0].points} points`);
+      check("MG-I2 the prompt screen fits the host frame with no vertical scroll",
+        HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 1,
+        `${HD().documentElement.scrollHeight} / ${HD().documentElement.clientHeight}`);
+
+      // Otis: a fresh prompt, the phones write again, three misses.
+      click("btn-next-contestant");
+      await waitFor(() => core().current.seat === 1 && view("p1").screen === "panel" && !view("p1").sent,
+        "Otis's prompt on the phones");
+      for (let i = 0; i < 3; i += 1) await phoneSays(PANEL[i], `zqotis${i}`);
+      await waitFor(() => Object.keys(core().current.answers).length === 3, "Otis's panel");
+      submit("mg-guess-form", "mg-guess-text", "something else");
+      for (let i = 0; i < 3; i += 1) { click("btn-reveal"); click("btn-no-match"); }
+      click("btn-next-contestant");
+      check("MG-I2 one round played: the scores screen shows Marcy ahead 2–0",
+        core().phase === "roundScores" && H("mg-scores-title").textContent === "Marcy leads",
+        H("mg-scores-title").textContent);
+      click("btn-next-round");
+      check("MG-I2 the leader goes on to the Super Match",
+        core().phase === "superChoice" && H("mg-super-winner").textContent === "Marcy wins the game",
+        H("mg-super-winner").textContent);
+    }
+
+    /* ============================================================
+       MG-I3 — the Audience Match: two phones, the board, merges
+       ============================================================ */
+
+    async function scenarioAudience() {
+      click("btn-audience-open");
+      await waitFor(() => AUDIENCE.every((pid) => view(pid).screen === "audience"), "the audience phones");
+      check("MG-I3 the two audience phones get the prompt; the panel phones do not",
+        PANEL.every((pid) => view(pid).screen === "wait")
+        && PW("p4").MgPhone.promptText() === core().audience.text, core().audience.text);
+      await phoneSays("p4", "Gloves");
+      await phoneSays("p5", "  gloves ");
+      PW("p1").MgPhone.me.send({ t: "audience", text: "zqpanelvote" });
+      await waitFor(() => core().audience.submissions.length === 2, "two audience answers");
+      submit("mg-aud-host-form", "mg-aud-host-text", "maps");
+      submit("mg-aud-host-form", "mg-aud-host-text", "Map");
+      await sleep(120);
+      check("MG-I3 the live count shows four answers in; the panelist's vote was refused",
+        H("mg-aud-count").textContent === "4 answers in"
+        && core().audience.submissions.every((s) => s.text !== "zqpanelvote"),
+        H("mg-aud-count").textContent);
+      click("btn-aud-close");
+      const rows = () => [...HD().querySelectorAll("#mg-board .board-row")].map((r) =>
+        `${r.querySelector(".board-answer").textContent}:${r.querySelector(".board-count").textContent}`
+        + `:${r.querySelector(".board-value").textContent}`);
+      check("MG-I3 the board counts Gloves and gloves as one answer, worth $500",
+        rows()[0] === "Gloves:2 said it:$500", rows().join(" | "));
+      const mapRow = [...HD().querySelectorAll("#mg-board .board-row")]
+        .find((r) => r.querySelector(".board-answer").textContent === "Map");
+      [...mapRow.querySelectorAll(".merge-box button")].find((b) => b.textContent === "→ maps").click();
+      check("MG-I3 merging “Map” into “maps” re-ranks the board",
+        rows().length === 2 && rows()[1] === "maps:2 said it:$250", rows().join(" | "));
+      H("mg-pick-text").value = "spanner";
+      [...HD().querySelectorAll("#mg-pick-buttons button")].find((b) => b.textContent === "No match").click();
+      check("MG-I3 a miss fills the first of the three guess slots",
+        HD().querySelector("#mg-guesses .guess-slot").classList.contains("is-miss")
+        && H("mg-pick-state").textContent === "2 guesses left.", H("mg-pick-state").textContent);
+      H("mg-pick-text").value = "gloves";
+      [...HD().querySelectorAll("#mg-pick-buttons button")].find((b) => b.textContent === "Matched #1").click();
+      check("MG-I3 the second guess hits #1: $500 to Marcy and on to Head-to-Head",
+        core().phase === "hthPick" && core().contestants[0].money === 500, core().contestants[0].money);
+    }
+
+    /* ============================================================
+       MG-I4 — Head-to-Head with a phone panelist and the spinner
+       ============================================================ */
+
+    async function scenarioHeadToHead() {
+      const card = [...HD().querySelectorAll("#mg-hth-cards .card-seat")]
+        .find((c) => c.querySelector(".card-name").textContent === "Fannie");
+      card.querySelector(".card-pick").click();
+      await waitFor(() => view("p2").screen === "hth", "the chosen panelist's phone");
+      check("MG-I4 only the chosen panelist's phone opens the Head-to-Head",
+        ["p1", "p3", "p4", "p5"].every((pid) => view(pid).screen === "wait")
+        && PW("p2").MgPhone.promptText() === core().hth.text, core().hth.text);
+      await phoneSays("p2", "zqhthpanel");
+      await waitFor(() => core().hth.panelText === "zqhthpanel", "the panelist's card");
+      submit("mg-hth-form", "mg-hth-text", "zqhthpanel");
+      check("MG-I4 both cards are in and neither answer is on the host screen",
+        hostText().indexOf("zqhthpanel") < 0 && H("btn-hth-reveal").disabled === false,
+        H("mg-hth-state").textContent);
+      HW().Math.random = () => 0.9;     // the wheel lands on ×30
+      click("btn-spin");
+      check("MG-I4 the spinner lands where the roll says: ×30",
+        core().hth.multiplier === 30 && core().hth.spun, core().hth.multiplier);
+      HW().MgApp.set({ spinning: false });
+      click("btn-hth-reveal");
+      const hthBacks = [...HD().querySelectorAll("#mg-hth-cards-play .card-back")].map((n) => n.textContent);
+      check("MG-I4 turning both cards over shows both answers",
+        hthBacks.join(",") === "zqhthpanel,zqhthpanel", hthBacks.join(","));
+      click("btn-hth-match");
+      check("MG-I4 a match pays $500 × 30 = $15,000; Marcy ends on $15,500",
+        core().phase === "hthResult" && H("mg-result-amount").textContent === "$15,000"
+        && core().contestants[0].money === 15500, H("mg-result-sub").textContent);
+      click("btn-super-standings");
+      await waitFor(() => view("p4").screen === "result", "the result on the phones");
+      check("MG-I4 standings on the host and on every phone",
+        HD().querySelectorAll("#mg-standings .standing-row").length === 2
+        && PLAYERS.every((p) => view(p.pid).screen === "result"),
+        HD().querySelector("#mg-standings .standing-row").textContent);
+    }
+
+    /* ============================================================
+       MG-I6 — library + editor
+       ============================================================ */
+
+    async function scenarioLibraryEditor() {
+      click("btn-game-lobby");
+      click("btn-lobby-restart");
+      check("MG-I6 X-1 Start over clears the game but keeps the line-up and the prompts",
+        core() === null && HW().MgApp.state().resumable === null
+        && H("mg-c1-name").value === "Marcy" && HW().MgApp.state().game !== null);
+      const picker = await waitFor(() => HD().querySelector("#mg-library select"), "the library picker");
+      await waitFor(() => picker.options.length >= 2, "the manifest");
+      check("MG-I6 X-2 the library picker lists the two shipped sets",
+        [...picker.options].map((o) => o.textContent).join(",") === "Kids' night,Movies & TV",
+        [...picker.options].map((o) => o.textContent).join(","));
+      picker.value = "kids-night.json";
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+      HD().querySelector("#mg-library .gsc-library-load").click();
+      await waitFor(() => HW().MgApp.state().source === "set: Kids' night", "the set to load");
+      check("MG-I6 X-2 loading a set validates it, sets the source note and its four-seat panel",
+        H("mg-source").textContent === "set: Kids' night"
+        && HD().querySelectorAll("#mg-panel-seats .seat-row").length === 4
+        && HW().MgApp.state().game.prompts.length === 32, H("mg-source").textContent);
+
+      click("btn-editor");
+      check("MG-I6 the editor opens on the loaded set, prompts one per line with hints",
+        !H("screen-editor").classList.contains("hidden") && H("mg-ed-count").textContent === "32"
+        && H("mg-ed-prompts").value.split("\n")[0].indexOf(" | ") > 0, H("mg-ed-count").textContent);
+      const field = H("mg-ed-prompts");
+      field.value = `${field.value}\nThis line forgot its blank.`;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      check("MG-I6 a prompt without a ___ blank is named in a plain-English message",
+        /no ___ blank/.test(H("mg-editor-msg").textContent), H("mg-editor-msg").textContent);
+      field.value = field.value.split("\n").slice(0, -1).join("\n");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      typeInto("mg-ed-title", "Harness Night");
+      // Swallow the download itself: the harness checks the manifest guidance.
+      const realClick = HW().HTMLAnchorElement.prototype.click;
+      let downloaded = "";
+      HW().HTMLAnchorElement.prototype.click = function () { downloaded = this.download; };
+      click("btn-editor-library");
+      HW().HTMLAnchorElement.prototype.click = realClick;
+      const manifest = H("mg-editor-manifest").textContent;
+      check("MG-I6 X-3 Download for the library saves harness-night.json and prints the manifest line",
+        downloaded === "harness-night.json" && manifest.indexOf("games/match-game/sets/harness-night.json") >= 0
+        && manifest.indexOf('"file": "harness-night.json"') >= 0 && manifest.indexOf('"prompts": 32') >= 0,
+        `${downloaded} · ${manifest.split("\n")[0]}`);
+      click("btn-editor-use");
+      check("MG-I6 Use in game loads the edited file (same validator as ?game= and upload)",
+        H("screen-editor").classList.contains("hidden")
+        && HW().MgApp.state().game.title === "Harness Night", HW().MgApp.state().source);
+    }
+
+    /* ============================================================
+       MG-I6 — gates
+       ============================================================ */
+
+    async function scenarioGates() {
+      const texts = await Promise.all(JS.map((f) => fetch(`../js/${f}`, { cache: "no-store" }).then((r) => r.text())));
+      const css = await Promise.all(CSS.map((f) => fetch(`../css/${f}`, { cache: "no-store" }).then((r) => r.text())));
+      const html = await fetch("../index.html", { cache: "no-store" }).then((r) => r.text());
+      const all = texts.concat(css).concat([html]);
+      const banned = /\.innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+      check("MG-I6 V3 no innerHTML / eval / document.write anywhere in the game",
+        texts.every((t) => !banned.test(t)), "");
+      check("MG-I6 V4 no console-dot-log in the game's scripts",
+        texts.every((t) => t.indexOf(["console", "log"].join(".")) < 0));
+      const long = all.map((t, i) => [i, t.split("\n").length]).filter(([, n]) => n >= 800);
+      check("MG-I6 V2 every file is under 800 lines", long.length === 0, JSON.stringify(long));
+      const outside = css.map((t) => (t.split("@media (prefers-reduced-motion: no-preference)")[0]
+        .match(/@keyframes|animation:/g) || []).length);
+      check("MG-I6 every @keyframes and animation: sits inside prefers-reduced-motion: no-preference",
+        outside.every((n) => n === 0), outside.join(","));
+      check("MG-I6 no local [data-gsc-game] palette override (the theme block is canonical)",
+        css.every((t) => t.indexOf("[data-gsc-game") < 0));
+      check("MG-I6 V7 body data-gsc-game, #gsc-join and the embedded class are wired",
+        HD().body.dataset.gscGame === "match-game" && H("gsc-join") !== null
+        && HD().body.classList.contains("gsc-embedded")
+        && PD("p1").body.classList.contains("player-mode"), HD().body.className);
+      check("MG-I6 the splash is skipped when embedded (the hub shows its own)",
+        H("gsc-splash").classList.contains("hidden"));
+      check("MG-I6 V-store the run is namespaced and leaves the real save untouched",
+        HW().MgApp.STORAGE_KEY === "gsc-mg-state-v1-harness"
+        && HW().MgEditor.DRAFT_KEY === "gsc-mg-draft-v1-harness"
+        && REAL_KEYS.every((k, i) => localStorage.getItem(k) === REAL_BEFORE[i]),
+        `${HW().MgApp.STORAGE_KEY} / ${HW().MgEditor.DRAFT_KEY}`);
+      check("MG-I6 the ⟲ Game lobby button sits in the toolbar next to Sound and the editor",
+        H("btn-game-lobby").parentNode === H("btn-sound").parentNode
+        && H("btn-game-lobby").textContent.indexOf("Game lobby") >= 0);
+    }
+
+    /** V-phone: 320 px wide, 56 px targets, no sideways scroll — on a writing screen. */
+    function scenarioPhoneGates() {
+      const send = PD("p1").getElementById("btn-phone-send");
+      const input = PD("p1").getElementById("mg-phone-text");
+      check("MG-I6 V-phone the answer field and Send button are at least 56 px tall at 320 px",
+        send.getBoundingClientRect().height >= 56 && input.getBoundingClientRect().height >= 56,
+        `${Math.round(send.getBoundingClientRect().height)} / ${Math.round(input.getBoundingClientRect().height)}`);
+      const wide = [...phoneFrames.keys()].filter((pid) => {
+        const d = PD(pid).documentElement;
+        return d.scrollWidth > d.clientWidth + 1;
+      });
+      check("MG-I6 V-phone no phone scrolls sideways at 320 px", wide.length === 0, wide.join(","));
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioSecret();
+        scenarioPhoneGates();
+        await scenarioReload();
+        await scenarioReveal();
+        await scenarioAudience();
+        await scenarioHeadToHead();
+        await scenarioLibraryEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      void shellLog;
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

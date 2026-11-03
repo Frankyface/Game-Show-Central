@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Game</title>
+  <meta name="description" content="A Match Game style party game: a panel of six writes secret answers to a fill-in-the-blank, two contestants try to match them, and the winner plays the Super Match. Phones optional. Bring your own prompts as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/mg.css">
+  <link rel="stylesheet" href="css/mg-phone.css">
+</head>
+<body data-gsc-game="match-game">
+
+  <header class="topbar">
+    <h1 id="mg-title" class="topbar-title">Match Game</h1>
+    <div class="topbar-actions">
+      <span id="mg-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Prompt editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8634; Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="mg-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="mg-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card">
+        <p class="kicker">Six answers, face down. Say the same thing and you score.</p>
+        <h2 class="card-title">Match Game</h2>
+        <p id="mg-source" class="source-note">Loading prompts&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Contestants</h3>
+            <p class="hint">Two players take turns. They answer out loud; you type what they said.</p>
+            <div class="seat-row">
+              <label class="field-inline">Contestant 1
+                <input id="mg-c1-name" type="text" maxlength="24" autocomplete="off" placeholder="Contestant 1">
+              </label>
+              <label class="field-inline">Phone
+                <select id="mg-c1-pid"></select>
+              </label>
+            </div>
+            <div class="seat-row">
+              <label class="field-inline">Contestant 2
+                <input id="mg-c2-name" type="text" maxlength="24" autocomplete="off" placeholder="Contestant 2">
+              </label>
+              <label class="field-inline">Phone
+                <select id="mg-c2-pid"></select>
+              </label>
+            </div>
+
+            <h3 class="setup-heading">The panel <span id="mg-panel-count" class="count-badge"></span></h3>
+            <p class="hint">Give each seat a name. Pick a phone and that panelist writes in secret;
+              leave it on &ldquo;host types&rdquo; and you type their answer on this screen.</p>
+            <div id="mg-panel-seats" class="panel-seats"></div>
+
+            <h3 class="setup-heading">Who&rsquo;s here <span id="mg-player-count" class="count-badge"></span></h3>
+            <ul id="mg-player-list" class="player-list"></ul>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="mg-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="mg-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="mg-join-note" class="hint hidden">Players open <span id="mg-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <div class="rule-grid">
+              <label class="field-inline">Panel seats
+                <input id="mg-set-panel" type="number" min="2" max="6" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Rounds
+                <input id="mg-set-rounds" type="number" min="1" max="6" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Points per match
+                <input id="mg-set-points" type="number" min="1" max="100" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Audience 1st
+                <input id="mg-set-v1" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Audience 2nd
+                <input id="mg-set-v2" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Audience 3rd
+                <input id="mg-set-v3" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Spinner multipliers
+                <input id="mg-set-mult" type="text" maxlength="40" autocomplete="off" placeholder="10, 20, 30">
+              </label>
+            </div>
+            <label class="check"><input id="mg-set-rule" type="checkbox">
+              Round two: a contestant may only match panelists they have not matched yet</label>
+
+            <h3 class="setup-heading">Prompts</h3>
+            <div id="mg-library" class="library-mount"></div>
+            <div class="inline-form">
+              <button id="btn-shuffle" class="btn btn-ghost" type="button" aria-pressed="false">Shuffle the deck</button>
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load prompts (.json)</button>
+              <input id="mg-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="mg-prompt-count" class="hint"></p>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-resume" class="btn btn-blue btn-big hidden" type="button">Resume the game</button>
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== A prompt in play ===================== -->
+    <section id="screen-prompt" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="mg-play-title" class="gsc-banner-title">&nbsp;</p>
+        <p id="mg-play-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="mg-play-score" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <p id="mg-prompt-text" class="prompt-text">&nbsp;</p>
+      <p id="mg-prompt-hint" class="prompt-hint">&nbsp;</p>
+
+      <div class="play-grid">
+        <div id="mg-cards" class="cards" aria-label="The panel"></div>
+
+        <aside class="play-rail">
+          <div class="counter-box">
+            <p class="k">Answered</p>
+            <p id="mg-answered" class="v">0 / 6</p>
+          </div>
+          <form id="mg-guess-form" class="guess-form" autocomplete="off">
+            <label class="field" for="mg-guess-text">What the contestant said</label>
+            <input id="mg-guess-text" type="text" maxlength="40" autocomplete="off" spellcheck="false">
+            <button id="btn-lock" class="btn btn-gold" type="submit">Lock it in</button>
+          </form>
+          <p id="mg-guess-shown" class="guess-shown">&nbsp;</p>
+          <p id="mg-play-state" class="clock-state" role="status" aria-live="polite">&nbsp;</p>
+          <label class="check check-small"><input id="mg-hide-typing" type="checkbox">
+            Hide the panel answers as I type them</label>
+        </aside>
+      </div>
+
+      <div class="controls">
+        <button id="btn-reveal" class="btn btn-gold btn-big" type="button">Reveal the next card
+          <kbd class="gsc-kbd">R</kbd></button>
+        <button id="btn-match" class="btn btn-green btn-big" type="button">Match
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-no-match" class="btn btn-danger btn-big" type="button">No match
+          <kbd class="gsc-kbd">X</kbd></button>
+        <button id="btn-next-prompt" class="btn btn-ghost" type="button">Different prompt</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-next-contestant" class="btn btn-blue btn-big" type="button">Next
+          <kbd class="gsc-kbd">N</kbd></button>
+      </div>
+    </section>
+
+    <!-- ===================== Round scores ===================== -->
+    <section id="screen-scores" class="screen hidden">
+      <p id="mg-scores-kicker" class="kicker">&nbsp;</p>
+      <h2 id="mg-scores-title" class="winner-name">Scores</h2>
+      <div id="mg-podiums" class="podiums" aria-live="polite"></div>
+      <p id="mg-scores-sub" class="result-sub">&nbsp;</p>
+      <div class="controls">
+        <button id="btn-tiebreak" class="btn btn-gold btn-big" type="button">Play a tiebreak prompt</button>
+        <button id="btn-next-round" class="btn btn-blue btn-big" type="button">Next round</button>
+        <button id="btn-scores-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-scores-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== The Super Match ===================== -->
+    <section id="screen-super" class="screen hidden">
+      <div class="gsc-banner super-banner">
+        <p id="mg-super-title" class="gsc-banner-title">Super Match</p>
+        <p id="mg-super-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="mg-super-badge" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <!-- 1. the winner chooses -->
+      <div id="mg-super-choice" class="super-block hidden">
+        <p class="kicker">The Super Match</p>
+        <h2 id="mg-super-winner" class="winner-name">&nbsp;</h2>
+        <p class="result-sub">The Audience Match sets the money. The Head-to-Head multiplies it.</p>
+        <div class="controls">
+          <button id="btn-audience-open" class="btn btn-gold btn-big" type="button">Start the Audience Match</button>
+          <button id="btn-skip-audience" class="btn btn-ghost" type="button">Straight to Head-to-Head</button>
+          <button id="btn-super-finish" class="btn btn-ghost" type="button">End the night</button>
+        </div>
+      </div>
+
+      <!-- 2. collecting from the room -->
+      <div id="mg-audience-live" class="super-block hidden">
+        <p id="mg-aud-prompt" class="prompt-text">&nbsp;</p>
+        <p id="mg-aud-count" class="count-big" role="status" aria-live="polite">0 answers in</p>
+        <p class="hint">Everyone in the room except the panel and the two contestants can send one answer.</p>
+        <form id="mg-aud-host-form" class="inline-form" autocomplete="off">
+          <label class="visually-hidden" for="mg-aud-host-text">Add an answer for someone without a phone</label>
+          <input id="mg-aud-host-text" type="text" maxlength="40" placeholder="Type an answer for the room"
+                 autocomplete="off" spellcheck="false">
+          <button class="btn btn-ghost" type="submit">+ Add</button>
+        </form>
+        <div class="controls">
+          <button id="btn-aud-close" class="btn btn-gold btn-big" type="button">Close the board</button>
+          <button id="btn-aud-undo" class="btn btn-ghost" type="button">Undo</button>
+        </div>
+      </div>
+
+      <!-- 3. the board, the merges and the three guesses -->
+      <div id="mg-audience-board" class="super-block hidden">
+        <p id="mg-board-prompt" class="prompt-hint">&nbsp;</p>
+        <div class="board-grid">
+          <div>
+            <h3 class="setup-heading">The top three</h3>
+            <ol id="mg-board" class="board"></ol>
+            <h3 class="setup-heading">Everything else <span class="hint-inline">(merge into the board)</span></h3>
+            <ul id="mg-others" class="others gsc-scroll"></ul>
+          </div>
+          <div>
+            <h3 class="setup-heading">The contestant&rsquo;s three guesses</h3>
+            <ol id="mg-guesses" class="guesses"></ol>
+            <form id="mg-pick-form" class="pick-form" autocomplete="off">
+              <label class="field" for="mg-pick-text">What they said</label>
+              <input id="mg-pick-text" type="text" maxlength="40" autocomplete="off" spellcheck="false">
+              <div id="mg-pick-buttons" class="pick-buttons"></div>
+            </form>
+            <p id="mg-pick-state" class="clock-state" role="status" aria-live="polite">&nbsp;</p>
+          </div>
+        </div>
+        <div class="controls">
+          <button id="btn-board-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-board-skip" class="btn btn-ghost" type="button">Skip to Head-to-Head</button>
+        </div>
+      </div>
+
+      <!-- 4. pick a panelist -->
+      <div id="mg-hth-pick" class="super-block hidden">
+        <p class="kicker">Head-to-Head</p>
+        <h2 class="winner-name">Pick one panelist</h2>
+        <p id="mg-hth-base" class="result-sub">&nbsp;</p>
+        <div id="mg-hth-cards" class="cards cards-pick"></div>
+        <div class="controls">
+          <button id="btn-pick-undo" class="btn btn-ghost" type="button">Undo</button>
+        </div>
+      </div>
+
+      <!-- 5. both write, the wheel spins, the host judges -->
+      <div id="mg-hth-play" class="super-block hidden">
+        <p id="mg-hth-prompt" class="prompt-text">&nbsp;</p>
+        <div class="hth-grid">
+          <div id="mg-hth-cards-play" class="cards cards-hth"></div>
+          <aside class="play-rail">
+            <div class="spinner-box">
+              <p class="k">Multiplier</p>
+              <p id="mg-spinner" class="spinner" aria-live="polite">&times;10</p>
+              <button id="btn-spin" class="btn btn-gold" type="button">Spin the wheel</button>
+            </div>
+            <form id="mg-hth-form" class="guess-form" autocomplete="off">
+              <label class="field" for="mg-hth-text">What the contestant wrote</label>
+              <input id="mg-hth-text" type="text" maxlength="40" autocomplete="off" spellcheck="false">
+              <button class="btn btn-gold" type="submit">Lock it in</button>
+            </form>
+            <p id="mg-hth-state" class="clock-state" role="status" aria-live="polite">&nbsp;</p>
+          </aside>
+        </div>
+        <div class="controls">
+          <button id="btn-hth-reveal" class="btn btn-gold btn-big" type="button">Turn both cards over</button>
+          <button id="btn-hth-match" class="btn btn-green btn-big" type="button">Match</button>
+          <button id="btn-hth-no" class="btn btn-danger btn-big" type="button">No match</button>
+          <button id="btn-hth-undo" class="btn btn-ghost" type="button">Undo</button>
+        </div>
+      </div>
+
+      <!-- 6. the result -->
+      <div id="mg-hth-result" class="super-block hidden">
+        <p id="mg-result-kicker" class="kicker">&nbsp;</p>
+        <h2 id="mg-result-name" class="winner-name">&nbsp;</h2>
+        <p id="mg-result-amount" class="final-amount">&nbsp;</p>
+        <p id="mg-result-sub" class="result-sub">&nbsp;</p>
+        <div class="controls">
+          <button id="btn-super-standings" class="btn btn-gold btn-big" type="button">Show the standings</button>
+          <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Standings ===================== -->
+    <section id="screen-standings" class="screen hidden">
+      <p class="kicker">That&rsquo;s the game</p>
+      <h2 id="mg-standings-title" class="winner-name">Standings</h2>
+      <ol id="mg-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-next-game" class="btn btn-blue btn-big" type="button">Play another game</button>
+        <button id="btn-new-game" class="btn btn-gold btn-big" type="button">New line-up</button>
+        <button id="btn-standings-undo" class="btn btn-ghost" type="button">Undo</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Prompt editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Prompt editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-gold" type="button">Download for the library</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="mg-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="mg-editor-warn" class="notice"></p>
+      <pre id="mg-editor-manifest" class="manifest hidden" aria-label="Manifest line to paste"></pre>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="mg-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="mg-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Panel seats
+            <input id="mg-ed-panel" type="number" min="2" max="6" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Rounds
+            <input id="mg-ed-rounds" type="number" min="1" max="6" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Points per match
+            <input id="mg-ed-points" type="number" min="1" max="100" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Audience Match values
+            <input id="mg-ed-values" type="text" maxlength="40" autocomplete="off" placeholder="500, 250, 100">
+          </label>
+          <label class="field">Spinner multipliers
+            <input id="mg-ed-mult" type="text" maxlength="40" autocomplete="off" placeholder="10, 20, 30">
+          </label>
+          <label class="check"><input id="mg-ed-rule" type="checkbox"> Use the round-two rule</label>
+          <p class="hint">The library workflow: press <strong>Download for the library</strong>, drop the
+            file into <span class="mono">games/match-game/sets/</span> and paste the line it gives you
+            into <span class="mono">sets/index.json</span>.</p>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <h3 class="setup-heading">Prompts <span id="mg-ed-count" class="count-badge"></span></h3>
+          <p class="hint">One prompt per line. Every one needs a blank written as
+            <span class="mono">___</span> and must be 160 characters or shorter. Thirty is the
+            minimum; sixty gives a whole night. A hint goes after a vertical bar:
+            <span class="mono">Dizzy Daisy ate a ___. | food</span></p>
+          <label class="visually-hidden" for="mg-ed-prompts">Prompts, one per line</label>
+          <textarea id="mg-ed-prompts" class="ed-words" spellcheck="false" autocomplete="off" rows="16"></textarea>
+
+          <h3 class="setup-heading">Audience prompts <span id="mg-ed-aud-count" class="count-badge"></span></h3>
+          <p class="hint">Short list-style prompts for the Super Match &mdash; no blank needed. Ten minimum.</p>
+          <label class="visually-hidden" for="mg-ed-audience">Audience prompts, one per line</label>
+          <textarea id="mg-ed-audience" class="ed-words" spellcheck="false" autocomplete="off" rows="8"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="mg-phone-card" class="phone-card">
+        <p id="mg-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="mg-phone-prompt" class="phone-prompt" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="mg-phone-hint" class="phone-hint">&nbsp;</p>
+        <form id="mg-phone-form" class="phone-form hidden" autocomplete="off">
+          <label class="visually-hidden" for="mg-phone-text">Your answer</label>
+          <input id="mg-phone-text" type="text" maxlength="40" autocomplete="off" spellcheck="false"
+                 placeholder="Your answer">
+          <button id="btn-phone-send" class="btn btn-gold btn-tap btn-block" type="submit">Send it</button>
+        </form>
+        <p id="mg-phone-sub" class="phone-sub">&nbsp;</p>
+        <div id="mg-phone-extra" class="phone-extra"></div>
+        <p id="mg-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Game lobby: keep this game, or start over (docs/19 §1) ============ -->
+  <div id="mg-lobby-modal" class="gsc-modal-backdrop hidden">
+    <div class="gsc-modal" role="dialog" aria-modal="true" aria-labelledby="mg-lobby-title">
+      <h2 id="mg-lobby-title" class="gsc-modal-title">Back to the setup screen</h2>
+      <p class="gsc-modal-body">Keep the game as it is and you can pick it up again with
+        <strong>Resume</strong>. Start over clears the game in progress &mdash; the line-up, the
+        prompts and the settings all stay.</p>
+      <div class="gsc-modal-actions">
+        <button id="btn-lobby-keep" class="btn btn-gold" type="button">Keep this game</button>
+        <button id="btn-lobby-restart" class="btn btn-danger" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
+  <script src="js/mg-content.js"></script>
+  <script src="js/mg-select.js"></script>
+  <script src="js/mg-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/mg-sound.js"></script>
+  <script src="js/mg-view.js"></script>
+  <script src="js/mg-super.js"></script>
+  <script src="js/mg-app.js"></script>
+  <script src="js/mg-editor.js"></script>
+  <script src="js/mg-room.js"></script>
+  <script src="js/mg-phone.js"></script>
+</body>
+</html>

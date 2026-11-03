@@ -1,0 +1,16 @@
+[
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Playground, pets and packed lunches. A four-seat panel and smaller Super Match money.",
+    "by": "Game Show Central",
+    "counts": { "prompts": 32, "audience prompts": 12 }
+  },
+  {
+    "file": "movies-and-tv.json",
+    "name": "Movies & TV",
+    "description": "Cheap effects, silly sequels and the laugh track that fires at the worst moment. The round-two rule is on.",
+    "by": "Game Show Central",
+    "counts": { "prompts": 32, "audience prompts": 12 }
+  }
+]

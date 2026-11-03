@@ -1,0 +1,184 @@
+{
+  "title": "Match Game harness fixture",
+  "settings": {
+    "currency": "$",
+    "panelSize": 3,
+    "rounds": 1,
+    "pointsPerMatch": 1,
+    "audienceValues": [
+      500,
+      250,
+      100
+    ],
+    "multipliers": [
+      10,
+      20,
+      30
+    ],
+    "secondRoundRule": false
+  },
+  "prompts": [
+    {
+      "text": "The harness host was so thorough, he checked the ___.",
+      "hint": "test / gate"
+    },
+    {
+      "text": "Harness prompt 2 ends in a ___.",
+      "hint": "hint 2"
+    },
+    {
+      "text": "Harness prompt 3 ends in a ___.",
+      "hint": "hint 3"
+    },
+    {
+      "text": "Harness prompt 4 ends in a ___.",
+      "hint": "hint 4"
+    },
+    {
+      "text": "Harness prompt 5 ends in a ___.",
+      "hint": "hint 5"
+    },
+    {
+      "text": "Harness prompt 6 ends in a ___.",
+      "hint": "hint 6"
+    },
+    {
+      "text": "Harness prompt 7 ends in a ___.",
+      "hint": "hint 7"
+    },
+    {
+      "text": "Harness prompt 8 ends in a ___.",
+      "hint": "hint 8"
+    },
+    {
+      "text": "Harness prompt 9 ends in a ___.",
+      "hint": "hint 9"
+    },
+    {
+      "text": "Harness prompt 10 ends in a ___.",
+      "hint": "hint 10"
+    },
+    {
+      "text": "Harness prompt 11 ends in a ___.",
+      "hint": "hint 11"
+    },
+    {
+      "text": "Harness prompt 12 ends in a ___.",
+      "hint": "hint 12"
+    },
+    {
+      "text": "Harness prompt 13 ends in a ___.",
+      "hint": "hint 13"
+    },
+    {
+      "text": "Harness prompt 14 ends in a ___.",
+      "hint": "hint 14"
+    },
+    {
+      "text": "Harness prompt 15 ends in a ___.",
+      "hint": "hint 15"
+    },
+    {
+      "text": "Harness prompt 16 ends in a ___.",
+      "hint": "hint 16"
+    },
+    {
+      "text": "Harness prompt 17 ends in a ___.",
+      "hint": "hint 17"
+    },
+    {
+      "text": "Harness prompt 18 ends in a ___.",
+      "hint": "hint 18"
+    },
+    {
+      "text": "Harness prompt 19 ends in a ___.",
+      "hint": "hint 19"
+    },
+    {
+      "text": "Harness prompt 20 ends in a ___.",
+      "hint": "hint 20"
+    },
+    {
+      "text": "Harness prompt 21 ends in a ___.",
+      "hint": "hint 21"
+    },
+    {
+      "text": "Harness prompt 22 ends in a ___.",
+      "hint": "hint 22"
+    },
+    {
+      "text": "Harness prompt 23 ends in a ___.",
+      "hint": "hint 23"
+    },
+    {
+      "text": "Harness prompt 24 ends in a ___.",
+      "hint": "hint 24"
+    },
+    {
+      "text": "Harness prompt 25 ends in a ___.",
+      "hint": "hint 25"
+    },
+    {
+      "text": "Harness prompt 26 ends in a ___.",
+      "hint": "hint 26"
+    },
+    {
+      "text": "Harness prompt 27 ends in a ___.",
+      "hint": "hint 27"
+    },
+    {
+      "text": "Harness prompt 28 ends in a ___.",
+      "hint": "hint 28"
+    },
+    {
+      "text": "Harness prompt 29 ends in a ___.",
+      "hint": "hint 29"
+    },
+    {
+      "text": "Harness prompt 30 ends in a ___.",
+      "hint": "hint 30"
+    }
+  ],
+  "audiencePrompts": [
+    {
+      "text": "Things you find in a glove box",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 2",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 3",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 4",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 5",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 6",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 7",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 8",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 9",
+      "hint": ""
+    },
+    {
+      "text": "Harness audience prompt 10",
+      "hint": ""
+    }
+  ]
+}
