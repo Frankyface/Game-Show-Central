@@ -78,6 +78,8 @@ body.player-mode {
   background: linear-gradient(180deg, rgba(255, 204, 77, 0.3), rgba(70, 48, 4, 0.9));
 }
 .phone-choice[disabled] { opacity: 0.45; cursor: not-allowed; }
+.phone-choice[aria-pressed="true"][disabled] { opacity: 1; }          /* your own pick stays readable */
+.phone-choice[aria-pressed="true"] .phone-letter { color: var(--ink); }  /* cyan on the gold stop was 3.3:1 */
 
 .phone-letter {
   font-family: var(--font-display);

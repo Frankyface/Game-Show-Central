@@ -192,7 +192,7 @@ const OvhView = (function () {
     const grid = $("ovh-mob-grid");
     if (!grid) return;
     grid.replaceChildren();
-    grid.classList.toggle("is-big", size > 40);
+    grid.classList.toggle("is-big", size > 35);   // 36-40 normal tiles overflowed at 1280x676
     C.mobTiles(state).forEach((tile) => {
       const node = el("li", "mob-tile");
       node.classList.toggle("is-out", !tile.alive);

@@ -323,7 +323,7 @@
   overflow-y: auto;
   align-content: start;
 }
-.mob-grid.is-big { grid-template-columns: repeat(auto-fill, minmax(2.4rem, 1fr)); }
+.mob-grid.is-big { grid-template-columns: repeat(auto-fill, minmax(1.9rem, 1fr)); }   /* 100 tiles fit at 1280x676, sim form open */
 
 .mob-tile {
   display: flex;

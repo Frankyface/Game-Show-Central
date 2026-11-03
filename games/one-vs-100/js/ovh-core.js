@@ -486,7 +486,7 @@
       q: Object.assign({}, state.q, {
         open: true,
         remainingMs: null,
-        deadline: left > 0 ? at + left : null,
+        deadline: state.q.seconds > 0 ? at + Math.max(0, left) : null,   // 0 s left still expires
       }),
       notice: "",
     });
@@ -606,7 +606,9 @@
   function evUseTrust(state) {
     if (!helpUsable(state, "trust")) return state;
     const idx = majorityIndex(state);
-    return spendHelp(state, "trust", { trust: true, locked: idx });
+    const next = spendHelp(state, "trust", { trust: true, locked: idx });
+    return majorityIsTied(state)
+      ? Object.assign(next, { notice: `The Mob is tied, so Trust took ${LETTERS[idx]}, the first tied option.` }) : next;
   }
 
   /* ============ Reveal ============ */
