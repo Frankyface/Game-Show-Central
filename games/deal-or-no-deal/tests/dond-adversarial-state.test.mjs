@@ -417,7 +417,7 @@ test("A13 no phone view carries a sealed amount, in any phase, for any pid", () 
 
 test("A13 the same leak probe holds on the shipped 26-case board", () => {
   const rng = lcg(5);
-  let s = run(Core.createState({}, PLAYERS, {}), [
+  let s = run(Core.createState({ title: "Defaults only" }, PLAYERS, {}), [
     { type: "start" }, { type: "seat", pid: "p1" }, { type: "pickCase", n: 13 },
   ], rng);
   for (let r = 0; r < Content.DEFAULT_ROUNDS.length; r += 1) {

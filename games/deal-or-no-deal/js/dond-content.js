@@ -133,8 +133,38 @@
   function validateBoard(board) {
     if (!isPlainObject(board)) fail("This file is not a Deal or No Deal board: expected a JSON object.");
     if (board.title !== undefined && typeof board.title !== "string") fail(q("title") + " must be text.");
+    requireRecognisable(board);
     validateSettings(board.settings);
     return true;
+  }
+
+  const TOP_KEYS = ["title", "settings"];
+  const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS);
+
+  /**
+   * Every key is optional, so without this check ANY object — `{}`, or another
+   * game's file — validated and loaded silently as the default board (cross-
+   * cutting verification D-1). A board must look like one: no top-level fields
+   * this game does not use, and either a `settings` object holding at least
+   * one setting this game knows, or (with no settings at all) a `title`.
+   */
+  function requireRecognisable(board) {
+    const foreign = Object.keys(board).filter((k) => TOP_KEYS.indexOf(k) < 0);
+    if (foreign.length) {
+      fail(`This doesn't look like a Deal or No Deal board — it has fields this game doesn't use `
+        + `(${foreign.slice(0, 4).join(", ")}). Is it another game's file?`);
+    }
+    if (isPlainObject(board.settings)) {
+      if (!Object.keys(board.settings).some((k) => SETTING_KEYS.indexOf(k) >= 0)) {
+        fail("This doesn't look like a Deal or No Deal board — its " + q("settings")
+          + ` has none of ${SETTING_KEYS.join(", ")}. Is it another game's file?`);
+      }
+      return;
+    }
+    if (board.settings === undefined && typeof board.title !== "string") {
+      fail("This is an empty file, not a Deal or No Deal board — it needs a " + q("title")
+        + " or a " + q("settings") + " object.");
+    }
   }
 
   function validateSettings(raw) {

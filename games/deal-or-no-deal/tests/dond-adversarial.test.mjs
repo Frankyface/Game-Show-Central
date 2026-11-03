@@ -663,9 +663,13 @@ test("A9 exactly cases - 2 openings is allowed, and cases - 1 is not", () => {
 });
 
 test("A9 a board that is only defaults still validates and normalises", () => {
-  assert.equal(Core.validateBoard({}), true);
-  const g = Core.normalizeBoard({});
-  assert.equal(g.title, "Deal or No Deal");
+  // Revised for cross-cutting D-1: `{}` is refused now; a bare title is the
+  // smallest recognisable board and still normalises to every default.
+  assert.equal(Core.validateBoard({ title: "Defaults only" }), true);
+  const g = Core.normalizeBoard({ title: "Defaults only" });
+  assert.equal(g.title, "Defaults only");
+  assert.equal(Core.normalizeBoard({ settings: { jitter: 0.05 } }).title, "Deal or No Deal",
+    "no title falls back to the game's name");
   assert.equal(g.settings.amounts.length, 26);
   assert.deepEqual(g.settings.rounds, Content.DEFAULT_ROUNDS.slice());
   assert.deepEqual(g.settings.offerFactors, Content.DEFAULT_FACTORS.slice());

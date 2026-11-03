@@ -488,3 +488,45 @@ buttons, icons, motion, host toolbar, copy and gates. One judgement call: the
 26-case grid on the phone's pick screen scrolls vertically at 320×640 (the brief
 only requires no horizontal scroll), with every case still a 56 px target.
 
+---
+
+## 12. Cross-cutting verification fixes (2026-11-03)
+
+**D-1 (minor) — any object loaded as the default board.** Every field of a board
+is optional, so `validateBoard` accepted `{}` and, worse, another game's file
+(a Family Feud `questions.json` loaded silently as the 26-case default).
+`js/dond-content.js` now runs `requireRecognisable()` first:
+
+- a top-level field other than `title` / `settings` is refused —
+  "This doesn't look like a Deal or No Deal board — it has fields this game
+  doesn't use (rounds, fastMoney). Is it another game's file?";
+- a `settings` object must hold at least one setting this game knows
+  (`currency`, `amounts`, `rounds`, `offerFactors`, `jitter`, `allowSwap`,
+  `audienceAdvice`), or it is refused with the same question;
+- with no `settings` at all, a `title` is required; `{}` is refused as "an empty
+  file, not a Deal or No Deal board".
+
+`normalizeBoard`, the file upload, `?game=URL`, the editor and the library
+picker all go through `validateBoard`, so they all get the gate. The shipped
+`board.json`, the two library sets, the harness fixture and every saved game
+are `title` + `settings` and pass unchanged.
+
+New unit test (in `tests/dond-advice.test.mjs`) loads the real
+`games/family-feud/questions.json` and asserts it is refused by both
+`validateBoard` and `normalizeBoard`, alongside `{}`, Feud-style settings and a
+foreign top-level key; a bare title, a single known setting and the shipped
+board still pass. Four existing assertions that used `{}` as "the all-defaults
+board" now use `{ title: "…" }` or a single known setting instead — two of mine
+in `dond-core.test.mjs`, two of the tester's (`A9` in
+`dond-adversarial.test.mjs`, the undo walk in `dond-adversarial-state.test.mjs`),
+each with a comment saying why.
+
+**Toolbar rule.** Already true and already pinned: on the setup screen
+`btn-game-lobby` is in the toolbar and **disabled**, never hidden (it is enabled
+once a game is running). The harness's X-1 scenario asserts the disabled state
+on setup.
+
+**Gates.** `node --test` → **90 / 90** (the 89 plus the new D-1 test).
+`tests/harness.html` → **83 / 83** on three consecutive headless runs on port
+8693 (`.scratch/dond-harness-run.mjs`).
+

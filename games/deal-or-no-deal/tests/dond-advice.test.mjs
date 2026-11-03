@@ -10,6 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const Core = require("../js/dond-core.js");
@@ -140,3 +141,22 @@ test("N-U9 the state no longer carries the dead notice field", () => {
   assert.equal("notice" in fresh(), false);
   assert.equal("notice" in Core.reduce(s, { type: "openCase", n: Core.otherCases(s)[0].n }), false);
 });
+
+/* ============================================================
+   Cross-cutting D-1 — another game's file is refused, not loaded
+   silently as the default board
+   ============================================================ */
+
+test("N-U1 a Family Feud file, an empty object and foreign settings are all refused", () => {
+  const feud = JSON.parse(readFileSync(new URL("../../family-feud/questions.json", import.meta.url), "utf8"));
+  assert.throws(() => Core.validateBoard(feud), /doesn't look like a Deal or No Deal board.*another game's file/);
+  assert.throws(() => Core.normalizeBoard(feud), /another game's file/, "normalize goes through the same gate");
+  assert.throws(() => Core.validateBoard({}), /empty file/);
+  assert.throws(() => Core.validateBoard({ settings: { strikes: 3 } }), /settings.*has none of/);
+  assert.throws(() => Core.validateBoard({ title: "x", questions: [] }), /fields this game doesn't use \(questions\)/);
+  // What still passes: anything that really is a board, however small.
+  assert.equal(Core.validateBoard({ title: "Just a name" }), true);
+  assert.equal(Core.validateBoard({ settings: { allowSwap: false } }), true);
+  assert.equal(Core.validateBoard(JSON.parse(readFileSync(new URL("../board.json", import.meta.url), "utf8"))), true);
+});
+
