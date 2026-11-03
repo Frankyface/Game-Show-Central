@@ -1,10 +1,11 @@
 /* ============================================================
-   Chain Reaction — phone controller
+   Chain Reaction — phone controller (design system v3)
    320–430 px portrait, thumb-sized targets (>= 56 px), no
-   horizontal scroll at 320 px. The phone is a thin surface: it
+   horizontal scroll at 320 px. Flat: one surface on the stage, a
+   hairline, no gradients, no glow. The phone is a thin surface: it
    paints the view the host sent and sends one intent back. The
    column it draws is the masked one — an unrevealed letter never
-   arrives here at all.
+   arrives here at all. The clock is the one Anton hero.
    ============================================================ */
 
 body.player-mode { padding: 0; }
@@ -23,36 +24,33 @@ body.player-mode { padding: 0; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  background: linear-gradient(180deg, rgba(16, 26, 77, 0.92), rgba(4, 5, 15, 0.96));
-  border: 1px solid rgba(255, 46, 136, 0.35);
-  border-radius: var(--radius-lg);
-  padding: 0.85rem 0.7rem 1rem;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.75rem 1rem;
 }
 
-.phone-card.is-mine { border-color: var(--cr-pink); box-shadow: 0 0 0 1px rgba(255, 46, 136, 0.4); }
-.phone-card.is-speed { border-color: var(--gold); }
+/* Your team's turn: the accent marks the active state, nothing else. */
+.phone-card.is-mine { border-color: var(--accent); }
 
 .phone-kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--cr-pink-soft);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-dim);
   margin: 0;
   min-height: 1em;
 }
 
 .phone-headline {
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.2;
   margin: 0;
   color: var(--ink);
 }
 
-.phone-sub { font-size: 0.9rem; color: var(--ink-dim); margin: 0; }
+.phone-sub { font-size: 16px; color: var(--ink-dim); margin: 0; }
 
 /* ============ The column on a phone ============ */
 
@@ -88,35 +86,29 @@ body.player-mode { padding: 0; }
   width: calc(var(--len, 5) * var(--cr-ptile) + (var(--len, 5) - 1) * var(--cr-pgap));
 }
 
+/* Flat white for a lit letter, a flat dark surface for a blank one. */
 .phone-column .tile {
   display: flex;
   align-items: center;
   justify-content: center;
   aspect-ratio: 1;
-  font-family: var(--font-display);
-  font-size: min(4.8vw, 19px);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: min(4.4vw, 17px);
   line-height: 1;
-  border-radius: 4px;
-  background: var(--cr-tile-empty);
-  border: 1px solid var(--cr-tile-line);
+  border-radius: 3px;
+  background: var(--cr-tile-blank);
+  border: 1px solid var(--hairline);
   color: var(--cr-tile-ink);
 }
 
-.phone-column .tile.is-lit {
-  background: linear-gradient(180deg, #ffffff 0%, var(--cr-tile-face) 100%);
-  border-color: #ffffff;
-}
-
+.phone-column .tile.is-lit { background: var(--cr-tile-face); border-color: var(--cr-tile-rule); }
 .phone-column .tile.is-punct { background: transparent; border-color: transparent; color: var(--ink-dim); }
-.phone-column .row.owner-0 .tile.is-lit { background: linear-gradient(180deg, #9fb6ff, #5f80ff); border-color: var(--cr-blue); }
-.phone-column .row.owner-1 .tile.is-lit { background: linear-gradient(180deg, #ffb4d6, #ff5fa2); border-color: var(--cr-pink); }
-.phone-column .row.is-eligible .row-tiles {
-  outline: 2px dashed rgba(255, 255, 255, 0.42);
-  outline-offset: 2px;
-  border-radius: 5px;
-}
-.phone-column .row.is-target .row-tiles { outline: 2px solid var(--cr-pink); outline-offset: 2px; border-radius: 5px; }
-.phone-column .row.is-current .row-tiles { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 5px; }
+.phone-column .row.owner-0 .tile.is-lit { box-shadow: inset 0 -2px 0 var(--cr-blue); }
+.phone-column .row.owner-1 .tile.is-lit { box-shadow: inset 0 -2px 0 var(--accent); }
+.phone-column .row.is-eligible .row-tiles { outline: 2px dashed var(--accent); outline-offset: 2px; border-radius: 4px; }
+.phone-column .row.is-target .row-tiles,
+.phone-column .row.is-current .row-tiles { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .phone-column .row-tag { display: none; }
 
 /* ============ Controls ============ */
@@ -136,46 +128,44 @@ body.player-mode { padding: 0; }
   width: 100%;
   min-height: var(--tap);
   font-size: 1.05rem;
-  text-transform: uppercase;
-  background: var(--well);
+  background: var(--stage-bg);
   color: var(--ink);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
   padding: 0.5rem 0.7rem;
 }
 
-.phone-guess input:focus-visible { outline: 3px solid var(--cr-pink); outline-offset: 2px; }
+.phone-guess input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-.phone-scores { display: flex; gap: 0.7rem; margin-top: 0.3rem; }
+.phone-scores { display: flex; gap: 0.6rem; margin-top: 0.3rem; }
 .phone-scores > div {
   flex: 1;
-  background: var(--well);
-  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
   padding: 0.35rem 0.5rem;
-  border-left: 4px solid transparent;
 }
-.phone-scores > div.team-0 { border-left-color: var(--cr-blue); }
-.phone-scores > div.team-1 { border-left-color: var(--cr-pink); }
-.phone-scores > div.is-control { background: rgba(255, 46, 136, 0.18); }
-.phone-scores .k { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); margin: 0; }
-.phone-scores .v { font-family: var(--font-display); font-size: 1.15rem; color: var(--ink); margin: 0; }
+.phone-scores > div.team-0.is-control { border-color: var(--cr-blue); }
+.phone-scores > div.team-1.is-control { border-color: var(--accent); }
+.phone-scores .k { font-size: 14px; font-weight: 500; color: var(--ink-dim); margin: 0; }
+.phone-scores .v { font-size: 1.15rem; font-weight: 600; color: var(--gold-text); margin: 0; font-variant-numeric: tabular-nums; }
 
-.phone-status { font-size: 0.8rem; color: var(--ink-dim); margin: auto 0 0; }
+.phone-status { font-size: 14px; color: var(--ink-dim); margin: auto 0 0; }
 
-.phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; display: flex; flex-direction: column; }
 .phone-standings li {
   display: flex;
   justify-content: space-between;
   gap: 0.6rem;
-  background: var(--well);
-  border-radius: var(--radius);
-  padding: 0.45rem 0.6rem;
-  font-size: 0.92rem;
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.5rem 0.1rem;
+  font-size: 16px;
 }
 
+/* The Speed Chain's one hero. */
 .phone-clock {
   font-family: var(--font-display);
   font-size: 3.4rem;
+  font-weight: 400;
   line-height: 1;
   text-align: center;
   margin: 0.3rem 0 0;
@@ -183,22 +173,17 @@ body.player-mode { padding: 0; }
   font-variant-numeric: tabular-nums;
 }
 .phone-clock.danger { color: var(--red); }
-.phone-clock.done { color: var(--red); opacity: 0.7; }
+.phone-clock.done { color: var(--ink-mute); }
 
 .phone-neighbour {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  letter-spacing: 0.08em;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--ink-dim);
   margin: 0.2rem 0;
   text-align: center;
 }
 
 @media (max-width: 360px) {
-  .phone-headline { font-size: 1.25rem; }
+  .phone-headline { font-size: 1.2rem; }
   .phone-clock { font-size: 2.9rem; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .phone-card.is-mine .phone-kicker { animation: gsc-pulse 3.2s ease-in-out infinite; }
 }

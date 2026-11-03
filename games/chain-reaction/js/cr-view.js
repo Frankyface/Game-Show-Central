@@ -87,7 +87,7 @@ const CrView = (function () {
     return li;
   }
 
-  const DIR_TAG = { top: "from the top", bottom: "from the bottom" };
+  const DIR_TAG = { top: "Guessing, from the top", bottom: "Guessing, from the bottom" };
 
   function renderColumn(app) {
     const state = app.core;
@@ -97,9 +97,9 @@ const CrView = (function () {
     const ends = core().frontier(state);
     rows.forEach((row) => {
       const solved = row.solved;
-      const tag = row.target ? (DIR_TAG[state.direction] || "guess it")
-        : (row.index === ends.top && "next from the top")
-        || (row.index === ends.bottom && "next from the bottom") || "";
+      const tag = row.target ? (DIR_TAG[state.direction] || "Guessing")
+        : (row.index === ends.top && "Next from the top")
+        || (row.index === ends.bottom && "Next from the bottom") || "";
       list.appendChild(buildRow(row, {
         eligible: row.eligible && state.target === null,
         target: row.target,
@@ -132,7 +132,7 @@ const CrView = (function () {
       const active = state.control === i;
       box.appendChild(buildPodium(app, i, {
         active,
-        note: active ? "▶ in control" : "waiting",
+        note: active ? "In control" : "Waiting",
       }));
     });
   }
@@ -217,7 +217,7 @@ const CrView = (function () {
 
   /* ============ Speed Chain ============ */
 
-  const SPEED_TAGS = { got: "✓ got it", pass: "passed — comes back" };
+  const SPEED_TAGS = { got: "Got it", pass: "Passed, comes back" };
 
   function renderSpeed(app) {
     const state = app.core;
@@ -232,7 +232,7 @@ const CrView = (function () {
       list.appendChild(buildRow(row, {
         current: row.current,
         mark: row.mark,
-        tag: row.current ? "call this one" : (SPEED_TAGS[row.mark] || ""),
+        tag: row.current ? "Call this one" : (SPEED_TAGS[row.mark] || ""),
         name: row.solved ? sp.words[row.index] : "",
       }));
     });
@@ -315,7 +315,7 @@ const CrView = (function () {
       const li = el("li", row.winner ? "is-winner" : null);
       li.appendChild(el("span", "standing-name", row.name));
       li.appendChild(el("span", "standing-score", row.money));
-      li.appendChild(el("span", "standing-note", row.winner ? "◆ ahead" : ""));
+      li.appendChild(el("span", "standing-note", row.winner ? "Ahead" : ""));
       list.appendChild(li);
     });
   }
@@ -428,6 +428,10 @@ const CrView = (function () {
     SCREENS.forEach((name) => show($(`screen-${name}`), !app.editorOpen && name === wanted));
     show($("screen-editor"), app.editorOpen);
     renderResume(app);
+    // Toolbar rule (all games): on setup there is no game to leave, so Game
+    // lobby stays in the bar, in its place, but disabled.
+    const lobby = $("btn-game-lobby");
+    if (lobby) lobby.disabled = !app.core;
     if (app.editorOpen || !app.core) {
       show($("cr-interstitial"), false);
       if (!app.editorOpen) renderSetup(app);

@@ -89,7 +89,7 @@
     const wrap = el("div", "phone-scores");
     v.teams.forEach((name, i) => {
       const cell = el("div", `team-${i}${v.control === i ? " is-control" : ""}`);
-      cell.appendChild(el("p", "k", v.control === i ? `${name} ▶` : name));
+      cell.appendChild(el("p", "k", v.control === i ? `${name} (playing)` : name));
       cell.appendChild(el("p", "v", `${v.currency || "$"}${Number((v.scores || [])[i] || 0).toLocaleString("en-US")}`));
       wrap.appendChild(cell);
     });

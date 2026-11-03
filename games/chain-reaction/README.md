@@ -111,7 +111,7 @@ letter is not in the payload at all (pinned by `C-U10` and `C-I3`).
 
   Opened straight from disk (`file://`) the picker hides itself and says why —
   saved sets need a web server.
-- **Chain editor** in the top bar → edit → **Use in game**, **Download JSON**,
+- **Editor** in the top bar → edit → **Use in game**, **Download JSON**,
   or **Download for the library** (draft auto-saves under `gsc-cr-draft-v1`).
 - **Load chains (.json)** on the setup screen.
 - `?game=https://example.com/my-chains.json` on the URL. An explicit link wins
@@ -155,7 +155,7 @@ letter is not in the payload at all (pinned by `C-U10` and `C-I3`).
 Static hosting cannot write into the repo, so the editor gives you the two
 pieces and you commit them:
 
-1. Build the chains in the **Chain editor** and press **Download for the
+1. Build the chains in the **Editor** and press **Download for the
    library**. It saves `your-title.json` and prints the exact manifest line.
 2. Commit the file to `games/chain-reaction/sets/` and paste that line into
    `games/chain-reaction/sets/index.json`.

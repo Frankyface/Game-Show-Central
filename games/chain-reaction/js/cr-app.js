@@ -595,7 +595,13 @@ function crWireChrome() {
   const paint = () => {
     sound.textContent = window.CrSound.enabled ? "Sound on" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.CrSound.enabled));
+    // textContent wiped the icon, so it goes back on every repaint (v3 rule 9).
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.CrSound.enabled ? "sound" : "sound-off");
   };
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   sound.addEventListener("click", () => { window.CrSound.toggle(); paint(); });
   paint();
   document.addEventListener("keydown", crOnKey);
@@ -605,7 +611,7 @@ function crWireChrome() {
 
 /* ============ Splash ============ */
 
-const CR_SPLASH_MS = 1200;
+const CR_SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
 let crSplashTimer = null;
 
 /**
@@ -620,7 +626,7 @@ function crShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return;
   setText("gsc-splash-title", "Chain Reaction");
-  setText("gsc-splash-sub", "Eight words. One chain. Two teams.");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "chain-reaction";
   node.classList.remove("hidden");
   if (crSplashTimer) clearTimeout(crSplashTimer);

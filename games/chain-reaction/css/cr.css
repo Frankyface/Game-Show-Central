@@ -1,66 +1,61 @@
 /* ============================================================
-   Chain Reaction — host screens
-   The palette from spec 14 §3: electric blue and hot pink on a
-   near-black stage, the chain as a vertical column of white
-   letter tiles filling in from the left. Everything is CSS — no
-   images. Sized for a shared screen at 1280x720 with no vertical
-   scroll during play, and for the hub's 1280x676 game frame.
+   Chain Reaction — host screens (design system v3, docs/21)
+   Quiet broadcast look: the flat stage from shared/theme.css (the
+   pink accent at 5 % over #0b0d12), one flat surface level, the
+   chain as a column of flat white letter tiles with a hairline.
+   Inter everywhere; Anton for exactly one hero per screen — the
+   chain value on the board, the clock in the Speed Chain, the game
+   name on setup, the winners on the result. Gold only on money.
+   Sized for a shared screen at 1280x720 with no vertical scroll in
+   play, and for the hub's 1280x676 game frame.
 
-   The v2 accent (--accent / --accent-2) comes from the
-   [data-gsc-game="chain-reaction"] block in shared/theme.css, which
-   is canonical; only the stage colours and the game's own --cr-*
-   extras are declared here, on :root (never on body, or a :root
-   value would be shadowed).
+   The accent (--accent / --accent-ink) comes from the canonical
+   [data-gsc-game="chain-reaction"] block in shared/theme.css; this
+   sheet only adds the game's own --cr-* extras, on :root.
    ============================================================ */
 
 :root {
-  --stage-deep: #0a1140;
-  --stage-night: #04050f;
-  --stage-card: #101a4d;
-  --stage-accent: #0f3bd9;
-
-  /* Chain Reaction extras. Blue is the first team, pink the second. */
-  --cr-blue: #4c74ff;          /* lightened from the spec's #0f3bd9 for text on dark */
-  --cr-blue-deep: #0f3bd9;
-  --cr-pink: #ff2e88;
-  --cr-pink-soft: #ff7ab5;
-  --cr-tile-face: #f6f7ff;
-  --cr-tile-ink: #0a0d20;
-  --cr-tile-empty: rgba(255, 255, 255, 0.07);
-  --cr-tile-line: rgba(255, 255, 255, 0.22);
+  /* The two teams. Blue is the first, pink (the accent) the second. They mark
+     ownership and the active team; neither is used as text on the stage. */
+  --cr-blue: #4d7bff;
+  --cr-blue-fill: #0f3bd9;     /* white on it 7.9:1 */
+  --cr-tile-face: #f5f6f8;     /* a lit letter */
+  --cr-tile-ink: #0b0d12;      /* 18:1 on the face */
+  --cr-tile-rule: #d5d8df;     /* the lit tile's hairline */
+  --cr-tile-blank: #1c2029;    /* an unlit letter: flat, one step above the surface */
   --cr-tile: 64px;             /* one letter tile; the column scales from this */
   --cr-row-gap: 7px;
 }
 
-/* ============ Chrome ============ */
+/* ============ Toolbar (rule 9: name left; Sound · Editor · Game lobby) ============ */
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.4rem 1.1rem;
-  border-bottom: 1px solid var(--panel-line);
-  background: rgba(4, 5, 15, 0.6);
+  padding: 0.5rem 1.1rem;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .topbar-title {
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
   margin: 0;
-  color: var(--cr-pink-soft);
+  color: var(--ink);
 }
 
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.topbar-actions .btn { min-height: 36px; }
 
 .room-chip {
-  font-family: var(--font-display);
-  letter-spacing: 0.2em;
-  color: var(--cr-pink-soft);
-  border: 1px solid rgba(255, 46, 136, 0.5);
-  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
   padding: 0.25em 0.7em;
 }
 
@@ -68,45 +63,62 @@
 #cr-main { padding: 0.7rem 1.1rem 1rem; }
 .screen { max-width: 1400px; margin: 0 auto; }
 
+/* A label that names a group: sentence case, no tracking. */
 .kicker {
-  text-transform: uppercase;
-  letter-spacing: var(--track-eyebrow);
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--ink-dim);
   margin: 0 0 0.3rem;
 }
 
-.screen-title, .card-title {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  letter-spacing: 0.04em;
+.screen-title {
+  font-size: var(--fs-title);
+  font-weight: 600;
   margin: 0 0 0.5rem;
-  color: var(--cr-pink-soft);
+  color: var(--ink);
+}
+
+/* Setup's one hero: the game name. */
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  font-weight: 400;
+  line-height: 1.05;
+  margin: 0 0 0.4rem;
+  color: var(--ink);
 }
 
 .setup-heading {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ink-dim);
-  margin: 0.9rem 0 0.35rem;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 1rem 0 0.4rem;
 }
 
-.hint, .hint-inline, .notice, .source-note { color: var(--ink-dim); font-size: 0.85rem; margin: 0.25rem 0; }
-.notice { min-height: 1.2em; color: var(--cr-pink-soft); }
+.hint, .hint-inline, .notice, .source-note { color: var(--ink-dim); font-size: 15px; margin: 0.25rem 0; }
+.notice { min-height: 1.3em; color: var(--ink); }
 .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
 
 .count-badge {
-  font-size: 0.72rem;
-  color: var(--stage-night);
-  background: var(--cr-pink-soft);
-  border-radius: var(--radius-pill);
-  padding: 0.1em 0.6em;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 0.05em 0.5em;
   margin-left: 0.4rem;
 }
 
-.value-badge { font-family: var(--font-display); letter-spacing: 0.06em; }
+/* The board's one hero: what a word is worth. Money, so gold. */
+.value-badge {
+  font-family: var(--font-display);
+  font-size: clamp(34px, 3.2vw, 46px);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--gold-text);
+  background: none;
+  padding: 0;
+}
 
 .controls { display: flex; gap: 0.55rem; flex-wrap: wrap; justify-content: center; margin-top: 0.7rem; }
 .controls-stack { flex-direction: column; align-items: stretch; justify-content: flex-start; }
@@ -114,56 +126,52 @@
 .judge-row > .btn { flex: 1 1 45%; }
 .minor-row > .btn { flex: 1 1 auto; }
 
-.btn-blue {
-  background: linear-gradient(180deg, #3d63ff 0%, var(--cr-blue-deep) 100%);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(15, 59, 217, 0.45);
-}
-.btn-blue:hover:not(:disabled) { background: linear-gradient(180deg, #5a7cff 0%, #1a48e6 100%); }
+/* v2's blue gradient button is now the plain secondary outline. */
+.btn-blue { color: var(--ink); background-color: transparent; border-color: rgba(255, 255, 255, 0.22); }
+.btn-blue:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.4); background-color: rgba(255, 255, 255, 0.04); }
 
 .gsc-kbd { margin-left: 0.4em; }
 
 /* ============ Setup ============ */
 
-.card { background: var(--panel); border: 1px solid var(--panel-line); border-radius: var(--radius-lg); padding: 1.1rem 1.3rem; }
-.setup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
-.setup-actions { display: flex; justify-content: center; margin-top: 1rem; }
+.card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius); padding: 1.1rem 1.3rem; }
+.setup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; }
+.setup-actions { display: flex; justify-content: center; gap: 0.6rem; margin-top: 1rem; }
 .inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 .team-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
 .setting-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 
-.roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; max-height: 15rem; overflow-y: auto; }
+.roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 15rem; overflow-y: auto; }
 .roster-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  background: var(--well);
-  border-radius: var(--radius);
-  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.35rem 0;
 }
-.roster-name { font-weight: 600; }
+.roster-name { font-weight: 500; }
 .roster-picks { display: flex; gap: 0.35rem; }
-.roster-empty { color: var(--ink-mute); font-size: 0.85rem; padding: 0.3rem 0; }
+.roster-empty { color: var(--ink-mute); font-size: 15px; padding: 0.3rem 0; }
 
-.team-pick { border: 1px solid var(--panel-line); }
-.team-pick.is-on.team-0 { background: var(--cr-blue-deep); color: #fff; border-color: var(--cr-blue); }
-.team-pick.is-on.team-1 { background: var(--cr-pink); color: #1a0210; border-color: var(--cr-pink-soft); }
+.team-pick { border: 1px solid var(--hairline); }
+.team-pick.is-on.team-0 { background: var(--cr-blue-fill); color: #fff; border-color: var(--cr-blue-fill); }
+.team-pick.is-on.team-1 { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
 /* ============ The chain column ============ */
 
 .play-grid, .speed-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 19rem;
-  gap: 1rem;
+  gap: 1.2rem;
   align-items: center;
 }
 
 /* The Speed Chain board is shorter than the chain board (no per-row tags), so
    it is centred in what is left rather than hugging the top. */
-.speed-grid { align-items: center; min-height: calc(100vh - 8rem); }
+.speed-grid { min-height: calc(100vh - 8rem); }
 
-.board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; max-width: 56rem; margin: 0 auto; }
 
 .column {
   list-style: none;
@@ -179,7 +187,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 8rem;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.8rem;
   width: 100%;
   max-width: 56rem;
 }
@@ -189,46 +197,53 @@
   grid-template-columns: repeat(var(--len, 5), minmax(0, var(--cr-tile)));
   gap: 4px;
   justify-content: center;
+  /* Hug the letters, so the frontier outline frames the word, not the row. */
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
 }
 
+/* Letters are Inter, not Anton: the board is information, the value above it
+   is the hero. */
 .tile {
   display: flex;
   align-items: center;
   justify-content: center;
   aspect-ratio: 1;
-  font-family: var(--font-display);
-  font-size: min(calc(var(--cr-tile) * 0.62), 4.4vw);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: min(calc(var(--cr-tile) * 0.5), 3.6vw);
   line-height: 1;
-  border-radius: var(--radius-sm);
-  background: var(--cr-tile-empty);
-  border: 1px solid var(--cr-tile-line);
+  border-radius: 4px;
+  background: var(--cr-tile-blank);
+  border: 1px solid var(--hairline);
   color: var(--cr-tile-ink);
 }
 
-.tile.is-lit {
-  background: linear-gradient(180deg, #ffffff 0%, var(--cr-tile-face) 100%);
-  border-color: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
+.tile.is-lit { background: var(--cr-tile-face); border-color: var(--cr-tile-rule); }
 .tile.is-punct { background: transparent; border-color: transparent; color: var(--ink-dim); }
 
+/* The row's label: words carry the frontier, not only the outline. */
 .row-tag {
-  font-size: 0.74rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--ink-mute);
 }
 
-/* A solved word wears the team's colour; the words say who, so colour is
-   never the only signal (the row-tag and the standings carry the same fact). */
-.row.owner-0 .tile.is-lit { background: linear-gradient(180deg, #9fb6ff 0%, #5f80ff 100%); border-color: var(--cr-blue); color: #05081f; }
-.row.owner-1 .tile.is-lit { background: linear-gradient(180deg, #ffb4d6 0%, #ff5fa2 100%); border-color: var(--cr-pink); color: #24030f; }
+/* A solved word keeps its white tiles; the team that got it is a 3 px rule
+   under each letter (and the standings say the same in words). */
+.row.owner-0 .tile.is-lit { box-shadow: inset 0 -3px 0 var(--cr-blue); }
+.row.owner-1 .tile.is-lit { box-shadow: inset 0 -3px 0 var(--accent); }
 
-.row.is-eligible .row-tiles { outline: 2px dashed rgba(255, 255, 255, 0.35); outline-offset: 5px; border-radius: var(--radius); }
-.row.is-target .row-tiles { outline: 3px solid var(--cr-pink); outline-offset: 5px; border-radius: var(--radius); }
-.row.is-target .row-tag { color: var(--cr-pink-soft); font-weight: 700; }
-.row.is-current .row-tiles { outline: 3px solid var(--gold); outline-offset: 5px; border-radius: var(--radius); }
+/* The two words in play: a text label plus the accent outline. The word being
+   guessed right now gets the solid one. */
+.row.is-eligible .row-tiles { outline: 2px dashed var(--accent); outline-offset: 5px; }
+.row.is-eligible .row-tag { color: var(--ink-dim); }
+.row.is-target .row-tiles { outline: 2px solid var(--accent); outline-offset: 5px; }
+.row.is-target .row-tag { color: var(--ink); font-weight: 600; }
+.row.is-current .row-tiles { outline: 2px solid var(--accent); outline-offset: 5px; }
+.row.is-current .row-tag { color: var(--ink); font-weight: 600; }
 .row.mark-got .row-tag { color: var(--green); }
 .row.mark-pass .row-tag { color: var(--amber); }
 
@@ -238,64 +253,67 @@
 
 /* ============ The rail ============ */
 
-.play-rail { display: flex; flex-direction: column; gap: 0.55rem; }
-.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.play-rail { display: flex; flex-direction: column; gap: 0.6rem; }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .teams-row { display: flex; flex-direction: row; justify-content: center; }
 .teams-row .podium { min-width: 14rem; }
 
-/* The rail has to hold two podiums, a guess box and three button rows inside
-   720px, so the shared podium is a touch tighter here. */
-.play-rail .podium { padding: 0.5rem 0.7rem; gap: 0.1rem; }
-.play-rail .gsc-podium-score { font-size: 1.7rem; }
-.play-rail .gsc-podium-note { font-size: 0.7rem; }
+/* Team identity on the podium is the shared active border, in the team's colour. */
+.podium.team-0 { --podium-accent: var(--cr-blue); }
+.podium.team-1 { --podium-accent: var(--accent); }
+.play-rail .podium { padding: 0.55rem 0.7rem; gap: 0.15rem; }
+/* One hero per screen: the podium scores are money in Inter, not Anton. */
+.teams .gsc-podium-score {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 1.6rem;
+  color: var(--gold-text);
+}
+.teams .gsc-podium-note { font-size: 14px; }
+.teams .podium.is-active .gsc-podium-note { color: var(--ink); font-weight: 600; }
 
-.podium.team-0.is-active { border-color: var(--cr-blue); box-shadow: inset 4px 0 0 var(--cr-blue); }
-.podium.team-1.is-active { border-color: var(--cr-pink); box-shadow: inset 4px 0 0 var(--cr-pink); }
-
-.guess-box { background: var(--well); border-radius: var(--radius); padding: 0.5rem 0.6rem; }
+.guess-box { border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); padding: 0.5rem 0; }
 .guess-box .field { margin: 0 0 0.25rem; }
 .guess-box input { width: 100%; }
 
 .peek-word {
   margin: 0.2rem 0 0;
-  min-height: 1.2em;
-  font-family: var(--font-display);
-  letter-spacing: 0.08em;
-  font-size: 1.1rem;
+  min-height: 1.3em;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--ink-mute);
 }
-.peek-word.is-on { color: var(--gold); }
+.peek-word.is-on { color: var(--ink); }
 
 /* ============ Sudden death ============ */
 
-.sudden-stage { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin: 0.6rem 0; }
+.sudden-stage { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; margin: 0.8rem 0; }
 .sudden-neighbour {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  letter-spacing: 0.1em;
+  font-size: 1.5rem;
+  font-weight: 600;
   color: var(--ink-dim);
   margin: 0;
 }
 
 /* ============ Speed Chain ============ */
 
-.speed-team { font-family: var(--font-display); font-size: 1.5rem; margin: 0; color: var(--cr-pink-soft); letter-spacing: 0.05em; }
+.speed-team { font-size: 1.3rem; font-weight: 600; margin: 0; color: var(--ink); text-align: center; }
 
+/* The Speed Chain's one hero. */
 .speed-clock {
   font-family: var(--font-display);
   font-size: clamp(88px, 11vw, 150px);
-  line-height: 0.9;
+  font-weight: 400;
+  line-height: 0.95;
   margin: 0;
   text-align: center;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 26px rgba(76, 116, 255, 0.55);
 }
-.speed-clock.running { color: #ffffff; }
-.speed-clock.danger { color: var(--red); text-shadow: 0 0 30px rgba(255, 107, 107, 0.6); }
-.speed-clock.done { color: var(--red); opacity: 0.75; }
+.speed-clock.danger { color: var(--red); }
+.speed-clock.done { color: var(--ink-mute); }
 
-.speed-progress { text-align: center; margin: 0; font-size: 0.95rem; color: var(--ink-dim); }
+.speed-progress { text-align: center; margin: 0; font-size: 15px; color: var(--ink-dim); }
 
 /* ============ Interstitial + standings ============ */
 
@@ -305,63 +323,62 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(3, 4, 12, 0.82);
+  background: rgba(11, 13, 18, 0.88);
   z-index: 40;
   padding: 1.2rem;
 }
 
 .overlay-card {
-  background: var(--stage-card);
-  border: 1px solid var(--panel-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lift);
-  padding: 1.1rem 1.4rem 1.3rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.4rem 1.3rem;
   max-width: 46rem;
   width: 100%;
   text-align: center;
 }
 
-.overlay-title { font-family: var(--font-display); font-size: 1.8rem; margin: 0 0 0.5rem; color: var(--cr-pink-soft); letter-spacing: 0.05em; }
-.overlay-sub { color: var(--ink-dim); margin: 0.5rem 0 0; }
+.overlay-title { font-size: var(--fs-title); font-weight: 600; margin: 0 0 0.6rem; color: var(--ink); }
+.overlay-sub { color: var(--ink-dim); margin: 0.6rem 0 0; font-size: 16px; }
 
 .inter-chain { list-style: none; margin: 0.4rem 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; }
 .inter-word {
-  font-family: var(--font-display);
-  letter-spacing: 0.06em;
-  font-size: 1.05rem;
-  padding: 0.2em 0.6em;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 0.25em 0.6em;
   border-radius: var(--radius-sm);
-  background: var(--cr-tile-empty);
-  border: 1px solid var(--cr-tile-line);
+  color: var(--cr-tile-ink);
+  background: var(--cr-tile-face);
+  border: 1px solid var(--cr-tile-rule);
 }
-.inter-word.owner-0 { background: rgba(76, 116, 255, 0.35); border-color: var(--cr-blue); }
-.inter-word.owner-1 { background: rgba(255, 46, 136, 0.32); border-color: var(--cr-pink); }
+.inter-word.owner-0 { box-shadow: inset 0 -3px 0 var(--cr-blue); }
+.inter-word.owner-1 { box-shadow: inset 0 -3px 0 var(--accent); }
 
-.standings { list-style: none; margin: 0.8rem auto 0; padding: 0; max-width: 34rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.standings { list-style: none; margin: 0.8rem auto 0; padding: 0; max-width: 34rem; display: flex; flex-direction: column; }
 .standings li {
   display: grid;
   grid-template-columns: 1fr auto 6rem;
   align-items: center;
   gap: 0.8rem;
-  background: var(--well);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.6rem 0.2rem;
   text-align: left;
 }
-.standings li.is-winner { border: 1px solid var(--gold); }
-.standing-name { font-weight: 700; }
-.standing-score { font-family: var(--font-display); font-size: 1.3rem; color: var(--gold-text); }
-.standing-note { font-size: 0.78rem; color: var(--gold-text); text-align: right; }
-.standings-small li { padding: 0.35rem 0.7rem; }
+.standing-name { font-weight: 600; font-size: 17px; }
+.standing-score { font-weight: 600; font-size: 1.3rem; font-variant-numeric: tabular-nums; color: var(--gold-text); }
+.standing-note { font-size: 14px; color: var(--ink-dim); text-align: right; }
+.standings li.is-winner .standing-note { color: var(--ink); font-weight: 600; }
+.standings-small li { padding: 0.45rem 0.2rem; }
 .standings-small .standing-score { font-size: 1.1rem; }
 
+/* The result's one hero: the winners. */
 .winner-name {
   font-family: var(--font-display);
   font-size: var(--fs-display);
+  font-weight: 400;
   margin: 0.2rem 0 0.4rem;
   text-align: center;
   color: var(--ink);
-  letter-spacing: var(--track-display);
 }
 #screen-result { text-align: center; }
 
@@ -373,24 +390,24 @@
 .editor-grid { display: grid; grid-template-columns: 22rem minmax(0, 1fr); gap: 1.4rem; margin-top: 0.6rem; }
 .editor-col { min-width: 0; }
 .editor-tabs { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.editor-tabs [aria-selected="true"] { background: var(--cr-blue-deep); color: #fff; }
+.editor-tabs [aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
 
 .ed-rows { display: flex; flex-wrap: wrap; gap: 0.8rem; max-height: 62vh; overflow-y: auto; padding-right: 0.3rem; }
 
 .ed-chain {
-  background: var(--well);
-  border: 1px solid var(--panel-line);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius);
   padding: 0.5rem 0.6rem;
   width: 15rem;
 }
 .ed-chain-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; margin-bottom: 0.35rem; }
-.ed-chain-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); }
+.ed-chain-title { font-size: 15px; font-weight: 600; color: var(--ink-dim); }
 .ed-word { display: flex; flex-direction: column; gap: 0.1rem; margin-bottom: 0.3rem; }
-.ed-word input { width: 100%; text-transform: uppercase; }
+.ed-word input { width: 100%; }
 .ed-word input.is-bad { border-color: var(--red); }
-.ed-word-problem { font-size: 0.72rem; color: var(--red); min-height: 1em; }
-.ed-word-link { font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.06em; }
+.ed-word-problem { font-size: 13px; color: var(--red); min-height: 1em; margin: 0; }
+.ed-word-link { font-size: 13px; color: var(--ink-mute); margin: 0; }
 .ed-chain.is-bad { border-color: var(--red); }
 
 /* ============ Player mode and the hub frame ============ */
@@ -403,32 +420,35 @@ body.player-mode .overlay,
 body.player-mode #cr-main > .screen:not(#screen-phone) { display: none !important; }
 body.player-mode #cr-main { padding: 0; }
 
-/* Embedded in the hub, the shell owns the room, the code chip and Leave. */
+/* Embedded in the hub, the shell bar already carries Lobby and the room code,
+   so the game's own bar holds only Sound · Editor · Game lobby (rule 9). */
 body.gsc-embedded #cr-room-controls,
 body.gsc-embedded #cr-join-note,
-body.gsc-embedded #cr-room-chip { display: none !important; }
+body.gsc-embedded #cr-room-chip,
+body.gsc-embedded #btn-exit { display: none !important; }
 
 /* ============ Fitting 1280x720 (and the hub's 1280x676 frame) ============ */
 
 @media (max-height: 780px) {
   :root { --cr-tile: 58px; --cr-row-gap: 6px; }
-  .topbar { padding: 0.3rem 1rem; }
-  .topbar-title { font-size: 1.15rem; }
+  .topbar { padding: 0.35rem 1rem; }
   #cr-main { padding: 0.4rem 1rem 0.5rem; }
   .speed-clock { font-size: clamp(72px, 9vw, 118px); }
   .column .row { grid-template-columns: minmax(0, 1fr) 7.5rem; }
+  .value-badge { font-size: 34px; }
 }
 
 @media (max-height: 690px) {
   :root { --cr-tile: 51px; --cr-row-gap: 5px; }
   .kicker { margin-bottom: 0.15rem; }
-  .guess-box { padding: 0.35rem 0.5rem; }
+  .guess-box { padding: 0.35rem 0; }
   .speed-clock { font-size: clamp(64px, 8vw, 100px); }
-  /* The rail, not the column, is what sets the height here; these are host
-     buttons on a shared screen, not phone targets, so they may go under 56px. */
+  .value-badge { font-size: 30px; }
+  /* The rail, not the column, sets the height here; these are host buttons on
+     a shared screen, not phone targets, so 44 px (the v3 host floor) is right. */
   .play-rail { gap: 0.4rem; }
   .play-rail .controls { gap: 0.4rem; margin-top: 0.4rem; }
-  .play-rail .btn-big { min-height: 46px; }
+  .play-rail .btn-big { min-height: 44px; }
 }
 
 @media (max-width: 1100px) {
@@ -436,27 +456,10 @@ body.gsc-embedded #cr-room-chip { display: none !important; }
   .setup-cols, .editor-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ============ Motion (every animation lives in here) ============ */
-
-@media (prefers-reduced-motion: no-preference) {
-  .tile.is-lit { animation: cr-land var(--dur) var(--ease-spring) both; }
-  .row.is-target .row-tiles { animation: cr-target 2.4s ease-in-out infinite; }
-  .speed-clock.danger { animation: cr-beat 1s ease-in-out infinite; }
-  .overlay { animation: gsc-rise var(--dur) var(--ease-out) both; }
-
-  @keyframes cr-land {
-    from { transform: translateY(-6px) scale(0.86); opacity: 0; }
-    to { transform: none; opacity: 1; }
-  }
-  @keyframes cr-target {
-    0%, 100% { outline-color: var(--cr-pink); }
-    50% { outline-color: var(--cr-pink-soft); }
-  }
-  @keyframes cr-beat {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.06); }
-  }
-}
+/* ============ Motion ============
+   v3 keeps only motion that carries meaning. A lit tile simply appears and the
+   clock turns red in its last ten seconds, so this sheet declares no animation
+   at all and has nothing to guard under prefers-reduced-motion. */
 
 /* ============ Game lobby confirm + the library (docs/19) ============ */
 
@@ -467,12 +470,12 @@ body.gsc-embedded #cr-room-chip { display: none !important; }
 
 .manifest-line {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.78rem;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--ink-dim);
   background: var(--well);
-  border: 1px solid var(--panel-line);
-  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
   padding: 0.5rem 0.7rem;
   margin: 0.4rem 0 0;
   overflow-wrap: anywhere;

@@ -559,3 +559,107 @@ Static gates re-run: largest file 796, zero `innerHTML` / `document.write` /
 `eval` / `new Function`, zero `console.log`, motion still inside
 `prefers-reduced-motion: no-preference`, no local `body[data-gsc-game]`
 override.
+
+---
+
+# UI v3 pass (docs/21, design-system §0)
+
+The user said the UI "looks fake". This pass reworks the look against
+`docs/21-ui-cleanup-brief.md` and the design-system §0 checklist: CSS and
+markup, with JS limited to class names, `GSCIcons.prepend`, toolbar order, the
+600 ms splash, and four label strings that carried emoji-class glyphs. v2
+sheets are backed up in `.scratch/cr-css-v2-before.css` and
+`.scratch/cr-phone-css-v2-before.css`; the audit script is
+`.scratch/cr-v3-audit.js`; the markup patch is `.scratch/cr-v3-markup.py`.
+
+## What changed
+
+- **Stage and surfaces.** No local stage colours or gradients: the page paints
+  the theme's flat `--stage-bg` (the pink at 5 % over `#0b0d12`). Every panel —
+  setup card, overlays, editor chains, podiums, the phone card — is one flat
+  `--surface` with a 10 % hairline and 8 px radius. No blur, no glow, no rails
+  (the podium's inset rail is gone; team identity is the shared active border in
+  the team colour).
+- **The column.** Lit letters are flat `#f5f6f8` tiles with a `#d5d8df`
+  hairline and near-black ink (18:1); blank letters are a flat `#1c2029`
+  surface. The team that solved a word is a 3 px rule under each letter (2 px on
+  phones), not a coloured gradient. The two frontier words carry a **text
+  label** ("Next from the top", "Guessing, from the bottom", "Call this one")
+  **plus** the accent outline — dashed for "in play", solid for the word being
+  guessed — and the outline now hugs the word instead of spanning the row.
+- **Type.** Inter everywhere, 400/500/600, sentence case, no tracking; tile
+  letters are Inter 600. Anton appears once per screen: the game name on setup,
+  the chain value on the board (gold, it is money), the Speed Chain clock, the
+  winners on the result. Podium and standings scores are Inter in gold. The
+  decorative eyebrows are gone (the setup tagline became one plain sentence:
+  "Name the two teams, put any phones on a team, then start.").
+- **Buttons.** The theme's v3 buttons throughout; v2's blue gradient
+  `.btn-blue` is now the secondary outline. On the rail **Correct** is the one
+  primary (accent fill with `--accent-ink`), the reveal buttons are secondary,
+  **Wrong** is the red outline.
+- **Toolbar.** Name (Inter 600, 18 px) left; **Sound · Editor · Game lobby** on
+  the right with `GSCIcons` (`sound`/`sound-off`, `edit`, `lobby`) beside each
+  label; the sound icon is re-prepended after every repaint. Embedded, the bar
+  holds exactly those three (`btn-exit` and the room chip hide under
+  `body.gsc-embedded`). On the setup screen **Game lobby is present but
+  disabled** (toolbar rule from cross-cutting verification) — there is no game
+  to leave.
+- **Emoji.** `▶ in control` → "In control", `◆ ahead` → "Ahead",
+  `✓ got it` → "Got it", the phone's `Team ▶` → "Team (playing)", and the
+  `⟲` glyph left the Game lobby label.
+- **Motion.** No animation remains in either game sheet: the letter pop, the
+  pulsing target outline, the beating clock, the overlay rise and the phone's
+  idle kicker pulse are all removed. A lit tile simply appears; the clock turns
+  red in its last ten seconds. The splash is the plain 600 ms card (name only,
+  no kicker, no sub line).
+
+## Content fix folded in (cross-cutting verification C-2)
+
+`sets/kids-night.json` chain 6 ended `SHOP KEEPER SAKE` — "keepsake" is one
+word but **KEEPER → SAKE** is not a phrase. The chain is now
+`SNOW MAN POWER HOUSE WORK SHOP FRONT DOOR` (snowman, manpower, powerhouse,
+housework, workshop, shopfront, front door). All 56 pairs in the set were read
+again; the set validates and plays end to end.
+
+## Verification
+
+| Gate | Result |
+| --- | --- |
+| `cd games/chain-reaction && node --test` | **130 / 130** |
+| root `node --test` | **1403 / 1403** (one earlier run showed a single failure outside this game while other agents were writing files; the rerun was clean) |
+| `tests/harness.html` on port 8702 | **81 / 81**, `#summary.ok`, three runs |
+| 1280×720, every play screen | `scrollHeight 720`, `scrollWidth 1280` (chain, mid-turn, interstitial, Speed Chain idle/running/over, result) |
+| 1280×676, every play screen | `676 / 1280` (chain, interstitial, sudden death, Speed Chain, result) |
+| Phone 320×640 | no horizontal scroll; Build from the top/bottom, the guess field and Send all **56 px**; a 12-letter chain still gives one row per word (5,4,4,5,8,4,6,12 tiles), every tile **20 px** |
+| Contrast (live DOM sweep, every visible text node) | **zero** pairs under 4.5:1 (3:1 at ≥ 24 px) on any host screen or on the phone |
+| UI-10 emoji in host DOM text | **none** |
+| UI-11 `backdrop-filter`, `text-shadow`, gradient under text | **none** |
+| Anton usage | exactly one element per screen (listed above); sudden death uses none |
+| Uppercase / letter-spacing > 0 | **none** |
+| UI-12 toolbar order | Sound · Editor · Game lobby, standalone and embedded, each with an icon |
+| Reduced motion (CSSOM walk of both game sheets) | **zero** `@keyframes`, zero `animation` |
+| Static gates | largest game file `cr-app.js` 731 lines; zero `innerHTML`/`eval`/`console.log` |
+
+Setup is the one screen that still scrolls at 1280×720 (814 px, since the
+library picker joined it last round); docs/21 §1 allows setup to scroll, and
+nothing in play does.
+
+## Checklist (design-system §0)
+
+- [x] `data-gsc-game="chain-reaction"`; no local `--accent*` / `--stage-glow`.
+- [x] Nothing paints a gradient, spotlight or vignette; the old `--stage-deep/-night` are gone.
+- [x] One Anton hero per screen; everything else Inter 400/500/600.
+- [x] No uppercase, no tracking; decorative eyebrows deleted.
+- [x] Body ≥ 16 px, controls ≥ 15 px (row labels and hints 15 px).
+- [x] Accent only on the active state (podium, phone card, frontier outline), the primary button, and the owner rule.
+- [x] Gold only on money (chain value, podium scores, standings, phone scores).
+- [x] No `text-shadow`, glow `box-shadow` or neon.
+- [x] One surface level; no `backdrop-filter`, nested translucency or accent rails.
+- [x] Buttons 6 px, sentence case 600; host ≥ 44 px; phones 56 px.
+- [x] Zero emoji in host DOM text; `GSCIcons` beside the toolbar labels.
+- [x] Only meaningful motion (none needed in the sheets); reduced motion clean.
+- [x] 600 ms plain splash.
+- [x] Toolbar: name left; Sound · Editor · Game lobby; nothing else embedded; Game lobby disabled on setup.
+- [x] One plain sentence on setup; error messages unchanged.
+- [x] JS limited to class names, icons, toolbar order, splash, and the four emoji-free labels.
+- [x] Unit tests and harness green before and after; 720 / 676 / 320 fit; contrast; files < 800.
