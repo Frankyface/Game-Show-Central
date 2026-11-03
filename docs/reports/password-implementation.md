@@ -324,3 +324,132 @@ Files touched in this pass: `js/pwd-app.js`, `js/pwd-view.js`,
 `js/pwd-editor.js`, `css/pwd.css`, `tests/harness.html`, `README.md` and this
 report. Nothing outside `games/password/**`; no git commands were run. The
 server on port 8701 was stopped and the browser tabs closed.
+
+---
+
+## 11. Cross-cutting round (docs/19, 2026-09-04)
+
+Two of the three §-items apply to Password: §1 the Game lobby control and §2 the
+set library. §3 is the Price Is Right / Deal or No Deal / Chain Reaction fixes,
+so X-4 is not applicable here.
+
+### §1 — `btn-game-lobby` (X-1)
+
+`⟲ Game lobby` sits in the toolbar between **Sound on** and **Word editor**, the
+same slot the brief asks every game for. It is disabled on setup — there is
+nothing to leave — and live in every other phase. It opens a `role="dialog"`
+confirm (the shared `.gsc-modal` kit) offering **Stay here / Start over / Keep
+this game**, focuses *Keep*, and closes on `Escape` or a backdrop click.
+
+| Choice | Behaviour |
+| --- | --- |
+| **Keep this game** | the whole core object moves to `state.resumable`, `core` becomes null, and setup returns with **Resume the game** plus a line naming what is parked |
+| **Start over** | `core` and `resumable` both cleared; roster, seats, team names, words and rules untouched |
+| **Stay here** / `Escape` | nothing changes |
+
+Three properties the brief calls for, and how each is met:
+
+- **Undo-safe.** Nothing rewinds history: the same core object is moved between
+  two fields and back. `parked.history.length === before.history.length` is
+  asserted on the way out and on the way back in.
+- **The exact state.** Including a **paused Lightning clock**: `keep()` runs the
+  snapshot through `PwdApp.pauseRestored()` first, converting a live `deadline`
+  into `remainingMs`, so the clock cannot burn down while the host is on the
+  setup screen. Verified frozen across 1.5 s of real time, then handed back at
+  the same second on Resume.
+- **Every phase, embedded and standalone.** The harness drives it from the word
+  phase, mid-Lightning and from the standings, in an `?embed=host` frame and in
+  a second `standalone-host` frame.
+
+The parked game is part of the save (`pwdSerialise`), is re-validated by
+`pwdUsableCore` on load and is re-paused by `pwdPauseRestored`, so a reload while
+parked keeps it. Pressing **Start the game** retires it, and the setup note says
+so before you do.
+
+New file `js/pwd-lobby.js` (141 lines) owns the dialog and the transitions;
+`pwd-app.js` gained only the two state fields, their persistence and a
+`pauseRestored` export. The game's hotkeys are inert while the confirm is open
+(`pwdOnKey` checks `lobbyOpen` beside `editorOpen`).
+
+**One defect found and fixed while testing this.** `pwdChooseContent()` builds
+the patch that boot applies, and it carried `core` but not `resumable` — so a
+reload while parked silently dropped the parked game *and* rewrote the save
+without it. One line, next to the `core` restore, gated on the same `useSaved`
+so an explicit `?game=URL` retires a parked game exactly as it retires a game in
+progress. Caught by X-1's reload check, which is now the regression pin.
+
+### §2 — the set library (X-2, X-3)
+
+`games/password/sets/` ships a manifest and two themed lists, both original,
+both held to the same bar as `words.json`:
+
+| File | Set | Words | Its own rules |
+| --- | --- | --- | --- |
+| `kids-night.json` | Kids' night | 90 | to 20, 75 s of Lightning at $50 |
+| `hard-mode.json` | Hard mode | 90 | to 25, 45 s of Lightning at $200 |
+
+Both are ≥ 80 as asked (90 each), single words, internally unique
+case-insensitively, and pass `validateGame`; X-5 asserts all three properties
+against the served files.
+
+`js/pwd-library.js` (147 lines) mounts the shared picker into `#pwd-library`,
+directly under the word-count line in the Words section, with
+`validate: (json) => PwdCore.validateGame(json)` and
+`onPick: (json, meta) => PwdApp.useGame(json, "set: " + meta.name, "library")`.
+`validateGame` throws a plain-English Error, which is exactly the shape
+`GSCLibrary`'s contract wants, so a set that is real JSON but not a Password
+game is refused in the picker's own error line and never becomes the current
+words — asserted with an injected `fetch`, along with the broken-manifest and
+opened-from-disk paths.
+
+The editor's **Download for the library** validates the draft, downloads it under
+a slugged file name (`Office party` → `office-party.json`, run through
+`GSCLibrary.safeFile`), and prints the two commit steps plus the exact manifest
+line, with a Copy button that falls back to selecting the text when the
+clipboard is refused. X-3 asserts the downloaded file passes `validateGame`, the
+printed line parses as JSON, survives `GSCLibrary.parseManifest`, and names both
+paths; an unplayable draft is refused with a reason and prints nothing.
+
+### Two structural consequences
+
+- **`css/pwd.css` went to 833 lines** with the library styles. The editor block
+  and the new library block moved to **`css/pwd-editor.css`** (73 lines) — a
+  clean seam, since nothing in it paints a screen that is in play. `pwd.css` is
+  back to 773. The new sheet is gated by `harness-x.html`, not by `harness.html`
+  (which has no room for another SOURCES entry).
+- **`tests/harness.html` was already at 797 of its 800 lines**, so the round's
+  checks live in a second page, **`tests/harness-x.html`** (669 lines), exactly
+  as the brief allows. It is its own bridge shell, runs an embedded frame *and*
+  a standalone frame, and carries its own `NEW_SOURCES` gate list so every file
+  this round added is line-counted, grepped for banned patterns and checked for
+  external URLs. The first harness is untouched and still 75/75.
+
+### State after the round
+
+| Check | Result |
+| --- | --- |
+| `cd games/password && node --test` | **114 pass / 0 fail** (unchanged — the sets are gated in the browser, where the fetch is real) |
+| `node --test` (repo root) | **1243 pass / 0 fail** |
+| `tests/harness.html` on `127.0.0.1:8701` | **75/75 PASS**, `#summary.ok` |
+| `tests/harness-x.html` on `127.0.0.1:8701` | **54/54 PASS**, `#summary.ok` |
+| every file < 800 lines | largest `tests/harness.html` 797, `js/pwd-app.js` 792, `css/pwd.css` 773, `tests/harness-x.html` 669 |
+| `innerHTML` / `document.write` / `eval(` / `new Function` / `console.log` | zero under `games/password/` |
+| external URLs | Google Fonts only (`https://example.com` appears once, in a README example) |
+
+Files added: `js/pwd-lobby.js`, `js/pwd-library.js`, `css/pwd-editor.css`,
+`sets/index.json`, `sets/kids-night.json`, `sets/hard-mode.json`,
+`tests/harness-x.html`. Files changed: `index.html`, `js/pwd-app.js`,
+`js/pwd-editor.js` (one exported helper), `css/pwd.css`, `README.md` and this
+report. Nothing outside `games/password/**`; no git commands were run.
+
+### For the orchestrator
+
+- `shared/library.js` and `shared/theme-components.css` needed no changes: the
+  picker dropped in as documented and `.gsc-library` styled itself.
+- Two things other games doing this round will hit. First, **a game whose boot
+  rebuilds state from the save must remember to carry the new `resumable` field
+  through** — mine silently dropped it and only the reload check caught it.
+  Second, **the picker's `validate` contract pairs perfectly with a validator
+  that throws**; a game whose validator returns `false` will show the module's
+  generic message instead of its own, so those games should return a string or
+  throw.

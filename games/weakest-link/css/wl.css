@@ -33,6 +33,10 @@
   --stage-gold: #e8b84b;
   --stage-green: #4ec287;
 
+  /* shared/theme-components.css paints .gsc-library with these. */
+  --accent: #3a7bd5;
+  --accent-ink: #04121f;
+
   /* Steel ink instead of the hub's violet-tinted greys. */
   --ink: #f4f7fa;
   --ink-dim: #a7b2be;
@@ -436,6 +440,7 @@ textarea { width: 100%; resize: vertical; }
    12. Embedded / player mode
    ============================================================ */
 
+body.player-mode .topbar-actions #btn-game-lobby,
 body.player-mode .topbar-actions #btn-editor,
 body.player-mode #wl-main > section:not(#screen-phone) { display: none !important; }
 body.player-mode #screen-phone { display: flex; }
@@ -445,6 +450,58 @@ body.gsc-embedded #wl-join-note,
 body.gsc-embedded .setup-block-phones,
 body.gsc-embedded #wl-room-chip { display: none !important; }
 body.gsc-embedded #btn-exit { display: inline-flex; }
+
+/* ============================================================
+   12b. Game lobby confirm + question-set library (docs/19 §1, §2)
+   ============================================================ */
+
+/* Sits over the stage but never traps focus: Cancel and Escape both close it. */
+.lobby-confirm {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  background: rgba(6, 8, 11, 0.82);
+}
+
+.lobby-card {
+  max-width: 34rem;
+  background: linear-gradient(180deg, #15191f 0%, #0f1216 100%);
+  border: 1px solid #2b3138;
+  border-left: 4px solid var(--stage-blue);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem 1.2rem;
+  text-align: center;
+}
+
+.lobby-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: clamp(1.3rem, 3vw, 1.9rem);
+  margin: 0 0 0.5rem;
+}
+
+.lobby-text { font-size: 1rem; color: var(--ink-dim); margin: 0 0 1rem; }
+.lobby-card .choice-row { margin-bottom: 0.9rem; }
+.lobby-card .hint { margin: 0; }
+
+/* The picker itself is .gsc-library from shared/theme-components.css; this
+   only gives it room on the setup card. */
+#wl-library { margin-top: 0.8rem; }
+#wl-library:empty { display: none; }
+
+/* The manifest line the editor hands back: monospaced and selectable. */
+.library-out {
+  margin: 0.4rem 0 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
+  user-select: text;
+}
+.library-out:empty { display: none; }
+.library-out.bad { color: #ffd9dc; }
 
 /* ============================================================
    13. Responsive

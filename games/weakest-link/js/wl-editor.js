@@ -9,7 +9,6 @@
 
 "use strict";
 
-const WL_DRAFT_KEY = "gsc-wl-draft-v1";
 
 let wlDraft = null;
 
@@ -297,9 +296,10 @@ function wlWireEditor() {
   wlBindSettings();
 }
 
-/** Exposed for tests/harness.html (K-I5). */
+/** Exposed for tests/harness.html (K-I5) and for wl-library.js. */
 window.WlEditor = {
   open: wlOpenEditor,
+  cleanDraft: wlCleanDraft,
   close: wlCloseEditor,
   parseDelimited: wlParseDelimited,
   draft: () => wlDraft,

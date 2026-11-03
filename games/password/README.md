@@ -161,6 +161,47 @@ python -m http.server 8620          # from the repo root
   (`gsc-pwd-state-v1-NAME`). The loopback harness runs with `?store=harness` so a
   test run can never leave fixture words or a fixture roster in your real save.
 
+## 4b. Leaving a game, and coming back
+
+**⟲ Game lobby** in the toolbar is the way back to *this game's* start screen
+(the hub's own lobby button leaves Password altogether). It asks first:
+
+| Choice | What happens |
+| --- | --- |
+| **Keep this game** | setup comes back with a **Resume the game** button and a line saying what is parked. The game is untouched — including the undo history — and a running Lightning clock is **stopped**, so it cannot burn down while nobody is watching. Resume hands back exactly the time that was left. |
+| **Start over** | the game in progress is dropped. The roster, the seats, the team names, the words and the rules all stay, so you can just press Start. |
+| **Stay here** (or `Escape`) | nothing happens. |
+
+The parked game is part of the save, so it survives a reload. Pressing **Start
+the game** retires it — the note on the setup screen says so.
+
+## 4c. The set library
+
+`sets/` holds extra word lists committed beside the game, and `sets/index.json`
+is the manifest that lists them. The setup screen mounts the shared picker
+(`shared/library.js`) under **Words**: choose a set, press **Load set**, and it
+is fetched, run through this game's own `validateGame` and adopted, with the
+source note `set: <name>`. A set brings its own settings with it.
+
+| Set | What is in it |
+| --- | --- |
+| **Kids' night** | 90 playground, pet and packed-lunch words. Short game to 20, a slower 75-second Lightning Round at $50 a word. |
+| **Hard mode** | 90 abstract nouns and words you have to think around. To 25, with only 45 seconds of Lightning at $200 a word. |
+
+The default `words.json` stays the default; the picker never loads on its own.
+Opened straight from disk (`file://`), or with no `sets/` folder, the picker
+hides itself and says why in one line.
+
+**Adding your own set.** Static hosting cannot write files, so the honest
+workflow is three steps. In the **Word editor**, press **Download for the
+library**: it validates the list, downloads it, and prints the exact manifest
+line to paste. Then:
+
+1. save the download as `games/password/sets/<your-file>.json` and commit it;
+2. paste the printed line into the array in `games/password/sets/index.json`
+   (edit `name`, `description` and `by` first — they are what the picker shows);
+3. reload the page; the set is in the list.
+
 ## 5. Tests
 
 ```bash
@@ -170,11 +211,20 @@ cd games/password && node --test    # 114 unit tests
 #   pwd-fuzz.test.mjs        17  validator and phone-wire fuzzing
 ```
 
-Browser loopback harness (PW-I1 … PW-I6), served from the repo root:
-<http://localhost:8620/games/password/tests/harness.html> — it is the shell for
-a real embedded host plus four real embedded phones and asserts, among other
-things, that while a password is in play **both** givers' phones carry it and
-the host document's text does not contain it anywhere.
+Two browser harnesses, served from the repo root:
+
+- <http://localhost:8620/games/password/tests/harness.html> — **PW-I1 … PW-I6**
+  (75 checks). It is the shell for a real embedded host plus four real embedded
+  phones and asserts, among other things, that while a password is in play
+  **both** givers' phones carry it and the host document's text does not
+  contain it anywhere.
+- <http://localhost:8620/games/password/tests/harness-x.html> — **X-1 … X-5**
+  (54 checks), the cross-cutting round: the Game lobby control from every phase
+  in an embedded *and* a standalone frame, the set library, and the editor's
+  library download. It is a second page because the first is at the 800-line
+  house cap.
+
+Both run with `?store=` namespaces, so a run never touches your real save.
 
 ## 6. Files
 
@@ -188,11 +238,15 @@ the host document's text does not contain it anywhere.
 | `js/pwd-clock.js` | the Lightning Round clock renderer |
 | `js/pwd-sound.js` | WebAudio cues behind the shared 🔊 preference |
 | `js/pwd-editor.js` | the word editor |
+| `js/pwd-lobby.js` | the ⟲ Game lobby control and its keep / start-over confirm |
+| `js/pwd-library.js` | the set-library picker on setup + "Download for the library" |
 | `js/pwd-room.js` | `GSC.host` glue: roster, masked views out, intents in |
 | `js/pwd-phone.js` | `GSC.player` glue: render a view, send one intent |
 | `js/data.js` | offline mirror of `words.json` |
 | `css/pwd.css`, `css/pwd-phone.css` | host and phone styles |
-| `tests/` | `pwd-core.test.mjs`, `pwd-adversarial.test.mjs`, `pwd-fuzz.test.mjs`, `pwd-fixtures.mjs`, `harness.html` |
+| `css/pwd-editor.css` | editor + library styles, split out to stay under 800 lines |
+| `sets/` | `index.json` (the manifest) + the shipped word sets |
+| `tests/` | `pwd-core.test.mjs`, `pwd-adversarial.test.mjs`, `pwd-fuzz.test.mjs`, `pwd-fixtures.mjs`, `harness.html`, `harness-x.html` |
 
 `js/pwd-view.js` is a split out of `pwd-app.js` (the spec's file list names one
 `pwd-app.js`); both files would otherwise be over the 800-line house cap, the

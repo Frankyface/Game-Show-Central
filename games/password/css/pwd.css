@@ -699,26 +699,6 @@ body {
 
 #screen-result .controls { justify-content: center; }
 
-/* ============ Editor ============ */
-
-.screen-editor { max-width: 1240px; margin: 0 auto; }
-.editor-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
-.editor-bar-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-
-.editor-grid { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 1.2rem; margin-top: 0.8rem; }
-.editor-col { min-width: 0; }
-
-.ed-bad { border-color: var(--pwd-red) !important; }
-
-textarea.ed-words {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 52vh;
-  resize: vertical;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  line-height: 1.5;
-}
-
 /* ============ Splash ============ */
 
 .gsc-splash {
@@ -790,3 +770,4 @@ body.player-mode #pwd-error { display: none !important; }
   .counter .v { font-size: clamp(24px, 2.6vw, 36px); }
   .word-now { font-size: clamp(32px, 4vw, 56px); }
 }
+

@@ -9,7 +9,6 @@
 
 "use strict";
 
-const WL_STORAGE_KEY = "gsc-wl-state-v1";
 const WL_GOODBYE_MS = 2000;
 const WL_ANSWER_PEEK_MS = 2000;
 
@@ -53,6 +52,7 @@ function freshApp() {
     sourceKind: "default",
     sourceUrl: null,
     keepAnswers: false,
+    resumable: null,   // a game parked by the Game lobby control (docs/19 §1)
   };
 }
 
@@ -82,6 +82,7 @@ function wlSerialise() {
   const shell = {
     core: null, game: wlApp.game, setup: wlApp.setup, source: wlApp.source,
     sourceKind: wlApp.sourceKind, sourceUrl: wlApp.sourceUrl, keepAnswers: wlApp.keepAnswers,
+    resumable: wlApp.resumable,
   };
   if (!core) return shell;
   const clock = core.clock.running && core.clock.deadline !== null
@@ -98,33 +99,6 @@ function wlSave() {
     console.warn("Could not save the game:", err);
     wlError("This browser can’t save the game — the game still plays, but don’t reload this tab.");
   }
-}
-
-/** Every field the reducer and the renderers dereference without a guard. */
-const WL_CORE_ARRAYS = ["players", "active", "eliminated", "order", "past", "revealed", "roundHistory"];
-const WL_CORE_OBJECTS = ["clock", "votes", "stats", "roundStats"];
-const WL_CORE_NUMBERS = ["roundIndex", "chainIndex", "roundBank", "total", "lastRoundBank", "qIndex"];
-const WL_FINAL_PHASES = ["finalIntro", "final", "suddenDeath"];
-
-/** Is this a state the reducer can safely be handed? A hand-edited or half-written
-    `gsc-wl-state-v1` is REJECTED here, not discovered by a handler dereferencing
-    a missing field (WL-6). */
-function wlUsableCore(core) {
-  if (!core || typeof core !== "object") return false;
-  if (typeof core.phase !== "string" || window.WlCore.PHASES.indexOf(core.phase) < 0) return false;
-  if (!core.game || typeof core.game !== "object") return false;
-  if (WL_CORE_ARRAYS.some((k) => !Array.isArray(core[k]))) return false;
-  if (WL_CORE_OBJECTS.some((k) => !core[k] || typeof core[k] !== "object" || Array.isArray(core[k]))) return false;
-  if (WL_CORE_NUMBERS.some((k) => !Number.isFinite(core[k]))) return false;
-  if (typeof core.clock.remainingMs !== "number") return false;
-  // The embedded game is what every money selector reads.
-  const settings = core.game.settings;
-  if (!Array.isArray(core.game.questions) || !settings || !Array.isArray(settings.chain)) return false;
-  // The head-to-head screens dereference `final` directly.
-  if (WL_FINAL_PHASES.indexOf(core.phase) >= 0) {
-    return !!core.final && Array.isArray(core.final.pids) && core.final.pids.length === 2;
-  }
-  return true;
 }
 
 function wlLoadSaved() {
@@ -268,7 +242,7 @@ function wlStart() {
     const players = wlApp.setup.players.map((p) => ({ pid: p.pid, name: p.name }));
     if (players.length < 3) throw new Error("Weakest Link needs at least 3 players.");
     const core = window.WlCore.createState(wlApp.game, players, { shuffle: wlApp.setup.shuffle });
-    wlSet({ core: window.WlCore.reduce(core, { type: "start" }) });
+    wlSet({ core: window.WlCore.reduce(core, { type: "start" }), resumable: null });
     if (wlClock) wlClock.reset();
     wlError("");
   } catch (err) {
@@ -746,11 +720,10 @@ async function wlBoot() {
   wlWireChrome();
 
   const loaded = await wlLoadContent();
-  // An explicit ?game=URL always wins over the saved game unless the save
-  // already came from that same URL — otherwise a host who has played once
-  // silently gets their old questions when they follow a shared link. The
-  // in-progress game goes with them: a resumed core carries the old questions
-  // inside it. (Same rule as Family Feud's bootHost.)
+  // An explicit ?game=URL wins over the saved game unless the save came from that
+  // same URL, or a host who has played once silently gets their old questions from
+  // a shared link. The in-progress game goes with them (a resumed core carries the
+  // old questions inside it). Same rule as Family Feud's bootHost.
   const wantUrl = new URLSearchParams(location.search).get("game");
   // Only a URL that actually loaded may displace the save; a 404 must not cost
   // the host their game as well as their questions (wlLoadMessage says why).
@@ -768,6 +741,7 @@ async function wlBoot() {
     wlLoadMessage = "Loaded the questions from the link, so the game in progress was cleared.";
   }
   if (saved && typeof saved.keepAnswers === "boolean") patch.keepAnswers = saved.keepAnswers;
+  if (useSaved && saved.resumable && wlUsableCore(saved.resumable)) patch.resumable = saved.resumable;
   $("wl-keep-answers").checked = !!patch.keepAnswers;
   wlSet(patch);
   if (wlLoadMessage) wlError(wlLoadMessage);

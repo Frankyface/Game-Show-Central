@@ -57,6 +57,8 @@ function pwdFreshApp() {
     roomCode: null,
     phoneCount: 0,
     editorOpen: false,
+    lobbyOpen: false,
+    resumable: null,         // a game parked by "Keep this game" (docs/19 §1)
     reveal: false,           // "Show password to me" — never persisted
     lightningReveal: false,
     studyUntil: null,
@@ -123,7 +125,7 @@ function pwdCue(event, before, after) {
 
 function pwdSerialise() {
   return {
-    core: pwdApp.core, game: pwdApp.game, setup: pwdApp.setup,
+    core: pwdApp.core, resumable: pwdApp.resumable, game: pwdApp.game, setup: pwdApp.setup,
     source: pwdApp.source, sourceKind: pwdApp.sourceKind, sourceUrl: pwdApp.sourceUrl,
     roomCode: pwdApp.roomCode,
   };
@@ -188,12 +190,18 @@ function pwdLoadSaved() {
     }
     if (saved.game) window.PwdCore.validateGame(saved.game);
     if (typeof saved.roomCode !== "string") saved.roomCode = null;
+    if (saved.resumable !== null && saved.resumable !== undefined && !pwdUsableCore(saved.resumable)) {
+      saved.resumable = null;   // a parked game we could not read is simply gone
+    }
     if (saved.core !== null && saved.core !== undefined && !pwdUsableCore(saved.core)) {
       console.warn("Ignoring a saved game with a damaged state object.");
       pwdNote(`${PWD_SAVE_UNREADABLE} — the words and the line-up are still here.`);
       return Object.assign({}, saved, { core: null });
     }
-    return Object.assign({}, saved, { core: pwdPauseRestored(saved.core) });
+    return Object.assign({}, saved, {
+      core: pwdPauseRestored(saved.core),
+      resumable: pwdPauseRestored(saved.resumable),
+    });
   } catch (err) {
     console.warn("Ignoring a corrupt saved game:", err);
     pwdNote(`${PWD_SAVE_UNREADABLE} — this night starts fresh.`);
@@ -389,7 +397,8 @@ function pwdStart() {
       firstTeam: pwdApp.setup.settings.firstTeam,
     });
     const started = window.PwdCore.reduce(state, { type: "start" }, Date.now());
-    pwdSet({ core: started, reveal: false, lightningReveal: false, studyUntil: null });
+    // Starting a fresh game retires whatever "Keep this game" had parked.
+    pwdSet({ core: started, resumable: null, reveal: false, lightningReveal: false, studyUntil: null });
     pwdError("");
   } catch (err) {
     pwdError(err.message);
@@ -488,7 +497,7 @@ const PWD_LIGHTNING_KEYS = { p: { type: "lightningMark", result: "pass" },
 function pwdOnKey(event) {
   if (pwdIsTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.target && event.target.tagName === "BUTTON") return;
-  if (pwdApp.editorOpen) return;
+  if (pwdApp.editorOpen || pwdApp.lobbyOpen) return;
   const state = pwdApp.core;
   if (!state) return;
   if (state.phase === "word") { pwdWordKey(event); return; }
@@ -647,7 +656,7 @@ function pwdWireResult() {
   pwdWireButton("btn-result-next", () => pwdDispatch({ type: "nextWord" }));
   pwdWireButton("btn-result-undo", () => pwdDispatch({ type: "undo" }));
   pwdWireButton("btn-next-game", () => pwdDispatch({ type: "nextGame" }));
-  pwdWireButton("btn-new-teams", () => pwdSet({ core: null, reveal: false, lightningReveal: false }));
+  pwdWireButton("btn-new-teams", () => pwdSet({ core: null, resumable: null, reveal: false, lightningReveal: false }));
 }
 
 function pwdWireChrome() {
@@ -713,6 +722,8 @@ function pwdChooseContent(saved, loaded) {
   if (saved && saved.setup) patch.setup = pwdMergeSetup(saved.setup, pwdApp.setup.players);
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
+  // A game parked by "Keep this game" rides with the save it came from.
+  if (useSaved && saved.resumable) patch.resumable = saved.resumable;
   if (pwdUrlFailure) {
     pwdNote(`${pwdUrlFailure} ${useSaved
       ? "Keeping the words you already had."
@@ -768,6 +779,7 @@ window.PwdApp = {
   phoneIntent: pwdPhoneIntent,
   bindRoom: pwdBindRoom,
   showSplash: () => window.PwdView.showSplash(),
+  pauseRestored: pwdPauseRestored,
   storeSuffix: pwdStoreSuffix,
   setPhoneCount: (n) => { if (n !== pwdApp.phoneCount) pwdSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: PWD_STORAGE_KEY,

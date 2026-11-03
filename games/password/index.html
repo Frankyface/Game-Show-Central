@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/pwd.css">
+  <link rel="stylesheet" href="css/pwd-editor.css">
   <link rel="stylesheet" href="css/pwd-phone.css">
 </head>
 <body data-gsc-game="password">
@@ -19,6 +20,7 @@
     <div class="topbar-actions">
       <span id="pwd-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8635; Game lobby</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Word editor</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
@@ -124,10 +126,14 @@
               <input id="pwd-file" class="visually-hidden" type="file" accept="application/json,.json">
             </div>
             <p id="pwd-word-count" class="hint"></p>
+            <!-- The shared set-library picker (docs/19 §2) mounts here. -->
+            <div id="pwd-library"></div>
           </div>
         </div>
 
         <div class="setup-actions">
+          <p id="pwd-resume-note" class="hint hidden"></p>
+          <button id="btn-resume" class="btn btn-blue btn-big hidden" type="button">Resume the game</button>
           <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the game</button>
         </div>
       </div>
@@ -281,12 +287,16 @@
         <div class="editor-bar-actions">
           <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
           <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-ghost" type="button">Download for the library</button>
           <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
           <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
           <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
         </div>
       </div>
       <p id="pwd-editor-msg" class="error-msg hidden" role="alert"></p>
+      <!-- "Download for the library" fills this in: the file name to commit and
+           the exact manifest line to paste (docs/19 §2). -->
+      <div id="pwd-library-help" class="library-help hidden"></div>
       <p id="pwd-editor-warn" class="notice"></p>
 
       <div class="editor-grid">
@@ -343,6 +353,23 @@
 
   </main>
 
+  <!-- ============ The Game lobby confirm (docs/19 §1) ============
+       Two ways back to this game's own start screen: keep the game in progress
+       (setup then offers Resume) or clear it and keep the roster, words and
+       rules. Neither touches the undo history. ============ -->
+  <div id="pwd-lobby-backdrop" class="gsc-modal-backdrop hidden">
+    <div id="pwd-lobby-modal" class="gsc-modal" role="dialog" aria-modal="true"
+         aria-labelledby="pwd-lobby-title">
+      <h2 id="pwd-lobby-title" class="gsc-modal-title">Back to the Password lobby?</h2>
+      <p id="pwd-lobby-body" class="gsc-modal-body">&nbsp;</p>
+      <div class="gsc-modal-actions">
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Stay here</button>
+        <button id="btn-lobby-over" class="btn btn-danger" type="button">Start over</button>
+        <button id="btn-lobby-keep" class="btn btn-gold" type="button">Keep this game</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ Title card shown for 1.2 s when the hub switches here ============
        Same node, ids and classes as the hub's own splash: decorative,
        pointer-events:none, skipped entirely under prefers-reduced-motion. ============ -->
@@ -361,6 +388,7 @@
   <script src="../../shared/room-host.js"></script>
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
   <script src="js/pwd-content.js"></script>
   <script src="js/pwd-core.js"></script>
   <script src="js/data.js"></script>
@@ -368,7 +396,9 @@
   <script src="js/pwd-clock.js"></script>
   <script src="js/pwd-view.js"></script>
   <script src="js/pwd-app.js"></script>
+  <script src="js/pwd-lobby.js"></script>
   <script src="js/pwd-editor.js"></script>
+  <script src="js/pwd-library.js"></script>
   <script src="js/pwd-room.js"></script>
   <script src="js/pwd-phone.js"></script>
 </body>

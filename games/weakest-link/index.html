@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="../../shared/theme-components.css">
   <link rel="stylesheet" href="css/wl.css">
   <link rel="stylesheet" href="css/wl-stage.css">
   <link rel="stylesheet" href="css/wl-phone.css">
@@ -23,6 +24,8 @@
     </div>
     <div class="topbar-actions">
       <span id="wl-room-chip" class="room-chip hidden"></span>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button"
+              aria-haspopup="dialog">↺ Game lobby</button>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
@@ -30,6 +33,22 @@
   </header>
 
   <p id="wl-error" class="error-msg hidden" role="alert"></p>
+
+  <!-- Game lobby confirm (docs/19 §1): keep the game on the table, or bin it. -->
+  <div id="wl-lobby-confirm" class="lobby-confirm hidden" role="dialog"
+       aria-modal="false" aria-labelledby="wl-lobby-title">
+    <div class="lobby-card">
+      <h2 id="wl-lobby-title" class="lobby-title">Back to the setup screen?</h2>
+      <p id="wl-lobby-text" class="lobby-text">&nbsp;</p>
+      <div class="choice-row">
+        <button id="btn-lobby-keep" class="btn btn-blue btn-big" type="button">Keep this game</button>
+        <button id="btn-lobby-start-over" class="btn btn-red btn-big" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+      <p class="hint">Keep this game parks it: the roster, the money and the clock come back
+        exactly as they are. Start over keeps your players, questions and settings.</p>
+    </div>
+  </div>
 
   <main id="wl-main">
 
@@ -75,11 +94,14 @@
                 <label class="check"><input id="wl-shuffle" type="checkbox"> Shuffle the question order</label>
               </div>
               <p id="wl-question-count" class="hint"></p>
+          <!-- The shared question-set picker mounts here (docs/19 §2). -->
+          <div id="wl-library"></div>
             </div>
           </div>
         </div>
 
         <div class="setup-actions">
+          <button id="btn-resume" class="btn btn-gold btn-big hidden" type="button">Resume</button>
           <button id="btn-start" class="btn btn-blue btn-big" type="button">Start the game</button>
         </div>
       </div>
@@ -253,6 +275,7 @@
         <div class="editor-bar-actions">
           <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
           <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-ghost" type="button">Download for the library</button>
           <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
           <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
           <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
@@ -260,6 +283,7 @@
       </div>
       <p id="wl-editor-msg" class="error-msg hidden" role="alert"></p>
       <p id="wl-editor-warn" class="notice"></p>
+      <p id="wl-ed-library-out" class="library-out"></p>
 
       <div class="editor-grid">
         <div class="editor-col">
@@ -356,6 +380,8 @@
   <script src="../../shared/room-host.js"></script>
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
+  <script src="js/wl-store.js"></script>
   <script src="js/wl-content.js"></script>
   <script src="js/wl-core.js"></script>
   <script src="js/data.js"></script>
@@ -365,6 +391,8 @@
   <script src="js/wl-editor.js"></script>
   <script src="js/wl-room.js"></script>
   <script src="js/wl-phone.js"></script>
+  <script src="js/wl-lobby.js"></script>
+  <script src="js/wl-library.js"></script>
   <script src="js/wl-splash.js"></script>
 </body>
 </html>

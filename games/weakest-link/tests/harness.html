@@ -38,6 +38,7 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-cross.js"></script>
   <script>
   (function () {
     "use strict";
@@ -153,15 +154,26 @@
     const ASSETS = [
       "../js/wl-content.js", "../js/wl-core.js", "../js/data.js", "../js/wl-sound.js",
       "../js/wl-clock.js", "../js/wl-app.js", "../js/wl-editor.js", "../js/wl-room.js",
-      "../js/wl-phone.js", "../js/wl-splash.js", "../css/wl.css", "../css/wl-stage.css", "../css/wl-phone.css",
+      "../js/wl-phone.js", "../js/wl-splash.js", "../js/wl-store.js",
+      "../js/wl-lobby.js", "../js/wl-library.js",
+      "../css/wl.css", "../css/wl-stage.css", "../css/wl-phone.css",
+      "../../../shared/library.js", "../../../shared/theme-components.css",
+      "../sets/index.json", "../sets/pop-culture.json", "../sets/science-nature.json",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
-      "fixtures/harness-game.json",
+      "fixtures/harness-game.json", "harness-cross.js",
     ];
 
-    const HOST_SRC = "../index.html?embed=host&harness=1&game=tests/fixtures/harness-game.json";
-    const PHONE_SRC = "../index.html?embed=player&harness=1";
-    const KEYS = ["gsc-wl-state-v1", "gsc-wl-draft-v1"];
+    // ?store=harness namespaces this run's localStorage (js/wl-store.js), so a
+    // harness game can never land in the real host's save on the same origin.
+    const STORE = "harness";
+    const HOST_SRC = `../index.html?embed=host&harness=1&store=${STORE}&game=tests/fixtures/harness-game.json`;
+    const PHONE_SRC = `../index.html?embed=player&harness=1&store=${STORE}`;
+    const KEYS = [`gsc-wl-state-v1-${STORE}`, `gsc-wl-draft-v1-${STORE}`];
+    const REAL_KEYS = ["gsc-wl-state-v1", "gsc-wl-draft-v1"];
+    // Snapshotted before anything runs: X-5 asserts this run left them
+    // untouched, rather than deleting a real host's save to pass.
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
 
     async function refreshAssets() {
       await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -178,9 +190,16 @@
     const core = () => HW().WlApp.core();
 
     async function bootHost(clear) {
-      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      if (clear !== false) {
+        // The outgoing page saves on beforeunload, so clearing and reloading in
+        // one step lets the old state write itself straight back. Park the frame
+        // on a blank page FIRST, let that save land, then wipe and boot clean.
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
       await loadFrame(hostFrame, HOST_SRC);
       await waitFor(() => HW().WlApp && HW().WlApp.state().game, "host boot");
+      if (clear !== false && core()) throw new Error("a cleared boot still restored a game");
     }
 
     async function bootPhones() {
@@ -564,8 +583,11 @@
       "../css/wl.css", "../css/wl-stage.css", "../css/wl-phone.css",
       "../js/wl-content.js", "../js/wl-core.js", "../js/data.js", "../js/wl-sound.js",
       "../js/wl-clock.js", "../js/wl-app.js", "../js/wl-editor.js", "../js/wl-room.js",
-      "../js/wl-phone.js", "../js/wl-splash.js", "../tests/wl-core.test.mjs", "../tests/harness.html",
+      "../js/wl-phone.js", "../js/wl-splash.js", "../js/wl-store.js",
+      "../js/wl-lobby.js", "../js/wl-library.js",
+      "../tests/wl-core.test.mjs", "../tests/harness.html", "../tests/harness-cross.js",
       "../tests/fixtures/harness-game.json",
+      "../sets/index.json", "../sets/pop-culture.json", "../sets/science-nature.json",
     ];
     const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
     const CONSOLE_LOG = /console\.log/;
@@ -579,9 +601,11 @@
       const missing = SOURCES.filter((u) => texts[u] === null);
       check("K-I6 every source file is served", missing.length === 0, missing.join(", "));
 
-      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      // Count the way `wc -l` does: a trailing newline is not another line.
+      const lineCount = (t) => t.replace(/\n$/, "").split("\n").length;
+      const long = SOURCES.filter((u) => texts[u] && lineCount(texts[u]) >= 800);
       check("K-I6 V2 every file is under 800 lines", long.length === 0,
-        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? lineCount(texts[u]) : "?"}`).join("  "));
 
       // Comments that merely name the rule are allowed; real calls are not.
       const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
@@ -615,6 +639,15 @@
         await scenarioFinal();
         await scenarioEditor();
         await scenarioRegressions();
+        // The cross-cutting scenarios live in harness-cross.js so this page
+        // stays under the 800-line gate it checks (V2).
+        const X = window.WLCross({
+          check, click, waitFor, H, HD, HW, core, bootHost, hostFrame, STORE, REAL_KEYS, REAL_BEFORE,
+        });
+        await X.gameLobby();
+        await X.library();
+        await X.libraryDownload();
+        await X.store();
         await scenarioGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

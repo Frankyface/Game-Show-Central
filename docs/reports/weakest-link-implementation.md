@@ -323,3 +323,128 @@ preserved (the fuzz file is still valid UTF-8 with LF endings).
 ### Sizes after the fixes (gate V2)
 
 `js/wl-app.js` 796, `js/wl-core.js` 796, `tests/wl-core.test.mjs` 717, `tests/harness.html` 628, `tests/wl-adversarial.test.mjs` 562, `css/wl.css` 540, `tests/wl-adversarial-fuzz.test.mjs` 418 — every file still under 800. WL-1/WL-2/WL-3/WL-6 pushed `wl-core.js` to 811 and the WL-6/WL-7 work pushed `wl-app.js` to 801, so eight JSDoc blocks across the two files were compressed to denser equivalents (every fact kept, `@param`/`@returns` tags intact). V3 (no `innerHTML`/`eval`/`document.write`) and V4 (no `console.log`) re-checked clean.
+
+---
+
+## 11. Cross-cutting round (docs/19)
+
+Environment: Windows 11, Node v24.16.0, Chromium (in-app pane), server
+`python -m http.server 8644 --bind 127.0.0.1` at the repo root, 2026-09-04.
+
+**`node --test` → 98 tests, 98 pass, 0 fail. `tests/harness.html` → "All 74
+checks passed." (`#summary.ok`, `window.__WL_HARNESS__ = {total:74, failed:0,
+uncaught:null}`)** — the 54 that were green before plus 20 new ones for
+X-1…X-3 and X-5.
+
+New code went into new files, because `wl-core.js` and `wl-app.js` were already
+at ~797 lines.
+
+| File | Lines | What it is |
+|---|---:|---|
+| `js/wl-store.js` | 58 | `?store=` namespacing, the two storage keys, and `wlUsableCore()` (moved out of `wl-app.js`) |
+| `js/wl-lobby.js` | 123 | the Game lobby control: Keep this game / Start over / Resume |
+| `js/wl-library.js` | 105 | mounts `GSCLibrary.mountPicker`; the editor's "Download for the library" |
+| `sets/index.json` | 17 | the manifest |
+| `sets/pop-culture.json` | 73 | 66 questions, 6 categories |
+| `sets/science-nature.json` | 73 | 66 questions, 6 categories |
+| `tests/harness-cross.js` | 198 | the X-1…X-3 / X-5 scenarios |
+
+### §1 — the Game lobby control (X-1)
+
+`btn-game-lobby` ("↺ Game lobby") sits in the toolbar next to Sound and Question
+editor, and is hidden in player mode with the rest of the host chrome. It opens
+a `role="dialog"` confirm with **Keep this game** / **Start over** / **Cancel**
+(Escape closes it too; focus returns to the button).
+
+- **Keep this game** parks the whole core object in a new `resumable` slice and
+  shows setup with a **Resume round N** button. A running clock is parked
+  **paused** with the time that was left, using the same rule `wlSerialise`
+  already applied to saves.
+- **Start over** drops the game; roster, content and settings are untouched.
+- `resumable` is serialised with the rest of the state and is re-validated by
+  `wlUsableCore()` on load, so a damaged park is dropped rather than restored.
+- Nothing touches reducer history, so undo is unaffected. `Start the game`
+  clears any parked game, since it deals a fresh one.
+
+Harness evidence: control present (`↺ Game lobby`); confirm text; `Resume round 1`
+offered after Keep; `1973ms parked` with `clock.running === false`; Resume
+restores `phase round, bank 2500, turn p4, clock paused`; Start over leaves
+`Ada,Ben,Cleo,Dev,Eve / 60 questions / no Resume offered`; it works from the
+**voting** phase too; a parked game survives a reload and resumes into the same
+phase. Verified embedded (the harness drives `?embed=host`) and standalone
+(manual pass at `?store=demo`).
+
+### §2 — the question-set library (X-2)
+
+`shared/library.js` + `shared/theme-components.css` are loaded by the page, and
+`js/wl-library.js` mounts the picker into `#wl-library` under the Questions
+section with `validate: WlCore.validateGame` and
+`onPick → WlApp.useGame(json, "set: <name>", "library")`. The game's own accent
+(`--accent: #3a7bd5`) is set so the shared well matches this stage.
+
+Two themed sets ship, both original, family-friendly and verifiable, and both
+distinct from the 160 in `questions.json`:
+
+- **Pop culture** — 66 questions across Film, Television, Music, Games & toys,
+  Internet & tech, Famous faces.
+- **Science & nature** — 66 across Space, The human body, Animals, Chemistry,
+  Earth & weather, Plants.
+
+Both pass `validateGame` and `GSCLibrary.parseManifest`. Questions are
+interleaved round-robin, so the default (unshuffled) order rotates categories.
+
+Harness evidence: the picker lists `Pop culture, Science & nature`; Preview reads
+`Pop culture — by GSC — Film, TV, music, games, the internet and famous faces. —
+66 questions · 6 categories`; loading gives `66 questions — set: Science &
+nature` and the loaded set really plays (`Which planet is known as the Red
+Planet?`); a broken manifest hides the picker with *"The set library for this
+game is not readable…"*; a `file://` fetch hides it with *"Saved sets need a web
+server…"*.
+
+### §3 — editor "Download for the library" (X-3)
+
+**Download for the library** validates the draft, downloads it under a
+manifest-safe slug, and prints the path to commit plus a ready-to-paste
+manifest line. Evidence: `weakest-link-game-night.json` saved, with
+`{"file":"weakest-link-game-night.json","name":"Weakest Link — Game Night",
+"description":"","by":"","counts":{"questions":160,"categories":9}}` — which
+`GSCLibrary.safeFile` and `GSCLibrary.parseManifest` both accept. An invalid
+draft is refused: *"This game needs at least 40 questions — it has 0. — fix that
+before adding it to the library."*
+
+### §3 — `?store=NAME` (X-5)
+
+`js/wl-store.js` derives the suffix (letters, digits and hyphens only, capped at
+24) and owns `WL_STORAGE_KEY` / `WL_DRAFT_KEY`; `wl-app.js` and `wl-editor.js`
+now take their keys from it. The harness runs every frame with `?store=harness`.
+Evidence: `gsc-wl-state-v1-harness / gsc-wl-draft-v1-harness`, and the real keys
+came back `unchanged` — the check snapshots them before the run rather than
+deleting a real host's save to make itself pass.
+
+### Two defects found and fixed while wiring the harness
+
+- **`bootHost()`'s storage clear did nothing.** The outgoing page saves on
+  `beforeunload`, so clearing localStorage and setting `frame.src` in one step
+  let the old state write itself straight back; a "clean" boot silently restored
+  the previous scenario's game, which is what made the first X-1 run time out.
+  `bootHost` now parks the frame on `about:blank` first, wipes, then boots — and
+  throws if a cleared boot still finds a game. (This was latent before this
+  round: the earlier scenarios happened not to depend on it.)
+- **The V2 gate counted one line too many.** `text.split("\n").length` counts a
+  phantom line for the trailing newline, so a 799-line file read as 800 and
+  failed. It now counts the way `wc -l` does. To get real headroom rather than
+  shaving comments again, `wlUsableCore()` and its field lists moved from
+  `wl-app.js` (799 → 772) into `wl-store.js`, where storage concerns belong.
+
+### Gates after this round
+
+Largest files: `js/wl-core.js` 797, `js/wl-app.js` 772, `tests/wl-core.test.mjs`
+717, `tests/harness.html` 661 — all under 800. V3 (no `innerHTML`/`eval`/
+`document.write`), V4 (no `console.log`) and V6 (Google Fonts only) re-checked
+clean; the picker and confirm are built with `createElement`/`textContent` like
+everything else.
+
+### Not done
+
+**X-4** is the three game-specific fixes (Price Is Right photos, Deal or No Deal
+case animation, Chain Reaction phone column) — none of them this component.

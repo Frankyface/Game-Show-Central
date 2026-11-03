@@ -1,0 +1,16 @@
+[
+  {
+    "file": "pop-culture.json",
+    "name": "Pop culture",
+    "description": "Film, TV, music, games, the internet and famous faces.",
+    "by": "GSC",
+    "counts": { "questions": 66, "categories": 6 }
+  },
+  {
+    "file": "science-nature.json",
+    "name": "Science & nature",
+    "description": "Space, the human body, animals, chemistry, weather and plants.",
+    "by": "GSC",
+    "counts": { "questions": 66, "categories": 6 }
+  }
+]

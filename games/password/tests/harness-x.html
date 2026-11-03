@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password cross-cutting harness (X-1–X-5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    iframe.frame { width: 900px; height: 560px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Password — cross-cutting harness (docs/19, success states X-1 … X-5)</h1>
+  <p class="lede">The second harness page for this game: <code>tests/harness.html</code> covers PW-I1…PW-I6 and is at the 800-line house cap, so the cross-cutting round's checks live here (docs/19 §4). This page <em>is</em> the shell for the embedded frame and speaks the bridge protocol from architecture 00 §6 itself. Both frames run with <code>?store=</code> namespaces, so a run never touches the real save.
+    X-4 does not apply to Password (it is the Price Is Right / Deal or No Deal / Chain Reaction fixes).</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" class="frame" title="embedded host under test"></iframe>
+    <iframe id="solo" class="frame" title="standalone host under test"></iframe>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__PWD_HARNESS_X__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 6000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) for the embedded frame ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#7aa2ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const ROOM = { code: "PWDX", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const soloFrame = document.getElementById("solo");
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source !== hostFrame.contentWindow) return;
+      if (d.t === "ready") {
+        hostFrame.contentWindow.postMessage(
+          { gsc: 1, t: "init", mode: "embed-host", room: ROOM }, location.origin);
+      }
+    });
+
+    /* ============ Loading ============ */
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harnessx";
+    const SOLO_SRC = "../index.html?harness=1&store=harnessxsolo";
+    const KEYS = ["gsc-pwd-state-v1-harnessx", "gsc-pwd-draft-v1-harnessx",
+      "gsc-pwd-state-v1-harnessxsolo", "gsc-pwd-draft-v1-harnessxsolo"];
+    const REAL_KEYS = ["gsc-pwd-state-v1", "gsc-pwd-draft-v1"];
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
+
+    // Everything this round added, so V2/V3/V4 cover it (the Phase-2 lesson:
+    // a file that is not in a harness's list is never gated).
+    const NEW_SOURCES = [
+      "../js/pwd-lobby.js", "../js/pwd-library.js", "../css/pwd-editor.css",
+      "../sets/index.json", "../sets/kids-night.json", "../sets/hard-mode.json",
+      "../tests/harness-x.html", "../../../shared/library.js",
+    ];
+
+    async function refreshAssets() {
+      const all = NEW_SOURCES.concat(["../index.html", "../js/pwd-app.js", "../js/pwd-view.js",
+        "../js/pwd-editor.js", "../css/pwd.css"]);
+      await Promise.all(all.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const W = (f) => f.contentWindow;
+    const D = (f) => f.contentDocument;
+    const E = (f, id) => D(f).getElementById(id);
+    const app = (f) => W(f).PwdApp;
+    const core = (f) => W(f).PwdApp.core();
+    const click = (f, id) => E(f, id).click();
+    const shown = (f, id) => !E(f, id).classList.contains("hidden");
+
+    async function bootFrame(frame, src, clear) {
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(frame, src);
+      await waitFor(() => W(frame).PwdApp && W(frame).PwdApp.state().game, "frame boot");
+      await waitFor(() => W(frame).PwdLobby && W(frame).PwdLibrary, "lobby + library glue");
+    }
+
+    /** Seat four players and start, so there is a game to leave. */
+    async function startGame(frame, names) {
+      const a = app(frame);
+      if (!a.state().setup.players.length) {
+        (names || ["Ada", "Ben", "Cleo", "Dev"]).forEach((n) => a.addPlayer(n));
+      }
+      click(frame, "btn-start");
+      await waitFor(() => core(frame) && core(frame).phase === "word", "a game in progress");
+    }
+
+    /** Play whole words until the game is won, then open the Lightning Round. */
+    async function toLightning(frame) {
+      let guard = 0;
+      while (core(frame).phase === "word" && guard < 16) {
+        click(frame, "btn-clue");
+        click(frame, "btn-correct");
+        if (core(frame).phase === "word") click(frame, "btn-next-word");
+        guard += 1;
+        await sleep(5);
+      }
+      await waitFor(() => core(frame).phase === "gameOver", "the game is won");
+      click(frame, "btn-to-lightning");
+      await waitFor(() => core(frame).phase === "lightning", "the Lightning Round");
+    }
+
+    /* ============================================================
+       X-1 — the Game lobby control
+       ============================================================ */
+
+    async function scenarioLobbyBasics() {
+      await bootFrame(hostFrame, HOST_SRC);
+      const btn = E(hostFrame, "btn-game-lobby");
+      check("X-1 the toolbar carries ⟲ Game lobby, next to Sound and the editor",
+        !!btn && btn.textContent.indexOf("Game lobby") > 0
+        && btn.previousElementSibling.id === "btn-sound"
+        && btn.nextElementSibling.id === "btn-editor",
+        btn ? `${btn.textContent.trim()} between ${btn.previousElementSibling.id} and ${btn.nextElementSibling.id}` : "missing");
+      check("X-1 it is disabled on setup — there is nothing to leave yet",
+        btn.disabled === true && !shown(hostFrame, "btn-resume"));
+
+      await startGame(hostFrame);
+      await waitFor(() => !E(hostFrame, "btn-game-lobby").disabled, "the control wakes up");
+      click(hostFrame, "btn-game-lobby");
+      check("X-1 it opens a confirm naming what you are about to leave",
+        shown(hostFrame, "pwd-lobby-backdrop")
+        && E(hostFrame, "pwd-lobby-modal").getAttribute("role") === "dialog"
+        && E(hostFrame, "pwd-lobby-modal").getAttribute("aria-modal") === "true"
+        && E(hostFrame, "pwd-lobby-body").textContent.indexOf("Password 1 of game 1") > 0
+        && D(hostFrame).activeElement.id === "btn-lobby-keep",
+        E(hostFrame, "pwd-lobby-body").textContent.slice(0, 70));
+      check("X-1 the confirm offers exactly Stay here / Start over / Keep this game",
+        [...D(hostFrame).querySelectorAll("#pwd-lobby-modal .gsc-modal-actions button")]
+          .map((b) => b.textContent).join(" | ") === "Stay here | Start over | Keep this game",
+        [...D(hostFrame).querySelectorAll("#pwd-lobby-modal .gsc-modal-actions button")]
+          .map((b) => b.textContent).join(" | "));
+
+      const before = core(hostFrame).phase;
+      click(hostFrame, "btn-lobby-cancel");
+      check("X-1 Stay here closes it and changes nothing",
+        !shown(hostFrame, "pwd-lobby-backdrop") && core(hostFrame).phase === before
+        && app(hostFrame).state().lobbyOpen === false);
+
+      click(hostFrame, "btn-game-lobby");
+      D(hostFrame).dispatchEvent(new (W(hostFrame).KeyboardEvent)("keydown", { key: "Escape", bubbles: true }));
+      check("X-1 Escape is the keyboard equivalent of Stay here",
+        !shown(hostFrame, "pwd-lobby-backdrop") && core(hostFrame).phase === before);
+
+      click(hostFrame, "btn-game-lobby");
+      const cluesBefore = core(hostFrame).round.clues;
+      D(hostFrame).dispatchEvent(new (W(hostFrame).KeyboardEvent)("keydown", { key: "c", bubbles: true }));
+      check("X-1 the game's hotkeys are inert while the confirm is open",
+        core(hostFrame).round.clues === cluesBefore, `clues stayed at ${cluesBefore}`);
+      click(hostFrame, "btn-lobby-cancel");
+    }
+
+    /* ============================================================
+       X-1 — Keep this game, from the word phase
+       ============================================================ */
+
+    async function scenarioKeepFromWord() {
+      click(hostFrame, "btn-clue");
+      click(hostFrame, "btn-wrong");
+      click(hostFrame, "btn-clue");
+      const before = {
+        word: core(hostFrame).round.word, clues: core(hostFrame).round.clues,
+        turn: core(hostFrame).round.turn, awaiting: core(hostFrame).round.awaitingGuess,
+        history: core(hostFrame).history.length, scores: W(hostFrame).PwdCore.scores(core(hostFrame)).join("-"),
+      };
+      click(hostFrame, "btn-game-lobby");
+      click(hostFrame, "btn-lobby-keep");
+      await waitFor(() => shown(hostFrame, "screen-setup"), "back to setup");
+      const parked = app(hostFrame).state().resumable;
+      check("X-1 Keep this game returns to THIS game's setup screen, not the hub",
+        core(hostFrame) === null && shown(hostFrame, "screen-setup")
+        && !shown(hostFrame, "screen-word") && !shown(hostFrame, "pwd-lobby-backdrop"),
+        "setup shown, word screen hidden");
+      check("X-1 setup offers Resume, with a line saying what is parked",
+        shown(hostFrame, "btn-resume") && E(hostFrame, "btn-resume").textContent === "Resume the game"
+        && shown(hostFrame, "pwd-resume-note")
+        && E(hostFrame, "pwd-resume-note").textContent.indexOf("Password 1 of game 1") > 0,
+        E(hostFrame, "pwd-resume-note").textContent);
+      check("X-1 the parked game is the exact state, and the undo history is untouched",
+        parked.round.word === before.word && parked.round.clues === before.clues
+        && parked.round.turn === before.turn && parked.round.awaitingGuess === before.awaiting
+        && parked.history.length === before.history,
+        `${parked.round.clues} clues, ${parked.history.length} undo steps`);
+      check("X-1 a parked password is NOT on the shared screen",
+        D(hostFrame).body.textContent.indexOf(before.word) < 0, `looked for “${before.word}”`);
+
+      click(hostFrame, "btn-resume");
+      await waitFor(() => core(hostFrame), "resumed");
+      check("X-1 Resume restores the exact state and clears the parked copy",
+        core(hostFrame).round.word === before.word && core(hostFrame).round.clues === before.clues
+        && core(hostFrame).round.turn === before.turn
+        && core(hostFrame).history.length === before.history
+        && app(hostFrame).state().resumable === null
+        && shown(hostFrame, "screen-word") && !shown(hostFrame, "btn-resume"),
+        `${core(hostFrame).round.clues} clues back, scores ${W(hostFrame).PwdCore.scores(core(hostFrame)).join("-")}`);
+    }
+
+    /* ============================================================
+       X-1 — Keep this game, mid-Lightning (the clock must not run down)
+       ============================================================ */
+
+    async function scenarioKeepFromLightning() {
+      await toLightning(hostFrame);
+      click(hostFrame, "btn-l-start");
+      await waitFor(() => core(hostFrame).lightning.clock.running, "the clock runs");
+      click(hostFrame, "btn-l-got");
+      await sleep(1200);
+      const left = core(hostFrame).lightning.clock.deadline - Date.now();
+      const statuses = core(hostFrame).lightning.words.map((w) => w.status).join(",");
+      const words = core(hostFrame).lightning.words.map((w) => w.text);
+      const total = E(hostFrame, "pwd-l-total").textContent;
+
+      click(hostFrame, "btn-game-lobby");
+      check("X-1 the confirm names the Lightning Round and the money so far",
+        E(hostFrame, "pwd-lobby-body").textContent.indexOf("Lightning Round") > 0
+        && E(hostFrame, "pwd-lobby-body").textContent.indexOf(total) > 0,
+        E(hostFrame, "pwd-lobby-body").textContent.slice(0, 80));
+      click(hostFrame, "btn-lobby-keep");
+      await waitFor(() => shown(hostFrame, "screen-setup"), "back to setup");
+      const parked = app(hostFrame).state().resumable;
+      check("X-1 the parked Lightning clock is PAUSED with the time that was left",
+        parked.lightning.clock.running === false && parked.lightning.clock.deadline === null
+        && Math.abs(parked.lightning.clock.remainingMs - left) < 1500,
+        `${Math.round(parked.lightning.clock.remainingMs / 1000)}s parked, ${Math.round(left / 1000)}s was left`);
+      check("X-1 no Lightning word reaches the shared screen while the game is parked",
+        words.every((w) => D(hostFrame).body.textContent.indexOf(w) < 0),
+        words.filter((w) => D(hostFrame).body.textContent.indexOf(w) >= 0).join(", ") || "none of them");
+
+      const frozen = parked.lightning.clock.remainingMs;
+      await sleep(1500);
+      check("X-1 the parked clock does not tick down while nobody is watching",
+        app(hostFrame).state().resumable.lightning.clock.remainingMs === frozen,
+        `still ${Math.round(frozen / 1000)}s after 1.5s of real time`);
+
+      // A reload while parked: the parked game is part of the save.
+      await bootFrame(hostFrame, HOST_SRC, false);
+      check("X-1 a reload while parked keeps the parked game and the Resume button",
+        !!app(hostFrame).state().resumable
+        && app(hostFrame).state().resumable.lightning.words.map((w) => w.status).join(",") === statuses
+        && shown(hostFrame, "btn-resume") && core(hostFrame) === null,
+        `${Math.round(app(hostFrame).state().resumable.lightning.clock.remainingMs / 1000)}s survived the reload`);
+
+      click(hostFrame, "btn-resume");
+      await waitFor(() => core(hostFrame), "resumed");
+      check("X-1 Resume comes back paused, on the same slots and money",
+        core(hostFrame).phase === "lightning"
+        && core(hostFrame).lightning.clock.running === false
+        && core(hostFrame).lightning.words.map((w) => w.status).join(",") === statuses
+        && E(hostFrame, "pwd-l-total").textContent === total
+        && E(hostFrame, "pwd-l-state").textContent === "Paused.",
+        `${E(hostFrame, "pwd-l-total").textContent} · ${E(hostFrame, "pwd-l-state").textContent}`);
+      click(hostFrame, "btn-l-start");
+      await waitFor(() => core(hostFrame).lightning.clock.running, "the clock restarts");
+      check("X-1 and the clock picks up from where it stopped",
+        core(hostFrame).lightning.clock.deadline > Date.now(),
+        `${Math.round((core(hostFrame).lightning.clock.deadline - Date.now()) / 1000)}s to go`);
+    }
+
+    /* ============================================================
+       X-1 — Start over, and the other phases
+       ============================================================ */
+
+    async function scenarioStartOver() {
+      const setup = app(hostFrame).state().setup;
+      const roster = setup.players.map((p) => p.name).join(",");
+      const seats = JSON.stringify(setup.seats);
+      const teamNames = setup.teamNames.join(",");
+      const words = app(hostFrame).state().game.words.length;
+      const source = E(hostFrame, "pwd-source").textContent;
+      const target = E(hostFrame, "pwd-set-target").value;
+
+      click(hostFrame, "btn-game-lobby");
+      click(hostFrame, "btn-lobby-over");
+      await waitFor(() => shown(hostFrame, "screen-setup"), "back to setup");
+      check("X-1 Start over drops the game and offers no Resume",
+        core(hostFrame) === null && app(hostFrame).state().resumable === null
+        && !shown(hostFrame, "btn-resume") && !shown(hostFrame, "pwd-resume-note"),
+        "nothing parked");
+      check("X-1 Start over keeps the roster, the seats and the team names",
+        app(hostFrame).state().setup.players.map((p) => p.name).join(",") === roster
+        && JSON.stringify(app(hostFrame).state().setup.seats) === seats
+        && app(hostFrame).state().setup.teamNames.join(",") === teamNames,
+        roster);
+      check("X-1 Start over keeps the words and the rules",
+        app(hostFrame).state().game.words.length === words
+        && E(hostFrame, "pwd-source").textContent === source
+        && E(hostFrame, "pwd-set-target").value === target,
+        `${words} words, ${source}, first to ${target}`);
+
+      // …and it works from the standings too.
+      await startGame(hostFrame);
+      click(hostFrame, "btn-finish");
+      await waitFor(() => core(hostFrame).phase === "standings", "the standings");
+      check("X-1 the control is live on the standings as well as in play",
+        E(hostFrame, "btn-game-lobby").disabled === false);
+      click(hostFrame, "btn-game-lobby");
+      click(hostFrame, "btn-lobby-keep");
+      await waitFor(() => shown(hostFrame, "screen-setup"), "parked from the standings");
+      check("X-1 Keep works from the standings phase too",
+        app(hostFrame).state().resumable.phase === "standings" && shown(hostFrame, "btn-resume"),
+        E(hostFrame, "pwd-resume-note").textContent);
+      click(hostFrame, "btn-lobby-cancel");
+      click(hostFrame, "btn-start");
+      await waitFor(() => core(hostFrame) && core(hostFrame).phase === "word", "a fresh game");
+      check("X-1 starting a fresh game retires the parked one",
+        app(hostFrame).state().resumable === null && !shown(hostFrame, "btn-resume"));
+    }
+
+    /** The same control, on a page that owns its own room (standalone). */
+    async function scenarioStandalone() {
+      await bootFrame(soloFrame, SOLO_SRC);
+      check("X-1 standalone: the control is in the toolbar there too",
+        !!E(soloFrame, "btn-game-lobby") && W(soloFrame).GSC.mode === "standalone-host",
+        W(soloFrame).GSC.mode);
+      await startGame(soloFrame);
+      click(soloFrame, "btn-clue");
+      const clues = core(soloFrame).round.clues;
+      click(soloFrame, "btn-game-lobby");
+      click(soloFrame, "btn-lobby-keep");
+      await waitFor(() => shown(soloFrame, "screen-setup"), "standalone setup");
+      check("X-1 standalone: Keep parks the game and setup offers Resume",
+        core(soloFrame) === null && shown(soloFrame, "btn-resume")
+        && app(soloFrame).state().resumable.round.clues === clues);
+      click(soloFrame, "btn-resume");
+      await waitFor(() => core(soloFrame), "standalone resume");
+      check("X-1 standalone: Resume restores it",
+        core(soloFrame).round.clues === clues && shown(soloFrame, "screen-word"),
+        `${clues} clues back`);
+      click(soloFrame, "btn-game-lobby");
+      click(soloFrame, "btn-lobby-over");
+      await waitFor(() => shown(soloFrame, "screen-setup"), "standalone start over");
+      check("X-1 standalone: Start over clears it and keeps the roster",
+        core(soloFrame) === null && app(soloFrame).state().resumable === null
+        && app(soloFrame).state().setup.players.length === 4);
+    }
+
+    /* ============================================================
+       X-2 — the set library on the setup screen
+       ============================================================ */
+
+    async function scenarioLibrary() {
+      const box = E(hostFrame, "pwd-library");
+      await waitFor(() => D(hostFrame).querySelector("#pwd-library option"), "the picker loads");
+      const options = [...D(hostFrame).querySelectorAll("#pwd-library option")].map((o) => o.textContent);
+      check("X-2 the picker mounts under the Words section and lists the shipped sets",
+        !!box && box.previousElementSibling.id === "pwd-word-count"
+        && options.length === 2 && options.join(" | ") === "Kids' night | Hard mode",
+        options.join(" | "));
+      check("X-2 the Preview line carries the name, the author, the description and the counts",
+        D(hostFrame).querySelector("#pwd-library .gsc-library-preview").textContent
+          .indexOf("Kids' night — by Game Show Central") === 0
+        && D(hostFrame).querySelector("#pwd-library .gsc-library-preview").textContent
+          .indexOf("90 passwords") > 0,
+        D(hostFrame).querySelector("#pwd-library .gsc-library-preview").textContent);
+
+      const select = D(hostFrame).querySelector("#pwd-library .gsc-library-select");
+      select.selectedIndex = 1;
+      select.dispatchEvent(new (W(hostFrame).Event)("change", { bubbles: true }));
+      D(hostFrame).querySelector("#pwd-library .gsc-library-load").click();
+      await waitFor(() => app(hostFrame).state().sourceKind === "library", "the set loads");
+      check("X-2 loading a set adopts it, with the source note “set: <name>”",
+        E(hostFrame, "pwd-source").textContent === "set: Hard mode"
+        && app(hostFrame).state().game.title === "Password — Hard mode"
+        && app(hostFrame).state().game.words.length === 90
+        && core(hostFrame) === null,
+        `${E(hostFrame, "pwd-source").textContent} · ${app(hostFrame).state().game.words.length} words`);
+      check("X-2 the set's own rules land in the setup screen",
+        E(hostFrame, "pwd-set-target").value === "25" && E(hostFrame, "pwd-set-lsecs").value === "45"
+        && E(hostFrame, "pwd-set-lvalue").value === "200",
+        `${E(hostFrame, "pwd-set-lsecs").value}s, ${E(hostFrame, "pwd-set-lvalue").value} a word`);
+      check("X-2 a set is playable end to end, not just loadable",
+        (() => { const a = app(hostFrame); a.start(); return core(hostFrame) && core(hostFrame).phase === "word"; })(),
+        core(hostFrame) ? `first password dealt from ${app(hostFrame).state().game.title}` : "no game");
+      click(hostFrame, "btn-game-lobby");
+      click(hostFrame, "btn-lobby-over");
+      await waitFor(() => shown(hostFrame, "screen-setup"), "back to setup");
+    }
+
+    /** The failure paths, driven with an injected fetch (no server tricks needed). */
+    async function scenarioLibraryFailures() {
+      const Lib = W(hostFrame).GSCLibrary;
+      const scratch = D(hostFrame).createElement("div");
+      D(hostFrame).body.appendChild(scratch);
+
+      const broken = Lib.mountPicker(scratch, {
+        gameDir: "", fetch: async () => ({ ok: true, json: async () => ({ nope: 1 }) }),
+      });
+      await broken.ready;
+      check("X-2 a broken manifest hides the picker and says so in plain English",
+        scratch.querySelector(".gsc-library-error").textContent.indexOf("not readable") > 0
+        && scratch.querySelector(".gsc-library-row").classList.contains("hidden")
+        && scratch.querySelector(".gsc-library").classList.contains("gsc-library-off"),
+        scratch.querySelector(".gsc-library-error").textContent);
+      broken.destroy();
+
+      const disk = Lib.mountPicker(scratch, {
+        gameDir: "", fetch: async () => { throw new TypeError("Failed to fetch"); },
+      });
+      await disk.ready;
+      check("X-2 opened from disk, the picker hides and explains why",
+        disk.el.querySelector(".gsc-library-error").textContent.indexOf("opened straight from a file") > 0
+        && disk.el.querySelector(".gsc-library-label").classList.contains("hidden"),
+        disk.el.querySelector(".gsc-library-error").textContent);
+      disk.destroy();
+
+      // A set that is real JSON but not a Password game must be refused BY THIS
+      // GAME's validator, and must never become the current words.
+      const wasTitle = app(hostFrame).state().game.title;
+      const bad = Lib.mountPicker(scratch, {
+        gameDir: "",
+        validate: (json) => W(hostFrame).PwdCore.validateGame(json),
+        onPick: () => check("X-2 onPick must not run for an invalid set", false, "it ran"),
+        fetch: async (url) => (String(url).indexOf("index.json") >= 0
+          ? { ok: true, json: async () => [{ file: "junk.json", name: "Junk" }] }
+          : { ok: true, json: async () => ({ words: ["Only", "Three", "Words"] }) }),
+      });
+      await bad.ready;
+      bad.el.querySelector(".gsc-library-load").click();
+      await waitFor(() => bad.el.querySelector(".gsc-library-error").textContent, "the validator speaks");
+      check("X-2 a set that fails validateGame is refused, with this game's own message",
+        bad.el.querySelector(".gsc-library-error").textContent.indexOf("at least 60 passwords") > 0
+        && app(hostFrame).state().game.title === wasTitle,
+        bad.el.querySelector(".gsc-library-error").textContent);
+      bad.destroy();
+      scratch.remove();
+    }
+
+    /* ============================================================
+       X-3 — "Download for the library" in the editor
+       ============================================================ */
+
+    async function scenarioLibraryDownload() {
+      click(hostFrame, "btn-editor");
+      await waitFor(() => shown(hostFrame, "screen-editor"), "the editor opens");
+      check("X-3 the editor bar carries Download for the library",
+        !!E(hostFrame, "btn-editor-library")
+        && E(hostFrame, "btn-editor-library").textContent === "Download for the library");
+
+      const draft = W(hostFrame).PwdEditor.draft();
+      draft.title = "Office party";
+      W(hostFrame).PwdEditor.setDraft(draft);
+
+      let captured = null;
+      const realCreate = W(hostFrame).URL.createObjectURL;
+      W(hostFrame).URL.createObjectURL = (blob) => { captured = blob; return realCreate.call(W(hostFrame).URL, blob); };
+      click(hostFrame, "btn-editor-library");
+      await waitFor(() => captured, "the download blob");
+      W(hostFrame).URL.createObjectURL = realCreate;
+      const text = await captured.text();
+      check("X-3 it downloads a file that passes validateGame",
+        W(hostFrame).PwdCore.validateGame(JSON.parse(text)) === true
+        && JSON.parse(text).title === "Office party",
+        `${text.length} bytes, ${JSON.parse(text).words.length} passwords`);
+
+      const help = E(hostFrame, "pwd-library-help");
+      const line = help.querySelector(".library-help-line").textContent;
+      const parsed = JSON.parse(line);
+      check("X-3 it prints the exact manifest line to paste, and it is valid JSON",
+        parsed.file === "office-party.json" && parsed.name === "Office party"
+        && parsed.counts.passwords === JSON.parse(text).words.length,
+        line);
+      check("X-3 the manifest line survives the shared manifest parser",
+        W(hostFrame).GSCLibrary.parseManifest([parsed]).ok === true
+        && W(hostFrame).GSCLibrary.parseManifest([parsed]).sets[0].name === "Office party",
+        JSON.stringify(W(hostFrame).GSCLibrary.parseManifest([parsed]).sets[0]));
+      check("X-3 it names the path to commit the file to",
+        help.textContent.indexOf("games/password/sets/office-party.json") > 0
+        && help.textContent.indexOf("games/password/sets/index.json") > 0,
+        [...help.querySelectorAll(".library-help-step")].map((n) => n.textContent).join(" / "));
+
+      // A draft that cannot play must not reach the library either.
+      const short = W(hostFrame).PwdEditor.draft();
+      const keep = short.words.slice();
+      short.words = keep.slice(0, 10);
+      W(hostFrame).PwdEditor.setDraft(short);
+      click(hostFrame, "btn-editor-library");
+      check("X-3 an unplayable draft is refused, with the reason",
+        E(hostFrame, "pwd-editor-msg").textContent.indexOf("before it can go in the library") > 0
+        && !shown(hostFrame, "pwd-library-help"),
+        E(hostFrame, "pwd-editor-msg").textContent);
+      short.words = keep;
+      W(hostFrame).PwdEditor.setDraft(short);
+      click(hostFrame, "btn-editor-close");
+    }
+
+    /* ============================================================
+       X-5 — the new files are gated like the old ones
+       ============================================================ */
+
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(NEW_SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" });
+        texts[u] = res.ok ? await res.text() : null;
+      }));
+      const missing = NEW_SOURCES.filter((u) => texts[u] === null);
+      check("X-5 every file this round added is served", missing.length === 0, missing.join(", "));
+
+      const long = NEW_SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("X-5 V2 every new file is under 800 lines", long.length === 0,
+        NEW_SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      const banned = NEW_SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("no innerHTML") < 0
+          && line.indexOf("never innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("X-5 V3 no innerHTML / document.write / eval in the new files", banned.length === 0,
+        banned.join(", "));
+
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = NEW_SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("X-5 V4 no stray debug logging in the new files", logs.length === 0, logs.join(", "));
+
+      // A dotted host, not the bare word http:// — shared/library.js says
+      // "open it over http://" in a sentence, and that is prose, not a fetch.
+      const HOST = new RegExp("https?://[A-Za-z0-9-]+([.][A-Za-z0-9-]+)+", "g");
+      const FONTS = new RegExp("fonts[.](googleapis|gstatic)[.]com");
+      const offenders = [];
+      for (const u of NEW_SOURCES) {
+        const hits = (texts[u] || "").match(HOST) || [];
+        const external = hits.filter((h) => !FONTS.test(h));
+        if (external.length) offenders.push(u.split("/").pop() + ": " + external.join(" "));
+      }
+      check("X-5 V6 the new files pull in no external URL", offenders.length === 0,
+        offenders.join(" | ") || "none");
+
+      const manifest = JSON.parse(texts["../sets/index.json"]);
+      const parsed = W(hostFrame).GSCLibrary.parseManifest(manifest);
+      check("X-5 sets/index.json is a valid manifest naming files that exist",
+        parsed.ok && parsed.sets.length === 2
+        && parsed.sets.every((s) => texts[`../sets/${s.file}`] !== null),
+        parsed.ok ? parsed.sets.map((s) => `${s.name} → ${s.file}`).join(", ") : parsed.error);
+      const sets = ["../sets/kids-night.json", "../sets/hard-mode.json"];
+      check("X-5 every shipped set validates through validateGame and has ≥ 80 passwords",
+        sets.every((u) => W(hostFrame).PwdCore.validateGame(JSON.parse(texts[u])) === true
+          && JSON.parse(texts[u]).words.length >= 80),
+        sets.map((u) => `${u.split("/").pop()}:${JSON.parse(texts[u]).words.length}`).join("  "));
+      check("X-5 no shipped set repeats a password inside itself",
+        sets.every((u) => {
+          const w = JSON.parse(texts[u]).words.map((x) => x.toLowerCase());
+          return new Set(w).size === w.length;
+        }), "both lists are internally unique");
+
+      const css = texts["../css/pwd-editor.css"].replace(new RegExp("/\\*[\\s\\S]*?\\*/", "g"), "");
+      const outside = css.split("@media (prefers-reduced-motion: no-preference)")[0]
+        .match(/@keyframes|animation:/g) || [];
+      check("X-5 the new stylesheet adds no unguarded animation", outside.length === 0,
+        outside.join(", ") || "none");
+
+      check("X-5 V-store neither frame touched the real save",
+        W(hostFrame).PwdApp.STORAGE_KEY === "gsc-pwd-state-v1-harnessx"
+        && W(soloFrame).PwdApp.STORAGE_KEY === "gsc-pwd-state-v1-harnessxsolo"
+        && REAL_KEYS.every((k, i) => localStorage.getItem(k) === REAL_BEFORE[i]),
+        `${W(hostFrame).PwdApp.STORAGE_KEY} / ${W(soloFrame).PwdApp.STORAGE_KEY}`);
+      check("X-5 the page still declares its game id and loads the shared library module",
+        D(hostFrame).body.dataset.gscGame === "password" && !!W(hostFrame).GSCLibrary,
+        D(hostFrame).body.dataset.gscGame);
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioLobbyBasics();
+        await scenarioKeepFromWord();
+        await scenarioKeepFromLightning();
+        await scenarioStartOver();
+        await scenarioStandalone();
+        await scenarioLibrary();
+        await scenarioLibraryFailures();
+        await scenarioLibraryDownload();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

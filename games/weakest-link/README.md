@@ -36,6 +36,7 @@ Custom questions load three ways, all through the same `validateGame`:
 | URL | `index.html?game=https://example.com/my-questions.json` |
 | File | **Load questions (.json)** on the setup screen |
 | Editor | **Question editor** → build or paste → **Use in game** |
+| Library | **Saved sets** on the setup screen → pick a set → **Load set** |
 
 ## How a game runs
 
@@ -64,6 +65,59 @@ Custom questions load three ways, all through the same `validateGame`:
 5. **Final** — the last full-team round's bank is tripled.
    The strongest link picks who answers first; five questions each, alternating;
    a tie goes to sudden death in pairs.
+
+## The Game lobby button
+
+↺ **Game lobby** in the toolbar goes back to this game's own setup screen from
+any phase, and asks first:
+
+- **Keep this game** — parks the game and returns to setup, which then offers
+  **Resume**. The roster, the money, the stats and the clock all come back
+  exactly as they were; a clock that was running is parked paused with the time
+  that was left. A parked game survives a reload.
+- **Start over** — throws the game away. Your players, questions and settings
+  stay, so **Start the game** deals a fresh one immediately.
+
+Cancel and Escape both close the dialog without changing anything. Undo is
+untouched: parking a game does not add or remove history.
+
+## The question-set library
+
+`games/weakest-link/sets/` holds extra question files committed to the repo, and
+`sets/index.json` is the manifest that lists them. The setup screen mounts the
+shared picker (`shared/library.js`) under **Questions**: pick a set, press
+**Load set**, and it goes through the same `validateGame` as every other source.
+The source note then reads `set: Pop culture`.
+
+Two sets ship with the game:
+
+| Set | Questions | Categories |
+|---|---|---|
+| **Pop culture** | 66 | Film, Television, Music, Games & toys, Internet & tech, Famous faces |
+| **Science & nature** | 66 | Space, The human body, Animals, Chemistry, Earth & weather, Plants |
+
+`questions.json` (160 questions) stays the default.
+
+### Adding your own set
+
+GitHub Pages cannot write files, so adding a set is a commit, not a button:
+
+1. Build it in the **Question editor**.
+2. Press **Download for the library**. It saves the JSON and prints the exact
+   manifest line to use, plus the path to commit to.
+3. Drop the file in `games/weakest-link/sets/` and paste the printed line into
+   `games/weakest-link/sets/index.json`.
+
+Opened straight from disk (`file://`) the picker hides itself and says that
+saved sets need a web server — everything else on the page still works.
+
+## Storage namespacing
+
+`?store=NAME` moves this page's saved game and editor draft into their own
+localStorage namespace (`gsc-wl-state-v1-NAME`, `gsc-wl-draft-v1-NAME`). Only
+letters, digits and hyphens survive. `tests/harness.html` runs with
+`?store=harness`, so a test run can never overwrite a real host's game on the
+same origin.
 
 ## Content JSON
 
@@ -133,11 +187,16 @@ which never contains the question, the answer, or anyone else's vote.
 | `js/wl-clock.js` | the clock renderer (rAF + an interval safety net); DOM only |
 | `js/wl-sound.js` | WebAudio cues behind the shared `gsc-sound` toggle |
 | `js/wl-editor.js` | the question editor and the CSV/TSV importer |
+| `js/wl-store.js` | `?store=` namespacing and the saved-state shape check |
+| `js/wl-lobby.js` | the Game lobby control: Keep this game / Start over / Resume |
+| `js/wl-library.js` | mounts the shared set picker; the editor's library download |
 | `js/wl-room.js` | host glue on `GSC.host` — roster in, masked views out |
 | `js/wl-phone.js` | phone glue on `GSC.player` |
 | `js/data.js` | offline mirror of `questions.json` |
 | `tests/wl-core.test.mjs` | `node --test` suite, success states K-U1…K-U10 |
 | `tests/harness.html` | loopback harness, success states K-I1…K-I6 |
+| `tests/harness-cross.js` | the cross-cutting harness scenarios (X-1…X-3, X-5) |
+| `sets/` | the committed question-set library plus its `index.json` manifest |
 
 `wl-content.js` and `wl-core.js` are the only files with game rules in them,
 they have no DOM or timers, and they run unchanged in Node and the browser.

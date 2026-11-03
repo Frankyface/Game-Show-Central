@@ -1,0 +1,73 @@
+/* ============================================================
+   Password — editor and set-library styles
+   Split out of css/pwd.css to keep every sheet under the 800-line
+   house cap. Nothing in here paints a screen that is in play: it
+   is the word editor and the "Download for the library"
+   instructions (docs/19 §2). The library PICKER itself is
+   .gsc-library from shared/theme-components.css — this sheet
+   never restyles it.
+
+   Tokens come from shared/theme.css and the --pwd-* block at the
+   top of css/pwd.css, which loads first.
+   ============================================================ */
+
+/* ============ Editor ============ */
+
+.screen-editor { max-width: 1240px; margin: 0 auto; }
+.editor-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.editor-bar-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.editor-grid { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 1.2rem; margin-top: 0.8rem; }
+.editor-col { min-width: 0; }
+
+.ed-bad { border-color: var(--pwd-red) !important; }
+
+textarea.ed-words {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 52vh;
+  resize: vertical;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  line-height: 1.5;
+}
+
+/* ============ The set library (docs/19 §2) ============ */
+
+/* The picker itself is .gsc-library from shared/theme-components.css; this is
+   only the editor's "Download for the library" instructions. */
+
+.library-help {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.9rem;
+  background: var(--well);
+  border-left: 4px solid var(--pwd-gold);
+  border-radius: var(--radius);
+}
+
+.library-help-title {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pwd-gold-soft);
+}
+
+.library-help-step { margin: 0.25rem 0; font-size: 0.9rem; color: var(--pwd-dim); }
+
+.library-help-line {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.6rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--pwd-cream);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+/* The shared picker sits in this game's setup column, so give it room. */
+#pwd-library { margin-top: 0.6rem; }

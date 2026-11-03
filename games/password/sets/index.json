@@ -1,0 +1,22 @@
+[
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Playground, pets and packed lunches. Short game to 20 and a slower Lightning Round.",
+    "by": "Game Show Central",
+    "counts": {
+      "passwords": 90,
+      "points to win": 20
+    }
+  },
+  {
+    "file": "hard-mode.json",
+    "name": "Hard mode",
+    "description": "Abstract nouns and words you have to think around. Forty-five seconds of Lightning.",
+    "by": "Game Show Central",
+    "counts": {
+      "passwords": 90,
+      "points to win": 25
+    }
+  }
+]

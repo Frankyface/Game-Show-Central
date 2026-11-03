@@ -269,6 +269,7 @@ window.PwdEditor = {
   open: pwdOpenEditor,
   close: pwdCloseEditor,
   draft: () => pwdDraft,
+  message: pwdEditorMessage,
   setDraft: (draft) => { pwdDraft = draft; pwdSaveDraft(); pwdRenderEditor(); },
   DRAFT_KEY: PWD_DRAFT_KEY,
 };
