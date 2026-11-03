@@ -67,7 +67,7 @@ const GscExtras = (function () {
     if ($$("btn-game-lobby")) return;
     const original = $$("btn-new-game");
     if (!original || !original.parentNode) return;
-    const btn = el("button", "btn btn-ghost hidden", "Game lobby");
+    const btn = el("button", "btn btn-ghost", "Game lobby");
     btn.id = "btn-game-lobby";
     btn.type = "button";
     btn.setAttribute("aria-haspopup", "dialog");
@@ -78,12 +78,30 @@ const GscExtras = (function () {
     syncLobbyButton();
   }
 
-  /** Same visibility rule as the button it replaces: anywhere but setup. */
+  /**
+   * Why Game lobby cannot be used right now, or "" when it can. Always in the
+   * toolbar (cross-cutting rule: present but disabled, never hidden):
+   *   - on setup there is no game to leave;
+   *   - with a clue or Final open, Keep would park the game under a live,
+   *     fixed-position modal with its clock still running (verification J-1),
+   *     so the host closes it first. Saved-state restore is unchanged.
+   */
+  function lobbyBlockedReason(s) {
+    if (!s || s.phase === "setup") return "No game in progress";
+    if (s.active) return "Close the clue first";
+    if (s.final) return "Close Final Jeopardy first";
+    return "";
+  }
+
   function syncLobbyButton() {
     const btn = $$("btn-game-lobby");
     const s = appState();
     if (!btn || !s) return;
-    btn.classList.toggle("hidden", s.phase === "setup");
+    const reason = lobbyBlockedReason(s);
+    btn.classList.remove("hidden");
+    btn.disabled = !!reason;
+    if (reason) btn.title = reason;
+    else btn.removeAttribute("title");
   }
 
   /**
@@ -94,6 +112,7 @@ const GscExtras = (function () {
    */
   function keepAndExit() {
     closeLobbyDialog();
+    if (lobbyBlockedReason(appState())) return;
     appSetState({ phase: "setup" });
     const resume = $$("btn-resume");
     if (resume) resume.focus();
@@ -132,6 +151,7 @@ const GscExtras = (function () {
 
   function openLobbyDialog() {
     closeLobbyDialog();
+    if (lobbyBlockedReason(appState())) return;
     const back = el("div", "gsc-dialog-backdrop");
     const box = el("div", "gsc-dialog");
     box.setAttribute("role", "dialog");
@@ -458,6 +478,7 @@ const GscExtras = (function () {
     _fileNameFor: fileNameFor,
     _downloadForLibrary: downloadForLibrary,
     _sync: () => { syncLobbyButton(); syncResumeButton(); },
+    _lobbyBlockedReason: () => lobbyBlockedReason(appState()),
   };
 })();
 

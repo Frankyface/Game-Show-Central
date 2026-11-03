@@ -30,10 +30,11 @@ five short additions to the upstream files, each marked `// GSC:` (or
 `body.gsc-embedded`, a class that only exists inside the hub. **The buzzer stack
 standalone behaves exactly as it did upstream.**
 
-### ⟲ Game lobby
+### Game lobby
 
-Once you are past the start screen there is a **⟲ Game lobby** button in the
-toolbar. It asks two questions instead of the old blunt one:
+The toolbar always has a **Game lobby** button. It is greyed out on the start
+screen (no game to leave) and while a clue or Final Jeopardy is open — close
+the clue first. Otherwise it asks two questions instead of the old blunt one:
 
 - **Keep this game** — back to the start screen with the board, the scores and
   the used clues untouched. The start screen then offers **▸ Resume game** to

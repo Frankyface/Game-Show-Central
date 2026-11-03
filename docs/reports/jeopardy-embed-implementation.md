@@ -566,3 +566,83 @@ Harness evidence for the new checks:
   nothing fails a Node run if a future set is malformed.
 - **The library picker needs a web server.** From `file://` it hides itself with
   a plain-English note — expected, and documented in the README.
+
+---
+
+## 11. Fixes after cross-cutting verification (2026-11-03)
+
+From `docs/reports/cross-cutting-verification.md`: J-1 (major), J-2, C-1, and
+the all-games toolbar rule. Nothing outside `games/jeopardy/**` and this report
+was touched; no upstream file changed in this pass.
+
+### J-1 — Keep with a clue open left a live modal over setup
+
+**Was:** `keepAndExit()` set `phase: "setup"` but left `state.active`, and
+upstream `renderClueModal` shows the fixed, full-frame clue modal whenever
+`active` is set — so the "parked" game sat under a live clue with its ✓/✗
+clickable and its clock running.
+
+**Now:** `#btn-game-lobby` is disabled while a clue or Final is open, with the
+reason as its tooltip ("Close the clue first" / "Close Final Jeopardy first").
+`lobbyBlockedReason()` in `js/gsc-extras.js` is the one rule; `syncLobbyButton()`
+applies it on every app render, and `openLobbyDialog()` / `keepAndExit()` also
+refuse when it is non-empty, so nothing can route around the disabled button.
+The saved-state Keep/Resume behaviour is unchanged.
+
+### Toolbar rule — present but disabled on setup
+
+The button is no longer hidden on the start screen: it is always in the
+toolbar, disabled with the tooltip "No game in progress" when there is nothing
+to leave. Toolbar on setup is now `Sound · Question Editor · Game lobby`
+(disabled); on the board `Final Jeopardy · Sound · Question Editor · Game
+lobby`. README updated to match.
+
+### J-2 — static gate over the gsc-* files
+
+`tests/gsc-embed-harness.html` now fetches `js/gsc-embed.js`,
+`js/gsc-extras.js`, `css/gsc-embed.css`, `css/gsc-extras.css` and
+`css/gsc-look.css`, strips comments (prose may name a banned API), and fails
+on any file ≥ 800 lines or any match for innerHTML / insertAdjacentHTML /
+outerHTML= / document.write / eval( / new Function / console.log. The patterns
+are assembled from fragments so the harness never trips the hub-wide gate
+that scans `tests/`.
+
+### C-1 — Movies & TV content
+
+- **"Opening Lines" (mostly novels) → "Opening Scenes"**, all film/TV:
+  the Star Wars crawl, "I believe in America" (The Godfather), the
+  box-of-chocolates bench (Forrest Gump), "Rosebud" (Citizen Kane), and the
+  rangers beyond the Wall (Game of Thrones, 2011). This also removes the
+  garbled As I Lay Dying clue.
+- Friends clue rewritten (Central Perk / Monica's apartment, Greenwich
+  Village) — no more "borough-adjacent neighbourhood".
+- ER: **15 seasons**, ended 2009; the unverifiable quoted last line is gone.
+- M*A*S*H: "carried this four-word title" — no phantom "hello".
+- Found while re-checking: **Taxi Driver** is two words in "One-Word Titles"
+  → replaced with Rocky (1976 Best Picture); the gaffer clue now asks for
+  "lighting" rather than "the electrical department". In Kids' Night, the
+  ostrich is not faster than a horse → "the fastest runner on two legs".
+- Manifest description updated ("Opening scenes, …").
+
+Re-validated with Jeopardy's own `validateGame` (`.scratch/jeopardy-validate-sets.mjs`
+loads it from `app.js` in Node): `questions.json`, `movies-tv.json` and
+`kids-night.json` each **OK — 5 categories, 25 clues, 1 Daily Double, Final**.
+
+### Verification (port 8631)
+
+| Gate | Result |
+| --- | --- |
+| `cd games/jeopardy && node --test` | **49/49** |
+| `tests/gsc-embed-harness.html` | **21/21** (18 + J-1, "on setup present but disabled", J-2) |
+| `tests/harness.html` | **70/70** |
+| `tests/photo-harness.html` | **26/26** |
+| v3 UI audit (setup, board, clue, DD, Final, standings, dialog, editor, phone) | clean; board fits 1280×720 and 1280×676 |
+
+Harness evidence:
+- J-1: `clue: disabled=true title="Close the clue first" dialogOpened=false · final: disabled=true title="Close Final Jeopardy first" · after: disabled=false phase=board`
+- Setup: `present=true shown=true disabled=true title="No game in progress"`
+- J-2: `gsc-embed.js=379 gsc-extras.js=486 gsc-embed.css=106 gsc-extras.css=103 gsc-look.css=760`, no banned APIs.
+
+Helpers: `.scratch/jeopardy-j1.py`, `.scratch/jeopardy-c1.py`,
+`.scratch/jeopardy-harness-j1j2.py`, `.scratch/jeopardy-validate-sets.mjs`,
+`.scratch/jeopardy-embed-only.mjs`. No git.

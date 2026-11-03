@@ -2,7 +2,7 @@
   {
     "file": "movies-tv.json",
     "name": "Movies & TV",
-    "description": "Opening lines, sitcom addresses and the people behind the camera.",
+    "description": "Opening scenes, sitcom addresses and the people behind the camera.",
     "by": "Game Show Central",
     "counts": { "categories": 5, "clues": 25 }
   },

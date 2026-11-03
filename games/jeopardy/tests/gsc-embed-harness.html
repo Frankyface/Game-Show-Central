@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeopardy embed harness (E1–E6, X-1–X-3)</title>
+  <title>Jeopardy embed harness (E1–E6, X-1–X-3, J-1, J-2)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #04062b; color: #f4f5ff; margin: 0; padding: 2rem; }
     h1 { font-size: 1.2rem; }
@@ -407,6 +407,28 @@
         /* ---- X-1: the Game lobby control ---- */
 
         const lobbyBtn = g("btn-game-lobby");
+
+        // J-1: Keep must never park a game under a live clue or Final modal.
+        w.openClue(3, 0);
+        await waitFor(() => hostState() && hostState().active, 4000);
+        const whileClue = { disabled: lobbyBtn.disabled, title: lobbyBtn.title };
+        lobbyBtn.click(); // a disabled button fires nothing; prove it
+        await sleep(150);
+        const dialogWhileClue = !!d.querySelector(".gsc-dialog");
+        w.closeClue();
+        await waitFor(() => hostState() && !hostState().active, 4000);
+        w.startFinal();
+        await waitFor(() => hostState() && hostState().final, 4000);
+        const whileFinal = { disabled: lobbyBtn.disabled, title: lobbyBtn.title };
+        w.setState({ final: null });
+        await waitFor(() => hostState() && !hostState().final, 4000);
+        check("J-1 Game lobby is disabled (with the reason) while a clue or Final is open",
+          whileClue.disabled && whileClue.title === "Close the clue first" && !dialogWhileClue &&
+          whileFinal.disabled && /Final/.test(whileFinal.title) &&
+          !lobbyBtn.disabled && hostState().phase === "board",
+          `clue: disabled=${whileClue.disabled} title="${whileClue.title}" dialogOpened=${dialogWhileClue} \u00b7 ` +
+          `final: disabled=${whileFinal.disabled} title="${whileFinal.title}" \u00b7 ` +
+          `after: disabled=${lobbyBtn.disabled} phase=${hostState().phase}`);
         check("X-1 #btn-game-lobby is in the toolbar and visible off the setup screen",
           !!lobbyBtn && shown("btn-game-lobby") && hostState().phase === "board",
           `present=${!!lobbyBtn} label="${lobbyBtn ? lobbyBtn.textContent : "-"}" ` +
@@ -463,6 +485,13 @@
           `players=[${over.players.map((p) => p.name + "=" + p.score).join(", ")}] ` +
           `game="${over.game.title}" resumeShown=${shown("btn-resume")}`);
 
+        const onSetup = g("btn-game-lobby");
+        check("X-1 on setup Game lobby is present but disabled, not hidden",
+          !!onSetup && shown("btn-game-lobby") && onSetup.disabled &&
+          w.getComputedStyle(onSetup).display !== "none",
+          `present=${!!onSetup} shown=${shown("btn-game-lobby")} disabled=${onSetup && onSetup.disabled} ` +
+          `title="${onSetup ? onSetup.title : "-"}"`);
+
         /* ---- X-2: the set library ---- */
 
         const select = d.querySelector(".gsc-library-select");
@@ -517,6 +546,47 @@
           `pathShown=${text.indexOf("games/jeopardy/sets/") !== -1} ` +
           `line=${line.slice(0, 110)} acceptedFile=${accepted.ok ? accepted.sets[0].file : "-"}`);
         g("btn-editor-close").click();
+
+        await staticGate();
+      }
+
+      /* ============ J-2: static gate over the gsc-* files ============ */
+
+      // The patterns are built from fragments so this harness never trips the
+      // hub-wide gate that scans tests/ for the same strings.
+      const GATED = [
+        "../js/gsc-embed.js", "../js/gsc-extras.js",
+        "../css/gsc-embed.css", "../css/gsc-extras.css", "../css/gsc-look.css",
+      ];
+      const BANNED = [
+        ["inner", "HTML"], ["insertAdjacent", "HTML"], ["outer", "HTML\\s*="],
+        ["document\\.", "write"], ["\\bev", "al\\("], ["new\\s+Fun", "ction"],
+        ["console\\.", "log"],
+      ].map((parts) => new RegExp(parts.join("")));
+
+      /** Strip block and line comments: prose may name a banned API. */
+      function codeOnly(text) {
+        return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+      }
+
+      async function staticGate() {
+        const problems = [];
+        const sizes = [];
+        for (const path of GATED) {
+          let text = "";
+          try {
+            const res = await fetch(path, { cache: "no-store" });
+            if (!res.ok) { problems.push(`${path} HTTP ${res.status}`); continue; }
+            text = await res.text();
+          } catch (err) { problems.push(`${path} unreadable`); continue; }
+          const lines = text.split("\n").length;
+          sizes.push(`${path.split("/").pop()}=${lines}`);
+          if (lines >= 800) problems.push(`${path} has ${lines} lines`);
+          const code = codeOnly(text);
+          for (const re of BANNED) if (re.test(code)) problems.push(`${path} matches ${re.source}`);
+        }
+        check("J-2 static gate: gsc-* files are < 800 lines with no banned APIs",
+          problems.length === 0, problems.length ? problems.join("; ") : sizes.join(" "));
       }
 
 
