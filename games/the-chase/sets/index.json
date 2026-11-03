@@ -1,0 +1,4 @@
+[
+  {"file":"kids.json","name":"Kids' night","description":"Gentle general knowledge for younger contestants; the Cash Builder pays $500 a time.","by":"Game Show Central","counts":{"rapid-fire":88,"head-to-head":43}},
+  {"file":"movies-tv.json","name":"Movies & TV","description":"Films and television from cartoons to blockbusters, rising in difficulty.","by":"Game Show Central","counts":{"rapid-fire":83,"head-to-head":43}}
+]

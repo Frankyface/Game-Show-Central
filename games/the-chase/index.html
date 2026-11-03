@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Chase</title>
+  <meta name="description" content="A Chase style game for game night: a 60-second Cash Builder, three offers, a seven-step head-to-head against the Chaser and a two-minute Final Chase. Phones optional. Bring your own questions as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/chase.css">
+  <link rel="stylesheet" href="css/chase-play.css">
+  <link rel="stylesheet" href="css/chase-phone.css">
+</head>
+<body data-gsc-game="the-chase">
+
+  <header class="topbar">
+    <h1 id="chase-title" class="topbar-title">The Chase</h1>
+    <div class="topbar-actions">
+      <span id="chase-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8634; Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="chase-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="chase-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card">
+        <p class="kicker">Build the cash. Outrun the Chaser. Bring it home.</p>
+        <h2 class="card-title">The Chase</h2>
+        <p id="chase-source" class="source-note">Loading questions&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">The team <span id="chase-player-count" class="count-badge"></span></h3>
+            <p class="hint">Up to four contestants, in the order they take the hot seat.
+              Drag is overkill &mdash; use the arrows.</p>
+            <ol id="chase-player-list" class="player-list"></ol>
+            <form id="chase-add-player" class="inline-form">
+              <label class="visually-hidden" for="chase-player-name">Contestant name</label>
+              <input id="chase-player-name" type="text" maxlength="24" placeholder="Contestant name"
+                     autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost" type="submit">+ Add contestant</button>
+            </form>
+
+            <h3 class="setup-heading">Who is the Chaser?</h3>
+            <fieldset class="mode-set">
+              <legend class="visually-hidden">The Chaser</legend>
+              <label class="check"><input id="chase-mode-host" type="radio" name="chase-mode" value="host">
+                <span><strong>The host</strong> &mdash; you lock the Chaser&rsquo;s answers on this screen.
+                  No phones needed for anything.</span></label>
+              <label class="check"><input id="chase-mode-player" type="radio" name="chase-mode" value="player">
+                <span><strong>A player</strong> &mdash; they lock on their own phone, in secret.</span></label>
+            </fieldset>
+            <label class="field-inline">The Chaser is
+              <select id="chase-chaser-pid"></select>
+            </label>
+            <label class="field-inline">Chaser name
+              <input id="chase-chaser-name" type="text" maxlength="24" autocomplete="off" placeholder="The Chaser">
+            </label>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="chase-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="chase-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="chase-join-note" class="hint hidden">Players open <span id="chase-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <div class="rule-grid">
+              <label class="field-inline">Steps on the board
+                <input id="chase-set-steps" type="number" min="3" max="12" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Contestant starts on step
+                <input id="chase-set-start" type="number" min="2" max="10" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Cash Builder seconds
+                <input id="chase-set-cbsecs" type="number" min="15" max="300" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Each Cash Builder answer
+                <input id="chase-set-cbvalue" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Higher offer multiplier
+                <input id="chase-set-higher" type="number" min="2" max="100" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Lower offer divisor
+                <input id="chase-set-lower" type="number" min="2" max="10" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Final Chase seconds
+                <input id="chase-set-final" type="number" min="30" max="600" step="1" inputmode="numeric">
+              </label>
+              <label class="field-inline">Head start per finalist
+                <input id="chase-set-headstart" type="number" min="0" max="3" step="1" inputmode="numeric">
+              </label>
+            </div>
+
+            <h3 class="setup-heading">Questions</h3>
+            <div class="inline-form">
+              <button id="btn-shuffle" class="btn btn-ghost" type="button" aria-pressed="false">Shuffle the questions</button>
+              <button id="btn-load-json" class="btn btn-ghost" type="button">Load questions (.json)</button>
+              <input id="chase-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="chase-question-count" class="hint"></p>
+            <div id="chase-library" class="library-slot"></div>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-resume" class="btn btn-blue btn-big hidden" type="button">Resume the game</button>
+          <button id="btn-start" class="btn btn-gold btn-big" type="button">Start the chase</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Cash Builder ===================== -->
+    <section id="screen-cash" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="chase-cash-title" class="gsc-banner-title">Cash Builder</p>
+        <p id="chase-cash-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="chase-cash-seat" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="cash-grid">
+        <div class="cash-left">
+          <p id="chase-cash-clock" class="giant-clock" role="timer" aria-live="off">1:00</p>
+          <p id="chase-cash-total" class="giant-money" aria-live="polite">$0</p>
+          <p id="chase-cash-state" class="clock-state">Press Start when the contestant is ready.</p>
+          <div class="counters">
+            <div class="counter"><p class="k">Right</p><p id="chase-cash-right" class="v">0</p></div>
+            <div class="counter"><p class="k">Wrong</p><p id="chase-cash-wrong" class="v">0</p></div>
+            <div class="counter"><p class="k">Passed</p><p id="chase-cash-passed" class="v">0</p></div>
+          </div>
+        </div>
+        <div class="cash-right">
+          <p class="col-label">Read this out</p>
+          <p id="chase-cash-q" class="rapid-q">&nbsp;</p>
+          <p class="col-label answer-label">Answer (host only)</p>
+          <p id="chase-cash-a" class="rapid-a">&nbsp;</p>
+          <p id="chase-cash-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-cash-clock" class="btn btn-gold btn-big" type="button">Start the clock
+          <kbd class="gsc-kbd">Enter</kbd></button>
+        <button id="btn-cash-right" class="btn btn-green btn-big" type="button">Correct
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-cash-wrong" class="btn btn-danger btn-big" type="button">Wrong
+          <kbd class="gsc-kbd">W</kbd></button>
+        <button id="btn-cash-pass" class="btn btn-blue btn-big" type="button">Pass
+          <kbd class="gsc-kbd">P</kbd></button>
+        <button id="btn-cash-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-cash-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-cash-next" class="btn btn-gold btn-big" type="button">On to the offers
+          <kbd class="gsc-kbd">N</kbd></button>
+      </div>
+    </section>
+
+    <!-- ===================== The offers ===================== -->
+    <section id="screen-offer" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="chase-offer-title" class="gsc-banner-title">The offers</p>
+        <p id="chase-offer-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="chase-offer-built" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="offer-row" role="group" aria-label="The three offers">
+        <button id="btn-offer-higher" class="offer-card offer-higher" type="button">
+          <span class="offer-kicker">Higher &mdash; one step closer to the Chaser</span>
+          <span id="chase-offer-higher-amount" class="offer-amount">&nbsp;</span>
+          <span id="chase-offer-higher-step" class="offer-step">&nbsp;</span>
+        </button>
+        <button id="btn-offer-middle" class="offer-card offer-middle" type="button">
+          <span class="offer-kicker">What they built</span>
+          <span id="chase-offer-middle-amount" class="offer-amount">&nbsp;</span>
+          <span id="chase-offer-middle-step" class="offer-step">&nbsp;</span>
+        </button>
+        <button id="btn-offer-lower" class="offer-card offer-lower" type="button">
+          <span class="offer-kicker">Lower &mdash; one step nearer home</span>
+          <span id="chase-offer-lower-amount" class="offer-amount">&nbsp;</span>
+          <span id="chase-offer-lower-step" class="offer-step">&nbsp;</span>
+        </button>
+      </div>
+      <p id="chase-offer-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+
+      <div class="controls">
+        <button id="btn-offer-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-offer-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Head to head ===================== -->
+    <section id="screen-board" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="chase-board-title" class="gsc-banner-title">Head to head</p>
+        <p id="chase-board-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="chase-board-amount" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="board-grid">
+        <div class="board-col">
+          <div id="chase-board" class="board" role="img" aria-label="The chase board"></div>
+          <p id="chase-board-gap" class="col-note">&nbsp;</p>
+        </div>
+
+        <div class="board-mid">
+          <p id="chase-q" class="h2h-q">&nbsp;</p>
+          <ul id="chase-options" class="options" aria-label="The three options"></ul>
+          <p id="chase-board-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+        </div>
+
+        <aside class="board-rail">
+          <div class="lock-plate lock-contestant">
+            <p class="k">Contestant</p>
+            <p id="chase-lock-contestant" class="lock-state">Not locked</p>
+            <div id="chase-lock-c-buttons" class="lock-buttons"></div>
+          </div>
+          <div class="lock-plate lock-chaser">
+            <p class="k" id="chase-chaser-label">The Chaser</p>
+            <p id="chase-lock-chaser" class="lock-state">Not locked</p>
+            <div id="chase-lock-h-buttons" class="lock-buttons"></div>
+          </div>
+          <div id="chase-seats" class="seat-strip" aria-live="polite"></div>
+        </aside>
+      </div>
+
+      <div id="chase-interstitial" class="interstitial hidden" role="status" aria-live="polite">
+        <p id="chase-inter-kicker" class="inter-kicker">&nbsp;</p>
+        <p id="chase-inter-name" class="inter-name">&nbsp;</p>
+        <p id="chase-inter-sub" class="inter-sub">&nbsp;</p>
+      </div>
+
+      <div class="controls">
+        <button id="btn-reveal-contestant" class="btn btn-blue btn-big" type="button">Reveal contestant
+          <kbd class="gsc-kbd">1</kbd></button>
+        <button id="btn-reveal-chaser" class="btn btn-danger btn-big" type="button">Reveal Chaser
+          <kbd class="gsc-kbd">2</kbd></button>
+        <button id="btn-board-next" class="btn btn-gold btn-big" type="button">Next question
+          <kbd class="gsc-kbd">N</kbd></button>
+        <button id="btn-next-contestant" class="btn btn-gold btn-big" type="button">Next contestant
+          <kbd class="gsc-kbd">N</kbd></button>
+        <button id="btn-board-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-board-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Final Chase ===================== -->
+    <section id="screen-final" class="screen hidden">
+      <div class="gsc-banner play-banner">
+        <p id="chase-final-title" class="gsc-banner-title">Final Chase</p>
+        <p id="chase-final-sub" class="gsc-banner-sub">&nbsp;</p>
+        <div class="gsc-banner-end">
+          <span id="chase-final-bank" class="gsc-badge">&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="final-grid">
+        <div class="final-left">
+          <p id="chase-final-clock" class="giant-clock" role="timer" aria-live="off">2:00</p>
+          <p id="chase-final-state" class="clock-state">&nbsp;</p>
+          <div class="track-pair">
+            <div class="track track-team">
+              <p class="k">Team</p>
+              <p id="chase-team-steps" class="v">0</p>
+              <div id="chase-team-track" class="pips" role="img" aria-label="Team steps"></div>
+            </div>
+            <div class="track track-chaser">
+              <p class="k" id="chase-final-chaser-label">The Chaser</p>
+              <p id="chase-chaser-steps" class="v">0</p>
+              <div id="chase-chaser-track" class="pips" role="img" aria-label="Chaser steps"></div>
+            </div>
+          </div>
+        </div>
+        <div class="final-right">
+          <p class="col-label">Read this out</p>
+          <p id="chase-final-q" class="rapid-q">&nbsp;</p>
+          <p class="col-label answer-label">Answer (host only)</p>
+          <p id="chase-final-a" class="rapid-a">&nbsp;</p>
+          <p id="chase-final-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+          <div id="chase-pushback" class="pushback hidden">
+            <p class="pushback-title">Pushback &mdash; the team can take it back</p>
+            <div class="pushback-actions">
+              <button id="btn-pushback-yes" class="btn btn-green btn-big" type="button">Team got it
+                <kbd class="gsc-kbd">Space</kbd></button>
+              <button id="btn-pushback-no" class="btn btn-danger btn-big" type="button">Team missed
+                <kbd class="gsc-kbd">W</kbd></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-final-clock" class="btn btn-gold btn-big" type="button">Start the clock
+          <kbd class="gsc-kbd">Enter</kbd></button>
+        <button id="btn-final-right" class="btn btn-green btn-big" type="button">Correct
+          <kbd class="gsc-kbd">Space</kbd></button>
+        <button id="btn-final-wrong" class="btn btn-danger btn-big" type="button">Wrong
+          <kbd class="gsc-kbd">W</kbd></button>
+        <button id="btn-final-pass" class="btn btn-blue btn-big" type="button">Pass
+          <kbd class="gsc-kbd">P</kbd></button>
+        <button id="btn-final-next" class="btn btn-gold btn-big" type="button">Bring on the Chaser
+          <kbd class="gsc-kbd">N</kbd></button>
+        <button id="btn-final-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-final-finish" class="btn btn-ghost" type="button">End the night</button>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="chase-result-kicker" class="kicker">&nbsp;</p>
+      <h2 id="chase-result-headline" class="winner-name">&nbsp;</h2>
+      <p id="chase-result-amount" class="final-amount">&nbsp;</p>
+      <p id="chase-result-sub" class="result-sub">&nbsp;</p>
+      <ol id="chase-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-result-next" class="btn btn-gold btn-big" type="button">Show the standings</button>
+        <button id="btn-next-game" class="btn btn-blue btn-big" type="button">Play another game</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-new-team" class="btn btn-ghost" type="button">New team</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Question editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Question editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-gold" type="button">Download for the library</button>
+          <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="chase-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="chase-editor-warn" class="notice"></p>
+      <div id="chase-editor-manifest" class="manifest-box hidden">
+        <p class="manifest-title">To add this to the repo library</p>
+        <p class="manifest-step">1. Save the downloaded file as <span id="chase-manifest-path" class="mono"></span></p>
+        <p class="manifest-step">2. Paste this line into <span class="mono">games/the-chase/sets/index.json</span>:</p>
+        <p id="chase-manifest-line" class="mono manifest-line"></p>
+      </div>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="chase-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="chase-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <label class="field">Chaser name
+            <input id="chase-ed-chasername" type="text" maxlength="24" autocomplete="off">
+          </label>
+          <label class="field">Steps on the board
+            <input id="chase-ed-steps" type="number" min="3" max="12" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Contestant starts on step
+            <input id="chase-ed-start" type="number" min="2" max="10" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Each Cash Builder answer
+            <input id="chase-ed-cbvalue" type="number" min="1" max="1000000" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Cash Builder seconds
+            <input id="chase-ed-cbsecs" type="number" min="15" max="300" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Higher offer multiplier
+            <input id="chase-ed-higher" type="number" min="2" max="100" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Lower offer divisor
+            <input id="chase-ed-lower" type="number" min="2" max="10" step="1" inputmode="numeric">
+          </label>
+          <label class="field">Final Chase seconds
+            <input id="chase-ed-final" type="number" min="30" max="600" step="1" inputmode="numeric">
+          </label>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <h3 class="setup-heading">Rapid-fire <span id="chase-ed-rapid-count" class="count-badge"></span></h3>
+          <p class="hint">One per line, question then answer separated by a vertical bar:
+            <span class="mono">What is the capital of France? | Paris</span>. Eighty is the minimum;
+            two hundred is comfortable.</p>
+          <label class="visually-hidden" for="chase-ed-rapid">Rapid-fire questions, one per line</label>
+          <textarea id="chase-ed-rapid" class="ed-lines" spellcheck="false" autocomplete="off" rows="12"></textarea>
+
+          <h3 class="setup-heading">Head-to-head <span id="chase-ed-multi-count" class="count-badge"></span></h3>
+          <p class="hint">One per line: question, then the three options, then A, B or C for the right
+            one &mdash; all separated by vertical bars.
+            <span class="mono">Which is a primary colour? | Green | Red | Orange | B</span></p>
+          <label class="visually-hidden" for="chase-ed-multi">Head-to-head questions, one per line</label>
+          <textarea id="chase-ed-multi" class="ed-lines" spellcheck="false" autocomplete="off" rows="12"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="chase-phone-card" class="phone-card">
+        <p id="chase-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="chase-phone-headline" class="phone-headline" aria-live="polite">&nbsp;</p>
+        <p id="chase-phone-sub" class="phone-sub">Waiting for the host&hellip;</p>
+        <div id="chase-phone-meta" class="phone-meta"></div>
+        <div id="chase-phone-actions" class="phone-actions"></div>
+        <p id="chase-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Game lobby confirm (docs 19 §1) ============ -->
+  <div id="chase-lobby-backdrop" class="gsc-modal-backdrop hidden">
+    <div id="chase-lobby-modal" class="gsc-modal" role="dialog" aria-modal="true"
+         aria-labelledby="chase-lobby-title">
+      <h2 id="chase-lobby-title" class="gsc-modal-title">Back to the setup screen?</h2>
+      <p id="chase-lobby-body" class="gsc-modal-body">Keep this game and you can pick it up exactly
+        where it is. Start over clears the game in progress; the team, the questions and the rules
+        all stay.</p>
+      <div class="gsc-modal-actions">
+        <button id="btn-lobby-keep" class="btn btn-blue" type="button">Keep this game</button>
+        <button id="btn-lobby-over" class="btn btn-danger" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
+  <script src="js/chase-content.js"></script>
+  <script src="js/chase-rules.js"></script>
+  <script src="js/chase-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/chase-sound.js"></script>
+  <script src="js/chase-clock.js"></script>
+  <script src="js/chase-view.js"></script>
+  <script src="js/chase-board.js"></script>
+  <script src="js/chase-app.js"></script>
+  <script src="js/chase-wire.js"></script>
+  <script src="js/chase-editor.js"></script>
+  <script src="js/chase-room.js"></script>
+  <script src="js/chase-phone.js"></script>
+</body>
+</html>

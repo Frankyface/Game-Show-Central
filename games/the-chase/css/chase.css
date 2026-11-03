@@ -1,0 +1,399 @@
+/* ============================================================
+   The Chase — host screens
+   The show's cold blue-black stage, lit slabs for the board, a
+   blue contestant marker and a red Chaser. Tokens, .btn, .field
+   and the whole .gsc-* kit come from shared/theme.css; this file
+   only adds what is specific to the format.
+
+   No per-game accent block lives here: the accent map in
+   shared/theme.css is the single source (triage, Phase 3). Only
+   the stage colours are set, and those belong in :root.
+
+   Every @keyframes and every `animation:` sits inside
+   @media (prefers-reduced-motion: no-preference), so under
+   `reduce` no animation exists at all.
+   ============================================================ */
+
+:root {
+  --stage-deep: #06255e;      /* the show's cold blue, lifted for the top glow */
+  --stage-night: #02091f;
+  --stage-card: #04143a;      /* spec 15 §3: the stage colour itself */
+
+  --chase-blue: #4d9bff;      /* the contestant marker (5.6:1 on the stage) */
+  --chase-blue-deep: #12336e;
+  --chase-red: #d10000;       /* spec 15 §3: the Chaser */
+  --chase-red-lift: #ff6b6b;  /* the readable ink version of the same red */
+  --slab: rgba(255, 255, 255, 0.07);
+  --slab-live: rgba(77, 155, 255, 0.16);
+  --slab-line: rgba(255, 255, 255, 0.14);
+  --rail: 300px;
+}
+
+/* ============ Page frame ============ */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.5rem 1.1rem;
+  border-bottom: 1px solid var(--panel-line);
+  background: rgba(0, 0, 0, 0.28);
+  flex: 0 0 auto;
+}
+
+.topbar-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.room-chip {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--panel-line);
+  background: var(--panel);
+}
+
+#chase-error {
+  margin: 0.5rem 1.1rem 0;
+  flex: 0 0 auto;
+}
+
+#chase-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  padding: 0.7rem 1.1rem 0.9rem;
+}
+
+.screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.screen.hidden { display: none !important; }
+
+/* ============ Shared furniture ============ */
+
+.kicker {
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+}
+
+.card-title {
+  margin: 0.1rem 0 0.3rem;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3.4vw, 46px);
+  letter-spacing: var(--track-display);
+  text-transform: uppercase;
+}
+
+.source-note { margin: 0 0 0.8rem; color: var(--ink-dim); font-size: 0.85rem; }
+.hint { margin: 0.25rem 0 0.6rem; color: var(--ink-mute); font-size: 0.82rem; line-height: 1.45; }
+.hint-inline { color: var(--ink-mute); font-weight: 400; font-size: 0.78rem; }
+.col-label {
+  margin: 0 0 0.2rem;
+  color: var(--ink-mute);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+}
+.col-note { margin: 0.35rem 0 0; color: var(--ink-dim); font-size: 0.8rem; }
+.notice { margin: 0.35rem 0 0; color: var(--amber); font-size: 0.85rem; min-height: 1.1em; }
+.mono { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 0.82rem; }
+
+.count-badge {
+  display: inline-block;
+  min-width: 1.6rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--panel-strong);
+  color: var(--ink-dim);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.play-banner { flex: 0 0 auto; }
+
+.controls {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding-top: 0.2rem;
+}
+
+.btn-blue {
+  background: linear-gradient(180deg, #2f6fd0, #1b4a95);
+  border-color: #5f9bff;
+  color: #fff;
+}
+.btn-blue:hover { border-color: #9dc2ff; }
+
+.btn-green {
+  background: linear-gradient(180deg, #23805a, #14563c);
+  border-color: #51d88a;
+  color: #eafff4;
+}
+.btn-green:hover { border-color: #8ff0bb; }
+
+.btn-lock {
+  min-width: 3.2rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+}
+
+/* ============ Setup ============ */
+
+.screen-setup { overflow: auto; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.2rem 1.2rem;
+  box-shadow: var(--shadow-panel);
+}
+
+.setup-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.4rem;
+}
+
+.setup-heading {
+  margin: 0.9rem 0 0.35rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.player-list { list-style: none; margin: 0.3rem 0; padding: 0; display: grid; gap: 0.3rem; }
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+}
+
+.player-seat {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--chase-blue-deep);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.player-name { font-weight: 600; }
+.player-kind { color: var(--ink-mute); font-size: 0.75rem; margin-left: auto; }
+
+.inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+.inline-form input[type="text"],
+.field-inline input,
+.field-inline select,
+.field input,
+.field select,
+.ed-lines {
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+}
+
+.field-inline, .field, .check {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+
+.field, .field-inline { flex-direction: column; align-items: stretch; }
+.check { align-items: flex-start; line-height: 1.4; }
+.check input { margin-top: 0.2rem; }
+
+.mode-set { border: 0; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+
+.rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.3rem 0.8rem; }
+
+.library-slot { margin-top: 0.6rem; }
+
+.setup-actions { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+
+/* ============ Cash Builder / Final Chase shared column ============ */
+
+.cash-grid, .final-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.4fr);
+  gap: 1rem;
+}
+
+.cash-left, .final-left, .cash-right, .final-right {
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-lg);
+  padding: 0.8rem 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cash-left, .final-left { align-items: center; justify-content: center; gap: 0.4rem; }
+
+.giant-clock {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(56px, 8vw, 108px);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.giant-clock.danger { color: var(--chase-red-lift); }
+.giant-clock.done { color: var(--ink-mute); }
+
+.giant-money {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 4.4vw, 62px);
+  line-height: 1;
+  color: var(--gold-text);
+  letter-spacing: var(--track-display);
+}
+
+.clock-state { margin: 0.2rem 0 0; color: var(--ink-dim); font-size: 0.9rem; min-height: 1.2em; }
+
+.counters { display: flex; gap: 0.8rem; margin-top: 0.5rem; }
+
+.counter {
+  min-width: 4.5rem;
+  text-align: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  background: var(--well);
+  border: 1px solid var(--panel-line);
+}
+
+.counter .k { margin: 0; color: var(--ink-mute); font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.1em; }
+.counter .v { margin: 0.1rem 0 0; font-family: var(--font-display); font-size: 1.5rem; }
+
+.rapid-q {
+  margin: 0 0 0.6rem;
+  font-size: clamp(22px, 2.5vw, 38px);
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.answer-label { color: var(--gold-text); }
+
+.rapid-a {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2.8vw, 42px);
+  line-height: 1.15;
+  color: var(--gold-text);
+  letter-spacing: var(--track-display);
+}
+
+/* ============ The offers ============ */
+
+.offer-row {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.offer-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.4rem 1rem;
+  border-radius: var(--radius-xl);
+  border: 2px solid var(--panel-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.3));
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+
+.offer-card:hover { border-color: var(--gold); box-shadow: var(--shadow-lift); }
+.offer-card:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+.offer-higher { border-color: rgba(209, 0, 0, 0.55); }
+.offer-lower { border-color: rgba(77, 155, 255, 0.55); }
+.offer-middle { border-color: rgba(255, 204, 77, 0.55); }
+
+.offer-kicker {
+  color: var(--ink-dim);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  max-width: 18rem;
+}
+
+.offer-amount {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 5vw, 76px);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+}
+
+.offer-higher .offer-amount { color: var(--chase-red-lift); }
+.offer-middle .offer-amount { color: var(--gold-text); }
+.offer-lower .offer-amount { color: var(--chase-blue); }
+
+.offer-step { color: var(--ink-dim); font-size: 0.95rem; }

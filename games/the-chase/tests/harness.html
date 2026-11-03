@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Chase harness (CH-I1–CH-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>The Chase — loopback harness (success states CH-I1 … CH-I6, spec 15 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an embedded host plus four embedded phones and speaks the bridge protocol from architecture 00 §6 itself — no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM text.
+    The load-bearing assertion is CH-I1: while both sides are locked and unrevealed, each phone carries its OWN letter and the host document's <code>textContent</code> carries neither.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__CHASE_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 6000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dex", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const ROOM = { code: "CHSA", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/chase-content.js", "../js/chase-rules.js", "../js/chase-core.js", "../js/data.js",
+      "../js/chase-sound.js", "../js/chase-clock.js", "../js/chase-view.js", "../js/chase-board.js",
+      "../js/chase-app.js", "../js/chase-wire.js", "../js/chase-editor.js", "../js/chase-room.js",
+      "../js/chase-phone.js",
+      "../css/chase.css", "../css/chase-play.css", "../css/chase-phone.css",
+      "../../../shared/theme.css", "../../../shared/theme-components.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js",
+      "../../../shared/bridge.js", "../../../shared/library.js",
+      "fixtures/harness-game.json",
+    ];
+
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // leaves its fixture game or its roster in the real host's save on the same
+    // origin (the pattern Price Is Right settled on in Phase 3).
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness"
+      + "&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-chase-state-v1-harness", "gsc-chase-draft-v1-harness"];
+    const REAL_KEYS = ["gsc-chase-state-v1", "gsc-chase-draft-v1"];
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().ChaseApp.core();
+    const click = (id) => H(id).click();
+    /** Everything the shared screen is showing, hidden nodes included. */
+    const hostText = () => HD().body.textContent;
+
+    /**
+     * A fresh host frame. The outgoing page saves on beforeunload, so the frame
+     * is parked on about:blank BEFORE the keys are cleared — otherwise that save
+     * lands after the wipe and the "fresh" boot restores the old game.
+     */
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().ChaseApp && HW().ChaseApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.ChasePhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).ChasePhone.view();
+    const phoneText = (pid) => PD(pid).body.textContent;
+
+    /** Tap option `idx` on phone `pid`, the way a thumb would. */
+    async function tapOption(pid, idx) {
+      const q = core().h2h.q.q;
+      await waitFor(() => phoneView(pid).canLock && phoneView(pid).q === q
+        && PW(pid).ChasePhone.options()[idx] && !PW(pid).ChasePhone.options()[idx].disabled,
+        `phone ${pid} ready to lock`);
+      PW(pid).ChasePhone.options()[idx].click();
+    }
+
+    /* ============ Driving the game ============ */
+
+    /** Seat the roster, name the Chaser, start. `chaserPid` "" = the host plays him. */
+    function startGame(chaserPid) {
+      const app = HW().ChaseApp;
+      const setup = Object.assign({}, app.state().setup, {
+        chaserMode: chaserPid ? "player" : "host",
+        chaserPid: chaserPid || "",
+        chaserName: chaserPid ? "Dex the Chaser" : "The Chaser",
+      });
+      app.set({ setup });
+      click("btn-start");
+    }
+
+    /** Run the Cash Builder for the seat in play and stop on the offers. */
+    async function cashBuilder(correct) {
+      await waitFor(() => core() && core().phase === "cashBuilder", "cash builder");
+      click("btn-cash-clock");
+      for (let i = 0; i < correct; i += 1) click("btn-cash-right");
+      HW().ChaseApp.dispatch({ type: "cbExpired" });
+      click("btn-cash-next");         // wave the question in flight away
+      click("btn-cash-next");         // on to the offers
+      await waitFor(() => core().phase === "offer", "the offers");
+    }
+
+    const rightIdx = () => core().h2h.q.answer;
+    const wrongIdx = () => (core().h2h.q.answer + 1) % 3;
+
+    /* ============================================================
+       CH-I1 — two phones lock in secret; the reveal is host-paced
+       ============================================================ */
+
+    async function scenarioSecretLocks() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().ChaseApp.state().setup.players.length === 4, "roster from the shell");
+      check("CH-I1 the shell roster becomes the contestant pool, in seat order",
+        HW().ChaseApp.state().setup.players.map((p) => p.name).join(",") === "Ada,Ben,Cleo,Dex",
+        HW().ChaseApp.state().setup.players.map((p) => p.name).join(","));
+      check("CH-I1 the file's own rules land in the setup screen",
+        H("chase-set-cbsecs").value === "15" && H("chase-set-final").value === "30"
+        && H("chase-set-steps").value === "7",
+        `${H("chase-set-cbsecs").value}s builder, ${H("chase-set-final").value}s final`);
+
+      startGame("p4");
+      await cashBuilder(4);
+      check("CH-I1 the three offers are built from what the contestant banked",
+        H("chase-offer-middle-amount").textContent === "$4,000"
+        && H("chase-offer-higher-amount").textContent === "$20,000"
+        && H("chase-offer-lower-amount").textContent === "$2,000",
+        [H("chase-offer-higher-amount").textContent, H("chase-offer-middle-amount").textContent,
+          H("chase-offer-lower-amount").textContent].join(" / "));
+
+      click("btn-offer-middle");
+      await waitFor(() => core().phase === "headToHead" && core().h2h.q, "the board");
+      await waitFor(() => phoneView("p1").screen === "answer", "the contestant's phone");
+      const q = core().h2h.q;
+      check("CH-I1 the contestant's phone and the Chaser's phone both carry the question",
+        phoneView("p1").q === q.q && phoneView("p4").q === q.q
+        && PW("p1").ChasePhone.questionText() === q.q,
+        `p1 “${PW("p1").ChasePhone.questionText().slice(0, 40)}…”`);
+      check("CH-I1 a phone that is neither side gets no question at all",
+        phoneView("p2").screen === "wait" && phoneView("p2").q === undefined
+        && phoneText("p2").indexOf(q.q) < 0,
+        `p2 screen ${phoneView("p2").screen}`);
+
+      const cIdx = wrongIdx();
+      const hIdx = rightIdx();
+      await tapOption("p1", cIdx);
+      await tapOption("p4", hIdx);
+      await waitFor(() => core().h2h.locks.contestant !== null && core().h2h.locks.chaser !== null,
+        "both locks");
+      check("CH-I1 a tap on a phone is the only way an answer is locked, and both landed",
+        core().h2h.locks.contestant === cIdx && core().h2h.locks.chaser === hIdx,
+        JSON.stringify(core().h2h.locks));
+      check("CH-I1 THE HOST SCREEN SHOWS “Locked in”, NOT THE LETTERS",
+        H("chase-lock-contestant").textContent === "Locked in"
+        && H("chase-lock-chaser").textContent === "Locked in"
+        && hostText().indexOf(`${"ABC"[cIdx]} —`) < 0,
+        `${H("chase-lock-contestant").textContent} / ${H("chase-lock-chaser").textContent}`);
+      check("CH-I1 NEITHER PHONE CARRIES THE OTHER SIDE'S LOCK",
+        phoneView("p1").myLock === cIdx && phoneView("p1").answer === undefined
+        && JSON.stringify(phoneView("p1")).indexOf(`"chaserLock"`) < 0
+        && phoneView("p4").myLock === hIdx && phoneView("p4").answer === undefined,
+        `p1 sees myLock ${phoneView("p1").myLock}, p4 sees myLock ${phoneView("p4").myLock}`);
+      check("CH-I1 each side is told only THAT the other has locked",
+        phoneView("p1").chaserLocked === true && phoneView("p4").contestantLocked === true);
+
+      check("CH-I1 the Chaser cannot be revealed first",
+        H("btn-reveal-chaser").classList.contains("hidden")
+        && !H("btn-reveal-contestant").classList.contains("hidden"));
+      click("btn-reveal-contestant");
+      await waitFor(() => core().h2h.revealed.contestant, "the contestant reveal");
+      check("CH-I1 revealing the contestant shows their letter and only theirs",
+        H("chase-lock-contestant").textContent === `${"ABC"[cIdx]} — wrong`
+        && H("chase-lock-chaser").textContent === "Locked in",
+        `${H("chase-lock-contestant").textContent} / ${H("chase-lock-chaser").textContent}`);
+      check("CH-I1 the right answer still has not travelled to a phone",
+        phoneView("p1").answer === undefined && phoneView("p4").answer === undefined);
+
+      click("btn-reveal-chaser");
+      await waitFor(() => core().h2h.revealed.chaser, "the Chaser reveal");
+      await waitFor(() => phoneView("p1").answer === q.answer && phoneView("p4").answer === q.answer,
+        "the answer on the phones");
+      check("CH-I1 both letters are shown, the Chaser steps down, and now the phones learn the answer",
+        H("chase-lock-chaser").textContent === `${"ABC"[hIdx]} — correct`
+        && core().h2h.hPos === 6 && core().h2h.cPos === 3
+        && phoneView("p1").answer === q.answer && phoneView("p4").answer === q.answer,
+        `board ${core().h2h.cPos} v ${core().h2h.hPos}`);
+      check("CH-I1 the board draws eight rungs with both markers placed",
+        HD().querySelectorAll("#chase-board .board-rung").length === 8
+        && HD().querySelector("#chase-board .marker-contestant").style.top === "50%"
+        && HD().querySelector("#chase-board .marker-chaser").style.top === "12.5%",
+        `${HD().querySelector("#chase-board .marker-contestant").style.top} / `
+        + `${HD().querySelector("#chase-board .marker-chaser").style.top}`);
+    }
+
+    /* ============================================================
+       CH-I2 — a player as the Chaser, all the way to a catch
+       ============================================================ */
+
+    async function scenarioChaserAsPlayer() {
+      // Three more correct Chaser answers from p4's phone catch Ada on step 3.
+      for (let i = 0; i < 4; i += 1) {
+        if (core().h2h.outcome) break;
+        click("btn-board-next");
+        await waitFor(() => core().h2h.q && !core().h2h.revealed.contestant, "the next question");
+        await tapOption("p1", wrongIdx());
+        await tapOption("p4", rightIdx());
+        await waitFor(() => core().h2h.locks.chaser !== null, "both locks");
+        click("btn-reveal-contestant");
+        click("btn-reveal-chaser");
+        await sleep(20);
+      }
+      check("CH-I2 a player Chaser catches the contestant from their own phone",
+        core().h2h.outcome === "caught" && core().h2h.cPos === core().h2h.hPos,
+        `outcome ${core().h2h.outcome} at ${core().h2h.cPos} v ${core().h2h.hPos}`);
+      check("CH-I2 the interstitial names the contestant and says why",
+        !H("chase-interstitial").classList.contains("hidden")
+        && H("chase-inter-kicker").textContent === "Caught"
+        && H("chase-inter-name").textContent === "Ada",
+        H("chase-inter-sub").textContent);
+      check("CH-I2 every phone is told the outcome in its own words",
+        phoneView("p1").sub.indexOf("Caught") === 0
+        && phoneView("p2").sub.indexOf("Ada has been caught") === 0,
+        `p1 “${phoneView("p1").sub}” · p2 “${phoneView("p2").sub}”`);
+      check("CH-I2 the seat strip records the result",
+        HD().querySelectorAll("#chase-seats .seat-chip.is-caught").length === 1,
+        HD().getElementById("chase-seats").textContent.trim());
+
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "cashBuilder" && core().seat === 1, "the next hot seat");
+      check("CH-I2 the next contestant takes the hot seat with a fresh Cash Builder",
+        HW().ChaseCore.hotSeat(core()).name === "Ben" && core().cb.correct === 0
+        && H("chase-cash-total").textContent === "$0",
+        H("chase-cash-title").textContent);
+    }
+
+    /* ============================================================
+       CH-I3 — the clocks reach the phones as deadlines
+       ============================================================ */
+
+    async function scenarioClocks() {
+      click("btn-cash-clock");
+      await waitFor(() => core().cb.clock.running, "the Cash Builder clock");
+      await waitFor(() => PW("p2").ChasePhone.clockText() && PW("p2").ChasePhone.clockText() !== "0:00",
+        "the phone clock");
+      check("CH-I3 the Cash Builder clock is on the host screen and on every phone",
+        /^0:1[0-5]$/.test(H("chase-cash-clock").textContent)
+        && /^0:1[0-5]$/.test(PW("p2").ChasePhone.clockText())
+        && phoneView("p2").clock.running === true && phoneView("p2").clock.deadline > Date.now(),
+        `host ${H("chase-cash-clock").textContent} · p2 ${PW("p2").ChasePhone.clockText()}`);
+      check("CH-I3 a phone never receives the rapid-fire question or its answer",
+        phoneText("p2").indexOf(core().cb.item.q) < 0
+        && phoneText("p2").indexOf(core().cb.item.a) < 0
+        && phoneText("p1").indexOf(core().cb.item.a) < 0,
+        `looked for “${core().cb.item.a}” on two phones`);
+      check("CH-I3 the host screen carries the question AND the answer for the host to read",
+        H("chase-cash-q").textContent === core().cb.item.q
+        && H("chase-cash-a").textContent === core().cb.item.a);
+
+      click("btn-cash-clock");
+      await sleep(30);
+      check("CH-I3 pausing stops the clock and freezes what was left, on both surfaces",
+        core().cb.clock.running === false && core().cb.clock.remainingMs > 0
+        && phoneView("p2").clock.running === false,
+        `${Math.round(core().cb.clock.remainingMs / 1000)}s left`);
+      check("CH-I3 nothing can be judged while the clock is paused",
+        H("btn-cash-right").disabled && H("btn-cash-wrong").disabled);
+      click("btn-cash-clock");
+      await waitFor(() => core().cb.clock.running, "the resumed clock");
+    }
+
+    /* ============================================================
+       CH-I4 — a reload mid-Final Chase comes back paused
+       ============================================================ */
+
+    /** Take the contestant in the hot seat home on the lower offer. */
+    async function takeHome(pid) {
+      HW().ChaseApp.dispatch({ type: "cbExpired" });
+      click("btn-cash-next");
+      click("btn-cash-next");
+      await waitFor(() => core().phase === "offer", "the offers");
+      click("btn-offer-lower");
+      await waitFor(() => core().phase === "headToHead" && core().h2h.q, "the board");
+      for (let i = 0; i < 4 && !core().h2h.outcome; i += 1) {
+        if (i) click("btn-board-next");
+        await waitFor(() => core().h2h.q && !core().h2h.revealed.contestant, "a question");
+        await tapOption(pid, rightIdx());
+        await tapOption("p4", wrongIdx());
+        await waitFor(() => core().h2h.locks.chaser !== null, "both locks");
+        click("btn-reveal-contestant");
+        if (!core().h2h.outcome) click("btn-reveal-chaser");
+        await sleep(20);
+      }
+    }
+
+    async function scenarioFinalReload() {
+      await takeHome("p2");
+      // Ben built nothing, so the lower offer is the floor: one Cash Builder answer.
+      check("CH-I4 two right answers on the lower offer take the contestant home",
+        core().h2h.outcome === "home" && core().results[1].outcome === "home"
+        && core().results[1].amount === 1000,
+        `Ben banked ${core().results[1].amount}`);
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "cashBuilder" && core().seat === 2, "Cleo's Cash Builder");
+      click("btn-cash-clock");
+      click("btn-cash-right");
+      await takeHome("p3");
+      // Cleo built $1,000 and took the lower offer: half of it.
+      check("CH-I4 a second contestant home adds their amount to the bank",
+        HW().ChaseCore.bank(core()) === 1500, `bank ${HW().ChaseCore.bank(core())}`);
+      click("btn-next-contestant");
+      await waitFor(() => core().phase === "finalTeam", "the Final Chase");
+      check("CH-I4 the head start is one step per finalist",
+        core().final.headStart === 2 && core().final.teamSteps === 2
+        && core().final.finalists.map((f) => f.name).join(",") === "Ben,Cleo",
+        core().final.finalists.map((f) => f.name).join(","));
+
+      click("btn-final-clock");
+      click("btn-final-right");
+      click("btn-final-right");
+      await waitFor(() => core().final.teamSteps === 4, "two team steps");
+      await waitFor(() => phoneView("p2").teamSteps === 4, "the phone's step count");
+      check("CH-I4 the phones see the team's clock and step count",
+        phoneView("p2").screen === "final" && phoneView("p2").teamSteps === 4
+        && phoneView("p2").clock.running === true
+        && PD("p2").body.textContent.indexOf(core().final.item.a) < 0,
+        `p2 sees ${phoneView("p2").teamSteps} steps`);
+
+      await bootHost(false);          // reload the host frame with the save intact
+      await waitFor(() => core() && core().phase === "finalTeam", "the restored Final Chase");
+      check("CH-I4 a reload mid-Final Chase restores the game with the clock PAUSED",
+        core().final.teamSteps === 4 && core().final.teamClock.running === false
+        && core().final.teamClock.remainingMs > 0 && core().final.teamClock.deadline === null,
+        `${Math.round(core().final.teamClock.remainingMs / 1000)}s parked`);
+      check("CH-I4 the restored screen says so and offers Resume",
+        H("chase-final-state").textContent === "Paused."
+        && H("btn-final-clock").textContent.indexOf("Resume the clock") === 0,
+        H("btn-final-clock").textContent);
+
+      click("btn-final-clock");       // Resume, then let the buzzer go
+      await waitFor(() => core().final.teamClock.running, "the resumed team clock");
+      HW().ChaseApp.dispatch({ type: "finalTeamExpired" });
+      click("btn-final-next");
+      await waitFor(() => core().phase === "finalChaser", "the Chaser's half");
+      click("btn-final-clock");
+      click("btn-final-right");
+      click("btn-final-wrong");
+      await waitFor(() => core().final.pushback, "the pushback");
+      await waitFor(() => phoneView("p2").pushbackPending === true, "the pushback on the phones");
+      check("CH-I4 a Chaser miss becomes a pushback the team can take back",
+        !H("chase-pushback").classList.contains("hidden")
+        && H("btn-final-right").disabled === true
+        && phoneView("p2").pushbackPending === true,
+        H("chase-final-state").textContent);
+      click("btn-pushback-yes");
+      await waitFor(() => !core().final.pushback, "the pushback resolved");
+      check("CH-I4 a correct pushback drives the Chaser back a step",
+        core().final.chaserSteps === 0 && core().final.pushbacks === 1,
+        `chaser on ${core().final.chaserSteps}`);
+      HW().ChaseApp.dispatch({ type: "finalChaserExpired" });
+      await waitFor(() => core().phase === "result", "the result");
+      check("CH-I4 time up with the Chaser short: the team split the bank to the last dollar",
+        core().outcome.teamWon === true
+        && core().outcome.share.reduce((n, x) => n + x.amount, 0) === 1500
+        && H("chase-result-amount").textContent === "$1,500",
+        core().outcome.share.map((x) => `${x.name} ${x.amount}`).join(", "));
+      check("CH-I4 the standings show what each contestant built, played and won",
+        HD().querySelectorAll("#chase-standings .standing-row").length === 3
+        && HD().querySelectorAll("#chase-standings .is-caught").length === 1,
+        HD().getElementById("chase-standings").textContent.replace(/\s+/g, " ").trim().slice(0, 120));
+      await waitFor(() => shellLog.some((m) => m.t === "scores"), "a score report").catch(() => null);
+      check("CH-I4 the shell was handed a score row per contestant",
+        shellLog.some((m) => m.t === "scores" && m.scores.length === 3
+          && m.scores.reduce((n, s) => n + s.score, 0) === 1500),
+        JSON.stringify((shellLog.filter((m) => m.t === "scores").pop() || {}).scores));
+    }
+
+    /* ============================================================
+       CH-I5 — the library picker, the editor round-trip, the game
+       lobby button (docs 19 §1–3, checks X-1 … X-3)
+       ============================================================ */
+
+    async function scenarioLobbyButton() {
+      await bootHost();
+      await bootPhones();
+      startGame("");
+      await waitFor(() => core() && core().phase === "cashBuilder", "a game in progress");
+      click("btn-cash-clock");
+      click("btn-cash-right");
+      const built = H("chase-cash-total").textContent;
+
+      check("CH-I5 X-1 the toolbar carries the Game lobby control",
+        H("btn-game-lobby") && H("btn-game-lobby").textContent.indexOf("Game lobby") > 0,
+        H("btn-game-lobby").textContent);
+      click("btn-game-lobby");
+      await sleep(20);
+      check("CH-I5 X-1 it opens a confirm with Keep and Start over",
+        !H("chase-lobby-backdrop").classList.contains("hidden")
+        && H("chase-lobby-modal").getAttribute("role") === "dialog"
+        && H("btn-lobby-keep") && H("btn-lobby-over"));
+      click("btn-lobby-keep");
+      await sleep(20);
+      check("CH-I5 X-1 Keep returns to setup with the roster intact and a Resume button",
+        !H("screen-setup").classList.contains("hidden") && core() === null
+        && !H("btn-resume").classList.contains("hidden")
+        && HW().ChaseApp.state().setup.players.length === 4,
+        `${HW().ChaseApp.state().setup.players.length} players still seated`);
+      click("btn-resume");
+      await waitFor(() => core() && core().phase === "cashBuilder", "the resumed game");
+      check("CH-I5 X-1 Resume restores the exact state, clock parked",
+        H("chase-cash-total").textContent === built && core().cb.correct === 1
+        && core().cb.clock.running === false,
+        `${H("chase-cash-total").textContent} restored`);
+
+      click("btn-game-lobby");
+      click("btn-lobby-over");
+      await sleep(20);
+      check("CH-I5 X-1 Start over clears the game but keeps roster, questions and rules",
+        core() === null && HW().ChaseApp.state().resumable === null
+        && H("btn-resume").classList.contains("hidden")
+        && HW().ChaseApp.state().setup.players.length === 4
+        && HW().ChaseApp.state().game.rapid.length === 90,
+        `${HW().ChaseApp.state().game.rapid.length} questions still loaded`);
+    }
+
+    async function scenarioLibrary() {
+      const picker = await waitFor(() => H("chase-library").querySelector(".gsc-library-select"),
+        "the library picker");
+      const options = [...picker.options].map((o) => o.value);
+      check("CH-I5 X-2 the picker lists the sets committed in sets/index.json",
+        options.length >= 2 && options.indexOf("kids.json") >= 0
+        && options.indexOf("movies-tv.json") >= 0,
+        options.join(", "));
+      check("CH-I5 X-2 the preview line names the set, its author and its counts",
+        /Kids/.test(H("chase-library").querySelector(".gsc-library-preview").textContent)
+        && /rapid-fire/.test(H("chase-library").querySelector(".gsc-library-preview").textContent),
+        H("chase-library").querySelector(".gsc-library-preview").textContent);
+
+      picker.value = "movies-tv.json";
+      picker.dispatchEvent(new (HW().Event)("change"));
+      H("chase-library").querySelector(".gsc-library-load").click();
+      await waitFor(() => HW().ChaseApp.state().sourceKind === "set", "the set to load");
+      check("CH-I5 X-2 loading a set validates it and updates the source note",
+        HW().ChaseApp.state().source === "set: Movies & TV"
+        && H("chase-source").textContent === "set: Movies & TV"
+        && HW().ChaseCore.validateGame(HW().ChaseApp.state().game) === true
+        && HW().ChaseApp.state().game.rapid.length === 83,
+        `${HW().ChaseApp.state().game.rapid.length} rapid-fire questions loaded`);
+    }
+
+    async function scenarioEditor() {
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "the editor");
+      check("CH-I5 X-3 the editor opens on the set in play",
+        H("chase-ed-rapid").value.split("\n").length === 83
+        && H("chase-ed-multi").value.split("\n").length === 43
+        && H("chase-ed-title").value.indexOf("Movies") > 0,
+        H("chase-ed-title").value);
+
+      const field = H("chase-ed-rapid");
+      field.value = `${field.value}\nA harness question? | A harness answer`;
+      field.dispatchEvent(new (HW().Event)("input"));
+      check("CH-I5 X-3 typing re-counts and re-validates without rebuilding the field",
+        H("chase-ed-rapid-count").textContent === "84"
+        && H("chase-editor-msg").classList.contains("hidden"),
+        H("chase-editor-warn").textContent.slice(0, 80));
+
+      const multi = H("chase-ed-multi");
+      const good = multi.value;
+      multi.value = `${good}\nBroken? | one | two | three | Z`;
+      multi.dispatchEvent(new (HW().Event)("input"));
+      check("CH-I5 X-3 a bad line is named in plain English",
+        !H("chase-editor-msg").classList.contains("hidden")
+        && /must end in A, B or C/.test(H("chase-editor-msg").textContent),
+        H("chase-editor-msg").textContent);
+      multi.value = good;
+      multi.dispatchEvent(new (HW().Event)("input"));
+
+      click("btn-editor-library");
+      await sleep(20);
+      check("CH-I5 X-3 “Download for the library” shows the exact manifest line and path",
+        !H("chase-editor-manifest").classList.contains("hidden")
+        && /^games\/the-chase\/sets\/.*\.json$/.test(H("chase-manifest-path").textContent)
+        && JSON.parse(H("chase-manifest-line").textContent.replace(/,$/, "")).counts["rapid-fire"] === 84,
+        `${H("chase-manifest-path").textContent} → ${H("chase-manifest-line").textContent.slice(0, 90)}`);
+
+      click("btn-editor-use");
+      await waitFor(() => HW().ChaseApp.state().sourceKind === "editor", "the edited set in play");
+      check("CH-I5 X-3 “Use in game” round-trips the edit back into the session",
+        HW().ChaseApp.state().game.rapid.length === 84
+        && HW().ChaseApp.state().game.rapid[83].a === "A harness answer"
+        && H("screen-editor").classList.contains("hidden"),
+        H("chase-source").textContent);
+    }
+
+    /* ============================================================
+       CH-I6 — the static gates (verification plan 06 §4)
+       ============================================================ */
+
+    const SOURCES = [
+      "../index.html", "../js/chase-content.js", "../js/chase-rules.js", "../js/chase-core.js",
+      "../js/data.js", "../js/chase-sound.js", "../js/chase-clock.js", "../js/chase-view.js",
+      "../js/chase-board.js", "../js/chase-app.js", "../js/chase-wire.js", "../js/chase-editor.js",
+      "../js/chase-room.js", "../js/chase-phone.js",
+      "../css/chase.css", "../css/chase-play.css", "../css/chase-phone.css",
+      "../questions.json", "../sets/index.json", "../sets/kids.json", "../sets/movies-tv.json",
+      "./harness.html", "./chase-core.test.mjs", "./chase-fixtures.mjs",
+    ];
+    const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(SOURCES.map(async (u) => {
+        const res = await fetch(u, { cache: "reload" }).catch(() => null);
+        texts[u] = res && res.ok ? await res.text() : null;
+      }));
+      const missing = SOURCES.filter((u) => texts[u] === null);
+      check("CH-I6 every source file is served", missing.length === 0, missing.join(", "));
+
+      const long = SOURCES.filter((u) => texts[u] && texts[u].split("\n").length >= 800);
+      check("CH-I6 V2 every file is under 800 lines", long.length === 0,
+        SOURCES.map((u) => `${u.split("/").pop()}:${texts[u] ? texts[u].split("\n").length : "?"}`).join("  "));
+
+      const banned = SOURCES.filter((u) => texts[u] && texts[u].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0 && line.indexOf("BANNED") < 0));
+      check("CH-I6 V3 no innerHTML / document.write / eval anywhere", banned.length === 0, banned.join(", "));
+
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = SOURCES.filter((u) => texts[u] && debugLog.test(texts[u]));
+      check("CH-I6 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+
+      const html = texts["../index.html"] || "";
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("CH-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+
+      check("CH-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="the-chase"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("CH-I6 V8 questions.json validates and ships 200 rapid-fire + 60 head-to-head",
+        HW().ChaseCore.validateGame(JSON.parse(texts["../questions.json"])) === true
+        && JSON.parse(texts["../questions.json"]).rapid.length === 200
+        && JSON.parse(texts["../questions.json"]).multi.length === 60);
+      check("CH-I6 js/data.js mirrors questions.json and reaches globalThis",
+        JSON.stringify(HW().CHASE_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../questions.json"])),
+        HW().CHASE_DEFAULT_GAME ? "globalThis.CHASE_DEFAULT_GAME is set" : "MISSING");
+      const manifest = JSON.parse(texts["../sets/index.json"]);
+      check("CH-I6 both shipped sets validate through validateGame",
+        manifest.length === 2
+        && HW().ChaseCore.validateGame(JSON.parse(texts["../sets/kids.json"])) === true
+        && HW().ChaseCore.validateGame(JSON.parse(texts["../sets/movies-tv.json"])) === true,
+        manifest.map((m) => m.name).join(", "));
+      check("CH-I6 no sheet declares a body[data-gsc-game] palette override",
+        ["../css/chase.css", "../css/chase-play.css", "../css/chase-phone.css"]
+          .every((u) => (texts[u] || "").indexOf("body[data-gsc-game") < 0),
+        "the accent block in shared/theme.css is the single source");
+
+      // Every animation must sit inside prefers-reduced-motion: no-preference.
+      // Comments stripped first: these sheets document the rule in their headers.
+      const comments = new RegExp("/\\*[\\s\\S]*?\\*/", "g");
+      const css = ["../css/chase.css", "../css/chase-play.css", "../css/chase-phone.css"]
+        .map((u) => texts[u]).join("\n").replace(comments, "");
+      const guarded = css.split("@media (prefers-reduced-motion: no-preference)");
+      const outside = guarded[0].match(/@keyframes|animation:/g) || [];
+      check("CH-I6 every @keyframes and animation: is inside prefers-reduced-motion: no-preference",
+        outside.length === 0, outside.join(", ") || "none outside the guard");
+
+      check("CH-I6 V-store the run is namespaced and leaves the real save untouched",
+        HW().ChaseApp.STORAGE_KEY === "gsc-chase-state-v1-harness"
+        && HW().ChaseEditor.DRAFT_KEY === "gsc-chase-draft-v1-harness"
+        && REAL_KEYS.every((k, i) => localStorage.getItem(k) === REAL_BEFORE[i]),
+        `${HW().ChaseApp.STORAGE_KEY} / ${HW().ChaseEditor.DRAFT_KEY}`);
+
+      check("CH-I6 the embedded page hides the standalone room controls and shows the splash never",
+        HD().body.classList.contains("gsc-embedded")
+        && HD().getElementById("gsc-splash").classList.contains("hidden"),
+        HD().body.className);
+    }
+
+    /** V-phone: 320 px wide, thumb-sized targets, no horizontal scroll. */
+    function scenarioPhoneGates(pid) {
+      const buttons = PW(pid).ChasePhone.options();
+      const small = buttons.filter((b) => b.getBoundingClientRect().height < 56);
+      check("CH-I6 V-phone every option button is at least 56 px tall at 320 px",
+        buttons.length === 3 && small.length === 0,
+        buttons.map((b) => `${b.textContent.slice(0, 8)}:${Math.round(b.getBoundingClientRect().height)}`)
+          .join(" "));
+      const wide = [...phoneFrames.keys()].filter((p) => {
+        const d = PD(p).documentElement;
+        return d.scrollWidth > d.clientWidth + 1;
+      });
+      check("CH-I6 V-phone no phone scrolls sideways at 320 px — contestant, Chaser or spectator",
+        wide.length === 0,
+        wide.length ? wide.join(", ")
+          : [...phoneFrames.keys()].map((p) => `${p}:${PD(p).documentElement.scrollWidth}`).join(" "));
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioSecretLocks();
+        scenarioPhoneGates("p1");
+        await scenarioChaserAsPlayer();
+        await scenarioClocks();
+        await scenarioFinalReload();
+        await scenarioLobbyButton();
+        await scenarioLibrary();
+        await scenarioEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>
