@@ -496,7 +496,7 @@
         !node.classList.contains("hidden")
         && H("gsc-splash-title").textContent === "Millionaire"
         && node.dataset.gscGame === "millionaire"
-        && H("gsc-splash-sub").textContent.length > 0,
+        && H("gsc-splash-sub").textContent === "",
         `${H("gsc-splash-title").textContent} / ${H("gsc-splash-sub").textContent}`);
       await waitFor(() => node.classList.contains("hidden"), "the splash clears itself", 2500);
       check("M-I6b the splash clears itself and never blocks the game", true, "hidden again within 1.2 s");

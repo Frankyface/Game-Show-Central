@@ -44,9 +44,9 @@ const WwmView = (function () {
 
   const LIFELINE_LABELS = {
     fifty: { badge: "50:50", short: "Fifty", name: "50:50" },
-    phone: { badge: "☎", short: "Phone", name: "Phone a Friend" },
-    audience: { badge: "👥", short: "Audience", name: "Ask the Audience" },
-    switch: { badge: "⇄", short: "Switch", name: "Switch the Question" },
+    phone: { badge: "Phone", short: "Phone", name: "Phone a Friend" },
+    audience: { badge: "Audience", short: "Audience", name: "Ask the Audience" },
+    switch: { badge: "Switch", short: "Switch", name: "Switch the Question" },
   };
 
   /* ============ Screen switching ============ */
@@ -262,7 +262,7 @@ const WwmView = (function () {
       if (row.safe) li.classList.add("safe");
       li.appendChild(el("span", "tree-rung", row.rung));
       li.appendChild(el("span", "tree-value", row.label));
-      if (row.safe) li.appendChild(el("span", "tree-safe", "⚑"));
+      if (row.safe) li.appendChild(el("span", "tree-safe", "Safe"));
       if (row.current) li.setAttribute("aria-current", "step");
       rail.appendChild(li);
     });
@@ -284,7 +284,7 @@ const WwmView = (function () {
       btn.setAttribute("aria-label", btn.title);
       btn.appendChild(el("span", "lifeline-badge", label.badge));
       btn.appendChild(el("span", "lifeline-name", label.short));
-      btn.appendChild(el("span", "lifeline-cross", used ? "✗" : ""));
+      btn.appendChild(el("span", "lifeline-cross", used ? "used" : ""));
       btn.addEventListener("click", () => window.WwmApp.useLifeline(key));
       box.appendChild(btn);
     });

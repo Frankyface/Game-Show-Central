@@ -428,3 +428,54 @@ frames and report through the same `check()` and the same `#results` list —
   (static hosting); it prints both, which is the workflow docs/19 §2 asks for.
 - X-4 does not apply here: the three game fixes are for The Price Is Right,
   Deal or No Deal and Chain Reaction.
+
+## 11. UI cleanup pass (docs/21, design-system v3 §0)
+
+The look was reworked against the v3 checklist. Behaviour is unchanged:
+`node --test` **67/67**, `tests/harness.html` **79/79** on port 8672 (run
+headless through `.scratch/cdp.mjs .scratch/wwm-harness-run.mjs`).
+
+**What changed**
+- `css/wwm.css` rewritten (backup of the v2 sheet in `.scratch/wwm-css-v2-backup.css`):
+  no local `--accent`/`--stage-*` overrides, so the stage is the shared flat
+  `--stage-bg` (accent at 5 %); one surface level (`--surface` + 1 px
+  `--hairline`, 8 px radius); no gradients, glow, text-shadow, blur or
+  vignette. The question and option lozenges keep the hexagon, drawn flat with
+  one hairline; selected = accent fill, locked = amber, correct = green,
+  wrong = red, removed = dimmed (each state also named in a visually hidden word).
+  The money tree is a plain list: the current rung in the accent with its
+  amount as the hot seat's one Anton hero, won rungs ticked, safe havens marked
+  with the word "Safe". Inter everywhere else, sentence case, no tracking;
+  gold only on money. Lifelines are plain labelled buttons; a spent one is
+  struck through and says "used". Only motion left: a 260 ms fade on the
+  correct reveal, inside `prefers-reduced-motion: no-preference`.
+- `css/wwm-phone.css` rewritten flat to match (56 px targets, accent only for
+  the chosen answer and ranks).
+- Markup: toolbar is **Sound · Editor · Game lobby** with `GSCIcons`
+  (`sound`/`sound-off`, `edit`, `lobby`) beside each label (`shared/icons.js`
+  loaded); the setup tagline eyebrow became one plain "what next" sentence;
+  splash kicker removed. Embedded, `#btn-exit` and the room chip are hidden.
+- JS (minimal): `GSCIcons.prepend` calls; splash `600 ms` with an empty sub
+  line; three emoji/glyph strings replaced — lifeline badges ☎/👥/⇄ → "Phone",
+  "Audience", "Switch"; the safe-haven ⚑ → "Safe"; the spent-lifeline ✗ → "used".
+- Harness: two assertions updated to the v3 copy (count unchanged at 79):
+  M-I6b now expects the splash sub line to be empty, and X-1 expects the
+  toolbar label to read exactly "Game lobby" (the ⟲ glyph is gone).
+
+**Measured** (`.scratch/wwm-ui-audit.mjs`, headless Chrome): every in-play
+screen — Fastest Finger, hot seat, locked, Ask the Audience, Phone a Friend,
+reveal, result, standings, lobby confirm — has no vertical scroll at
+**1280×720** and at **1280×676 embedded**; zero text under 4.5:1 contrast
+(disabled controls and 50:50-removed options excepted), zero text under 15 px,
+zero emoji, zero text-shadow/glow box-shadow, zero backdrop-filter, zero
+gradient backgrounds, zero uppercase or letter-spacing, at most one Anton
+element per screen; toolbar reads Sound on · Editor · Game lobby with an icon
+on each. Setup and the editor scroll, which docs/21 allows. Reduced motion:
+CSSOM walk finds no `@keyframes`/`animation` outside `no-preference`,
+`getAnimations()` is empty and the splash is skipped. Phone at **320×640**:
+no horizontal scroll and every target ≥ 56 px on wait, Fastest Finger, hot
+seat, vote, locked and result.
+
+**Checklist:** tokens/stage ✓ · type ✓ · colour ✓ · surfaces ✓ (the shared
+`.gsc-library` picker sits inside the setup card as the design system draws
+it) · buttons ✓ · icons ✓ · motion ✓ · toolbar ✓ · copy ✓ · gates ✓.

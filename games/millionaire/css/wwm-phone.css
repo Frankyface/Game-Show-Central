@@ -1,20 +1,20 @@
 /* ============================================================
-   Millionaire — phone controller
-   320-430 px portrait, thumb-sized targets (>= 56 px), no
-   horizontal scroll at 320 px. The phone is a thin surface: it
-   paints the view the host sent and sends one intent back.
+   Millionaire — phone controller (design system v3, docs/21)
+   320–430 px portrait, targets >= 56 px, no horizontal scroll at
+   320 px. Flat: one surface, hairlines, Inter, the accent only for
+   the active choice and the primary button. No gradients, glow or
+   uppercase. The phone paints the view the host sent and sends one
+   intent back.
    ============================================================ */
 
-body.player-mode {
-  padding: 0;
-}
+body.player-mode { padding: 0; }
 
 .screen-phone {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 0.9rem 0.8rem 1.6rem;
   gap: 0.6rem;
+  padding: 0.9rem 0.8rem 1.6rem;
 }
 
 #gsc-join { width: 100%; }
@@ -24,32 +24,18 @@ body.player-mode {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background: linear-gradient(180deg, rgba(19, 26, 92, 0.9), rgba(4, 5, 28, 0.95));
-  border: 1px solid rgba(255, 204, 77, 0.35);
-  border-radius: var(--radius-lg);
   padding: 0.9rem 0.8rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
 }
 
-.phone-kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--gold-text);
-  margin: 0;
-  min-height: 1em;
-}
+/* A plain sentence-case label for the screen, not an eyebrow. */
+.phone-kicker { margin: 0; min-height: 1em; font-size: 15px; font-weight: 500; color: var(--ink-dim); }
 
-.phone-headline {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-  margin: 0;
-  color: var(--ink);
-}
+.phone-headline { margin: 0; font-size: 1.35rem; font-weight: 600; line-height: 1.25; color: var(--ink); }
 
-.phone-sub { font-size: 0.92rem; color: var(--ink-dim); margin: 0; }
+.phone-sub { margin: 0; font-size: 16px; color: var(--ink-dim); }
 
 .phone-choices { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.3rem; }
 
@@ -57,67 +43,62 @@ body.player-mode {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  min-height: var(--tap);
   width: 100%;
-  text-align: left;
+  min-height: var(--tap);
+  padding: 0.6rem 0.9rem;
   font-family: var(--font-ui);
   font-size: 1.05rem;
   font-weight: 600;
+  text-align: left;
   color: var(--ink);
-  background: linear-gradient(180deg, rgba(59, 75, 216, 0.4), rgba(4, 5, 28, 0.9));
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.9rem;
+  background: var(--stage-bg);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
-.phone-choice:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.phone-choice[aria-pressed="true"] { border-color: var(--gold); background: linear-gradient(180deg, rgba(255, 204, 77, 0.3), rgba(70, 48, 4, 0.9)); }
-.phone-choice[disabled] { opacity: 0.4; cursor: not-allowed; }
+.phone-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.phone-choice[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.phone-choice[aria-pressed="true"] .phone-letter { color: var(--accent-ink); }
+.phone-choice[disabled] { opacity: 0.45; cursor: not-allowed; }
 
-.phone-letter { font-family: var(--font-display); color: var(--gold); font-size: 1.2rem; min-width: 1.2em; }
+.phone-letter { min-width: 1.2em; font-size: 1.05rem; font-weight: 600; color: var(--ink-dim); }
+
 .phone-rank {
-  font-family: var(--font-display);
-  color: var(--stage-night);
-  background: var(--gold);
-  border-radius: 999px;
-  min-width: 1.7em;
-  text-align: center;
+  min-width: 1.9em;
   padding: 0.05em 0.3em;
+  text-align: center;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
 }
-.phone-rank-empty { background: transparent; color: var(--ink-faint); border: 1px dashed var(--ink-faint); }
+.phone-rank-empty { color: var(--ink-dim); background: transparent; border: 1px dashed rgba(255, 255, 255, 0.3); }
 
 .phone-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
 .phone-actions .btn { flex: 1 1 45%; min-height: var(--tap); }
 
-.phone-status { font-size: 0.82rem; color: var(--ink-dim); margin: auto 0 0; }
+.phone-status { margin: auto 0 0; font-size: 15px; color: var(--ink-dim); }
 
-.phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; }
 .phone-standings li {
   display: flex;
   justify-content: space-between;
   gap: 0.6rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.6rem;
-  font-size: 0.92rem;
+  padding: 0.45rem 0.1rem;
+  font-size: 16px;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.phone-money { display: flex; gap: 1rem; margin-top: 0.4rem; }
-.phone-money .k { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-dim); margin: 0; }
-.phone-money .v { font-family: var(--font-display); font-size: 1.2rem; color: var(--gold); margin: 0; }
+.phone-money { display: flex; gap: 1.2rem; margin-top: 0.4rem; }
+.phone-money .k { margin: 0; font-size: 15px; color: var(--ink-dim); }
+.phone-money .v { margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--ink); }
 
 .phone-card.locked-card { border-color: var(--amber); }
-.phone-card.winner-card { border-color: var(--gold); }
+.phone-card.winner-card { border-color: var(--hairline); }
 
-@media (max-width: 360px) {
-  .phone-headline { font-size: 1.28rem; }
-  .phone-choice { font-size: 0.98rem; }
-}
-
-/* The Ask-the-Audience countdown under the ballot. Decorative: the strip is
-   aria-hidden and the words beneath it carry the meaning, and nothing at all
-   happens when it reaches zero — the host closes the vote. */
+/* The Ask-the-Audience countdown under the ballot. Decorative strip
+   (aria-hidden); the words beneath carry the meaning. A cue only. */
 .phone-clock {
   flex: 1 1 100%;
   display: flex;
@@ -127,12 +108,10 @@ body.player-mode {
   margin-top: 0.2rem;
 }
 
-.phone-clock-label {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--ink-dim);
-  font-variant-numeric: tabular-nums;
-}
-
+.phone-clock-label { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
 .phone-clock.is-urgent .phone-clock-label { color: var(--red); }
+
+@media (max-width: 360px) {
+  .phone-headline { font-size: 1.2rem; }
+  .phone-choice { font-size: 1rem; }
+}

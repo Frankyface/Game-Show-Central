@@ -35,7 +35,7 @@ window.WwmXScenarios = function WwmXScenarios(bag) {
 
   async function scenarioLobby() {
     check("X-1 the toolbar carries a Game lobby control next to Sound and the editor",
-      !!H("btn-game-lobby") && H("btn-game-lobby").textContent.indexOf("Game lobby") > 0
+      !!H("btn-game-lobby") && H("btn-game-lobby").textContent.trim() === "Game lobby"
       && H("btn-game-lobby").parentNode === H("btn-sound").parentNode,
       H("btn-game-lobby") ? H("btn-game-lobby").textContent : "missing");
 

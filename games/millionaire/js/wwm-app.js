@@ -505,7 +505,12 @@ function wwmWireChrome() {
   const paint = () => {
     sound.textContent = window.WwmSound.enabled ? "Sound on" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.WwmSound.enabled));
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.WwmSound.enabled ? "sound" : "sound-off");
   };
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   sound.addEventListener("click", () => { window.WwmSound.toggle(); paint(); });
   paint();
   $("btn-game-lobby").addEventListener("click", wwmOpenLobbyConfirm);
@@ -551,7 +556,7 @@ function wwmMountLibrary() {
 
 /* ============ Splash ============ */
 
-const WWM_SPLASH_MS = 1200;
+const WWM_SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
 let wwmSplashTimer = null;
 
 /**
@@ -566,7 +571,7 @@ function wwmShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return; // the hub shows its own splash on switch
   setText("gsc-splash-title", "Millionaire");
-  setText("gsc-splash-sub", "Fifteen questions. One hot seat.");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "millionaire";   // wears the game accent (shared/theme.css)
   node.classList.remove("hidden");
   if (wwmSplashTimer) clearTimeout(wwmSplashTimer);
