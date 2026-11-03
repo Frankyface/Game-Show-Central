@@ -28,7 +28,7 @@ const WheelApp = (function () {
 
   const STORAGE_KEY = `gsc-wheel-state-v1${storeSuffix()}`;
   const TOSSUP_MS = 1200; // one letter every ~1.2 s (spec §1)
-  const SPLASH_MS = 1200; // the game-switch title card (design system v2 §3)
+  const SPLASH_MS = 600; // docs/21 §2.8: a plain 600 ms title card
   const MAX_PLAYERS = 6;
 
   const $ = (id) => document.getElementById(id);
@@ -442,7 +442,7 @@ const WheelApp = (function () {
     $("btn-tossup-start").disabled = t.running || t.done || !!t.buzzed;
     $("btn-tossup-start").textContent = t.next > 0 ? "Resume reveal" : "Start reveal";
     const who = t.buzzed ? state.players.find((p) => p.pid === t.buzzed) : null;
-    $("tossup-buzz").textContent = who ? `\u{1F514} ${who.name}` : "";
+    $("tossup-buzz").textContent = who ? `${who.name} buzzed in` : "";
     show($("tossup-judge"), !!who);
     show($("btn-next-round"), state.roundDone);
   }
@@ -469,7 +469,7 @@ const WheelApp = (function () {
     show($("btn-bonus-clear"), !b.picked);
     $("btn-bonus-reveal").disabled = !core().validateBonusPicks(bonusPicks, state.used);
     show($("bonus-judge"), b.picked && !b.result);
-    $("bonus-result").textContent = b.result === "win" ? `\u{1F389} ${state.game.settings.bonusPrize}!`
+    $("bonus-result").textContent = b.result === "win" ? `Solved \u2014 ${state.game.settings.bonusPrize}!`
       : b.result === "lose" ? `The answer was "${state.round.puzzle}".` : "";
     if (window.WheelTimer) {
       // Seconds LEFT (from bonus.deadline) plus the original length, so a
@@ -623,11 +623,25 @@ const WheelApp = (function () {
     }
   }
 
+  /** Label + GSCIcons glyph for the sound toggle (docs/21 rule 5: no emoji). */
+  function paintSound(on) {
+    const btn = $("btn-sound");
+    btn.textContent = on ? "Sound" : "Muted";
+    if (window.GSCIcons) window.GSCIcons.prepend(btn, on ? "sound" : "sound-off");
+  }
+
+  /** Static toolbar icons: Editor and Game lobby (icon + text label). */
+  function paintToolbarIcons() {
+    if (!window.GSCIcons) return;
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
+
   function onSoundToggle() {
     if (!sound()) return;
     const on = sound().toggle();
     sound().unlock();
-    $("btn-sound").textContent = on ? "\u{1F50A} Sound" : "\u{1F507} Muted";
+    paintSound(on);
     $("btn-sound").setAttribute("aria-pressed", String(on));
     if (state) setState({ ...state, sound: on });
   }
@@ -695,8 +709,9 @@ const WheelApp = (function () {
     booted = true;
     showSplash();
     wire();
+    paintToolbarIcons();
     if (sound()) {
-      $("btn-sound").textContent = sound().isOn() ? "\u{1F50A} Sound" : "\u{1F507} Muted";
+      paintSound(sound().isOn());
       $("btn-sound").setAttribute("aria-pressed", String(sound().isOn()));
     }
 

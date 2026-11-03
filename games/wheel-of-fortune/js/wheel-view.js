@@ -118,6 +118,15 @@ const WheelView = (function () {
     }
   }
 
+  /** "On a phone" marker: a GSCIcons glyph (docs/21 rule 5), text fallback. */
+  function phoneMark() {
+    const mark = el("span", "podium-phone");
+    const svg = window.GSCIcons ? window.GSCIcons.make("phone", { size: 16, label: "On a phone" }) : null;
+    if (svg) mark.appendChild(svg);
+    else mark.textContent = " (phone)";
+    return mark;
+  }
+
   /* ============ Podiums ============ */
 
   function podiumCard(player, phone, onClick) {
@@ -131,14 +140,14 @@ const WheelView = (function () {
     card.classList.toggle("podium-locked", player.locked);
     card.classList.toggle("podium-buzzed", player.buzzed);
     const name = el("span", "podium-name gsc-podium-name", player.name);
-    if (phone) name.appendChild(el("span", "podium-phone", " \u{1F4F1}"));
+    if (phone) name.appendChild(phoneMark());
     card.appendChild(name);
     card.appendChild(el("span", "podium-round gsc-podium-score", money(player.round)));
     const total = el("span", "podium-total gsc-podium-note");
     total.appendChild(el("span", "podium-total-label", "Total "));
     total.appendChild(el("span", "podium-total-value", money(player.total)));
     card.appendChild(total);
-    if (player.leader) card.appendChild(el("span", "podium-leader", "LEADER"));
+    if (player.leader) card.appendChild(el("span", "podium-leader", "Leader"));
     card.addEventListener("click", () => onClick(player.pid));
     return card;
   }
@@ -164,7 +173,9 @@ const WheelView = (function () {
     for (const player of players) {
       const row = el("li", "player-row gsc-well");
       const phone = phonePids.has(player.pid);
-      row.appendChild(el("span", "player-row-name", player.name + (phone ? " \u{1F4F1}" : "")));
+      const label = el("span", "player-row-name", player.name);
+      if (phone) label.appendChild(phoneMark());
+      row.appendChild(label);
       if (!phone) {
         const drop = el("button", "btn btn-ghost btn-small", "Remove");
         drop.type = "button";

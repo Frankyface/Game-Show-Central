@@ -212,7 +212,7 @@
     if (document.body.classList.contains("gsc-embedded")) return; // the hub shows its own splash on switch
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     node.classList.remove("hidden");
-    window.setTimeout(() => node.classList.add("hidden"), 1200);
+    window.setTimeout(() => node.classList.add("hidden"), 600); // docs/21 §2.8
   }
 
   async function boot() {

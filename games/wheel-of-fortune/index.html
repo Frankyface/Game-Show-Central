@@ -7,7 +7,7 @@
   <meta name="description" content="Wheel of Fortune for Game Show Central: spin the wheel, call letters and solve the puzzle. Load your own puzzles from JSON, play host-only or with phones.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/timer.css">
   <link rel="stylesheet" href="css/wheel.css">
@@ -19,9 +19,9 @@
     <h1 id="game-title" class="topbar-title">Wheel of Fortune</h1>
     <div class="topbar-actions">
       <span id="room-chip" class="room-chip gsc-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">&#128266; Sound</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small hidden" type="button">&#8634; Game lobby</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Puzzle Editor</button>
+      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small hidden" type="button">Game lobby</button>
       <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
@@ -34,8 +34,8 @@
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="setup-card">
-        <p class="setup-kicker">Big money, big prizes&hellip;</p>
         <h2 id="setup-title" class="setup-title">Wheel of Fortune</h2>
+        <p class="setup-lede">Add the players, choose the puzzles, then start the game.</p>
         <p id="source-note" class="source-note">Loading puzzles&hellip;</p>
 
         <div class="setup-grid">
@@ -46,7 +46,7 @@
             <label class="visually-hidden" for="player-name-input">Player name</label>
             <input id="player-name-input" type="text" maxlength="24" placeholder="Player name"
                    autocomplete="off" spellcheck="false">
-            <button class="btn btn-ghost" type="submit">+ Add player</button>
+            <button class="btn btn-ghost" type="submit">Add player</button>
           </form>
           <p class="setup-hint">Up to 6 players. Phones are optional &mdash; a host alone can run
             the whole game from this screen.</p>
@@ -88,7 +88,7 @@
 
       <div class="board-wrap">
         <div id="board" class="board" role="group" aria-label="Puzzle board"></div>
-        <p id="category" class="category gsc-lozenge gsc-lozenge-sm"></p>
+        <p id="category" class="category"></p>
       </div>
 
       <div class="banner-wrap gsc-banner">
@@ -228,9 +228,9 @@
           <form id="ed-wedge-form" class="setup-row">
             <label class="visually-hidden" for="ed-wedge-input">New wedge value</label>
             <input id="ed-wedge-input" type="number" min="50" step="50" inputmode="numeric" placeholder="650">
-            <button class="btn btn-ghost btn-small" type="submit">+ Value</button>
-            <button id="btn-add-bankrupt" class="btn btn-ghost btn-small" type="button">+ BANKRUPT</button>
-            <button id="btn-add-lose" class="btn btn-ghost btn-small" type="button">+ LOSE A TURN</button>
+            <button class="btn btn-ghost btn-small" type="submit">Add value</button>
+            <button id="btn-add-bankrupt" class="btn btn-ghost btn-small" type="button">Add Bankrupt</button>
+            <button id="btn-add-lose" class="btn btn-ghost btn-small" type="button">Add Lose a turn</button>
           </form>
           <svg id="ed-wheel" class="wheel wheel-preview" viewBox="0 0 400 400" aria-label="Wheel preview"></svg>
         </div>
@@ -238,7 +238,7 @@
         <div class="editor-col">
           <div class="editor-head-row">
             <h3 class="setup-heading">Rounds</h3>
-            <button id="btn-add-round" class="btn btn-ghost btn-small" type="button">+ Add round</button>
+            <button id="btn-add-round" class="btn btn-ghost btn-small" type="button">Add round</button>
           </div>
           <ol id="ed-rounds" class="ed-rounds"></ol>
         </div>
@@ -289,7 +289,7 @@
     </header>
 
     <p id="p-banner" class="p-banner" role="status" aria-live="polite"></p>
-    <p id="p-category" class="p-category gsc-lozenge gsc-lozenge-sm"></p>
+    <p id="p-category" class="p-category"></p>
     <div id="p-board" class="p-board" aria-label="Puzzle board"></div>
 
     <!-- wait -->
@@ -300,7 +300,7 @@
     <!-- turn -->
     <div id="p-turn" class="p-screen hidden">
       <div class="p-actions">
-        <button id="p-btn-spin" class="btn btn-gold btn-big p-big" type="button">SPIN</button>
+        <button id="p-btn-spin" class="btn btn-gold btn-big p-big" type="button">Spin</button>
         <button id="p-btn-vowel" class="btn btn-ghost p-big" type="button">Buy a vowel</button>
         <button id="p-btn-solve" class="btn btn-ghost p-big" type="button">Solve</button>
       </div>
@@ -338,15 +338,15 @@
     </div>
   </section>
 
-  <!-- ===================== Game-switch splash (1.2 s title card) ===================== -->
+  <!-- ===================== Game-switch splash (600 ms plain card, docs/21 §2.8) ===================== -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite"
        data-gsc-game="wheel-of-fortune">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title">Wheel of Fortune</p>
     <div class="gsc-splash-rule"></div>
-    <p id="gsc-splash-sub" class="gsc-splash-sub">Spin, call a letter, solve the puzzle.</p>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
   </div>
 
+  <script src="../../shared/icons.js"></script>
   <script src="js/wheel-content.js"></script>
   <script src="js/wheel-core.js"></script>
   <script src="js/timer-core.js"></script>

@@ -166,3 +166,75 @@ files were produced. Surfaces the UI tester should capture:
   board felt, podiums, setup/modal cards, buzzer, phone tiles), the same fix the
   shell agent applied to `.btn-gold`, so a naive DOM sampler reads the true
   surface instead of the panel behind it.
+
+---
+
+## 6. v3 pass — "looks fake" cleanup (docs/21, design-system §0)
+
+The v2 look above (glossy trilon gradients, gold bezel, rim bulbs, glowing
+banner, Anton everywhere) is replaced by the v3 broadcast look. **No behaviour
+changed**; every id and every class a script or harness selects on is kept.
+
+### 6.1 What changed
+
+| File | Lines | Change |
+| --- | ---: | --- |
+| `css/wheel.css` | 486 | rewritten: no local stage/`body` background (the shared flat `--stage-bg`, 5 % purple on `#0b0d12`), no local `--ink`/`--radius` overrides; one surface level (`--surface` + `--hairline` + 8 px); `.btn` on the v3 recipe (6 px, 44–48 px, sentence case, 600; `.btn-gold` = flat accent + `--accent-ink`, `.btn-ghost` = hairline outline); board = flat board-green backing with flat white tiles and deep-green Inter 600 letters; category as plain Inter 600 text; banner Inter 600 ink; podiums flat with a 2 px accent border for the active player (teal for a buzz); keycaps flat white; final standings as a hairline list; dialogs flat; editor rounds as hairline rows inside one surface; the library picker flattened into the Puzzles surface (no second panel); every transition/keyframe inside `prefers-reduced-motion: no-preference`; `#btn-new-game` retired from the bar (Game lobby › Start over and Play again cover it) |
+| `css/wheel-phone.css` | 119 | rewritten: no accent wash, flat buzzer (red / green / accent, label still says the state), flat mini-board that now fits 14 tiles at 320 px, every phone `.btn` 56 px |
+| `css/timer.css` | 81 | flat blocks, no gradient/glow; spent block outlined (shape + colour); blink keyframes inside `no-preference` |
+| `index.html` | — | toolbar order **Sound · Editor · Game lobby** (Editor label shortened from "Puzzle Editor"); no emoji entities; decorative eyebrow "Big money, big prizes…" replaced by one plain sentence ("Add the players, choose the puzzles, then start the game."); `gsc-lozenge` classes dropped from the host and phone category; splash is the plain card (title + rule, no kicker, empty sub); "+ Add …" / "+ BANKRUPT" labels sentence case; phone "SPIN" → "Spin"; loads `shared/icons.js`; Inter weights 400/500/600 |
+| `js/wheel-app.js` | 789 | `SPLASH_MS = 600`; `paintSound()` + `paintToolbarIcons()` (`GSCIcons.prepend` sound / sound-off / edit / lobby); emoji removed from host text (`🔔 Name` → "Name buzzed in", `🎉 $25,000!` → "Solved — $25,000!") |
+| `js/wheel-view.js` | — | phone marker on podiums/roster is a `GSCIcons` "phone" glyph (labelled "On a phone") instead of 📱; leader tag "LEADER" → "Leader" |
+| `js/wheel-phone.js` | — | splash timeout 1200 → 600 ms |
+| `js/wheel-draw.js` | — | styling only: rim bulbs and the chunky gold flap removed; a flat neutral bezel and a plain white triangle pointer; flat hub. **Geometry, rotation, `wedgeAtPointer`, `rotationForIndex`, `spin()` and the stacked TV labels are unchanged** (W-I1 still reads core = DOM). `PAD` 26 → 14 only resizes the viewBox margin. |
+
+Anton is kept only where it carries money or the screen's hero: the setup
+and final titles, the wedge readout in the banner, podium amounts (the shared
+`.gsc-podium-score`), the phone's own money, and the wedge labels on the wheel
+(money values; the stacked-label geometry was tuned for it).
+
+Two deliberate exceptions, noted for the tester: **Spin keeps `min-height:
+56px`** on the host (the W-D7 fix from verification, above the 44–48 band), and
+the bonus picks use `word-spacing` instead of `letter-spacing` to stay legible.
+
+### 6.2 Checklist (design-system §0)
+
+- [x] `data-gsc-game="wheel-of-fortune"`; no local `--accent*`/`--stage-glow`; no body gradient.
+- [x] Anton only for heroes/money; no `text-transform: uppercase`, no `letter-spacing` > 0.
+- [x] Decorative eyebrow deleted; group labels kept (Players / Phones / Puzzles / Game / Wheel / Rounds) in sentence case.
+- [x] Accent only on the active podium, the primary button, the winner rule; gold only on money.
+- [x] No `text-shadow`, no glow `box-shadow`, no `backdrop-filter`, no gradient under text (grep of `css/` returns nothing for any of them).
+- [x] One surface level, hairline dividers, no accent rails.
+- [x] Buttons 6 px, ≥ 44 px host / 56 px phone, sentence case 600.
+- [x] Zero emoji in host DOM text; icons via `GSCIcons` beside text labels.
+- [x] Only meaningful motion (tile flip, wheel spin, result fade, timer blink), all inside `no-preference`; no hover lifts.
+- [x] Splash: 600 ms plain card.
+- [x] Toolbar: game name Inter 600 18 px; Sound, Editor, Game lobby; embedded hides Back/room chip.
+- [x] JS limited to class names, `GSCIcons`, toolbar order, emoji-free strings, splash timing.
+
+### 6.3 Verification (127.0.0.1:8643)
+
+- `node --test` → **71/71**. `tests/harness.html` → **"All 91 checks passed."** (run twice after the last edit).
+- Audit script `.scratch/wof-ui-audit.js` (contrast sample of every visible own-text element against its painted background, emoji walk of the topbar + `main`, computed-style scan for backdrop-filter / text-shadow / gradient-under-text / glow / uppercase, CSSOM walk of this game's sheets for keyframes/animation/transition outside `no-preference`, toolbar order, buttons < 44 px):
+
+| Screen | Viewport | V scroll | Low contrast (< 4.5) | Emoji | Banned styles | Loose motion | Toolbar |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| Regular round, consonant pending | 1280×720 | 0 | none (70 sampled) | none | none | none | Sound, Editor, Game lobby |
+| Regular round | 1280×676 | 0 | none | none | none | none | same |
+| Bonus round, picking | 1280×676 | 0 | none | none | none | none | same |
+| Bonus judged / final standings | 1280×676 | 0 | none | none | none | none | same |
+| Toss-up with **6 players**, buzzed | 1280×720 | 0 | none | none | none | none | same |
+| Game lobby dialog | 1280×720 | 0 | none | none | none | none | same |
+| Phone, turn + keyboard (`.scratch/wof-phone-check.html`) | 320×640 | — | none | — | none | — | — |
+
+Phone 320×640: no horizontal scroll; every visible button 56 px; keys ≥ 44×56;
+the mini-board now sits inside its frame (tiles 36–284 px inside a 10–310 px
+board — before this pass the 14-tile row overflowed at 320 px).
+Setup at 720 needs 10 px of scroll (not a play screen); the editor scrolls by design.
+
+### 6.4 Notes
+
+- `js/wheel-app.js` is at **789 lines** — the next feature there should move
+  code out (e.g. the lobby/resume helpers into their own file).
+- The rim-light / bulb / glow descriptions in §2 of this report describe the
+  v2 look and no longer apply.
