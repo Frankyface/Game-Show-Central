@@ -137,7 +137,7 @@
     {"q":"Which actor plays Captain Jack Sparrow?","options":["Johnny Depp","Orlando Bloom","Geoffrey Rush"],"answer":0},
     {"q":"What is the name of the theme park island in 'Jurassic Park'?","options":["Isla Sorna","Isla Nublar","Isla Muerta"],"answer":1},
     {"q":"Which animated film features a Scottish princess named Merida?","options":["Tangled","Moana","Brave"],"answer":2},
-    {"q":"Which film features the line-dancing penguin Mumble?","options":["Happy Feet","Madagascar","Ice Age"],"answer":0},
+    {"q":"Which film features the tap-dancing penguin Mumble?","options":["Happy Feet","Madagascar","Ice Age"],"answer":0},
     {"q":"Which of these is a Marvel superhero?","options":["Aquaman","Thor","Green Lantern"],"answer":1},
     {"q":"Which film features a young girl named Dorothy and a dog called Toto?","options":["Mary Poppins","Annie","The Wizard of Oz"],"answer":2},
     {"q":"In which series would you find the Kwik-E-Mart?","options":["The Simpsons","Family Guy","King of the Hill"],"answer":0},

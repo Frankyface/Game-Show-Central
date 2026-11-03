@@ -392,7 +392,7 @@
     if (!out) return "Thanks for playing.";
     if (!out.played) return `Nobody got home — ${state.chaser.name} takes the lot.`;
     if (!out.teamWon) return `${state.chaser.name} caught the team with ${
-      Math.max(0, out.teamSteps - out.chaserSteps)} to spare.`;
+      secondsLeft(state.final ? state.final.chaserClock : null, 0)} seconds to spare.`;
     return mine && mine.amount > 0 ? "That is yours." : "The team held on.";
   }
 

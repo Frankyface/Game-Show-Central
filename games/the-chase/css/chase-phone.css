@@ -15,6 +15,8 @@
 }
 
 body.player-mode .screen-phone:not(.hidden) { display: flex; }
+/* Tester fix: the host setup screen starts visible in the markup; a phone never shows it. */
+body.player-mode .screen:not(.screen-phone) { display: none !important; }
 
 .phone-card {
   display: flex;

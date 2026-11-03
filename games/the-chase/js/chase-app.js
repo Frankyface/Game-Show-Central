@@ -175,6 +175,8 @@ function chasePauseRestored(state) {
   if (!state) return state;
   const freeze = (clock) => {
     if (!clock) return clock;
+    // Already past its deadline: leave it running so the clock loop fires the expiry.
+    if (clock.running && clock.deadline && clock.deadline <= Date.now()) return clock;
     const left = clock.running && clock.deadline
       ? Math.max(0, clock.deadline - Date.now()) : clock.remainingMs;
     return { running: false, deadline: null, remainingMs: left };
