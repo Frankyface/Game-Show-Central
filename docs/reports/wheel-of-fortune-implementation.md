@@ -512,3 +512,22 @@ Two defects were found and fixed while wiring this up, both mine:
 - §3's three game fixes (Price Is Right photos, Deal or No Deal case
   animation, Chain Reaction phone column) belong to those games.
 - **X-4** is not applicable to this component.
+
+---
+
+## 10. Cross-cutting verification fixes
+
+From the cross-cutting tester's findings. `node --test` **71/71**;
+`tests/harness.html` on 127.0.0.1:8643 **"All 95 checks passed."** (was 91; +4).
+
+| Finding | Fix | Pinned by |
+| --- | --- | --- |
+| **W-1** (minor) a toss-up parked by *Keep this game* came back with its reveal **running** | `keepGame()` now stores the parked toss-up with `running: false` and a banner saying it is paused. Resume brings it back held; the host restarts it with the existing **Resume reveal** button (`btn-tossup-start` already reads "Resume reveal" once letters are out, and `tossupStart` resumes without reshuffling). Every other phase still resumes byte-for-byte. | `W-1 a toss-up parked mid-reveal comes back paused` (revealed count held for 1.6 s, longer than a tick); `W-1 the host restarts it with a visible Resume reveal button`; `W-1 Resume reveal carries on from where it stopped` |
+| **W-2** the `?store=` strip check only evaluated its own expression, via `.eval(` | Rewritten to exercise real pages with no eval. (1) Plant a canary in the un-suffixed `gsc-wheel-state-v1`, make the `?store=harness` host page write through its own `dispatch`, and assert the `-harness` key changed (it holds the new total) while the canary is untouched. (2) Boot a real game page with `?store=../evil key!`, add a player there, and assert it wrote to `gsc-wheel-state-v1-evilkey` and that the real key is still the canary. The probe frame and keys are removed and the original key restored afterwards. | `Store: a harness run writes its own key and never the real host's save`; `Store: an unsafe ?store= value is stripped … on a real page` |
+| **Toolbar rule** (all games): on setup, Game lobby must be present but **disabled**, not hidden | `index.html` ships the button without `hidden` and with `disabled`; `render()` sets `disabled = setup` instead of toggling `hidden`. | `X-1 it is always in the bar, and disabled only on setup`; `X-1 the control is enabled once past setup`; new `X-1 on the setup screen the control is present but disabled` (asserted on an actual setup screen) |
+
+Files: `index.html`, `js/wheel-app.js` (now 796 lines — any further feature
+there needs code moved out first), `tests/harness-x.js` (425),
+`tests/harness.html` (one call added). Static gates clean (no HTML-string /
+`document.write` / `eval` / `new Function` / `console.log`; `.eval(` is gone
+from the harness too). Patch script: `.scratch/wof-xfix.py`.

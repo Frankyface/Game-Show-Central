@@ -38,13 +38,14 @@ window.WheelHarnessX = function (ctx) {
       !!lobbyBtn && lobbyBtn.textContent.indexOf("Game lobby") >= 0
         && lobbyBtn.parentElement === $("host", "btn-sound").parentElement,
       `label "${lobbyBtn ? lobbyBtn.textContent.trim() : "(missing)"}"`);
-    check("X-1 it is hidden on setup and shown once a game is running",
-      lobbyBtn.classList.contains("hidden") === (hostState().phase === "idle"),
-      `phase=${hostState().phase}, hidden=${lobbyBtn.classList.contains("hidden")}`);
+    check("X-1 it is always in the bar, and disabled only on setup",
+      !lobbyBtn.classList.contains("hidden")
+        && lobbyBtn.disabled === (hostState().phase === "idle"),
+      `phase=${hostState().phase}, disabled=${lobbyBtn.disabled}`);
 
     await playABit();
-    check("X-1 the control appears once past setup",
-      !lobbyBtn.classList.contains("hidden"), `phase=${hostState().phase}`);
+    check("X-1 the control is enabled once past setup",
+      !lobbyBtn.classList.contains("hidden") && !lobbyBtn.disabled, `phase=${hostState().phase}`);
 
     // --- Keep this game -> setup with Resume, restoring the exact state ---
     const before = JSON.stringify(hostState());
@@ -85,6 +86,10 @@ window.WheelHarnessX = function (ctx) {
         && !W("host").WheelApp.hasResumable()
         && $("host", "btn-resume").classList.contains("hidden"),
       `roster ${roster} kept, totals cleared, no Resume offered`);
+    check("X-1 on the setup screen the control is present but disabled",
+      hostState().phase === "idle" && !lobbyBtn.classList.contains("hidden")
+        && lobbyBtn.offsetParent !== null && lobbyBtn.disabled,
+      `visible=${lobbyBtn.offsetParent !== null}, disabled=${lobbyBtn.disabled}`);
 
     // --- mid-spin, the hardest phase --------------------------------------
     await playABit();
@@ -285,22 +290,79 @@ window.WheelHarnessX = function (ctx) {
       W("host").WheelEditor.DRAFT_KEY === "gsc-wheel-draft-v1-harness",
       `draft key = ${W("host").WheelEditor.DRAFT_KEY}`);
 
-    // The real host's keys on this origin must be untouched by the run.
+    // The real host's save on this origin must be untouched: plant a canary
+    // in the un-suffixed key, make the ?store=harness page WRITE (a real state
+    // change through the page's own dispatch), then compare.
     const canary = "gsc-wheel-state-v1";
-    localStorage.setItem(canary, '{"canary":true}');
+    const planted = '{"canary":true}';
+    const prior = localStorage.getItem(canary);
+    localStorage.setItem(canary, planted);
+    const before = localStorage.getItem("gsc-wheel-state-v1-harness");
     W("host").WheelApp.dispatch({ type: "setTotal", pid: "p1", total: 1234 });
     await sleep(60);
-    check("Store: a harness run never writes to the real host's save",
-      localStorage.getItem(canary) === '{"canary":true}'
-        && !!localStorage.getItem("gsc-wheel-state-v1-harness"),
-      "the un-suffixed key still holds the canary");
-    localStorage.removeItem(canary);
+    const after = localStorage.getItem("gsc-wheel-state-v1-harness");
+    check("Store: a harness run writes its own key and never the real host's save",
+      localStorage.getItem(canary) === planted && !!after && after !== before
+        && JSON.parse(after).state.players.some((p) => p.total === 1234),
+      "the -harness key changed; the un-suffixed key still holds the canary");
 
-    // Junk in ?store= is stripped rather than trusted.
-    const strip = W("host").eval(
-      'new URLSearchParams("?store=../evil key!").get("store").replace(/[^A-Za-z0-9-]/g, "").slice(0, 24)');
-    check("Store: an unsafe ?store= value is stripped to letters, digits and hyphens",
-      strip === "evilkey", `"../evil key!" -> "${strip}"`);
+    // An unsafe ?store= value, loaded as a REAL page: it must land in a
+    // stripped namespace and still leave the real key alone.
+    const frame = D("host").defaultView.parent.document.createElement("iframe");
+    frame.style.cssText = "width:800px;height:500px;position:absolute;left:-9999px";
+    frame.src = "../index.html?harness=1&store=" + encodeURIComponent("../evil key!");
+    const hostDoc = D("host").defaultView.parent.document;
+    localStorage.removeItem("gsc-wheel-state-v1-evilkey");
+    await new Promise((resolve) => { frame.onload = resolve; hostDoc.body.appendChild(frame); });
+    const win = frame.contentWindow;
+    await waitFor(() => win.WheelApp && win.WheelApp.getState(), "the ?store= probe page booted");
+    win.WheelApp.addPlayer("Probe");
+    await sleep(60);
+    const stripped = localStorage.getItem("gsc-wheel-state-v1-evilkey");
+    check("Store: an unsafe ?store= value is stripped to letters, digits and hyphens on a real page",
+      win.WheelApp.STORAGE_KEY === "gsc-wheel-state-v1-evilkey" && !!stripped
+        && JSON.parse(stripped).state.players.some((p) => p.name === "Probe")
+        && localStorage.getItem(canary) === planted,
+      `"../evil key!" -> ${win.WheelApp.STORAGE_KEY}`);
+    frame.remove();
+    localStorage.removeItem("gsc-wheel-state-v1-evilkey");
+    if (prior === null) localStorage.removeItem(canary); else localStorage.setItem(canary, prior);
+  }
+
+  /* ============ W-1 — a parked toss-up resumes paused ============ */
+
+  async function testTossupResume() {
+    const app = W("host").WheelApp;
+    if (hostState().phase !== "idle") {
+      $("host", "btn-game-lobby").click();
+      $("host", "btn-lobby-reset").click();
+      await waitFor(() => hostState().phase === "idle", "setup");
+    }
+    $("host", "btn-start").click();
+    await waitFor(() => hostState().phase === "tossup", "a toss-up");
+    $("host", "btn-tossup-start").click();
+    await waitFor(() => hostState().tossup.next >= 1, "the reveal running");
+    $("host", "btn-game-lobby").click();
+    $("host", "btn-lobby-keep").click();
+    await waitFor(() => hostState().phase === "idle", "parked");
+    $("host", "btn-resume").click();
+    await waitFor(() => hostState().phase === "tossup", "resumed");
+    const shown = hostState().revealed.filter(Boolean).length;
+    await sleep(1600); // longer than one 1.2 s reveal tick
+    const startBtn = $("host", "btn-tossup-start");
+    check("W-1 a toss-up parked mid-reveal comes back paused",
+      !hostState().tossup.running && hostState().revealed.filter(Boolean).length === shown,
+      `revealed held at ${shown} for 1.6 s`);
+    check("W-1 the host restarts it with a visible Resume reveal button",
+      !startBtn.disabled && startBtn.offsetParent !== null && /Resume reveal/.test(startBtn.textContent),
+      `"${startBtn.textContent}"`);
+    startBtn.click();
+    await waitFor(() => hostState().revealed.filter(Boolean).length > shown, "reveals carry on", 4000);
+    check("W-1 Resume reveal carries on from where it stopped",
+      hostState().tossup.running || hostState().tossup.done, "reveal ticking again");
+    $("host", "btn-game-lobby").click();
+    $("host", "btn-lobby-reset").click();
+    await waitFor(() => hostState().phase === "idle" && !app.hasResumable(), "clean setup");
   }
 
   /* ============ W-I7 / X-5 — the static gates ============ */
@@ -359,5 +421,5 @@ window.WheelHarnessX = function (ctx) {
       `host classes: ${D("host").body.className || "(none)"} · phone: ${D("p1").body.className}`);
   }
 
-  return { testGameLobby, testLibrary, testEditorLibrary, testStoreNamespacing, testGates };
+  return { testGameLobby, testLibrary, testEditorLibrary, testStoreNamespacing, testTossupResume, testGates };
 };

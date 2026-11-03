@@ -291,6 +291,12 @@ const WheelApp = (function () {
     if (!state || state.phase === "idle") return false;
     halt();
     resumable = JSON.parse(JSON.stringify(state));
+    // W-1: a toss-up parked mid-reveal resumes PAUSED; the host restarts the
+    // reveal with "Resume reveal", like the clocks in the other games.
+    if (resumable.tossup && resumable.tossup.running) {
+      resumable.tossup = { ...resumable.tossup, running: false };
+      resumable.banner = "Toss-up paused \u2014 press Resume reveal to carry on.";
+    }
     setState(core().createState(state.game, state.players.map((p) => ({ pid: p.pid, name: p.name })),
       { sound: sound() ? sound().isOn() : true }));
     return true;
@@ -341,7 +347,8 @@ const WheelApp = (function () {
     show($("screen-game"), !setup && !final && !isEditorOpen());
     show($("screen-final"), final && !isEditorOpen());
     show($("btn-new-game"), !setup);
-    show($("btn-game-lobby"), !setup);
+    // Toolbar rule: the control is always in the bar; on setup it is disabled.
+    $("btn-game-lobby").disabled = setup;
     show($("btn-resume"), setup && !!resumable);
     show($("resume-note"), setup && !!resumable);
     if (setup && resumable) {

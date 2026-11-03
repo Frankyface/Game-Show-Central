@@ -742,6 +742,7 @@
         await X.testLibrary();
         await X.testEditorLibrary();
         await X.testStoreNamespacing();
+        await X.testTossupResume();
         await X.testGates();
       } catch (err) {
         uncaught = uncaught || (err && err.message) || String(err);
