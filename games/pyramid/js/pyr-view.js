@@ -79,7 +79,10 @@ const PyrView = (function () {
     }
     const back = $("btn-game-lobby");
     // Nothing to leave and nothing to resume: the host is already on setup.
-    if (back) back.disabled = !app.core && !parked;
+    // Consistency rule (every game): on the setup screen the control is present
+    // but disabled — the host is already in the game lobby; Resume and Start are
+    // the two ways out of it.
+    if (back) back.disabled = !app.core;
   }
 
   function renderSetup(app) {

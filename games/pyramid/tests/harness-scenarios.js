@@ -22,7 +22,7 @@
 window.PyrHarnessScenarios = function (ctx) {
   "use strict";
 
-  const { check, waitFor, sleep, H, HD, HW, core, click, hostText, freeCards, phoneView, phoneWord } = ctx;
+  const { check, waitFor, sleep, H, HD, HW, core, click, hostText, freeCards, phoneView, phoneWord, bootHost } = ctx;
 
     /* ============================================================
        Y-I6 — the editor round-trip, the splash, and the static gates
@@ -216,6 +216,19 @@ window.PyrHarnessScenarios = function (ctx) {
       check("X-1 nothing secret leaks onto the setup screen while a game is parked",
         parked.round.words.every((w) => hostText().indexOf(w.text) < 0),
         "the parked word list is not on screen");
+      check("X-1 on the setup screen the Game lobby control is present but disabled",
+        !!H("btn-game-lobby") && !H("btn-game-lobby").classList.contains("hidden")
+        && H("btn-game-lobby").disabled === true);
+
+      // P-1: a parked game survives a reload of the host page.
+      await bootHost(false);
+      await waitFor(() => !H("btn-resume").classList.contains("hidden"), "Resume after the reload");
+      check("X-1 a reload while a game is parked still offers Resume, clock still stopped",
+        core() === null && !!HW().PyrApp.state().resumable
+        && HW().PyrApp.state().resumable.round.clock.running === false
+        && H("pyr-resume-note").textContent.indexOf("clock is paused") > 0
+        && H("btn-game-lobby").disabled === true,
+        H("pyr-resume-note").textContent);
 
       click("btn-resume");
       await waitFor(() => core() && core().phase === "play", "resumed mid-category");

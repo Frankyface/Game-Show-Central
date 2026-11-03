@@ -377,7 +377,9 @@ function pyrStart() {
       .concat(started.board.map((slot) => slot.catId))
       .concat(started.tiebreakCat ? [started.tiebreakCat.catId] : [])
       .concat(started.circleSet ? [started.circleSet.setId] : []);
-    pyrSet({ core: started, usedIds: used.slice(-60), reveal: false, circleReveal: false, studyUntil: null });
+    // Start is the fresh game: a parked one is dropped rather than left to
+    // resurface under the new game.
+    pyrSet({ core: started, resumable: null, usedIds: used.slice(-60), reveal: false, circleReveal: false, studyUntil: null });
     pyrError("");
   } catch (err) {
     pyrError(err.message);

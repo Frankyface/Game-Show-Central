@@ -495,3 +495,18 @@ the word in Anton at the phone's hero size, card background flat. One finding
 fixed during the walk: the shared `.gsc-badge` fills with `--accent`, which put
 the team badge and the circle total at 1.9:1 / 1.4:1 — this sheet makes them
 outlined. Largest file is now `js/pyr-app.js` at 769.
+
+### Follow-up: P-1 and the disabled-on-setup rule
+
+- **P-1 (applied by the coordinator, now pinned by a test).** The
+  cross-cutting tester's one-liner in `pyrChooseContent`
+  (`if (useSaved && saved.resumable) patch.resumable = saved.resumable;`) keeps
+  a parked game across a reload. The harness X-1 scenario now parks a game
+  mid-category, reloads the host frame, and asserts **Resume** is offered
+  again with the parked clock still stopped and the note naming the category.
+- **Consistency rule.** On the setup screen `btn-game-lobby` is present but
+  **disabled** (`disabled = !app.core` in `pyr-view.js`), parked game or not;
+  Resume and Start are the two ways out of the lobby. To match, **Start** now
+  clears any parked game (`resumable: null`) so it cannot resurface under the
+  new one. Harness asserts the control is visible and disabled while parked.
+- `node --test` 95/95; harness **97/97** on port 8692 (95 + the two checks above).
