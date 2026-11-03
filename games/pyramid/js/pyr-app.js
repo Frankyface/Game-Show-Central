@@ -608,10 +608,16 @@ function pyrWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
     sound.textContent = window.PyrSound.enabled ? "Sound on" : "Sound off";
+    // v3 toolbar: an icon beside the label, re-added because the label was reset.
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.PyrSound.enabled ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(window.PyrSound.enabled));
   };
   sound.addEventListener("click", () => { window.PyrSound.toggle(); paint(); });
   paint();
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   document.addEventListener("keydown", pyrOnKey);
   window.addEventListener("beforeunload", pyrSave);
   document.addEventListener("visibilitychange", () => { if (document.hidden) pyrSave(); });
@@ -619,7 +625,7 @@ function pyrWireChrome() {
 
 /* ============ Splash ============ */
 
-const PYR_SPLASH_MS = 1200;
+const PYR_SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
 let pyrSplashTimer = null;
 
 /**
@@ -633,7 +639,7 @@ function pyrShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return;  // the hub shows its own
   setText("gsc-splash-title", "Pyramid");
-  setText("gsc-splash-sub", "Seven words. Thirty seconds. Don’t say the word.");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "pyramid";
   node.classList.remove("hidden");
   if (pyrSplashTimer) clearTimeout(pyrSplashTimer);

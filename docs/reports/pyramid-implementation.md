@@ -436,3 +436,62 @@ hub's near-black navy and do not clear 4.5:1 on a lighter stage.
 | Live library | picker lists both sets, **Load set** adopts "Kids night" (40 s, $5,000), source line reads `set: Kids night`; the editor's library download validated and printed the manifest line |
 | Contrast | setup with the picker, the editor with the how-to box and the confirm dialog re-walked: **0 pairs below threshold** after the `.gsc-library-label` fix |
 | Static gates | every file < 800 lines (largest `css/pyr.css` at 785); no innerHTML/eval/console.log; the new sets, `pyr-lobby.js` and `harness-scenarios.js` are all in the harness's gate list |
+
+---
+
+## 11. UI v3 pass (docs/21-ui-cleanup-brief.md)
+
+**The one shared edit.** `shared/theme.css` `[data-gsc-game="pyramid"]` now
+reads `--accent: #2ec4b6; --accent-2: #f4b400; --accent-ink: #04201d;
+--stage-glow: #0b3b3c` (glow unchanged). v3 reserves gold for money, so the
+accent is teal (dark ink on it is 7.9:1) and gold (`--accent-2` / `--gold`) is
+used only for Winner's Circle box values, the running circle total, the prize
+on the result card and the standings money. The hub's shell bar and splash
+pick this up automatically.
+
+**What changed.** `css/pyr.css` was rewritten from scratch (785 → 562 lines)
+and `css/pyr-phone.css` likewise, keeping every class and id the scripts and
+harness select on. The `--stage-bg` override is **deleted**: v3's flat shared
+stage (`color-mix(--accent 5%, #0b0d12)`) is dark enough that the contrast
+argument for it is gone, and so are the `--pyr-dim`/`--pyr-red` substitutes
+and the `.gsc-library-label` patch — the v3 greys clear 4.5:1 on their own.
+The pyramid is flat stacked surfaces with hairlines (rows of 1/2/3, no
+trapezoid clip-path, no gold gradient); a played card drops to the stage colour.
+The clock is plain and huge (the play screen's one Anton hero); setup's hero is
+the name, the result card's is the money, the giver's phone's is the word.
+Everything else is Inter, sentence case, no tracking.
+
+JS edits only where the brief allows: toolbar reordered to **Sound · Editor ·
+Game lobby** with `GSCIcons.prepend` on each (Sound re-prepended after its label
+is reset), "Category editor" → "Editor", the `⟲` glyph removed, `icons.js`
+loaded, splash 600 ms with no kicker and an empty sub line. Markup: the
+decorative setup kicker became one plain sentence ("Add four players, choose who
+gives first on each team, then start."), the splash kicker is gone, and
+`#btn-exit` is hidden (the hub's shell bar carries Lobby).
+
+**Checklist (docs/design-system.md §0)**
+
+- [x] `data-gsc-game="pyramid"`; no local `--accent*` / `--stage-glow`; no body gradient, spotlight or vignette.
+- [x] Anton for one hero per screen only; no `text-transform`/`letter-spacing` in either sheet; no decorative eyebrows; body ≥ 16 px, controls ≥ 15 px.
+- [x] Accent = active state (current podium, current pip/box, giver's phone card), primary button, card hover rule. Gold only on money. No `text-shadow`, glow or neon.
+- [x] One surface level (`--surface` + `--hairline` + `--radius`); no `backdrop-filter`, nested translucency or accent rails; dividers are hairlines.
+- [x] Buttons 6 px, 44–48 px host / 56 px phone, sentence case 600; primary accent fill, secondary hairline, danger red outline; "Got it" is flat green with dark ink.
+- [x] No emoji in host DOM text; icons beside labels via `GSCIcons`.
+- [x] Motion: only a played card settling and a circle box lighting (opacity, inside `no-preference`); hover lift and the clock pulse removed; splash 600 ms plain.
+- [x] Toolbar order Sound · Editor · Game lobby, icon + label; embedded shows nothing else.
+- [x] Copy: one plain sentence on setup; error messages unchanged.
+- [x] Gates below.
+
+**Gates.** `node --test` **95/95**. Harness **95/95** on port 8692 (93 + two new:
+UI-12 toolbar order with icon + label, and UI-10/UI-11 — no Extended_Pictographic
+in host text, no `backdrop-filter` or `text-shadow` on any element). A gate walker
+(`.scratch/pyramid-v3-check.js`, injected into the live page) over board, play
+with words revealed, round-over, main result, circle and result at **1280×720
+and 1280×676**: scroll 0 on every screen, **0 contrast pairs below threshold**,
+0 gradient-under-text, 0 glow, 0 emoji. CSSOM reduced-motion walk: no
+`@keyframes` or `animation` outside `prefers-reduced-motion: no-preference`.
+Phone at 320×640 (giver and guesser): no sideways scroll, Got it / Pass 56 px,
+the word in Anton at the phone's hero size, card background flat. One finding
+fixed during the walk: the shared `.gsc-badge` fills with `--accent`, which put
+the team badge and the circle total at 1.9:1 / 1.4:1 — this sheet makes them
+outlined. Largest file is now `js/pyr-app.js` at 769.

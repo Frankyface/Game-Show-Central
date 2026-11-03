@@ -133,7 +133,9 @@
   --stage-glow: #123a86;
 }
 [data-gsc-game="pyramid"] {
-  --accent: #f4b400; --accent-2: #2ec4b6; --accent-ink: #241a02;
+  /* v3: gold is money, so Pyramid leads with teal. --accent-2 (gold) is used
+     only for Winner’s Circle money. Dark ink on the teal is 7.9:1. */
+  --accent: #2ec4b6; --accent-2: #f4b400; --accent-ink: #04201d;
   --stage-glow: #0b3b3c;
 }
 [data-gsc-game="deal-or-no-deal"] {
@@ -141,9 +143,10 @@
   --stage-glow: #4a0810;
 }
 [data-gsc-game="password"] {
-  /* White on this gold is 1.6:1, so the ink is dark. */
-  --accent: #f2c94c; --accent-2: #7aa2ff; --accent-ink: #241a02;
-  --stage-glow: #0d1b4b;
+  /* v3: gold is for money, so Password leads with the show's blue. The ink on
+     #7aa2ff is dark (7.2:1). --accent-2 #f2c94c is Lightning Round money only. */
+  --accent: #7aa2ff; --accent-2: #f2c94c; --accent-ink: #0b1430;
+  --stage-glow: #0b0d12;
 }
 [data-gsc-game="chain-reaction"] {
   /* White on the pink is only 3.5:1, so the ink is a near-black plum (5.4:1).

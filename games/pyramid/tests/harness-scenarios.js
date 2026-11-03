@@ -155,9 +155,23 @@ window.PyrHarnessScenarios = function (ctx) {
       await waitFor(() => core() && core().phase === "board", "a fresh board");
 
       check("X-1 the toolbar carries the Game lobby control, next to Sound and the editor",
-        !!H("btn-game-lobby") && H("btn-game-lobby").textContent.indexOf("Game lobby") > 0
+        !!H("btn-game-lobby") && H("btn-game-lobby").textContent.trim() === "Game lobby"
+        && !!H("btn-game-lobby").querySelector("svg.gsc-icon")
         && H("btn-game-lobby").disabled === false,
         H("btn-game-lobby").textContent);
+
+      const order = [...HD().querySelectorAll(".topbar-actions .btn")]
+        .filter((b) => HW().getComputedStyle(b).display !== "none").map((b) => b.id);
+      check("UI-12 the toolbar reads Sound · Editor · Game lobby, icon + label each",
+        order.join(",") === "btn-sound,btn-editor,btn-game-lobby"
+        && order.every((id) => H(id).querySelector("svg.gsc-icon") && H(id).textContent.trim().length > 0),
+        order.join(" · "));
+      const pictographic = /\p{Extended_Pictographic}/u;
+      const styled = [...HD().querySelectorAll("body *")].map((n) => HW().getComputedStyle(n));
+      check("UI-10/UI-11 no emoji in host text; no backdrop-filter or text-shadow anywhere",
+        !pictographic.test(HD().body.textContent)
+        && styled.every((s) => (s.backdropFilter || "none") === "none" && s.textShadow === "none"),
+        "host DOM walked");
 
       // ---- from the board phase ----
       click("btn-game-lobby");
