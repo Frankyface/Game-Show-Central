@@ -7,7 +7,7 @@
   <meta name="description" content="The Weakest Link for game night: a money chain, a round clock, secret votes on phones and a head-to-head final. Bring your own questions as JSON.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="../../shared/theme-components.css">
   <link rel="stylesheet" href="css/wl.css">
@@ -17,17 +17,13 @@
 <body data-gsc-game="weakest-link">
 
   <header class="topbar">
-    <span class="topbar-mark" aria-hidden="true"></span>
-    <div class="topbar-id">
-      <p class="topbar-eyebrow">Game Show Central</p>
-      <h1 id="wl-title" class="topbar-title">Weakest Link</h1>
-    </div>
+    <h1 id="wl-title" class="topbar-title">Weakest Link</h1>
     <div class="topbar-actions">
       <span id="wl-room-chip" class="room-chip hidden"></span>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button"
-              aria-haspopup="dialog">↺ Game lobby</button>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button"
+              aria-haspopup="dialog">Game lobby</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
   </header>
@@ -56,8 +52,8 @@
     <section id="screen-setup" class="screen screen-setup">
       <div class="card setup-card gsc-card">
         <header class="setup-head">
-          <p class="kicker">Tonight&rsquo;s team plays for&hellip;</p>
           <h2 class="card-title">The Weakest Link</h2>
+          <p class="setup-lede">Add three to twelve players, choose the questions, then start the game.</p>
           <p id="wl-source" class="source-note">Loading questions&hellip;</p>
         </header>
 
@@ -65,13 +61,13 @@
           <div class="setup-col">
             <div class="setup-block">
               <h3 class="setup-heading">Players <span id="wl-player-count" class="count-badge"></span></h3>
-              <p class="hint">Three to twelve. Drag is not needed &mdash; the list order is the order of play.</p>
+              <p class="hint">The list order is the order of play.</p>
               <ul id="wl-player-list" class="player-list"></ul>
               <form id="wl-add-player" class="inline-form">
                 <label class="visually-hidden" for="wl-player-name">Player name</label>
                 <input id="wl-player-name" type="text" maxlength="24" placeholder="Player name"
                        autocomplete="off" spellcheck="false">
-                <button class="btn btn-ghost" type="submit">+ Add player</button>
+                <button class="btn btn-ghost" type="submit">Add player</button>
               </form>
             </div>
           </div>
@@ -101,7 +97,7 @@
         </div>
 
         <div class="setup-actions">
-          <button id="btn-resume" class="btn btn-gold btn-big hidden" type="button">Resume</button>
+          <button id="btn-resume" class="btn btn-ghost btn-big hidden" type="button">Resume</button>
           <button id="btn-start" class="btn btn-blue btn-big" type="button">Start the game</button>
         </div>
       </div>
@@ -111,7 +107,6 @@
     <section id="screen-round" class="screen screen-round hidden">
       <div class="round-top gsc-banner">
         <p id="wl-round-label" class="round-label gsc-banner-title">Round 1</p>
-        <p class="round-sub gsc-banner-sub">Bank it before the chain breaks.</p>
         <div class="round-top-actions gsc-banner-end">
           <div id="wl-clock" class="clock" role="timer" aria-live="off">2:30</div>
           <button id="btn-clock" class="btn btn-ghost btn-small" type="button">Start clock</button>
@@ -120,13 +115,13 @@
 
       <div class="stage-grid">
         <aside class="chain-rail" aria-label="Money chain">
-          <p class="rail-label">The chain</p>
+          <p class="rail-label">Chain</p>
           <ol id="wl-chain" class="chain"></ol>
         </aside>
 
         <div class="spotlight">
           <p id="wl-turn-name" class="turn-name">&nbsp;</p>
-          <p id="wl-q-cat" class="q-cat gsc-lozenge gsc-lozenge-sm">&nbsp;</p>
+          <p id="wl-q-cat" class="q-cat">&nbsp;</p>
           <div class="q-plate gsc-panel">
             <p id="wl-q-text" class="q-text">&nbsp;</p>
           </div>
@@ -162,7 +157,7 @@
       </div>
 
       <div class="controls">
-        <button id="btn-bank" class="btn btn-gold btn-big" type="button">Bank <kbd>B</kbd></button>
+        <button id="btn-bank" class="btn btn-ghost btn-big" type="button">Bank <kbd>B</kbd></button>
         <button id="btn-correct" class="btn btn-green btn-big" type="button">Correct <kbd>Space</kbd></button>
         <button id="btn-wrong" class="btn btn-red btn-big" type="button">Wrong / Pass <kbd>X</kbd></button>
         <span class="controls-split" aria-hidden="true"></span>
@@ -199,7 +194,7 @@
           <div id="wl-tie-choices" class="choice-row"></div>
         </div>
 
-        <div id="wl-vote-result" class="panel panel-verdict gsc-panel hidden" role="region" aria-label="Vote result">
+        <div id="wl-vote-result" class="panel gsc-panel hidden" role="region" aria-label="Vote result">
           <p id="wl-vote-result-text" class="panel-text">&nbsp;</p>
           <button id="btn-eliminate" class="btn btn-red btn-big" type="button">You are the weakest link&hellip;</button>
         </div>
@@ -221,7 +216,7 @@
     <!-- ===================== Final ===================== -->
     <section id="screen-final" class="screen screen-final hidden">
       <div id="wl-final-splash" class="final-splash hidden">
-        <p class="kicker">The bank is multiplied</p>
+        <p class="final-label">Bank for the head-to-head</p>
         <p id="wl-final-bank" class="final-bank">$0</p>
         <p id="wl-final-pick-text" class="panel-text">&nbsp;</p>
         <div id="wl-final-pick" class="choice-row"></div>
@@ -235,7 +230,7 @@
         <div id="wl-final-tally" class="final-tally"></div>
         <div class="spotlight">
           <p id="wl-final-turn" class="turn-name">&nbsp;</p>
-          <p id="wl-final-cat" class="q-cat gsc-lozenge gsc-lozenge-sm">&nbsp;</p>
+          <p id="wl-final-cat" class="q-cat">&nbsp;</p>
           <div class="q-plate gsc-panel">
             <p id="wl-final-q" class="q-text">&nbsp;</p>
           </div>
@@ -257,7 +252,6 @@
     <!-- ===================== Result ===================== -->
     <section id="screen-result" class="screen screen-result hidden">
       <div class="result-card">
-        <p class="kicker">Tonight&rsquo;s strongest link</p>
         <h2 id="wl-winner" class="winner-name">&nbsp;</h2>
         <p id="wl-winner-total" class="final-bank">$0</p>
         <ol id="wl-standings" class="standings"></ol>
@@ -274,7 +268,7 @@
         <h2 class="screen-title">Question editor</h2>
         <div class="editor-bar-actions">
           <button id="btn-editor-use" class="btn btn-blue" type="button">Use in game</button>
-          <button id="btn-editor-download" class="btn btn-gold" type="button">Download JSON</button>
+          <button id="btn-editor-download" class="btn btn-ghost" type="button">Download JSON</button>
           <button id="btn-editor-library" class="btn btn-ghost" type="button">Download for the library</button>
           <button id="btn-editor-reset" class="btn btn-ghost" type="button">Reset to shipped</button>
           <button id="btn-editor-blank" class="btn btn-ghost" type="button">Start blank</button>
@@ -321,7 +315,7 @@
                       placeholder="In which ocean is Madagascar?&#9;The Indian Ocean&#9;Geography"></textarea>
             <div class="inline-form">
               <button id="btn-ed-import" class="btn btn-ghost" type="button">Import lines</button>
-              <button id="btn-ed-add" class="btn btn-ghost" type="button">+ Add empty row</button>
+              <button id="btn-ed-add" class="btn btn-ghost" type="button">Add empty row</button>
             </div>
             <p id="wl-ed-import-msg" class="hint"></p>
           </div>
@@ -364,9 +358,8 @@
     <p class="goodbye-line">You are the weakest link. Goodbye.</p>
   </div>
 
-  <!-- ============ Title card shown for 1.2 s when the game opens ============ -->
+  <!-- ============ Title card shown for 600 ms when the game opens ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -381,6 +374,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/wl-store.js"></script>
   <script src="js/wl-content.js"></script>
   <script src="js/wl-core.js"></script>

@@ -475,3 +475,64 @@ ladder tracks the accent if it ever moves. Contrast on the current rung is
 | phone 320×640 | no horizontal scroll; targets 56 / 56 / 56 / 64 px |
 | reduced motion static audit | all three sheets **CLEAN** (no `@keyframes` or `animation:` outside the `no-preference` guard) |
 | no `innerHTML` / `console.log`, files < 800 lines | clean; largest `wl-app.js` 797, `wl.css` 517, `wl-stage.css` 433 |
+
+---
+
+## v3 pass — "make it look real" (docs/21, design-system §0)
+
+Environment: Windows 11, Node v24.16.0, headless Chrome over CDP (the shared
+browser pane was at its tab cap), server `python -m http.server 8644 --bind
+127.0.0.1`, 2026-11-03. Helper scripts in `.scratch/`: `cdp.mjs` (no-deps CDP
+driver), `wl-harness-run.mjs`, `wl-ui-audit.mjs` + `wl-ui-summary.mjs`,
+`wl-phone-shell.html` (a one-phone bridge shell), `wl-ui-v3-markup.py`,
+`wl-ui-v3-js.py`.
+
+**Behaviour unchanged.** `node --test` **98/98** and `tests/harness.html`
+**74/74** both before and after.
+
+### What changed
+
+| File | Lines | Change |
+|---|---:|---|
+| `css/wl.css` | 400 | rewritten on the shared v3 tokens: no local `--accent`, no body background, no blur toolbar, no drawn logo; v3 buttons (6 px, 44/48 px, sentence case, 600) with role names — `btn-blue`/`btn-green` = accent primary, `btn-red` = red outline, `btn-ghost` = hairline; motion cut to the bank flash and the ballot reveal, both inside `no-preference` |
+| `css/wl-stage.css` | 303 | flat chain steps (unlit = hairline, won = one notch lighter, **next step = the one accent fill**), question on one surface, money in Inter 600 gold, flat ballot cards, plain statistics, flat podiums with ✓ circle / ✗ square, plain full-screen flat red goodbye (`#9e111b`, white 7:1), no gradients/glow/rails anywhere |
+| `css/wl-phone.css` | 114 | flat stage, Inter sentence-case headlines, 60 px ballot buttons (accent fill + ✓ when chosen), the same flat red goodbye card |
+| `index.html` | 392 | toolbar = name (Inter 600 18 px) + **Sound · Editor · Game lobby**; eyebrows and taglines removed ("Tonight's team plays for…", "Bank it before the chain breaks.", "Tonight's strongest link", splash kicker); one plain setup sentence; category is a plain label (no lozenge); Bank / Resume / Download JSON demoted to secondary; `shared/icons.js` loaded; Inter weights 400/500/600 |
+| `js/wl-app.js` | 778 (+6) | `GSCIcons.prepend` for Sound (re-applied after each toggle), Editor, Game lobby — nothing else |
+| `js/wl-splash.js` | 39 | `SPLASH_MS = 600`, no tagline |
+
+One Anton hero per screen, measured: setup = the game name; round = **the
+clock**; final intro and result = **the bank** (gold); goodbye = the name;
+voting / head-to-head / editor = none. `#btn-exit` is hidden: the hub's shell
+bar carries the lobby link. On phones the toolbar Sound button is hidden — sound
+is host-only and that button was never wired in player mode.
+
+### Measured gates
+
+| Check | Result |
+|---|---|
+| 1280×720 and 1280×676, no scroll in play | setup, round, voting, goodbye, final intro, head-to-head, result, lobby confirm, editor: `scrollHeight === innerHeight` at both sizes; no clipped play containers |
+| Contrast ≥ 4.5:1 (every visible text node vs its painted background) | 0 failures on every screen and on 4 phone screens |
+| Type floors | nothing under 14 px; body 16, controls 15–16 |
+| UI-10 emoji in host DOM text | 0 |
+| UI-11 `backdrop-filter`, `text-shadow`, outer `box-shadow`, gradient backgrounds | 0 on every screen (computed styles) |
+| Uppercase | 0 `text-transform: uppercase` |
+| UI-12 toolbar order | `Sound on · Editor · Game lobby`, each with an SVG icon |
+| Reduced motion | CSSOM walk of the game's sheets: 0 `@keyframes`/`animation` outside `no-preference`; `document.getAnimations()` empty mid-reveal; splash not shown |
+| Phone 320×640 (vote, wait, final, goodbye) | `scrollWidth 320`, every target ≥ 56 px |
+| Files < 800 lines | largest `js/wl-core.js` 797, `js/wl-app.js` 778 |
+
+### Checklist (design-system §0)
+
+- [x] `data-gsc-game="weakest-link"`; no local `--accent*`; no body gradient/spotlight/vignette.
+- [x] One Anton hero per screen; everything else Inter 400/500/600, sentence case, no tracking.
+- [x] Decorative eyebrows deleted; labels kept only where they name a group (Players, Phones, Questions, Chain, Round bank, Team total).
+- [x] Accent only on the next chain step, the primary button, the active podium / chosen ballot.
+- [x] Gold only on money (round bank, team total, final bank).
+- [x] No text-shadow, glow, neon, blur, nested panels or accent rails; hairline dividers.
+- [x] Buttons 6 px, 44–48 px host / 56+ px phone, sentence case 600; primary / secondary / danger as specified.
+- [x] Zero emoji on host screens; `GSCIcons` beside text labels.
+- [x] Only meaningful motion; all inside `no-preference`; splash 600 ms plain.
+- [x] Toolbar Sound · Editor · Game lobby; embedded shows nothing else.
+- [x] No tagline-speak; setup has one plain next-step sentence; error copy untouched.
+- [x] JS limited to icon insertion and the splash timing; tests and harness green before and after.
