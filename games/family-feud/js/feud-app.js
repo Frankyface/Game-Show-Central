@@ -253,9 +253,9 @@ function render() {
   show($("screen-final"), phase === "final");
   show($("btn-new-game"), phase !== "setup");
   show($("btn-undo"), phase !== "setup" && state.history.length > 0);
-  // 19 §1: the Game lobby control is live from every phase except setup, where
-  // there is nothing to park; embedded and standalone alike.
-  show($("btn-game-lobby"), phase !== "setup");
+  // 19 §1 + UI-12: the Game lobby control is always in the toolbar (same order
+  // in every phase); on setup there is nothing to park, so it is disabled.
+  $("btn-game-lobby").disabled = phase === "setup";
   $("game-title").textContent = state.game?.title || "Family Feud";
 
   if (phase === "setup") renderSetup();

@@ -491,3 +491,19 @@ changes again, so it can never name a stale file.
 - Spec deviation to note: docs/19 §1 says the control is "next to Sound /
   Editor"; here it sits **between** them.
 - No server is left running.
+
+---
+
+## 10. Consistency fix: Game lobby disabled (not hidden) on setup
+
+Per the cross-cutting verification (UI-12), the **⟲ Game lobby** button is now
+always in the toolbar, so the order reads **Sound · Question editor · Game
+lobby** in every phase. On the setup screen it is `disabled` (there is nothing
+to park; `openGameLobby` also refuses at setup); from the first face-off on it is
+enabled. This replaces the earlier "hidden on setup" behaviour (§9 and
+`docs/reports/ui-family-feud-implementation.md` note it as hidden — superseded).
+
+- File: `js/feud-app.js` (`render`: `disabled = phase === "setup"` instead of
+  toggling `.hidden`).
+- Harness: X-1 now asserts "on setup it is present but disabled" and "it is
+  enabled once a game is running". `node --test` 87/87, harness 84/84 on 8642.

@@ -38,8 +38,8 @@ window.FeudHarnessX = function (kit) {
     await bootHost();
     check("X-1 the toolbar carries a Game lobby control", !!lobbyBtn(),
       lobbyBtn() ? lobbyBtn().textContent : "missing");
-    check("X-1 it is hidden on setup, where there is nothing to park",
-      lobbyBtn().classList.contains("hidden"));
+    check("X-1 on setup it is present but disabled (toolbar order never changes)",
+      !lobbyBtn().classList.contains("hidden") && lobbyBtn().disabled === true);
 
     // A hand-typed player + a custom team name must survive Start over.
     HD().getElementById("player-name-input").value = "Mo";
@@ -58,7 +58,8 @@ window.FeudHarnessX = function (kit) {
     dispatchHost({ type: "reveal", index: 0 });
     dispatchHost({ type: "strike" });
     await sleep(50);
-    check("X-1 it appears once a game is running", !lobbyBtn().classList.contains("hidden"));
+    check("X-1 it is enabled once a game is running",
+      !lobbyBtn().classList.contains("hidden") && lobbyBtn().disabled === false);
     const midShape = gameShape(hostState());
 
     lobbyBtn().click();
