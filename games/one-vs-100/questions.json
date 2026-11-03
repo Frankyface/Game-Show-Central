@@ -1,0 +1,82 @@
+{
+  "title": "1 vs 100",
+  "settings": {
+    "currency": "$",
+    "ladder": [100, 200, 300, 500, 1000, 2000, 3000, 5000, 7500, 10000],
+    "answerSeconds": 20,
+    "helps": { "poll": true, "ask": true, "trust": true },
+    "bonusMultiplier": 2,
+    "mobSize": 20
+  },
+  "questions": [
+    { "level": 1, "category": "Nature", "q": "How many legs does a spider have?", "options": ["Six", "Eight", "Ten"], "answer": 1 },
+    { "level": 1, "category": "Everyday", "q": "What colour is a ripe banana?", "options": ["Purple", "Blue", "Yellow"], "answer": 2 },
+    { "level": 1, "category": "Animals", "q": "Which of these animals says \"moo\"?", "options": ["Duck", "Cat", "Cow"], "answer": 2 },
+    { "level": 1, "category": "Everyday", "q": "How many days are there in a week?", "options": ["Five", "Six", "Seven"], "answer": 2 },
+    { "level": 1, "category": "Language", "q": "What is the first letter of the English alphabet?", "options": ["A", "B", "Z"], "answer": 0 },
+    { "level": 1, "category": "Food", "q": "Which of these is a fruit?", "options": ["Apple", "Carrot", "Onion"], "answer": 0 },
+
+    { "level": 2, "category": "Shapes", "q": "How many sides does a triangle have?", "options": ["Three", "Four", "Five"], "answer": 0 },
+    { "level": 2, "category": "Geography", "q": "What is the capital of France?", "options": ["Madrid", "Paris", "Rome"], "answer": 1 },
+    { "level": 2, "category": "Space", "q": "Which planet do we live on?", "options": ["Earth", "Venus", "Mars"], "answer": 0 },
+    { "level": 2, "category": "Nature", "q": "What do bees make?", "options": ["Honey", "Milk", "Bread"], "answer": 0 },
+    { "level": 2, "category": "Everyday", "q": "How many minutes are there in an hour?", "options": ["Thirty", "Sixty", "One hundred"], "answer": 1 },
+    { "level": 2, "category": "Art", "q": "Mixing blue and yellow paint gives you which colour?", "options": ["Purple", "Green", "Orange"], "answer": 1 },
+
+    { "level": 3, "category": "Geography", "q": "Which is the largest ocean on Earth?", "options": ["Atlantic", "Indian", "Pacific"], "answer": 2 },
+    { "level": 3, "category": "Sport", "q": "How many players from one team are on the field in a football (soccer) match?", "options": ["Nine", "Ten", "Eleven"], "answer": 2 },
+    { "level": 3, "category": "Animals", "q": "Which is the largest living land animal?", "options": ["African elephant", "Giraffe", "Hippopotamus"], "answer": 0 },
+    { "level": 3, "category": "Science", "q": "Which gas do humans need to breathe in to survive?", "options": ["Helium", "Oxygen", "Nitrogen"], "answer": 1 },
+    { "level": 3, "category": "Science", "q": "What is the chemical formula for water?", "options": ["CO2", "NaCl", "H2O"], "answer": 2 },
+    { "level": 3, "category": "Music", "q": "How many strings does a standard guitar have?", "options": ["Four", "Six", "Eight"], "answer": 1 },
+
+    { "level": 4, "category": "History", "q": "Which country gave the Statue of Liberty to the United States?", "options": ["France", "Britain", "Spain"], "answer": 0 },
+    { "level": 4, "category": "Geography", "q": "Which mountain has the highest summit above sea level?", "options": ["Kilimanjaro", "Everest", "K2"], "answer": 1 },
+    { "level": 4, "category": "Geography", "q": "How many continents are there, by the usual count?", "options": ["Five", "Six", "Seven"], "answer": 2 },
+    { "level": 4, "category": "Body", "q": "Which is the longest bone in the human body?", "options": ["Humerus", "Tibia", "Femur"], "answer": 2 },
+    { "level": 4, "category": "Travel", "q": "In which country would you find the Colosseum?", "options": ["Italy", "Greece", "Turkey"], "answer": 0 },
+    { "level": 4, "category": "Science", "q": "Which is the hardest naturally occurring material?", "options": ["Granite", "Diamond", "Quartz"], "answer": 1 },
+
+    { "level": 5, "category": "Space", "q": "Which planet is known as the Red Planet?", "options": ["Jupiter", "Mercury", "Mars"], "answer": 2 },
+    { "level": 5, "category": "Music", "q": "How many keys does a standard full-size piano have?", "options": ["Seventy-six", "Eighty-eight", "Ninety-six"], "answer": 1 },
+    { "level": 5, "category": "Money", "q": "What is the currency of Japan?", "options": ["Yen", "Won", "Yuan"], "answer": 0 },
+    { "level": 5, "category": "Books", "q": "Who wrote the play \"Romeo and Juliet\"?", "options": ["Geoffrey Chaucer", "William Shakespeare", "Charles Dickens"], "answer": 1 },
+    { "level": 5, "category": "Animals", "q": "Which of these sea creatures has three hearts?", "options": ["Shark", "Dolphin", "Octopus"], "answer": 2 },
+    { "level": 5, "category": "Tech", "q": "In a web address, what does \"www\" stand for?", "options": ["World Wide Web", "Wide World Web", "Web World Wide"], "answer": 0 },
+
+    { "level": 6, "category": "Science", "q": "Which element has atomic number 1?", "options": ["Oxygen", "Hydrogen", "Helium"], "answer": 1 },
+    { "level": 6, "category": "History", "q": "In which year did the Berlin Wall come down?", "options": ["1987", "1989", "1991"], "answer": 1 },
+    { "level": 6, "category": "Geography", "q": "Which is the smallest country in the world by area?", "options": ["Monaco", "Nauru", "Vatican City"], "answer": 2 },
+    { "level": 6, "category": "Science", "q": "What is the scientific study of earthquakes called?", "options": ["Seismology", "Geology", "Meteorology"], "answer": 0 },
+    { "level": 6, "category": "Body", "q": "Which vitamin does the skin make when it is exposed to sunlight?", "options": ["Vitamin B12", "Vitamin D", "Vitamin C"], "answer": 1 },
+    { "level": 6, "category": "Art", "q": "Which artist painted \"The Starry Night\"?", "options": ["Claude Monet", "Pablo Picasso", "Vincent van Gogh"], "answer": 2 },
+
+    { "level": 7, "category": "Body", "q": "How many bones are there in a typical adult human skeleton?", "options": ["186", "206", "226"], "answer": 1 },
+    { "level": 7, "category": "Geography", "q": "Which river flows through the Iraqi capital, Baghdad?", "options": ["Tigris", "Euphrates", "Jordan"], "answer": 0 },
+    { "level": 7, "category": "Music", "q": "How many lines does a standard musical stave have?", "options": ["Four", "Five", "Six"], "answer": 1 },
+    { "level": 7, "category": "Science", "q": "Who published the general theory of relativity?", "options": ["Niels Bohr", "Albert Einstein", "Isaac Newton"], "answer": 1 },
+    { "level": 7, "category": "Geography", "q": "What is the capital city of Australia?", "options": ["Sydney", "Melbourne", "Canberra"], "answer": 2 },
+    { "level": 7, "category": "Body", "q": "Which blood type is the universal donor for red blood cells?", "options": ["O negative", "AB positive", "A positive"], "answer": 0 },
+
+    { "level": 8, "category": "Flags", "q": "Which country's flag is a plain red circle on a white background?", "options": ["South Korea", "Japan", "Bangladesh"], "answer": 1 },
+    { "level": 8, "category": "Space", "q": "Which is the smallest planet in our solar system?", "options": ["Mars", "Venus", "Mercury"], "answer": 2 },
+    { "level": 8, "category": "Language", "q": "Which language has the most native speakers in the world?", "options": ["Mandarin Chinese", "English", "Spanish"], "answer": 0 },
+    { "level": 8, "category": "Myth", "q": "In Greek myth, who flew too close to the sun on wax wings?", "options": ["Theseus", "Icarus", "Perseus"], "answer": 1 },
+    { "level": 8, "category": "Science", "q": "What is the chemical symbol for gold?", "options": ["Ag", "Gd", "Au"], "answer": 2 },
+    { "level": 8, "category": "Animals", "q": "Which is the only mammal capable of true sustained flight?", "options": ["Bat", "Flying squirrel", "Sugar glider"], "answer": 0 },
+
+    { "level": 9, "category": "History", "q": "Who was the first woman to be awarded a Nobel Prize?", "options": ["Ada Lovelace", "Marie Curie", "Rosalind Franklin"], "answer": 1 },
+    { "level": 9, "category": "Geography", "q": "What is the capital city of Canada?", "options": ["Toronto", "Vancouver", "Ottawa"], "answer": 2 },
+    { "level": 9, "category": "Geography", "q": "Which of these bodies of water is by far the saltiest?", "options": ["Dead Sea", "Mediterranean Sea", "Baltic Sea"], "answer": 0 },
+    { "level": 9, "category": "History", "q": "In which year did the Titanic sink on her maiden voyage?", "options": ["1910", "1912", "1915"], "answer": 1 },
+    { "level": 9, "category": "Sport", "q": "Which country hosted the first modern Olympic Games in 1896?", "options": ["United Kingdom", "Greece", "France"], "answer": 1 },
+    { "level": 9, "category": "Science", "q": "What does the abbreviation DNA stand for?", "options": ["Dinucleic acid", "Deoxyribose nuclear acid", "Deoxyribonucleic acid"], "answer": 2 },
+
+    { "level": 10, "category": "Science", "q": "Which scientist first proposed the theory of continental drift?", "options": ["Alfred Wegener", "Charles Lyell", "James Hutton"], "answer": 0 },
+    { "level": 10, "category": "Science", "q": "What is the SI unit of electrical resistance?", "options": ["Ampere", "Ohm", "Volt"], "answer": 1 },
+    { "level": 10, "category": "Music", "q": "Which composer wrote the ballet \"The Rite of Spring\"?", "options": ["Claude Debussy", "Maurice Ravel", "Igor Stravinsky"], "answer": 2 },
+    { "level": 10, "category": "History", "q": "In which century did the Black Death sweep across Europe?", "options": ["Twelfth", "Fourteenth", "Sixteenth"], "answer": 1 },
+    { "level": 10, "category": "Geography", "q": "What is the name of the deepest known point in the ocean?", "options": ["Challenger Deep", "Sirena Deep", "Horizon Deep"], "answer": 0 },
+    { "level": 10, "category": "Science", "q": "Which gas makes up the greatest share of Earth's atmosphere by volume?", "options": ["Argon", "Nitrogen", "Oxygen"], "answer": 1 }
+  ]
+}

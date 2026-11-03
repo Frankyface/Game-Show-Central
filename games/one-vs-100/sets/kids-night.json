@@ -1,0 +1,67 @@
+{
+  "title": "1 vs 100 — Kids' night",
+  "settings": {
+      "currency": "$",
+      "ladder": [
+          100,
+          200,
+          300,
+          500,
+          1000,
+          2000,
+          3000,
+          5000,
+          7500,
+          10000
+      ],
+      "answerSeconds": 20,
+      "helps": {
+          "poll": true,
+          "ask": true,
+          "trust": true
+      },
+      "bonusMultiplier": 2,
+      "mobSize": 15
+  },
+  "questions": [
+    { "level": 1, "category": "Animals", "q": "What sound does a duck make?", "options": ["Baa", "Quack", "Oink"], "answer": 1 },
+    { "level": 1, "category": "Everyday", "q": "How many wheels does a bicycle have?", "options": ["Two", "Three", "Four"], "answer": 0 },
+    { "level": 1, "category": "Nature", "q": "What colour is grass usually?", "options": ["Pink", "Grey", "Green"], "answer": 2 },
+
+    { "level": 2, "category": "Animals", "q": "Which of these animals has a long trunk?", "options": ["Elephant", "Zebra", "Penguin"], "answer": 0 },
+    { "level": 2, "category": "School", "q": "What do you normally write on a blackboard with?", "options": ["Butter", "Chalk", "Soap"], "answer": 1 },
+    { "level": 2, "category": "Body", "q": "How many fingers are on one hand, counting the thumb?", "options": ["Four", "Six", "Five"], "answer": 2 },
+
+    { "level": 3, "category": "Animals", "q": "Which of these animals lives in the sea?", "options": ["Dolphin", "Camel", "Squirrel"], "answer": 0 },
+    { "level": 3, "category": "Nature", "q": "What is a baby frog called?", "options": ["Foal", "Tadpole", "Cub"], "answer": 1 },
+    { "level": 3, "category": "Seasons", "q": "Which season comes straight after summer?", "options": ["Spring", "Winter", "Autumn"], "answer": 2 },
+
+    { "level": 4, "category": "Nature", "q": "How many colours do we usually name in a rainbow?", "options": ["Seven", "Five", "Six"], "answer": 0 },
+    { "level": 4, "category": "Animals", "q": "Which is the largest of the big cats?", "options": ["Cheetah", "Tiger", "Leopard"], "answer": 1 },
+    { "level": 4, "category": "Animals", "q": "Which of these is a reptile?", "options": ["Frog", "Dolphin", "Crocodile"], "answer": 2 },
+
+    { "level": 5, "category": "Nature", "q": "What do caterpillars turn into?", "options": ["Butterflies", "Beetles", "Bees"], "answer": 0 },
+    { "level": 5, "category": "Nature", "q": "How many legs does an insect have?", "options": ["Six", "Eight", "Ten"], "answer": 0 },
+    { "level": 5, "category": "Space", "q": "Which planet is famous for its bright rings?", "options": ["Mercury", "Saturn", "Mars"], "answer": 1 },
+
+    { "level": 6, "category": "Animals", "q": "Which is the fastest land animal over a short sprint?", "options": ["Lion", "Horse", "Cheetah"], "answer": 2 },
+    { "level": 6, "category": "Nature", "q": "Which part of a plant takes in water from the soil?", "options": ["The roots", "The leaves", "The flowers"], "answer": 0 },
+    { "level": 6, "category": "Animals", "q": "What is a group of wolves called?", "options": ["A flock", "A pack", "A herd"], "answer": 1 },
+
+    { "level": 7, "category": "Animals", "q": "Which bird cannot fly but is a superb swimmer?", "options": ["The eagle", "The robin", "The penguin"], "answer": 2 },
+    { "level": 7, "category": "Science", "q": "What is frozen water called?", "options": ["Ice", "Steam", "Sand"], "answer": 0 },
+    { "level": 7, "category": "Body", "q": "How many teeth does a typical adult have, wisdom teeth included?", "options": ["Thirty-six", "Thirty-two", "Twenty-eight"], "answer": 1 },
+
+    { "level": 8, "category": "Animals", "q": "Which sea creature is famous for changing colour to hide?", "options": ["The tuna", "The jellyfish", "The octopus"], "answer": 2 },
+    { "level": 8, "category": "Animals", "q": "What is the largest animal that has ever lived?", "options": ["The blue whale", "The African elephant", "The giraffe"], "answer": 0 },
+    { "level": 8, "category": "Animals", "q": "Which of these is NOT a mammal?", "options": ["A bat", "A shark", "A whale"], "answer": 1 },
+
+    { "level": 9, "category": "Science", "q": "What do we call an animal that eats only plants?", "options": ["A carnivore", "An omnivore", "A herbivore"], "answer": 2 },
+    { "level": 9, "category": "Space", "q": "Which planet orbits closest to the Sun?", "options": ["Mercury", "Venus", "Earth"], "answer": 0 },
+    { "level": 9, "category": "Nature", "q": "What is the sweet liquid bees collect from flowers called?", "options": ["Syrup", "Nectar", "Sap"], "answer": 1 },
+
+    { "level": 10, "category": "Space", "q": "How long does Earth take to travel once around the Sun?", "options": ["About a month", "About a week", "About a year"], "answer": 2 },
+    { "level": 10, "category": "Science", "q": "What is the hard outer shell of a crab called?", "options": ["An exoskeleton", "Cartilage", "Blubber"], "answer": 0 },
+    { "level": 10, "category": "Animals", "q": "Which of these animals can sleep standing up?", "options": ["A bat", "A horse", "A koala"], "answer": 1 }
+  ]
+}

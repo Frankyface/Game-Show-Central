@@ -1,0 +1,14 @@
+[
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Thirty gentle three-option questions about animals, nature and space — from what sound a duck makes up to how long a year takes.",
+    "by": "Game Show Central"
+  },
+  {
+    "file": "movies-and-tv.json",
+    "name": "Movies & TV",
+    "description": "Thirty questions from Oz and Olaf up to Cannes, Wakanda and the first all-CG feature.",
+    "by": "Game Show Central"
+  }
+]

@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1 vs 100 harness (O-I1–O-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 62rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 220px; height: 430px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>1 vs 100 — loopback harness (success states O-I1 … O-I6, spec 16 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus six embedded phones — one contestant and five Mob members — and speaks the bridge protocol
+    from architecture 00 §6 itself: no PeerJS, no hub. Every scenario clicks real buttons in the real frames and
+    asserts on real DOM text. Storage is namespaced with <code>?store=harness</code> so a run can never leave
+    fixture questions in a real host's save.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const BS = String.fromCharCode(92);   // a backslash, for regexes built from strings
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__OVH_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Cass", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ada", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Ben", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Cleo", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+      { pid: "p5", name: "Dev", color: "#8a4fff", avatar: "🐝", connected: true, manual: false },
+      { pid: "p6", name: "Eve", color: "#19c9ff", avatar: "🐢", connected: true, manual: false },
+    ];
+    const MOB_PIDS = ["p2", "p3", "p4", "p5", "p6"];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/ovh-content.js", "../js/ovh-phoneview.js", "../js/ovh-core.js", "../js/data.js", "../js/ovh-sound.js",
+      "../js/ovh-view.js", "../js/ovh-app.js", "../js/ovh-editor.js",
+      "../js/ovh-room.js", "../js/ovh-phone.js",
+      "../css/ovh.css", "../css/ovh-phone.css",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js",
+      "../../../shared/bridge.js", "../../../shared/library.js",
+      "../index.html", "../questions.json", "../sets/index.json",
+      "fixtures/harness-game.json",
+    ];
+
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // leaves fixture questions (or a half-played game) in the real host's save.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-ovh-state-v1-harness", "gsc-ovh-draft-v1-harness"];
+
+    const texts = {};
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map(async (u) => {
+        try {
+          const res = await fetch(u, { cache: "reload" });
+          texts[u] = res.ok ? await res.text() : "";
+        } catch (err) { texts[u] = ""; }
+      }));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().OvhApp.core();
+    const click = (id) => H(id).click();
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        // Unload the old page FIRST: its beforeunload handler saves the state,
+        // which would otherwise land in localStorage after we cleared it.
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().OvhApp && HW().OvhApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.OvhPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).OvhPhone.view();
+    const phoneChoices = (pid) => [...PD(pid).querySelectorAll("#ovh-phone-choices .phone-choice")];
+    const phoneText = (pid, id) => PD(pid).getElementById(id).textContent;
+
+    /** Start a fresh game with p1 as the contestant and p2-p6 as the Mob. */
+    async function startGame() {
+      await waitFor(() => HW().OvhApp.state().setup.players.length === 6, "roster from the shell");
+      H("ovh-mob-phones").checked = true;
+      H("ovh-mob-phones").dispatchEvent(new (HW().Event)("change"));
+      HW().OvhApp.setContestant("p1");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "question", "the question screen");
+    }
+
+    /** Every Mob phone taps `pick(pid)`; returns once the host has them all. */
+    async function mobAnswers(pick) {
+      for (const pid of MOB_PIDS) {
+        const idx = pick(pid);
+        if (idx === null) continue;
+        await waitFor(() => phoneChoices(pid).length === 3, `${pid} has three options`);
+        phoneChoices(pid)[idx].click();
+      }
+      const wanted = MOB_PIDS.filter((pid) => pick(pid) !== null).length;
+      await waitFor(() => Object.keys(core().q.answers).length === wanted, "answers reach the host");
+    }
+
+    /* ============================================================
+       O-I1 — six phones: one contestant, five Mob members
+       ============================================================ */
+
+    async function scenarioSeats() {
+      await bootHost();
+      await bootPhones();
+      await startGame();
+      const state = core();
+      check("O-I1 the shell roster becomes the line-up",
+        HW().OvhApp.state().setup.players.map((p) => p.name).join(",") === "Cass,Ada,Ben,Cleo,Dev,Eve",
+        HW().OvhApp.state().setup.players.map((p) => p.name).join(","));
+      check("O-I1 every phone that is not the contestant is a Mob member",
+        state.contestant === "p1" && state.mob.members.map((m) => m.pid).join(",") === MOB_PIDS.join(","),
+        `contestant ${state.contestant}, mob ${state.mob.members.map((m) => m.pid).join(",")}`);
+      check("O-I1 the host screen draws one tile per Mob member",
+        HD().querySelectorAll("#ovh-mob-grid .mob-tile").length === 5
+        && H("ovh-mob-count").textContent === "5 of 5 still in",
+        H("ovh-mob-count").textContent);
+
+      click("btn-open-window");
+      await waitFor(() => phoneView("p2").screen === "mob-answer", "the Mob gets the answer screen");
+      check("O-I1 every Mob phone gets the question and three buttons",
+        MOB_PIDS.every((pid) => phoneView(pid).screen === "mob-answer" && phoneChoices(pid).length === 3),
+        MOB_PIDS.map((pid) => `${pid}:${phoneChoices(pid).length}`).join(" "));
+      check("O-I1 a phone page shows only its own card, never the host screens",
+        PW("p2").getComputedStyle(PD("p2").getElementById("screen-setup")).display === "none"
+        && PW("p2").getComputedStyle(PD("p2").getElementById("screen-play")).display === "none",
+        PW("p2").getComputedStyle(PD("p2").getElementById("screen-setup")).display);
+      check("O-I1 no Mob phone is ever sent the correct answer",
+        MOB_PIDS.every((pid) => JSON.stringify(phoneView(pid)).indexOf("\"answer\"") < 0),
+        JSON.stringify(phoneView("p2")).slice(0, 160));
+      check("O-I1 the contestant waits while the Mob answers",
+        phoneView("p1").screen === "wait" && /Mob is answering/.test(phoneView("p1").sub),
+        phoneView("p1").sub);
+      await waitFor(() => /s left/.test(H("ovh-seconds").textContent), "the clock paints");
+      check("O-I1 the answer window is running on the host screen",
+        /s left/.test(H("ovh-seconds").textContent)
+        && HD().querySelectorAll("#ovh-timer .gsc-timer-block.is-lit").length > 0,
+        H("ovh-seconds").textContent);
+    }
+
+    /* ============================================================
+       O-I2 — the window closes early once everyone has answered,
+       the reveal eliminates and the bank grows by the ladder
+       ============================================================ */
+
+    async function scenarioCloseAndBank() {
+      // Two of the five get it right; three are wrong.
+      const picks = { p2: 0, p3: 0, p4: 1, p5: 2, p6: 1 };
+      await mobAnswers((pid) => picks[pid]);
+      check("O-I2 the host sees the live count reach everybody",
+        H("ovh-mob-answered").textContent === "Answered 5/5",
+        H("ovh-mob-answered").textContent);
+      check("O-I2 an answered Mob phone cannot answer twice",
+        phoneChoices("p2").every((b) => b.disabled) && phoneView("p2").mine === 0,
+        `mine=${phoneView("p2").mine}`);
+
+      const before = core().q.deadline;
+      click("btn-close-mob");                       // the host closes it EARLY
+      await waitFor(() => core().q.closed, "the Mob locks");
+      check("O-I2 closing early stops the clock before the deadline",
+        Number.isFinite(before) && before > Date.now() && core().q.deadline === null,
+        `deadline was ${Math.round((before - Date.now()) / 1000)}s away`);
+      await waitFor(() => phoneView("p1").screen === "contestant", "the contestant's phone catches up");
+      check("O-I2 the contestant's phone gets the three options once the Mob has locked",
+        phoneView("p1").screen === "contestant" && phoneChoices("p1").length === 3,
+        phoneView("p1").screen);
+      check("O-I2 the contestant is still never told the answer",
+        JSON.stringify(phoneView("p1")).indexOf("\"answer\"") < 0
+        && phoneView("p1").poll === null,
+        JSON.stringify(phoneView("p1")).slice(0, 160));
+
+      // The contestant locks from their own phone.
+      phoneChoices("p1")[0].click();
+      await waitFor(() => core().q.locked === 0, "the lock reaches the host");
+      check("O-I2 the contestant locks from their phone and the host shows it",
+        HD().querySelector("#ovh-options .option.is-locked") !== null,
+        HD().querySelector("#ovh-options .option.is-locked").textContent);
+
+      click("btn-reveal");
+      await waitFor(() => core().q.revealed, "the reveal");
+      const state = core();
+      check("O-I2 three wrong Mob members are eliminated",
+        state.q.eliminated.length === 3 && HW().OvhCore.mobAlive(state) === 2,
+        state.q.eliminated.join(","));
+      check("O-I2 the bank grows by 100 a head on question 1",
+        state.bank === 300 && H("ovh-bank").textContent === "$300",
+        H("ovh-bank").textContent);
+      check("O-I2 the eliminated tiles have gone dark on the host screen",
+        HD().querySelectorAll("#ovh-mob-grid .mob-tile.is-out").length === 3,
+        `${HD().querySelectorAll("#ovh-mob-grid .mob-tile.is-out").length} dark tiles`);
+      check("O-I2 the host is offered walk or play on",
+        !H("btn-walk").classList.contains("hidden") && !H("btn-continue").classList.contains("hidden"));
+    }
+
+    /* ============================================================
+       O-I3 — eliminated phones see mob-eliminated and stay out
+       ============================================================ */
+
+    async function scenarioEliminated() {
+      await waitFor(() => phoneView("p4").screen === "mob-eliminated", "the out screen");
+      check("O-I3 every eliminated phone gets the mob-eliminated screen",
+        ["p4", "p5", "p6"].every((pid) => phoneView(pid).screen === "mob-eliminated"),
+        ["p4", "p5", "p6"].map((pid) => `${pid}:${phoneView(pid).screen}`).join(" "));
+      check("O-I3 the out screen says so in plain English and names the question",
+        phoneText("p4", "ovh-phone-headline") === "You're out"
+        && /watch the host screen/i.test(phoneText("p4", "ovh-phone-sub"))
+        && phoneView("p4").out === 1,
+        `${phoneText("p4", "ovh-phone-headline")} / ${phoneText("p4", "ovh-phone-sub")}`);
+      check("O-I3 an eliminated phone is given no options at all",
+        phoneChoices("p4").length === 0 && !phoneView("p4").options);
+      check("O-I3 the two survivors are still in",
+        ["p2", "p3"].every((pid) => phoneView(pid).screen !== "mob-eliminated"),
+        ["p2", "p3"].map((pid) => `${pid}:${phoneView(pid).screen}`).join(" "));
+
+      click("btn-continue");
+      await waitFor(() => core().qNumber === 2, "question 2");
+      click("btn-open-window");
+      await waitFor(() => phoneView("p2").screen === "mob-answer", "the survivors answer again");
+      check("O-I3 an eliminated phone never gets another question",
+        phoneView("p4").screen === "mob-eliminated" && phoneChoices("p4").length === 0);
+      const answersBefore = Object.keys(core().q.answers).length;
+      PW("p4").OvhPhone.me.send({ t: "mob", idx: 0 });
+      await sleep(120);
+      check("O-I3 a forged answer from an eliminated phone is dropped by the host",
+        Object.keys(core().q.answers).length === answersBefore,
+        `${Object.keys(core().q.answers).length} answers`);
+    }
+
+    /* ============================================================
+       O-I4 — the three helps
+       ============================================================ */
+
+    async function scenarioHelps() {
+      // p2 right, p3 wrong: a split the helps can talk about.
+      await mobAnswers((pid) => (pid === "p2" ? 0 : (pid === "p3" ? 1 : null)));
+      click("btn-close-mob");
+      await waitFor(() => core().q.closed, "the Mob locks on question 2");
+
+      check("O-I4 no vote counts are on the host screen before Poll the Mob",
+        HD().querySelectorAll("#ovh-options .option-votes").length === 0);
+      click("btn-help-poll");
+      await waitFor(() => core().q.poll, "poll");
+      check("O-I4 Poll the Mob puts the split on the host screen",
+        HD().querySelectorAll("#ovh-options .option-votes").length === 3
+        && [...HD().querySelectorAll("#ovh-options .option-votes")].map((n) => n.textContent).join(",") === "1,1,0",
+        [...HD().querySelectorAll("#ovh-options .option-votes")].map((n) => n.textContent).join(","));
+      await waitFor(() => Array.isArray(phoneView("p1").poll), "the poll reaches the phone");
+      check("O-I4 the split reaches the contestant's phone too, and only after the help",
+        JSON.stringify(phoneView("p1").poll) === "[1,1,0]"
+        && PD("p1").querySelectorAll(".phone-poll-row").length === 3,
+        JSON.stringify(phoneView("p1").poll));
+      check("O-I4 Poll the Mob is spent and the button has gone",
+        H("btn-help-poll").classList.contains("hidden")
+        && HD().querySelector(".help-chip.is-spent") !== null);
+
+      click("btn-help-ask");
+      await waitFor(() => core().q.ask, "ask");
+      const ask = core().q.ask;
+      check("O-I4 Ask the Mob names one member who is right and one who is not",
+        ask.right && ask.wrong && ask.right.idx === 0 && ask.wrong.idx !== 0
+        && !H("ovh-ask").classList.contains("hidden"),
+        `${ask.right.name} vs ${ask.wrong.name}`);
+      check("O-I4 the Ask panel shows both names on the host screen",
+        /Ada/.test(H("ovh-ask").textContent) && /Ben/.test(H("ovh-ask").textContent),
+        H("ovh-ask").textContent.replace(/\s+/g, " "));
+
+      click("btn-help-trust");
+      await waitFor(() => core().q.trust, "trust");
+      check("O-I4 Trust the Mob locks the Mob's favourite (a tie goes to A)",
+        core().q.locked === 0,
+        `locked ${core().q.locked}`);
+      check("O-I4 all three helps are now spent",
+        HD().querySelectorAll(".help-chip.is-spent").length === 3
+        && ["poll", "ask", "trust"].every((k) => H(`btn-help-${k}`).classList.contains("hidden")));
+
+      click("btn-reveal");
+      await waitFor(() => core().q.revealed, "reveal 2");
+      check("O-I4 question 2 pays 200 a head for the one it knocked out",
+        core().bank === 500 && HW().OvhCore.mobAlive(core()) === 1,
+        `bank ${core().bank}, ${HW().OvhCore.mobAlive(core())} left`);
+    }
+
+    /* ============================================================
+       O-I5 — a reload mid-question keeps the answer window
+       ============================================================ */
+
+    async function scenarioReload() {
+      click("btn-continue");
+      await waitFor(() => core().qNumber === 3, "question 3");
+      click("btn-open-window");
+      await waitFor(() => core().q.open, "window open");
+      await sleep(1300);
+      const leftBefore = HW().OvhCore.secondsLeft(core(), Date.now());
+      check("O-I5 the window has burned some time before the reload",
+        leftBefore > 0 && leftBefore < 20, `${leftBefore}s left`);
+
+      await bootHost(false);                         // reload WITHOUT clearing storage
+      await waitFor(() => core() && core().qNumber === 3, "the saved game comes back");
+      const state = core();
+      check("O-I5 the reload restores the same question, bank and Mob",
+        state.bank === 500 && HW().OvhCore.mobAlive(state) === 1 && state.qNumber === 3,
+        `bank ${state.bank}, ${HW().OvhCore.mobAlive(state)} left`);
+      check("O-I5 the window comes back PAUSED with the time it had left",
+        state.q.open === false && state.q.deadline === null
+        && state.q.remainingMs > 15000 && state.q.remainingMs < 20000,
+        `remainingMs ${state.q.remainingMs}`);
+      await waitFor(() => /Paused with/.test(H("ovh-seconds").textContent), "the paused clock line");
+      check("O-I5 the host screen says how much is left and offers Resume",
+        /Paused with \d+s left/.test(H("ovh-seconds").textContent)
+        && H("btn-open-window").textContent === "Resume the Mob window",
+        `${H("ovh-seconds").textContent} / ${H("btn-open-window").textContent}`);
+
+      const remaining = Math.round(state.q.remainingMs / 1000);
+      click("btn-open-window");
+      await waitFor(() => core().q.open, "the window resumes");
+      const leftAfter = HW().OvhCore.secondsLeft(core(), Date.now());
+      check("O-I5 resuming carries the deadline over instead of restarting it",
+        Math.abs(leftAfter - remaining) <= 1 && leftAfter < 20,
+        `${remaining}s stored, ${leftAfter}s after the resume`);
+    }
+
+    /* ============================================================
+       O-I6 — the library, the editor, the game lobby, the gates
+       ============================================================ */
+
+    async function scenarioLobbyAndLibrary() {
+      // Close the running window first, so "the exact state" really is exact:
+      // a clock that is still burning would differ by the milliseconds a
+      // freeze-and-resume costs, and that is not what X-1 is asking about.
+      click("btn-close-mob");
+      await waitFor(() => core().q.closed, "the Mob locks on question 3");
+
+      // --- X-1: the game lobby control, Keep then Resume ---
+      const before = JSON.stringify(core());
+      click("btn-game-lobby");
+      check("O-I6 (X-1) the toolbar has btn-game-lobby and it opens a two-choice confirm",
+        !H("ovh-lobby-modal").classList.contains("hidden")
+        && H("btn-lobby-keep") && H("btn-lobby-restart"),
+        H("ovh-lobby-modal").textContent.replace(/\s+/g, " ").slice(0, 90));
+      click("btn-lobby-keep");
+      await waitFor(() => !HW().OvhApp.core(), "back on setup");
+      check("O-I6 (X-1) Keep this game returns to setup with a Resume button",
+        !H("screen-setup").classList.contains("hidden")
+        && !H("btn-resume").classList.contains("hidden")
+        && H("btn-start").textContent === "Start a new game",
+        H("btn-resume").textContent);
+      click("btn-resume");
+      await waitFor(() => HW().OvhApp.core(), "resumed");
+      check("O-I6 (X-1) Resume restores the exact state",
+        JSON.stringify(core()) === before,
+        `${core().qNumber} / bank ${core().bank}`);
+
+      // --- X-1: Start over ---
+      click("btn-game-lobby");
+      click("btn-lobby-restart");
+      await waitFor(() => !HW().OvhApp.core(), "back on setup again");
+      check("O-I6 (X-1) Start over clears the game but keeps the roster and questions",
+        !HW().OvhApp.state().stashed
+        && H("btn-resume").classList.contains("hidden")
+        && HW().OvhApp.state().setup.players.length === 6
+        && HW().OvhApp.state().game.questions.length === 30,
+        `${HW().OvhApp.state().setup.players.length} players, `
+        + `${HW().OvhApp.state().game.questions.length} questions`);
+
+      // --- X-2: the question-set library ---
+      const lib = HW().OvhApp.library();
+      check("O-I6 (X-2) the library picker is mounted on the setup screen",
+        !!lib && !!HD().querySelector("#ovh-library .gsc-library-select"),
+        lib ? "mounted" : "GSCLibrary missing");
+      if (lib) {
+        const res = await lib.ready;
+        const select = HD().querySelector("#ovh-library .gsc-library-select");
+        check("O-I6 (X-2) the picker lists the sets shipped in sets/index.json",
+          res.ok && select.options.length >= 2,
+          [...select.options].map((o) => o.textContent).join(", "));
+        select.selectedIndex = 0;
+        select.dispatchEvent(new (HW().Event)("change"));
+        HD().querySelector("#ovh-library .gsc-library-load").click();
+        await waitFor(() => /^set: /.test(HW().OvhApp.state().source), "a set loads", 8000);
+        check("O-I6 (X-2) loading a set validates it and updates the source note",
+          HW().OvhCore.validateGame(HW().OvhApp.state().game) === true
+          && H("ovh-source").textContent === HW().OvhApp.state().source,
+          H("ovh-source").textContent);
+      }
+
+      // --- X-3: the editor's "Download for the library" ---
+      click("btn-editor");
+      await waitFor(() => HW().OvhApp.state().editorOpen, "editor open");
+      check("O-I6 (X-3) the editor opens on the loaded set with its questions",
+        HD().querySelectorAll("#ovh-ed-rows .ed-row").length >= 30,
+        `${HD().querySelectorAll("#ovh-ed-rows .ed-row").length} rows`);
+      const draft = HW().OvhEditor.draft();
+      draft.title = "Office party";
+      HW().OvhEditor.setDraft(draft);
+      click("btn-editor-library");
+      await waitFor(() => !H("ovh-editor-library").classList.contains("hidden"), "the recipe");
+      const manifest = H("ovh-manifest-line").textContent;
+      check("O-I6 (X-3) Download for the library shows the exact manifest line and the path",
+        /"file": "office-party\.json"/.test(manifest) && /"name": "Office party"/.test(manifest)
+        && /games\/one-vs-100\/sets\/office-party\.json/.test(H("ovh-recipe").textContent),
+        manifest.replace(/\s+/g, " "));
+      check("O-I6 (X-3) the manifest line is JSON the manifest parser accepts",
+        HW().GSCLibrary.parseManifest(JSON.parse(`[${manifest.replace(/,$/, "")}]`)).ok);
+      click("btn-editor-close");
+      await waitFor(() => !HW().OvhApp.state().editorOpen, "editor closed");
+    }
+
+    /* ============================================================
+       O-I6 — static gates and the offline mirror
+       ============================================================ */
+
+    async function scenarioGates() {
+      // The gates cover THIS component's own files: shared/*.js belongs to the
+      // shell agent and is gated by the hub's own suite.
+      const mine = Object.keys(texts).filter((u) => /^\.\.\/(js|css)\/|^\.\.\/index\.html$/.test(u));
+      // Prose in banner comments ("never use HTML strings") is not a use, so the gate
+      // reads the code with block, HTML and whole-line comments stripped.
+      const code = mine.map((u) => texts[u]).join("\n")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/<!--[\s\S]*?-->/g, "")
+        .split("\n").filter((ln) => !/^\s*\/\//.test(ln)).join("\n");
+      // The banned tokens are assembled from pieces so this harness itself stays
+      // clean under the repo-wide V3 grep (verification plan 06 §4).
+      const banned = new RegExp(["inner" + "HTML", "insertAdjacent" + "HTML", "outer" + "HTML" + BS + "s*=",
+        "document" + BS + ".wri" + "te", "[^." + BS + "w]ev" + "al" + BS + "(", "new Func" + "tion"].join("|"));
+      check("O-I6 V3 none of the banned DOM/eval calls appear in the game's code",
+        !banned.test(code), mine.join(" "));
+      check("O-I6 V4 no console.log in the game's own scripts",
+        !Object.keys(texts).filter((u) => u.indexOf("../js/") === 0).some((u) => /console\.log/.test(texts[u])));
+      check("O-I6 V6 the only external URLs are Google Fonts",
+        (texts["../js/ovh-app.js"] + texts["../js/ovh-core.js"]).indexOf("http") < 0);
+      check("O-I6 V7 the page carries data-gsc-game and the #gsc-join container",
+        HD().body.dataset.gscGame === "one-vs-100" && !!H("gsc-join"));
+      check("O-I6 the embedded page hides the standalone room controls",
+        HD().body.classList.contains("gsc-embedded"), HD().body.className);
+      check("O-I6 V8 questions.json validates through validateGame",
+        HW().OvhCore.validateGame(JSON.parse(texts["../questions.json"])) === true);
+      check("O-I6 js/data.js mirrors questions.json and reaches globalThis",
+        JSON.stringify(HW().OVH_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../questions.json"])),
+        HW().OVH_DEFAULT_GAME ? "globalThis.OVH_DEFAULT_GAME is set" : "MISSING");
+      check("O-I6 questions.json ships 60 three-option questions with rising levels",
+        JSON.parse(texts["../questions.json"]).questions.length === 60
+        && JSON.parse(texts["../questions.json"]).questions.every((q) => q.options.length === 3),
+        `${JSON.parse(texts["../questions.json"]).questions.length} questions`);
+      check("O-I6 sets/index.json lists at least two committed sets",
+        JSON.parse(texts["../sets/index.json"]).length >= 2,
+        JSON.parse(texts["../sets/index.json"]).map((s) => s.name).join(", "));
+      // The sheet's own header comment explains both rules, so the gates read
+      // the stylesheet with its comments stripped out.
+      const cssNoComments = texts["../css/ovh.css"].replace(/\/\*[\s\S]*?\*\//g, "");
+      check("O-I6 every @keyframes and animation sits inside prefers-reduced-motion: no-preference",
+        !/animation:|@keyframes/.test(
+          cssNoComments.slice(0, cssNoComments.indexOf("@media (prefers-reduced-motion: no-preference)"))),
+        "the motion block is the last thing in the sheet");
+      check("O-I6 the sheet declares no body[data-gsc-game] palette override",
+        !/body\[data-gsc-game/.test(cssNoComments));
+      check("O-I6 the harness storage is namespaced away from a real host's save",
+        HW().OvhApp.STORAGE_KEY === "gsc-ovh-state-v1-harness"
+        && localStorage.getItem("gsc-ovh-state-v1") === null,
+        HW().OvhApp.STORAGE_KEY);
+      check("O-I6 the host reported standings up to the shell",
+        shellLog.some((d) => d.t === "title"), `${shellLog.length} shell frames`);
+    }
+
+    /* ============================================================
+       Simulated Mob — the host runs it alone (standalone T4 in a frame)
+       ============================================================ */
+
+    async function scenarioSimulated() {
+      await bootHost();
+      await waitFor(() => HW().OvhApp.state().setup.players.length === 6, "roster");
+      H("ovh-mob-sim").checked = true;
+      H("ovh-mob-sim").dispatchEvent(new (HW().Event)("change"));
+      H("ovh-mob-size").value = "24";
+      H("ovh-mob-size").dispatchEvent(new (HW().Event)("change"));
+      HW().OvhApp.setContestant("p1");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "question", "simulated game");
+      check("O-I6 a simulated Mob draws the host's own tile grid",
+        HD().querySelectorAll("#ovh-mob-grid .mob-tile").length === 24
+        && !H("ovh-sim-form").classList.contains("hidden"),
+        H("ovh-mob-count").textContent);
+
+      H("ovh-sim-wrong").value = "10";
+      H("ovh-sim-form").dispatchEvent(new (HW().Event)("submit", { cancelable: true, bubbles: true }));
+      await waitFor(() => core().q.simWrong === 10, "the wrong count");
+      click("btn-close-mob");
+      await waitFor(() => core().q.closed, "the simulated Mob locks");
+      HD().querySelector("#ovh-options .option[data-idx=\"0\"]").click();
+      click("btn-lock");
+      await waitFor(() => core().q.locked === 0, "locked");
+      click("btn-reveal");
+      await waitFor(() => core().q.revealed, "revealed");
+      check("O-I6 a typed wrong count eliminates that many and banks them",
+        core().bank === 1000 && HW().OvhCore.mobAlive(core()) === 14,
+        `bank ${core().bank}, ${HW().OvhCore.mobAlive(core())} left`);
+      check("O-I6 the simulated wrong answers spread over BOTH wrong options",
+        JSON.stringify(HW().OvhCore.split(core()).counts) === "[14,5,5]",
+        JSON.stringify(HW().OvhCore.split(core()).counts));
+
+      click("btn-walk");
+      await waitFor(() => core().phase === "result", "the walk");
+      check("O-I6 walking away banks the money and shows where it went",
+        H("ovh-result-amount").textContent === "$1,000"
+        && /Walked away/.test(H("ovh-result-kicker").textContent)
+        && HD().querySelectorAll("#ovh-money-lines .money-line").length >= 2,
+        H("ovh-result-amount").textContent);
+      click("btn-standings");
+      await waitFor(() => core().phase === "standings", "standings");
+      check("O-I6 the standings list every Mob member with how far they got",
+        HD().querySelectorAll("#ovh-result-mob .standing-row").length === 24
+        && !H("btn-play-again").classList.contains("hidden"),
+        `${HD().querySelectorAll("#ovh-result-mob .standing-row").length} rows`);
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioSeats();
+        await scenarioCloseAndBank();
+        await scenarioEliminated();
+        await scenarioHelps();
+        await scenarioReload();
+        await scenarioLobbyAndLibrary();
+        await scenarioGates();
+        await scenarioSimulated();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

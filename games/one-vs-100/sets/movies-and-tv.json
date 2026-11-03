@@ -1,0 +1,67 @@
+{
+  "title": "1 vs 100 — Movies & TV",
+  "settings": {
+      "currency": "$",
+      "ladder": [
+          100,
+          200,
+          300,
+          500,
+          1000,
+          2000,
+          3000,
+          5000,
+          7500,
+          10000
+      ],
+      "answerSeconds": 20,
+      "helps": {
+          "poll": true,
+          "ask": true,
+          "trust": true
+      },
+      "bonusMultiplier": 2,
+      "mobSize": 20
+  },
+  "questions": [
+    { "level": 1, "category": "Film", "q": "In the 1939 film “The Wizard of Oz”, what colour are Dorothy’s slippers?", "options": ["Silver", "Ruby red", "Emerald green"], "answer": 1 },
+    { "level": 1, "category": "Animation", "q": "Which animated film features a snowman called Olaf?", "options": ["Moana", "Tangled", "Frozen"], "answer": 2 },
+    { "level": 1, "category": "Animation", "q": "What kind of animal is Disney’s Dumbo?", "options": ["An elephant", "A mouse", "A donkey"], "answer": 0 },
+
+    { "level": 2, "category": "Animation", "q": "In “Toy Story”, what kind of toy is Woody?", "options": ["A toy dinosaur", "A cowboy doll", "A space ranger"], "answer": 1 },
+    { "level": 2, "category": "Film", "q": "Which film series is set at a wizarding school called Hogwarts?", "options": ["Narnia", "Twilight", "Harry Potter"], "answer": 2 },
+    { "level": 2, "category": "TV", "q": "Which cartoon sponge lives in a pineapple under the sea?", "options": ["SpongeBob SquarePants", "Patrick Star", "Squidward"], "answer": 0 },
+
+    { "level": 3, "category": "Animation", "q": "In “The Lion King”, what is Simba’s father called?", "options": ["Rafiki", "Mufasa", "Scar"], "answer": 1 },
+    { "level": 3, "category": "Film", "q": "Which superhero is also known as the Dark Knight?", "options": ["Superman", "Iron Man", "Batman"], "answer": 2 },
+    { "level": 3, "category": "Film", "q": "Which 1975 Steven Spielberg thriller is about a great white shark?", "options": ["Jaws", "Alien", "The Abyss"], "answer": 0 },
+
+    { "level": 4, "category": "Film", "q": "In “Star Wars”, what is the name of Han Solo’s ship?", "options": ["The X-wing", "The Millennium Falcon", "The Star Destroyer"], "answer": 1 },
+    { "level": 4, "category": "TV", "q": "Which sitcom is set around a coffee house called Central Perk?", "options": ["Seinfeld", "Cheers", "Friends"], "answer": 2 },
+    { "level": 4, "category": "Animation", "q": "Which green ogre is voiced by Mike Myers?", "options": ["Shrek", "Donkey", "Lord Farquaad"], "answer": 0 },
+
+    { "level": 5, "category": "Film", "q": "Which classic film contains the line “Here’s looking at you, kid”?", "options": ["Citizen Kane", "Casablanca", "Gone with the Wind"], "answer": 1 },
+    { "level": 5, "category": "TV", "q": "In “The Simpsons”, who is Homer’s boss at the power plant?", "options": ["Ned Flanders", "Moe Szyslak", "Mr Burns"], "answer": 2 },
+    { "level": 5, "category": "TV", "q": "Which science-fiction series is set aboard the starship Enterprise?", "options": ["Star Trek", "Battlestar Galactica", "Firefly"], "answer": 0 },
+
+    { "level": 6, "category": "Film", "q": "Who directed “Jurassic Park”?", "options": ["Ridley Scott", "Steven Spielberg", "James Cameron"], "answer": 1 },
+    { "level": 6, "category": "Animation", "q": "Which film won the very first Academy Award for Best Animated Feature?", "options": ["Toy Story", "Finding Nemo", "Shrek"], "answer": 2 },
+    { "level": 6, "category": "Film", "q": "In “The Matrix”, which colour pill does Neo swallow?", "options": ["The red one", "The blue one", "The green one"], "answer": 0 },
+
+    { "level": 7, "category": "TV", "q": "Which actor played the title role in “Mr. Bean”?", "options": ["Stephen Fry", "Rowan Atkinson", "Hugh Laurie"], "answer": 1 },
+    { "level": 7, "category": "Film", "q": "What is the top prize at the Cannes Film Festival called?", "options": ["The Golden Lion", "The Golden Bear", "The Palme d’Or"], "answer": 2 },
+    { "level": 7, "category": "Animation", "q": "Which studio made “Spirited Away”?", "options": ["Studio Ghibli", "Pixar", "Aardman"], "answer": 0 },
+
+    { "level": 8, "category": "Film", "q": "Which 1972 film opens with the words “I believe in America”?", "options": ["Serpico", "The Godfather", "Chinatown"], "answer": 1 },
+    { "level": 8, "category": "TV", "q": "In “Breaking Bad”, what alias does Walter White take?", "options": ["Gus", "Saul", "Heisenberg"], "answer": 2 },
+    { "level": 8, "category": "Film", "q": "Which director was famous for brief cameos in his own thrillers?", "options": ["Alfred Hitchcock", "Orson Welles", "Billy Wilder"], "answer": 0 },
+
+    { "level": 9, "category": "Film", "q": "Which film was the first to win all five major Academy Awards?", "options": ["One Flew Over the Cuckoo’s Nest", "It Happened One Night", "The Silence of the Lambs"], "answer": 1 },
+    { "level": 9, "category": "Film", "q": "What is the fictional African nation in “Black Panther” called?", "options": ["Zamunda", "Genovia", "Wakanda"], "answer": 2 },
+    { "level": 9, "category": "TV", "q": "Which drama series is set in the fictional land of Westeros?", "options": ["Game of Thrones", "The Witcher", "Vikings"], "answer": 0 },
+
+    { "level": 10, "category": "Film", "q": "Who won the Best Director Oscar for “Parasite”?", "options": ["Kim Jee-woon", "Bong Joon-ho", "Park Chan-wook"], "answer": 1 },
+    { "level": 10, "category": "Film", "q": "Which 1927 film is remembered as the first feature with synchronised dialogue?", "options": ["Metropolis", "Nosferatu", "The Jazz Singer"], "answer": 2 },
+    { "level": 10, "category": "Animation", "q": "Which was the first feature film animated entirely with computer graphics?", "options": ["Toy Story", "Antz", "A Bug’s Life"], "answer": 0 }
+  ]
+}
