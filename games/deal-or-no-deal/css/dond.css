@@ -1,35 +1,28 @@
 /* ============================================================
-   Deal or No Deal — host screens
-   The palette from spec 12 §3: a deep red curtain falling to
-   black, gold case numbers, and the amount board in two columns —
-   the low half cool blue, the high half hot orange-red, exactly
-   as it reads on television. Opened amounts are struck through
-   and dimmed. Everything is CSS: no images.
-   Sized for a shared screen at 1280x720 with no vertical scroll
-   during play.
+   Deal or No Deal — host screens (design system v3, docs/21)
+   A flat dark stage carrying the game's red as a 5 % tint (the
+   shared --stage-bg), one flat surface level with a hairline, the
+   cases as plain numbered tiles, the amount board as two plain
+   columns with struck-through amounts, and the banker's offer as
+   the one Anton hero on its screen. Gold is used for money only.
+   No gradients, glows, blur, spotlights or decorative eyebrows.
+   Sized for 1280x720 (and 1280x676 inside the hub bar) with no
+   vertical scroll during play.
    ============================================================ */
 
-/* The stage colours belong on :root (design-system.md §4): they are set on
-   <html> and inherit past the shared [data-gsc-game] block. */
+/* The accent map lives in shared/theme.css (design-system.md §1.3);
+   nothing here declares --accent* or --stage-glow. */
 :root {
-  --stage-deep: #4a0715;
-  --stage-night: #08010a;
-  --stage-card: #2b0410;
-  --stage-accent: #8c1026;
-  --case-gold: #f5c542;
-  --case-gold-deep: #b8860b;
-  --board-low: #2f6fd0;
-  --board-high: #e4572e;
+  --dond-tile: var(--surface);
+  --dond-tile-open: var(--stage-base);
+  --dond-money: var(--gold-text);
 }
 
-/* --accent / --accent-2 / --accent-ink / --stage-glow are deliberately NOT
-   declared here: shared/theme.css owns the per-game accent map
-   (design-system.md §1.3), and a local override made the hub's shell bar and
-   splash disagree with the .gsc-* components inside the game (tester N-D5).
-   Nothing in this sheet reads var(--accent*); the game's identity is
-   --case-gold and the curtain --stage-* above. */
+/* Host controls are 44-48 px (docs/21 rule 4). */
+.btn { min-height: 44px; }
+.btn-big { min-height: 48px; }
 
-/* ============ Chrome ============ */
+/* ============ Chrome: one bar, Inter 600 18 px title ============ */
 
 .topbar {
   display: flex;
@@ -37,18 +30,16 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.4rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(10, 1, 10, 0.55);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--stage-bg);
 }
 
 .topbar-title {
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
   margin: 0;
-  color: var(--case-gold);
-  /* A long board title must never push the host screen sideways (tester fix). */
+  color: var(--ink);
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -58,58 +49,52 @@
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
 .room-chip {
-  font-family: var(--font-display);
-  letter-spacing: 0.2em;
-  color: var(--case-gold);
-  border: 1px solid rgba(245, 197, 66, 0.5);
-  border-radius: var(--radius);
-  padding: 0.25em 0.7em;
+  font-weight: 600;
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 0.3em 0.7em;
 }
 
 #dond-error { padding: 0 1.2rem; }
 #dond-main { padding: 0.6rem 1.2rem 1rem; }
 .screen { max-width: 1400px; margin: 0 auto; }
 
+/* A quiet group label, sentence case — never a shouted eyebrow. */
 .kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--ink-dim);
   margin: 0 0 0.3rem;
 }
 
 .screen-title, .card-title {
   font-family: var(--font-display);
-  font-size: 2rem;
-  letter-spacing: 0.04em;
-  margin: 0 0 0.6rem;
-  color: var(--case-gold);
+  font-weight: 400;
+  font-size: 2.2rem;
+  line-height: 1.05;
+  margin: 0 0 0.5rem;
+  color: var(--ink);
 }
 
 .setup-heading {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ink-dim);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
   margin: 1rem 0 0.4rem;
 }
 
-.hint, .hint-inline, .notice, .source-note {
-  color: var(--ink-dim);
-  font-size: 0.85rem;
-  margin: 0.3rem 0;
-}
-
-.notice { min-height: 1.2em; color: var(--case-gold); text-align: center; }
+.hint, .hint-inline, .notice, .source-note { color: var(--ink-dim); font-size: 1rem; margin: 0.3rem 0; }
+.notice { min-height: 1.2em; }
 .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
 
 .count-badge {
-  font-size: 0.72rem;
-  color: #2a0209;
-  background: var(--case-gold);
-  border-radius: 999px;
-  padding: 0.1em 0.6em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 0 0.45em;
   margin-left: 0.4rem;
 }
 
@@ -121,112 +106,69 @@
   margin-top: 0.7rem;
 }
 
-.btn-blue {
-  background: linear-gradient(180deg, #3f7fd6 0%, #1c3f78 100%);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(28, 63, 120, 0.5);
-}
-.btn-blue:hover { box-shadow: 0 6px 20px rgba(63, 127, 214, 0.55); transform: translateY(-1px); }
-
-.btn-red {
-  background: linear-gradient(180deg, #e03e57 0%, #7c0d1f 100%);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(124, 13, 31, 0.55);
-}
-.btn-red:hover { box-shadow: 0 6px 20px rgba(224, 62, 87, 0.55); transform: translateY(-1px); }
+/* Secondary = hairline outline; danger = red outline. No fills, no glow. */
+.btn-blue { color: var(--ink); background: transparent; border-color: rgba(255, 255, 255, 0.22); }
+.btn-blue:hover { border-color: rgba(255, 255, 255, 0.4); }
+.btn-red { color: var(--red); background: transparent; border-color: rgba(255, 107, 107, 0.6); }
+.btn-red:hover { background-color: rgba(255, 107, 107, 0.08); }
 
 /* ============ Setup ============ */
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--panel-line, var(--line));
-  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
   padding: 1.1rem 1.3rem;
-  backdrop-filter: blur(var(--panel-blur));
 }
 
-.setup-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.6rem;
-}
-
+.setup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; }
 .setup-block { min-width: 0; }
-.setup-actions { display: flex; justify-content: center; margin-top: 1rem; }
+.setup-actions { display: flex; justify-content: center; gap: 0.6rem; margin-top: 1rem; }
 
-.player-list { list-style: none; margin: 0.4rem 0; padding: 0; display: grid; gap: 0.3rem; }
+.player-list { list-style: none; margin: 0.4rem 0; padding: 0; }
 
 .player-list li {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  background: var(--well);
-  border-radius: var(--radius);
-  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.35rem 0.1rem;
 }
 
-.player-seat {
-  font-family: var(--font-display);
-  color: var(--case-gold);
-  min-width: 1.4em;
-  text-align: center;
-}
-
+.player-seat { color: var(--ink-mute); min-width: 1.4em; text-align: center; font-weight: 600; }
 .player-name { flex: 1; font-weight: 600; }
-.player-tag { font-size: 0.7rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.12em; }
+.player-tag { font-size: 0.85rem; color: var(--ink-mute); }
 
 .inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.4rem 0; }
 
 .inline-form input[type="text"],
 .field input, .field textarea {
   font-family: var(--font-ui);
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.35);
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius);
-  padding: 0.5em 0.7em;
+  background: var(--stage-base);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 0.55em 0.7em;
+  min-height: 44px;
 }
 
-.field { display: block; margin: 0 0 0.7rem; font-size: 0.8rem; color: var(--ink-dim); }
-.field input, .field textarea { display: block; width: 100%; margin-top: 0.25rem; }
+.field { display: block; margin: 0 0 0.7rem; font-size: 0.95rem; color: var(--ink-dim); }
+.field input, .field textarea { display: block; width: 100%; margin-top: 0.25rem; box-sizing: border-box; }
 .field textarea { resize: vertical; line-height: 1.4; }
 
-.check {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.3rem 0;
-  font-size: 0.9rem;
-}
-.check input { width: 18px; height: 18px; accent-color: var(--case-gold); }
+.check { display: flex; align-items: center; gap: 0.5rem; margin: 0.3rem 0; font-size: 1rem; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
 
 /* ============ Who is playing ============ */
 
-.seat-row {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: 1.4rem 0;
-}
-
+.seat-row { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; margin: 1.4rem 0; }
 .seat-btn { min-width: 12rem; }
 
-.standings {
-  list-style: none;
-  margin: 1rem auto 0;
-  padding: 0;
-  display: grid;
-  gap: 0.4rem;
-  max-width: 44rem;
-}
+.standings { list-style: none; margin: 1rem auto 0; padding: 0; display: grid; gap: 0.4rem; max-width: 44rem; }
+.standings-small { max-width: 34rem; font-size: 1rem; }
 
-.standings-small { max-width: 34rem; font-size: 0.9rem; }
-
-/* A contestant who has played has BANKED money — never the dimmed, struck
-   through `.gsc-podium.is-out` look, which reads as "eliminated". */
-.standings .gsc-podium.is-banked .gsc-podium-score { color: var(--case-gold); }
+.standings .gsc-podium.is-banked .gsc-podium-score { color: var(--dond-money); }
 .standings .gsc-podium.is-active .gsc-podium-score { color: var(--ink-dim); font-size: 1rem; }
 
 /* ============ The play screen ============ */
@@ -235,27 +177,15 @@
 
 .own-chip {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.5rem;
-  border: 2px solid var(--case-gold);
-  border-radius: var(--radius-pill);
-  padding: 0.2rem 0.9rem;
-  background: rgba(245, 197, 66, 0.12);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.8rem;
 }
 
-.own-chip-label {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ink-dim);
-}
-
-.own-chip-number {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  color: var(--case-gold);
-  line-height: 1;
-}
+.own-chip-label { font-size: 0.95rem; color: var(--ink-dim); }
+.own-chip-number { font-size: 1.3rem; font-weight: 600; color: var(--ink); line-height: 1; }
 
 .play-grid {
   display: grid;
@@ -266,22 +196,19 @@
 
 .case-yard { min-width: 0; }
 
-.cases {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.5rem;
-}
+.cases { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.5rem; }
 
-/* ---------- one case ---------- */
+/* ---------- one case: a flat numbered tile ---------- */
 
 .case {
   position: relative;
   border: 0;
   background: none;
   padding: 0;
-  height: 74px;
+  height: 72px;
   perspective: 700px;
   cursor: pointer;
+  font-family: var(--font-ui);
 }
 
 .case:disabled { cursor: default; }
@@ -303,95 +230,71 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   backface-visibility: hidden;
-  font-family: var(--font-display);
-  letter-spacing: 0.02em;
+  border: 1px solid var(--hairline);
 }
 
 .case-front {
-  font-size: 1.7rem;
-  color: #3a2400;
-  background: linear-gradient(160deg, #ffe488 0%, var(--case-gold) 42%, var(--case-gold-deep) 100%);
-  border: 2px solid #6b4c05;
-  box-shadow: var(--shadow-panel), inset 0 2px 0 rgba(255, 255, 255, 0.55);
-}
-
-/* The lid: a darker band across the top so a case reads as a case. */
-.case-front::before {
-  content: "";
-  position: absolute;
-  left: 8%; right: 8%; top: 22%;
-  height: 3px;
-  background: rgba(80, 55, 0, 0.45);
-  border-radius: 2px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--dond-tile);
 }
 
 .case-back {
   transform: rotateY(180deg);
-  font-size: clamp(0.6rem, 1.1vw, 0.95rem);
-  color: var(--ink);
-  background: linear-gradient(180deg, rgba(140, 16, 38, 0.75) 0%, rgba(20, 2, 8, 0.9) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.18);
+  font-size: clamp(0.8rem, 1.1vw, 1rem);
+  font-weight: 500;
+  color: var(--ink-mute);
+  background: var(--dond-tile-open);
   padding: 0 0.2rem;
   text-align: center;
   overflow-wrap: anywhere;
 }
 
-.case.is-own .case-front {
-  border-color: #fff;
-  box-shadow: var(--shadow-lift), 0 0 0 3px rgba(255, 255, 255, 0.55),
-              inset 0 2px 0 rgba(255, 255, 255, 0.55);
-}
+/* The contestant's own case: the active state, so it wears the accent. */
+.case.is-own .case-front { border: 2px solid var(--accent); }
 
-.case:not(:disabled):hover .case-front { transform: translateY(-3px); }
-.case-front { transition: transform var(--dur-fast) var(--ease-out); }
+.case:not(:disabled):hover .case-front { border-color: rgba(255, 255, 255, 0.4); }
 
-/* ============ The amount board ============ */
+/* ============ The amount board: two plain columns ============ */
 
 .amount-board {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--panel-line);
-  border-radius: var(--radius-lg);
-  padding: 0.55rem;
+  gap: 0 1rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.8rem;
 }
 
-.amount-col { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.amount-col { list-style: none; margin: 0; padding: 0; }
 
 .amount-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-  border-radius: 4px;
-  padding: 0.1rem 0.55rem;
-  font-weight: 700;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: #fff;
+  padding: 0.1rem 0;
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--dond-money);
+  font-variant-numeric: tabular-nums;
 }
 
-.amount-col-low .amount-row { background: linear-gradient(90deg, #17325e 0%, var(--board-low) 100%); }
-.amount-col-high .amount-row { background: linear-gradient(90deg, #8a2408 0%, var(--board-high) 100%); }
+.amount-row:last-child { border-bottom: 0; }
 
 .amount-row.is-open {
-  background: rgba(255, 255, 255, 0.05);
   color: var(--ink-mute);
+  font-weight: 400;
   text-decoration: line-through;
-  text-decoration-thickness: 2px;
 }
 
-.amount-gone {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  text-decoration: none;
-  color: var(--ink-mute);
-}
-
+.amount-gone { font-size: 0.8rem; text-decoration: none; color: var(--ink-mute); }
 .amount-row:not(.is-open) .amount-gone { display: none; }
 
 /* ============ The banker's call ============ */
@@ -402,192 +305,134 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(4, 0, 4, 0.82);
+  background: rgba(5, 6, 9, 0.86);
   z-index: 40;
   padding: 1rem;
 }
 
 .overlay-card {
-  background: var(--stage-card);
-  border: 2px solid var(--case-gold);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lift);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
   padding: 1.2rem 2rem 1.4rem;
   text-align: center;
   max-width: 44rem;
   width: 100%;
 }
 
-.overlay-title {
-  text-transform: uppercase;
-  letter-spacing: 0.24em;
-  font-size: 0.8rem;
-  color: var(--ink-dim);
-  margin: 0.2rem 0 0.1rem;
-}
+.overlay-title { font-size: 1rem; font-weight: 500; color: var(--ink-dim); margin: 0.2rem 0 0.1rem; }
+.overlay-sub { color: var(--ink-dim); font-size: 1rem; margin: 0.3rem 0; }
 
-.overlay-sub { color: var(--ink-dim); font-size: 0.86rem; margin: 0.3rem 0; }
-
-.banker-phone { font-size: 2.4rem; margin: 0; color: var(--case-gold); line-height: 1; }
-
+/* The one hero on this screen: the offer, in Anton, in money gold. */
 .offer-amount {
   font-family: var(--font-display);
+  font-weight: 400;
   font-size: clamp(52px, 8vw, 104px);
   line-height: 1;
   margin: 0.1rem 0 0.2rem;
-  color: var(--case-gold);
-  text-shadow: 0 6px 30px rgba(245, 197, 66, 0.4);
-  letter-spacing: var(--track-display);
+  color: var(--dond-money);
+  font-variant-numeric: tabular-nums;
 }
 
 .request-banner {
   margin: 0.5rem auto;
   max-width: 34rem;
-  border: 2px solid var(--case-gold);
-  border-radius: var(--radius);
-  background: rgba(245, 197, 66, 0.14);
-  color: var(--case-gold);
-  font-weight: 700;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-weight: 600;
   padding: 0.45rem 0.8rem;
 }
 
 .ev-row { display: flex; gap: 0.7rem; align-items: center; justify-content: center; margin: 0.4rem 0; }
-.ev-value { font-size: 0.85rem; color: var(--ink-dim); }
+.ev-value { font-size: 1rem; color: var(--ink-dim); }
 
-.advice { margin: 0.7rem auto 0; max-width: 34rem; }
-
-.advice-title {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 0.7rem;
-  color: var(--ink-mute);
-  margin: 0 0 0.3rem;
-}
+.advice { margin: 0.7rem auto 0; max-width: 34rem; border-top: 1px solid var(--hairline); padding-top: 0.6rem; }
+.advice-title { font-size: 0.95rem; font-weight: 500; color: var(--ink-dim); margin: 0 0 0.3rem; }
 
 .advice-bar {
   display: flex;
   height: 30px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--panel-line);
+  background: var(--stage-base);
+  border: 1px solid var(--hairline);
 }
 
 .advice-fill {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   width: 0;
-  transition: width var(--dur) var(--ease-out);
 }
 
-.advice-deal { background: linear-gradient(90deg, #1b7f4d 0%, var(--green) 100%); color: #04180d; }
-.advice-no { background: linear-gradient(90deg, #7c0d1f 0%, #e03e57 100%); color: #fff; }
+/* Flat fills; the label inside carries the meaning, not the colour. */
+.advice-deal { background: #2f8f5b; color: #ffffff; }
+.advice-no { background: #8a1c24; color: #ffffff; }
 
 /* ============ Result ============ */
 
-.winner-name {
-  font-family: var(--font-display);
-  font-size: var(--fs-title);
-  text-transform: uppercase;
-  margin: 0.2rem 0;
-  text-align: center;
-  color: var(--ink);
-}
+.winner-name { font-size: 1.6rem; font-weight: 600; margin: 0.2rem 0; text-align: center; color: var(--ink); }
 
+/* The one hero on the result screen: the money. */
 .final-amount {
   font-family: var(--font-display);
+  font-weight: 400;
   font-size: clamp(48px, 7vw, 92px);
   line-height: 1;
   margin: 0.2rem 0;
   text-align: center;
-  color: var(--case-gold);
-  text-shadow: 0 6px 30px rgba(245, 197, 66, 0.35);
+  color: var(--dond-money);
 }
 
-.result-detail { text-align: center; color: var(--ink-dim); margin: 0.2rem 0 0.6rem; }
+.result-detail { text-align: center; color: var(--ink-dim); margin: 0.2rem 0 0.6rem; font-size: 1rem; }
 
 /* ============ Editor ============ */
 
 .screen-editor { padding-bottom: 2rem; }
-
-.editor-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.4rem;
-}
-
+.editor-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
 .editor-bar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-
-.editor-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: 1.6rem;
-  align-items: start;
-}
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.6rem; align-items: start; }
 
 .editor-col {
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
   padding: 0.9rem 1.1rem 1.1rem;
 }
 
-.rounds-preview {
-  list-style: none;
-  margin: 0.5rem 0;
-  padding: 0;
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
+/* Inside a panel, the preview board is not another panel. */
+.editor-col .amount-board { background: transparent; border: 0; padding: 0; }
 
+.rounds-preview { list-style: none; margin: 0.5rem 0; padding: 0; display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .rounds-preview li {
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  border-radius: var(--radius);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
   padding: 0.25rem 0.6rem;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   color: var(--ink-dim);
 }
-
-.rounds-preview li b { color: var(--case-gold); font-weight: 700; }
+.rounds-preview li b { color: var(--ink); font-weight: 600; }
 
 .amount-board-preview { max-width: 26rem; }
 
-.library-note {
-  background: var(--well);
-  border: 1px solid var(--panel-line);
-  border-left: 4px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.9rem;
-  margin: 0.6rem 0;
-}
-
+.library-note { border-top: 1px solid var(--hairline); padding: 0.6rem 0; margin: 0.6rem 0; }
 .library-note .setup-heading { margin-top: 0; }
-
-.library-note .mono {
-  display: block;
-  overflow-wrap: anywhere;
-  font-size: 0.8rem;
-  color: var(--gold-text);
-  margin: 0.35rem 0 0;
-}
+.library-note .mono { display: block; overflow-wrap: anywhere; font-size: 0.9rem; color: var(--ink); margin: 0.35rem 0 0; }
 
 /* ============ Embedded / phone modes ============ */
 
 body.player-mode .topbar,
 body.player-mode #dond-main > .screen:not(#screen-phone) { display: none !important; }
 body.player-mode #screen-phone { display: block; }
+/* Embedded, the hub's shell bar already carries Lobby and the room chip. */
 body.gsc-embedded #dond-room-controls,
 body.gsc-embedded #dond-join-note,
+body.gsc-embedded #btn-exit,
 body.gsc-embedded #dond-room-chip { display: none !important; }
 
 /* ============ Narrow host screens ============ */
@@ -598,7 +443,7 @@ body.gsc-embedded #dond-room-chip { display: none !important; }
   .setup-cols, .editor-grid { grid-template-columns: 1fr; }
 }
 
-/* ============ Motion (design-system.md §1.7 — the motion rule) ============ */
+/* ============ Motion: only the case being opened (docs/19 §3, docs/21 rule 8) ============ */
 
 @media (prefers-reduced-motion: no-preference) {
   @keyframes dond-case-flip {
@@ -606,39 +451,15 @@ body.gsc-embedded #dond-room-chip { display: none !important; }
     to { transform: rotateY(180deg); }
   }
 
-  @keyframes dond-sting {
-    0% { transform: scale(1); filter: brightness(1); }
-    35% { transform: scale(1.14); filter: brightness(1.5); }
-    100% { transform: scale(1); filter: brightness(1); }
-  }
-
-  @keyframes dond-ring {
-    0%, 100% { transform: rotate(-12deg); }
-    50% { transform: rotate(12deg); }
-  }
-
   @keyframes dond-offer-in {
-    from { opacity: 0; transform: scale(0.82); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   /* `.is-flipping` is a ONE-SHOT class the renderer puts on the single case
-     that has just been opened and removes on animationend. It is deliberately
-     NOT keyed on `.is-open`: the grid is rebuilt on every render, so an
-     animation keyed on the open STATE re-ran on every already-open case every
-     time anything happened — including the banker's call (docs 19 §3).
-     The flip lives on the inner face and the sting on the button around it, so
-     the two never fight over `transform` on the same element. */
-  .case.is-flipping .case-inner {
-    animation: dond-case-flip var(--dur-slow) var(--ease-out) both;
-  }
+     that has just been opened and removes on animationend — never keyed on
+     the `.is-open` state, which re-ran on every render. */
+  .case.is-flipping .case-inner { animation: dond-case-flip var(--dur-slow) var(--ease-out) both; }
 
-  .case.is-flipping {
-    animation: dond-sting 620ms var(--ease-spring) 380ms both;
-  }
-
-  .banker-phone { animation: dond-ring 520ms ease-in-out 3; }
-  .offer-amount { animation: dond-offer-in var(--dur-slow) var(--ease-spring) both; }
-  .own-chip { animation: gsc-pop var(--dur) var(--ease-spring) both; }
-  .final-amount { animation: gsc-pop var(--dur-slow) var(--ease-spring) both; }
+  .offer-amount { animation: dond-offer-in var(--dur) linear both; }
 }

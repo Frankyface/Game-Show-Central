@@ -419,3 +419,72 @@ game, because it was dealt from the old board.
   scenario's source list now also covers `harness-x.js` and the three `sets/`
   files.
 
+---
+
+## 11. v3 UI cleanup (docs/21-ui-cleanup-brief.md, 2026-11-03)
+
+The user said the game "looks fake". CSS + markup pass against the
+design-system §0 checklist; JS touched only for the splash timing, the toolbar
+icons and order, and two harness assertions that pinned the old look.
+
+**What changed**
+
+- `css/dond.css` rewritten (618 → 465 lines). Flat stage from the shared
+  `--stage-bg` (the red is a 5 % tint of `--stage-base`; no curtain gradient,
+  spotlight or vignette). One surface level: `var(--surface)`, 1 px
+  `var(--hairline)`, 8 px radius, no blur, no rails, no nested panels (the
+  editor's preview board drops its own frame inside the editor panel).
+- Cases are flat numbered tiles (Inter 600 on `--surface`, hairline, 6 px
+  radius); the contestant's case is the active state, so it carries the accent
+  border. Opened cases show the amount struck-plain on the stage colour. The
+  one-shot `.is-flipping` open flip from the cross-cutting round is kept; the
+  sting (scale + brightness) and every other decorative animation is gone.
+- The amount board is two plain columns with hairline dividers: live amounts in
+  money gold, opened ones dimmed and struck through, `tabular-nums`. The
+  blue/orange TV gradients are gone.
+- The banker's offer is the one Anton hero on a flat surface, in money gold; the
+  ringing ☎ glyph, its animation and the text glow are removed. The advice bar
+  uses two flat fills with their labels inside.
+- Buttons: 44 px host / 48 px big, 6 px radius, sentence case 600 (shared v3
+  `.btn`). Primary `.btn-gold` is the accent fill; `.btn-blue` became a hairline
+  outline and `.btn-red` a red outline. No gradients, glows or hover lifts.
+- Type: Anton only for one hero per screen (the setup title, the offer, the
+  result amount, the phone's offer). Everything else Inter, sentence case, no
+  tracking; body and hints ≥ 16 px. The setup tagline became one plain sentence
+  ("Add the contestants, choose the rules, then start the game."). Gold only on
+  money (the count badge, room chip and own-case number are now neutral).
+- Toolbar: Inter 600 18 px title; Sound · Board editor · Game lobby, each with a
+  `GSCIcons` icon beside its label (`shared/icons.js` added to the page; the sound
+  icon is re-prepended whenever its label is repainted). The "⟲" glyph is gone.
+  Embedded, the bar hides "Back to lobby" too — the hub's shell bar carries it.
+- Splash: the plain 600 ms card — kicker removed from the markup, sub line empty.
+- `css/dond-phone.css` rewritten flat (184 → 139 lines): surface card, flat
+  numbered case tiles (accent border on your own case), Deal as accent fill and
+  No deal as outline, the offer the one Anton hero, no uppercase.
+
+**Harness edits (assertions that pinned v2 behaviour):** the splash check now
+expects the empty sub line; the X-1 toolbar check expects the label "Game lobby"
+plus an icon instead of a leading glyph.
+
+**Verification** (headless Chrome over CDP, `.scratch/cdp.mjs` with
+`.scratch/dond-v3-check.mjs` and `.scratch/dond-harness-run.mjs`, server on
+8693; output in `.scratch/dond-v3-out.json`)
+
+| Check | Result |
+|---|---|
+| `node --test` | 89 / 89 |
+| `tests/harness.html` | 83 / 83 on three consecutive runs (one earlier run aborted on a transient "Failed to fetch" from the local server; every source then answered 200 and the reruns were clean) |
+| 1280×720 in play (round + offer) | no vertical or horizontal scroll |
+| 1280×676 in play (round + offer) | no vertical or horizontal scroll |
+| Contrast (66–75 text nodes sampled per play screen, plus setup and phone) | no pair under 4.5:1 (3:1 for large text) |
+| UI-10 emoji in host DOM text | none |
+| UI-11 `backdrop-filter`, `text-shadow`, glow `box-shadow`, gradient under text | none |
+| UI-12 toolbar order | setup: Sound on, Board editor, Game lobby (each + icon); in play the editor is hidden as before: Sound on, Game lobby |
+| Reduced motion | CSSOM walk finds no `@keyframes`/`animation` outside `no-preference`; opening cases under `reduce` leaves `document.getAnimations()` empty |
+| Phone 320×640 (pick, decision, advice) | no horizontal scroll; every button ≥ 56 px |
+
+**Checklist:** all lines ticked — tokens and stage, type, colour, surfaces,
+buttons, icons, motion, host toolbar, copy and gates. One judgement call: the
+26-case grid on the phone's pick screen scrolls vertically at 320×640 (the brief
+only requires no horizontal scroll), with every case still a 56 px target.
+

@@ -19,8 +19,8 @@
     <div class="topbar-actions">
       <span id="dond-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8634; Game lobby</button>
       <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Board editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
   </header>
@@ -32,7 +32,7 @@
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="card">
-        <p class="kicker">Twenty-six cases. One banker. No takebacks.</p>
+        <p class="kicker">Add the contestants, choose the rules, then start the game.</p>
         <h2 class="card-title">Deal or No Deal</h2>
         <p id="dond-source" class="source-note">Loading the board&hellip;</p>
 
@@ -231,7 +231,6 @@
   <!-- ===================== The banker's call ===================== -->
   <div id="dond-banker" class="overlay hidden" role="dialog" aria-modal="false" aria-label="The banker&rsquo;s offer">
     <div class="overlay-card banker-card">
-      <p class="banker-phone" aria-hidden="true">&#9742;</p>
       <p class="overlay-title">The banker offers</p>
       <p id="dond-offer" class="offer-amount">&nbsp;</p>
       <p id="dond-offer-sub" class="overlay-sub">&nbsp;</p>
@@ -281,7 +280,6 @@
        decorative, pointer-events:none, skipped entirely under
        prefers-reduced-motion and when embedded. ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -296,6 +294,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/dond-content.js"></script>
   <script src="js/dond-core.js"></script>
   <script src="js/data.js"></script>

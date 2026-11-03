@@ -525,9 +525,15 @@ function dondWireChrome() {
   const paint = () => {
     sound.textContent = window.DondSound.enabled ? "Sound on" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.DondSound.enabled));
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.DondSound.enabled ? "sound" : "sound-off");
   };
   sound.addEventListener("click", () => { window.DondSound.toggle(); paint(); });
   paint();
+  // Toolbar icons beside their labels (docs/21 rule 9: Sound, Editor, Game lobby).
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   document.addEventListener("keydown", dondOnKey);
   window.addEventListener("beforeunload", dondSaveOnExit);
   document.addEventListener("visibilitychange", () => { if (document.hidden) dondSaveOnExit(); });
@@ -535,7 +541,7 @@ function dondWireChrome() {
 
 /* ============ Splash ============ */
 
-const DOND_SPLASH_MS = 1200;
+const DOND_SPLASH_MS = 600;   // docs/21 rule 8: a plain 600 ms title card
 let dondSplashTimer = null;
 
 /**
@@ -550,7 +556,7 @@ function dondShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return; // the hub shows its own
   setText("gsc-splash-title", "Deal or No Deal");
-  setText("gsc-splash-sub", "Twenty-six cases. One banker.");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "deal-or-no-deal";
   node.classList.remove("hidden");
   if (dondSplashTimer) clearTimeout(dondSplashTimer);

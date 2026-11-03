@@ -560,9 +560,9 @@
         HD().body.className);
       HD().body.classList.remove("gsc-embedded");
       HW().DondApp.showSplash();
-      check("N-I5 standalone, the splash names the game and wears its accent",
+      check("N-I5 standalone, the splash is the plain v3 card: the name, the accent, no tagline",
         !node.classList.contains("hidden") && H("gsc-splash-title").textContent === "Deal or No Deal"
-        && node.dataset.gscGame === "deal-or-no-deal" && H("gsc-splash-sub").textContent.length > 0,
+        && node.dataset.gscGame === "deal-or-no-deal" && H("gsc-splash-sub").textContent === "",
         `${H("gsc-splash-title").textContent} / ${H("gsc-splash-sub").textContent}`);
       await waitFor(() => node.classList.contains("hidden"), "the splash clears itself", 2500);
       const realMatch = HW().matchMedia;

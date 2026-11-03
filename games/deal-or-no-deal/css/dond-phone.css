@@ -1,9 +1,9 @@
 /* ============================================================
-   Deal or No Deal — phone controller
-   320-430 px portrait, thumb-sized targets (>= 56 px), no
-   horizontal scroll at 320 px. The phone is a thin surface: it
-   paints the view the host sent and sends one intent back. It
-   never learns what is inside a sealed case.
+   Deal or No Deal — phone controller (design system v3)
+   320-430 px portrait, flat, thumb-sized targets (>= 56 px), no
+   horizontal scroll at 320 px. The phone paints the view the host
+   sent and sends one intent back; it never learns what is inside
+   a sealed case.
    ============================================================ */
 
 body.player-mode { padding: 0; }
@@ -14,6 +14,7 @@ body.player-mode { padding: 0; }
   flex-direction: column;
   padding: 0.9rem 0.8rem 1.6rem;
   gap: 0.6rem;
+  box-sizing: border-box;
 }
 
 #gsc-join { width: 100%; }
@@ -23,68 +24,39 @@ body.player-mode { padding: 0; }
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background: linear-gradient(180deg, rgba(90, 10, 26, 0.92), rgba(8, 1, 10, 0.96));
-  border: 1px solid rgba(245, 197, 66, 0.38);
-  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
   padding: 0.9rem 0.8rem 1rem;
 }
 
-.phone-card.decision-card { border-color: var(--case-gold); }
-.phone-card.winner-card { border-color: var(--green); }
+.phone-card.decision-card { border-color: var(--accent); }
 
-.phone-kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--case-gold);
-  margin: 0;
-  min-height: 1em;
-}
-
-.phone-headline {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
-  margin: 0;
-  color: var(--ink);
-}
-
-.phone-sub { font-size: 0.92rem; color: var(--ink-dim); margin: 0; }
+.phone-kicker { font-size: 0.95rem; font-weight: 500; color: var(--ink-dim); margin: 0; min-height: 1em; }
+.phone-headline { font-size: 1.4rem; font-weight: 600; line-height: 1.25; margin: 0; color: var(--ink); }
+.phone-sub { font-size: 1rem; color: var(--ink-dim); margin: 0; }
 
 .phone-choices { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.3rem; }
 .phone-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: auto; padding-top: 0.6rem; }
+.phone-status { font-size: 0.95rem; color: var(--ink-mute); margin: 0.4rem 0 0; min-height: 1.1em; }
 
-.phone-status { font-size: 0.8rem; color: var(--ink-mute); margin: 0.4rem 0 0; min-height: 1.1em; }
+/* ---------- the offer: the one hero on the decision screen ---------- */
 
-/* ---------- the huge offer on the decision screen ---------- */
+.phone-offer-label { font-size: 0.95rem; color: var(--ink-dim); text-align: center; margin: 0.4rem 0 0; }
 
 .phone-offer {
   font-family: var(--font-display);
+  font-weight: 400;
   font-size: 2.6rem;
   line-height: 1;
   margin: 0.2rem 0 0;
-  color: var(--case-gold);
+  color: var(--gold-text);
   text-align: center;
 }
 
-.phone-offer-label {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 0.66rem;
-  color: var(--ink-mute);
-  text-align: center;
-  margin: 0.4rem 0 0;
-}
+/* ---------- the case grid: flat numbered tiles ---------- */
 
-/* ---------- the case grid ---------- */
-
-.phone-cases {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.45rem;
-}
+.phone-cases { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
 
 .phone-case {
   min-height: var(--tap);
@@ -94,37 +66,31 @@ body.player-mode { padding: 0; }
   align-items: center;
   justify-content: center;
   gap: 0.1rem;
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  color: #3a2400;
-  background: linear-gradient(160deg, #ffe488 0%, var(--case-gold) 45%, var(--case-gold-deep) 100%);
-  border: 2px solid #6b4c05;
-  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--stage-base);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .phone-case[data-state="opened"] {
-  background: rgba(255, 255, 255, 0.06);
   color: var(--ink-mute);
-  border-color: var(--ink-faint);
-  font-size: 0.8rem;
+  border-color: var(--hairline);
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: line-through;
   cursor: default;
 }
 
-.phone-case[data-state="own"] {
-  background: linear-gradient(160deg, #fff 0%, var(--case-gold) 70%);
-  border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
-  cursor: default;
-}
+.phone-case[data-state="own"] { border: 2px solid var(--accent); cursor: default; }
 
-.phone-case-note {
-  font-family: var(--font-ui);
-  font-size: 0.55rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
+.phone-case:disabled { cursor: default; }
+
+.phone-case-note { font-size: 0.75rem; font-weight: 500; color: var(--ink-dim); text-decoration: none; }
 
 /* ---------- Deal / No Deal and the advice ballot ---------- */
 
@@ -134,51 +100,40 @@ body.player-mode { padding: 0; }
   justify-content: center;
   min-height: var(--tap);
   width: 100%;
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--ink);
-  background: linear-gradient(180deg, rgba(140, 16, 38, 0.5), rgba(8, 1, 10, 0.9));
-  border: 2px solid var(--ink-faint);
-  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
   padding: 0.6rem 0.9rem;
   cursor: pointer;
 }
 
-.phone-choice.choice-deal { background: linear-gradient(180deg, #1b7f4d, #04321c); }
-.phone-choice.choice-no { background: linear-gradient(180deg, #b01d33, #3d0512); }
+.phone-choice.choice-deal { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.phone-choice.choice-no { color: var(--ink); }
 
-.phone-choice[aria-pressed="true"] {
-  border-color: var(--case-gold);
-  box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.35);
-}
+.phone-choice[aria-pressed="true"] { outline: 2px solid var(--focus); outline-offset: 2px; }
+.phone-choice:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.phone-choice:disabled { opacity: 0.45; cursor: not-allowed; }
+/* ---------- standings ---------- */
 
-/* ---------- standings on the phone ---------- */
-
-.phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.35rem; }
+.phone-standings { list-style: none; margin: 0.4rem 0 0; padding: 0; }
 
 .phone-standings li {
   display: flex;
   justify-content: space-between;
   gap: 0.6rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--radius);
-  padding: 0.45rem 0.7rem;
-  font-size: 0.9rem;
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.5rem 0.1rem;
+  font-size: 1rem;
 }
 
 /* ---------- 320 px is the floor ---------- */
 
 @media (max-width: 340px) {
   .phone-cases { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .phone-headline { font-size: 1.3rem; }
+  .phone-headline { font-size: 1.25rem; }
   .phone-offer { font-size: 2.2rem; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .phone-offer { animation: gsc-pop var(--dur) var(--ease-spring) both; }
-  .phone-card { animation: gsc-rise var(--dur) var(--ease-out) both; }
 }

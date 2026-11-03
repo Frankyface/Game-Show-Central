@@ -46,7 +46,7 @@ window.DondHarnessX = function (ctx) {
     const app = () => HW().DondApp.state();
     const btn = H("btn-game-lobby");
     check("N-I5 X-1 the toolbar carries a Game lobby control, live in play",
-      !!btn && btn.disabled === false && btn.textContent.indexOf("Game lobby") > 0,
+      !!btn && btn.disabled === false && btn.textContent.trim() === "Game lobby" && !!btn.querySelector("svg.gsc-icon"),
       btn ? `"${btn.textContent}" disabled=${btn.disabled}` : "missing");
 
     const before = JSON.stringify(core());
