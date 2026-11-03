@@ -116,9 +116,18 @@ const HubRegistry = (function () {
     return game.page || "index.html";
   }
 
+  /** The hub's own `?store=NAME` namespace rides into every game frame so a harness or
+      test run of the hub never touches a real game save. Empty in production. */
+  function storeParam() {
+    if (typeof location === "undefined") return "";
+    const raw = new URLSearchParams(location.search).get("store") || "";
+    const safe = raw.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24);
+    return safe ? `&store=${safe}` : "";
+  }
+
   /** Host iframe URL for a game. */
   function hostUrl(game, code) {
-    return `${game.path}${pageOf(game)}?embed=host&room=${encodeURIComponent(code || "")}`;
+    return `${game.path}${pageOf(game)}?embed=host&room=${encodeURIComponent(code || "")}${storeParam()}`;
   }
 
   /** Phone iframe URL for a game — name and pid ride along for games that read them. */
@@ -129,7 +138,7 @@ const HubRegistry = (function () {
       `pid=${encodeURIComponent(pid || "")}`,
       `name=${encodeURIComponent(name || "")}`,
     ].join("&");
-    return `${game.path}${pageOf(game)}?${q}`;
+    return `${game.path}${pageOf(game)}?${q}${storeParam()}`;
   }
 
   /** "Plays best with 4+" style hint, or "" when the roster suits the game. */

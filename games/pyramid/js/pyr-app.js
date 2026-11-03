@@ -700,6 +700,7 @@ function pyrChooseContent(saved, loaded) {
   if (saved && Array.isArray(saved.usedIds)) patch.usedIds = saved.usedIds;
   if (saved && typeof saved.roomCode === "string") patch.roomCode = saved.roomCode;
   if (useSaved && saved.core) patch.core = saved.core;
+  if (useSaved && saved.resumable) patch.resumable = saved.resumable; // P-1: a parked game survives a reload
   if (pyrUrlFailure) {
     pyrLoadMessage = `${pyrUrlFailure} ${useSaved
       ? "Keeping the categories you already had."
