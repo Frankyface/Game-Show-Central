@@ -932,7 +932,7 @@ function renderStandings(body) {
     const li = el("li");
     const isWinner = player.score === topScore;
     if (isWinner) li.classList.add("winner");
-    li.appendChild(el("span", "rank", isWinner ? "👑" : String(i + 1)));
+    li.appendChild(el("span", "rank", isWinner ? "1st" : String(i + 1))); // GSC: string-only, no emoji (docs/21 UI-10)
     li.appendChild(el("span", "standings-name", player.name));
     const score = el("span", "standings-score", formatMoney(player.score));
     if (player.score < 0) score.classList.add("negative");

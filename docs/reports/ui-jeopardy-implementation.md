@@ -464,3 +464,39 @@ icon helps; that would close UI-10 fully.
 
 Helpers: `.scratch/jeopardy-v3-check.mjs`, `.scratch/jeopardy-v3-embedbar.mjs`,
 `.scratch/jeopardy-v3-js.py`. No git commands.
+
+### UI-10 closed — authorised upstream string edits (2026-11-03)
+
+The orchestrator authorised one-string emoji removals in the vendored files.
+Eight lines in four files; each carries `// GSC: string-only, no emoji
+(docs/21 UI-10)` on the same line, changes only the displayed string, and
+every file keeps its line count (`buzzer-host.js` 820, `buzzer-wagers.js`
+474, `app.js` 1047, `editor.js` 409). docs/02's allowed-edits list now has a
+dated "string-only" amendment naming them. Applied by
+`.scratch/jeopardy-ui10.py`, which asserts each old string occurs exactly
+once and the newline count is unchanged.
+
+| File:line | Was | Now |
+| --- | --- | --- |
+| `buzzer-host.js:637` | `CODE · N 🔔` | `CODE · N connected` |
+| `buzzer-host.js:671` | `🚫 too soon: …` | `Too soon: …` |
+| `buzzer-host.js:694` | `🔔 Buzzers armed — Space locks` | `Buzzers armed — Space locks` |
+| `buzzer-host.js:705` | `🔔 <name>` | `Buzzed: <name>` (fallback `Buzzed in`) |
+| `buzzer-wagers.js:204` | `📱 <name> is wagering on their phone…` | `<name> is wagering on their phone…` |
+| `buzzer-wagers.js:364` | `🔒 from phone` | `Locked from phone` |
+| `app.js:935` | leader rank `👑` | `1st` |
+| `editor.js:330` | `📷 Clue N images` | `Photos for clue N` |
+
+The CSS crown workaround (`font-size:0` + `::before "1"`) is removed from
+`gsc-look.css` now that the DOM says "1st"; the leader row keeps its 2 px
+white border. Roster status dots `🟢/🔴` (allowed: roster) and the
+`✓ ✗ ✕ ⚠` symbols are unchanged. The panel's `🔊/🔇` sound button is still
+hidden by CSS in favour of the toolbar Sound control.
+
+Re-verified on port 8631 after the edits: `node --test` **49/49**;
+`gsc-embed-harness` **18/18** (E2 now matches `Buzzed: Rita`), `harness.html`
+**70/70**, `photo-harness.html` **26/26**. The v3 audit is **clean on every
+screen** — setup, board, clue, Daily Double, Final, standings, lobby dialog,
+editor, phone: 0 emoji, 0 contrast failures, 0 text-shadow / backdrop /
+gradient-under-text, 0 non-hero Anton, 0 uppercase/tracking, 0 sub-15 px
+text. Board 1280×720 and 1280×676 still fit with no scroll.

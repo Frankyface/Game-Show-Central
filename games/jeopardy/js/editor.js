@@ -327,7 +327,7 @@ function buildClueRow(cat, clue, r) {
 function buildClueMedia(clue, r) {
   const details = el("details", "editor-clue-media");
   if (clue.image || clue.answerImage) details.open = true;
-  details.appendChild(el("summary", "editor-clue-media-summary", `📷 Clue ${r + 1} images`));
+  details.appendChild(el("summary", "editor-clue-media-summary", `Photos for clue ${r + 1}`)); // GSC: string-only, no emoji (docs/21 UI-10)
   if (window.EditorMedia) {
     details.appendChild(window.EditorMedia.buildImageControl({
       model: clue, imgKey: "image", altKey: "imageAlt", label: "Clue image", onChange: onDraftChange,

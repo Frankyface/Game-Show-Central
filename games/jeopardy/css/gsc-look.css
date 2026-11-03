@@ -728,12 +728,6 @@ body.player-mode { background: var(--j-stage) !important; }
    11. Small fixes found by the v3 audit
    ============================================================ */
 
-/* Upstream renders a crown emoji as the leader's rank. CSS cannot change
-   a text node, so the glyph is collapsed and a plain "1" drawn instead;
-   the row's 2 px white border still marks the leader. */
-.standings-list li.winner .rank { font-size: 0; }
-.standings-list li.winner .rank::before { content: "1"; font-size: 1.25rem; }
-
 /* Nothing on a host screen below 15 px (docs/21 rule 1). */
 .dd-note,
 .wager-list .wager-meta,

@@ -201,7 +201,7 @@ const BuzzerWagers = (function () {
         splash.appendChild(note);
       }
       const name = (roomPlayers()[targetPeer] || {}).name || "Player";
-      note.textContent = `📱 ${name} is wagering on their phone…`;
+      note.textContent = `${name} is wagering on their phone…`; // GSC: string-only, no emoji (docs/21 UI-10)
       note.classList.remove("hidden");
     } else if (note) {
       note.classList.add("hidden");
@@ -361,7 +361,7 @@ const BuzzerWagers = (function () {
       input.disabled = true;
       const li = input.closest("li");
       if (!li || li.querySelector(".buzzer-final-lock")) return;
-      li.appendChild(el("span", "buzzer-final-lock", "🔒 from phone"));
+      li.appendChild(el("span", "buzzer-final-lock", "Locked from phone")); // GSC: string-only, no emoji (docs/21 UI-10)
       const unlock = el("button", "btn btn-ghost btn-small buzzer-unlock", "Unlock");
       unlock.type = "button";
       unlock.addEventListener("click", () => {

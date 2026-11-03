@@ -52,6 +52,14 @@ optional-chained). Every edit is marked `// GSC:` and keeps the file under
 800 lines. Nothing else changes. `README.md` in the folder gets a short
 "Inside Game Show Central" section at the top.
 
+**Amendment (2026-11-03, docs/21 UI-10, orchestrator-authorised):** emoji
+removal, **string-only** scope — one display string per line, each line
+marked `// GSC: string-only, no emoji (docs/21 UI-10)`, no logic change, line
+counts unchanged: `js/buzzer-host.js` (chip "n connected", "Too soon:",
+"Buzzers armed", "Buzzed: <name>"), `js/buzzer-wagers.js` ("is wagering on
+their phone", "Locked from phone"), `js/app.js` (leader rank "1st"),
+`js/editor.js` ("Photos for clue N").
+
 ## 3. Behaviour details
 
 - Existing players when Jeopardy starts: the shim fires one `connection` per

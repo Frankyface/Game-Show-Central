@@ -634,7 +634,7 @@ const BuzzerHost = (function () {
     const visible = onBoard && roomStatus === "open";
     show(chip, visible);
     if (!visible) return;
-    chip.textContent = `${roomCode} · ${connectedCount()} 🔔${brokerStatusNow() === "ok" ? "" : " · ⚠"}`;
+    chip.textContent = `${roomCode} · ${connectedCount()} connected${brokerStatusNow() === "ok" ? "" : " · ⚠"}`; // GSC: string-only, no emoji (docs/21 UI-10)
     chip.setAttribute("aria-label", `Buzzer room ${roomCode}, ${connectedCount()} connected. Toggle details`);
   }
 
@@ -668,7 +668,7 @@ const BuzzerHost = (function () {
     else bar.appendChild(buildDisarmedBar());
     const early = earlyLockedNames();
     if (early.length > 0) {
-      bar.appendChild(el("p", "buzzer-early-note", `🚫 too soon: ${early.join(", ")}`));
+      bar.appendChild(el("p", "buzzer-early-note", `Too soon: ${early.join(", ")}`)); // GSC: string-only, no emoji (docs/21 UI-10)
     }
   }
 
@@ -691,7 +691,7 @@ const BuzzerHost = (function () {
 
   function buildArmedBar() {
     const wrap = el("div", "buzzer-bar buzzer-armed");
-    wrap.appendChild(el("span", "buzzer-armed-label", "🔔 Buzzers armed — Space locks"));
+    wrap.appendChild(el("span", "buzzer-armed-label", "Buzzers armed — Space locks")); // GSC: string-only, no emoji (docs/21 UI-10)
     const disarmBtn = el("button", "btn btn-ghost btn-small", "Disarm");
     disarmBtn.type = "button";
     disarmBtn.addEventListener("click", disarm);
@@ -702,7 +702,7 @@ const BuzzerHost = (function () {
   function buildWinnerBanner() {
     const winner = roomState.players[roomState.winnerId];
     const wrap = el("div", "buzzer-bar buzzer-winner");
-    wrap.appendChild(el("span", "buzzer-winner-name", `🔔 ${winner ? winner.name : "Buzzed in"}`));
+    wrap.appendChild(el("span", "buzzer-winner-name", winner ? `Buzzed: ${winner.name}` : "Buzzed in")); // GSC: string-only, no emoji (docs/21 UI-10)
     const playerId = winner ? winner.playerId : null;
 
     const right = el("button", "judge-btn correct", "✓");
