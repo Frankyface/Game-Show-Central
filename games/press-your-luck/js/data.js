@@ -104,7 +104,7 @@ globalThis.PYL_DEFAULT_GAME = {
     { "q": "Which language has the most native speakers in the world?", "options": ["English", "Mandarin Chinese", "Spanish"], "answer": 1 },
     { "q": "What is the chemical symbol for gold?", "options": ["Go", "Au", "Ag"], "answer": 1 },
     { "q": "Which flightless bird lives on the ice of Antarctica?", "options": ["Penguin", "Puffin", "Albatross"], "answer": 0 },
-    { "q": "How many time zones does the mainland United States span?", "options": ["Three", "Four", "Five"], "answer": 1 },
+    { "q": "How many time zones do the 48 contiguous US states span?", "options": ["Three", "Four", "Five"], "answer": 1 },
     { "q": "What is the longest river in South America?", "options": ["Parana", "Amazon", "Orinoco"], "answer": 1 },
     { "q": "Which vitamin does your skin make from sunlight?", "options": ["Vitamin C", "Vitamin D", "Vitamin K"], "answer": 1 },
     { "q": "In chess, which piece moves only on the diagonals?", "options": ["Rook", "Bishop", "Knight"], "answer": 1 },

@@ -17,7 +17,10 @@ multiplier wheel. Spec: `docs/18-match-game-spec.md`.
 - **No phones:** leave every seat on "host types". Type each panelist's answer
   into their card. The field clears and the card turns face down. Tick
   **Hide the panel answers as I type them** if the screen is shared while you
-  type. Type audience answers into the Audience Match box.
+  type. Type audience answers into the Audience Match box. In the
+  Head-to-Head, a seat with no phone gets a **What <panelist> wrote** field.
+- A seat with a phone is written from that phone only: the host cannot type
+  over a phone panelist's answer.
 
 ### A turn
 
@@ -30,7 +33,9 @@ multiplier wheel. Spec: `docs/18-match-game-spec.md`.
    judgement. Panel phones go pencils-down at the first flip.
 4. **Next** (`N`) goes to the other contestant, then to the round scores. If
    the scores are level after the last round, **Play a tiebreak prompt**.
-   **Undo** (`U`) steps back one decision.
+   **Undo** (`U`) steps back one host decision. Answers from phones are
+  not decisions, so they never go on the undo stack, and an undo keeps any
+  phone answer that arrived after the decision it reverses.
 
 ### The Super Match
 
@@ -42,8 +47,9 @@ multiplier wheel. Spec: `docs/18-match-game-spec.md`.
   "a torch"); the board re-ranks. The contestant gets three guesses. For each
   one, type what they said and press **Matched #n** or **No match**.
 - **Head-to-Head:** pick a panelist. They write on their phone (or you type
-  for them), and you type the contestant's answer. **Spin the wheel** for
-  ×10/×20/×30, turn both cards over and judge. A match pays the audience money
+  for them), and you type the contestant's answer. **Spin the wheel** once for
+  ×10/×20/×30 (the show spins once; the button locks), turn both cards over
+  and judge. A match pays the audience money
   times the multiplier. If the Audience Match won nothing, it plays for the
   smallest audience value. **Straight to Head-to-Head** skips the Audience
   Match entirely.
@@ -66,8 +72,8 @@ line-up, prompts and settings all stay.
 | `settings.audienceValues` | int[3] | default `[500, 250, 100]` |
 | `settings.multipliers` | int[1–6] | default `[10, 20, 30]` |
 | `settings.secondRoundRule` | bool | default `false`. When on, from round 2 a contestant may only match panelists they have not matched yet. Tiebreaks always use the whole panel. |
-| `prompts[]` | `{text, hint}` | ≥ 30; `text` ≤ 160 chars and must contain `___` |
-| `audiencePrompts[]` | `{text, hint}` | ≥ 10; no blank needed |
+| `prompts[]` | `{text, hint}` | ≥ 30; `text` ≤ 160 chars (a longer one is refused, never cut) and must contain `___` |
+| `audiencePrompts[]` | `{text, hint}` | ≥ 10; ≤ 160 chars; no blank needed |
 
 You can load content in four ways, and every route goes through the same
 `validateGame`:
@@ -137,19 +143,30 @@ tests/                node:test suites + harness.html (loopback)
 ```
 
 Storage uses the keys `gsc-mg-state-v1` and `gsc-mg-draft-v1`. Add
-`?store=NAME` to namespace both; the harness uses `?store=harness`.
+`?store=NAME` to namespace both; the harness uses `?store=harness`. The saved
+game is scoped to its room: in a new room, every phone seat is cleared (and a
+game that seats a phone is dropped, with a message), so a new phone issued
+`p1` never inherits an old seat.
+
+The look is design system v3 (`docs/21-ui-cleanup-brief.md`): a flat dark
+stage with the orange as a tint, one surface level, Inter in sentence case,
+Anton only for the prompt (and the game name on setup, the amount won on the
+result), gold only on money, inline SVG icons on the toolbar
+(Sound · Prompt editor · Game lobby).
 
 ## Testing
 
 ```bash
-cd games/match-game && node --test        # 73 tests: M-U1…M-U10 + adversarial + fuzz
+cd games/match-game && node --test        # 98 tests: M-U1…M-U10, adversarial, fuzz, tester suite
 python -m http.server 8714 --bind 127.0.0.1
-# open http://127.0.0.1:8714/games/match-game/tests/harness.html   (MG-I1…MG-I6, 55 checks)
+# open http://127.0.0.1:8714/games/match-game/tests/harness.html   (MG-I1…MG-I6, 64 checks)
 ```
 
 ## Known issues
 
 - An unanswered card can still be revealed: it flips to a blank face, and the
   host judges it as a miss.
+- With many long audience answers, the "Everything else" list scrolls inside
+  its own box (the page does not scroll).
 - Audience answers are not stemmed ("map" and "maps" stay separate until the
   host merges them), by design.

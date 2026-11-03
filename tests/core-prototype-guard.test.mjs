@@ -27,6 +27,7 @@ const CORES = [
   { name: "one-vs-100", files: ["../games/one-vs-100/js/ovh-content.js", "../games/one-vs-100/js/ovh-phoneview.js", "../games/one-vs-100/js/ovh-core.js"], global: "OvhCore", make: (C) => C.createState(C.normalizeGame(require("../games/one-vs-100/questions.json")), [{ pid: "p1", name: "A" }], {}) },
   { name: "match-game", files: ["../games/match-game/js/mg-content.js", "../games/match-game/js/mg-select.js", "../games/match-game/js/mg-core.js"], global: "MgCore", make: (C) => C.createState(C.normalizeGame(require("../games/match-game/prompts.json")), [{ pid: "p1", name: "A" }, { pid: "p2", name: "B" }, { pid: "p3", name: "C" }], {}) },
   { name: "press-your-luck", files: ["../games/press-your-luck/js/pyl-content.js", "../games/press-your-luck/js/pyl-select.js", "../games/press-your-luck/js/pyl-core.js"], global: "PylCore", make: (C) => C.createState(C.normalizeGame(require("../games/press-your-luck/board.json")), [{ pid: "p1", name: "A" }, { pid: "p2", name: "B" }, { pid: "p3", name: "C" }], {}) },
+  { name: "krillion", files: ["../games/krillion/js/kr-content.js", "../games/krillion/js/kr-select.js", "../games/krillion/js/kr-core.js"], global: "KrCore", make: (C) => C.createState(C.normalizeGame(require("../games/krillion/prompts.json")), [{ pid: "p1", name: "A" }, { pid: "p2", name: "B" }, { pid: "p3", name: "C" }], {}) },
 ];
 
 const BAD_TYPES = ["toString", "valueOf", "__proto__", "hasOwnProperty", "constructor", "__defineGetter__"];

@@ -108,8 +108,13 @@
   function normalizePrompt(raw, i, where, needBlank) {
     const source = typeof raw === "string" ? { text: raw } : raw;
     if (!isPlainObject(source)) fail(`${where} ${i + 1} is not a prompt.`);
-    const text = cleanText(source.text, PROMPT_MAX);
+    // Clean but do not cut: a prompt over the limit is refused with a reason,
+    // never trimmed (a trimmed prompt can lose its blank, MG-D4).
+    const text = cleanText(source.text, 4000);
     if (!text) fail(`${where} ${i + 1} has no text.`);
+    if (text.length > PROMPT_MAX) {
+      fail(`${where} ${i + 1} is longer than ${PROMPT_MAX} characters (${text.length}).`);
+    }
     if (needBlank && text.indexOf(BLANK) < 0) {
       fail(`${where} ${i + 1} needs a blank written as ${BLANK} — “${text}”.`);
     }

@@ -107,13 +107,19 @@ const MgSuper = (function () {
   function mergeBox(row, targets) {
     const box = el("span", "merge-box");
     targets.filter((t) => t.key !== row.key).slice(0, MERGE_TARGETS).forEach((target) => {
-      const btn = el("button", "btn btn-ghost btn-small", `→ ${target.text}`);
+      // A short label keeps a long answer from squeezing the row (MG-D5);
+      // the full wording is in the title.
+      const btn = el("button", "btn btn-ghost btn-small merge-btn", `→ ${shortLabel(target.text)}`);
       btn.type = "button";
       btn.title = `Count “${row.text}” as “${target.text}”`;
       btn.addEventListener("click", () => window.MgApp.merge(row.key, target.key));
       box.appendChild(btn);
     });
     return box;
+  }
+
+  function shortLabel(text) {
+    return text.length > 16 ? `${text.slice(0, 15)}…` : text;
   }
 
   /** Everything off the board, each with a "merge into" control per top-three row. */
@@ -187,9 +193,13 @@ const MgSuper = (function () {
     const state = app.core;
     setText("mg-hth-base", `Playing for ${core().moneyText(state, core().headToHeadBase(state))}`
       + " times the multiplier.");
-    window.MgView.renderCards($("mg-hth-cards"), core().hostCards(state), {
-      sig: "pick", pickable: true,
-    });
+    // Name-only cards: the previous prompt's answers and marks are not shown
+    // again on the pick screen (MG-D13).
+    const cards = state.panel.map((seat) => ({
+      slot: seat.slot, name: seat.name, pid: seat.pid, answered: false, revealed: false,
+      text: null, judged: null, locked: false, live: false,
+    }));
+    window.MgView.renderCards($("mg-hth-cards"), cards, { sig: "pick", pickable: true });
     $("btn-pick-undo").disabled = !state.history.length;
   }
 
@@ -201,10 +211,16 @@ const MgSuper = (function () {
     setText("mg-hth-prompt", hth.text);
     setText("mg-spinner", app.spinning ? "×…" : `×${hth.multiplier}`);
     $("mg-spinner").classList.toggle("is-spinning", !!app.spinning);
-    $("btn-spin").disabled = !!app.spinning || hth.revealed;
-    $("btn-spin").textContent = hth.spun ? "Spin again" : "Spin the wheel";
+    // One spin per Head-to-Head, as on the show (MG-D12).
+    $("btn-spin").disabled = !!app.spinning || hth.spun || hth.revealed;
+    $("btn-spin").textContent = hth.spun ? "Spun" : "Spin the wheel";
     window.MgView.renderCards($("mg-hth-cards-play"), hthCards(state), { sig: `hth-${hth.index}` });
     show($("mg-hth-form"), !hth.contestantText);
+    // No phone on that seat: the host types the panelist's card too (MG-D1).
+    const seat = state.panel[hth.slot];
+    show($("mg-hth-panel-form"), !hth.panelText && !seat.pid);
+    setText("mg-hth-panel-label", `What ${seat.name} wrote`);
+    $("mg-hth-panel-text").type = app.hideTyping ? "password" : "text";
     setText("mg-hth-state", hthState(state, hth));
     $("btn-hth-reveal").disabled = hth.revealed || !hth.panelText || !hth.contestantText;
     $("btn-hth-match").disabled = !hth.revealed;
@@ -240,7 +256,7 @@ const MgSuper = (function () {
     const state = app.core;
     const hth = state.hth;
     const winner = state.contestants[state.winner];
-    setText("mg-result-kicker", hth.match ? "Super Match!" : "So close");
+    setText("mg-result-kicker", hth.match ? "Head-to-Head: a match" : "Head-to-Head: no match");
     setText("mg-result-name", winner.name);
     setText("mg-result-amount", core().moneyText(state, hth.won));
     setText("mg-result-sub", hth.match

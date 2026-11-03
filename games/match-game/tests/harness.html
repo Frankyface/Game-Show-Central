@@ -280,11 +280,14 @@
       await waitFor(() => Object.keys(core().current.answers).length === 3, "three answers reach the host");
       check("MG-I1 the host's counter reads answered 3 / 3 and every card says “answered”",
         H("mg-answered").textContent === "3 / 3"
-        && [...HD().querySelectorAll("#mg-cards .card-front")].every((n) => n.textContent === "answered"),
+        && [...HD().querySelectorAll("#mg-cards .card-front")].every((n) => n.textContent === "Answered"),
         H("mg-answered").textContent);
       check("MG-I1 NO PANEL ANSWER IS ANYWHERE IN THE HOST DOCUMENT",
         SECRETS.every((s) => hostText().indexOf(s) < 0), `searched ${hostText().length} characters`);
-      await waitFor(() => view("p1").sent, "the sent tick");
+      // MG-D10: wait for every panel phone, not just the first.
+      await waitFor(() => PANEL.every((pid) => view(pid).sent), "the sent ticks");
+      check("MG-I1 MG-D16 a phone seat has no host type-in field, so the host cannot overwrite it",
+        [...HD().querySelectorAll("#mg-cards .card-form")].every((f) => f.hidden));
       check("MG-I1 each panelist gets their own answer back with a sent tick — and only theirs",
         PANEL.every((pid, i) => phoneText(pid).indexOf(SECRETS[i]) >= 0
           && SECRETS.every((s, j) => j === i || phoneText(pid).indexOf(s) < 0)
@@ -362,7 +365,7 @@
       click("btn-match");
       const marks = [...HD().querySelectorAll("#mg-cards .card-mark")].map((n) => n.textContent);
       check("MG-I2 every card carries its judgement in words, and the points add up",
-        JSON.stringify(marks) === JSON.stringify(["match", "no match", "match"])
+        JSON.stringify(marks) === JSON.stringify(["Match", "No match", "Match"])
         && core().contestants[0].points === 2 && core().current.done,
         `${marks.join(", ")} · ${core().contestants[0].points} points`);
       check("MG-I2 the prompt screen fits the host frame with no vertical scroll",
@@ -452,6 +455,12 @@
       click("btn-spin");
       check("MG-I4 the spinner lands where the roll says: ×30",
         core().hth.multiplier === 30 && core().hth.spun, core().hth.multiplier);
+      HW().Math.random = () => 0.1;
+      click("btn-spin");
+      check("MG-I4 MG-D12 the wheel spins once: the button locks and a second spin changes nothing",
+        core().hth.multiplier === 30 && H("btn-spin").disabled === true, H("btn-spin").textContent);
+      check("MG-I4 MG-D1 a phone panelist's seat shows no host type-in for their card",
+        H("mg-hth-panel-form").classList.contains("hidden"));
       HW().MgApp.set({ spinning: false });
       click("btn-hth-reveal");
       const hthBacks = [...HD().querySelectorAll("#mg-hth-cards-play .card-back")].map((n) => n.textContent);
@@ -523,6 +532,59 @@
     }
 
     /* ============================================================
+       MG-I4b — a host with no phones finishes the Head-to-Head (MG-D1)
+       ============================================================ */
+
+    function hostTypesTurn(match) {
+      [...HD().querySelectorAll("#mg-cards .card-seat")].forEach((card, i) => {
+        card.querySelector(".card-input").value = `hostonly ${i}`;
+        card.querySelector(".card-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      });
+      submit("mg-guess-form", "mg-guess-text", "hostonly 0");
+      const n = core().current.order.length;
+      for (let i = 0; i < n; i += 1) { click("btn-reveal"); click(match && i === 0 ? "btn-match" : "btn-no-match"); }
+      click("btn-next-contestant");
+    }
+
+    async function scenarioHostOnly() {
+      HD().querySelectorAll("#mg-panel-seats .seat-pid").forEach((sel) => select(sel, ""));
+      select("mg-set-rounds", "1");
+      check("MG-I4b every panel seat is on “host types”",
+        HW().MgApp.state().setup.panel.every((p) => p.pid === ""), HW().MgApp.state().setup.panel.length);
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "prompt", "the host-only prompt");
+      check("MG-I4b with no phones every card has a host type-in field",
+        [...HD().querySelectorAll("#mg-cards .card-form")].every((f) => !f.hidden));
+      hostTypesTurn(true);
+      hostTypesTurn(false);
+      click("btn-next-round");
+      await waitFor(() => core().phase === "superChoice", "the Super Match");
+      click("btn-skip-audience");
+      const pickText = [...HD().querySelectorAll("#mg-hth-cards .card-seat")].map((c) => c.textContent).join("|");
+      check("MG-I4b MG-D13 the pick-a-panelist cards show names only, no earlier answers or marks",
+        pickText.indexOf("hostonly") < 0 && pickText.indexOf("No match") < 0
+        && HD().querySelectorAll("#mg-hth-cards .card-flip.is-flipped").length === 0, pickText.slice(0, 80));
+      HD().querySelector("#mg-hth-cards .card-pick").click();
+      const seatName = core().panel[core().hth.slot].name;
+      check("MG-I4b MG-D1 the host gets a “What <panelist> wrote” field for a seat with no phone",
+        !H("mg-hth-panel-form").classList.contains("hidden")
+        && H("mg-hth-panel-label").textContent === `What ${seatName} wrote`, H("mg-hth-panel-label").textContent);
+      submit("mg-hth-panel-form", "mg-hth-panel-text", "zqhostpanel");
+      submit("mg-hth-form", "mg-hth-text", "zqhostpanel");
+      check("MG-I4b both cards typed by the host stay face down until the reveal",
+        H("mg-hth-panel-form").classList.contains("hidden") && hostText().indexOf("zqhostpanel") < 0
+        && H("btn-hth-reveal").disabled === false, H("mg-hth-state").textContent);
+      HW().Math.random = () => 0.5;
+      click("btn-spin");
+      HW().MgApp.set({ spinning: false });
+      click("btn-hth-reveal");
+      click("btn-hth-match");
+      check("MG-I4b the host-only Head-to-Head pays the smallest prize × the wheel: $100 × 20 = $2,000",
+        core().phase === "hthResult" && H("mg-result-amount").textContent === "$2,000",
+        H("mg-result-amount").textContent);
+    }
+
+    /* ============================================================
        MG-I6 — gates
        ============================================================ */
 
@@ -586,6 +648,7 @@
         await scenarioAudience();
         await scenarioHeadToHead();
         await scenarioLibraryEditor();
+        await scenarioHostOnly();
         await scenarioGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

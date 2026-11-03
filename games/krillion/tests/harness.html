@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krillion harness (KR-I1–KR-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1280px; height: 720px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 600px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Krillion — loopback harness (success states KR-I1 … KR-I6, spec 20 §7)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an embedded
+    host plus five embedded phones and speaks the bridge protocol from architecture 00 §6 itself. No PeerJS, no hub.
+    The load-bearing assertions: while a prompt is open no answer is anywhere in the host document and no phone holds
+    another player's answer; an off-list answer waits in the judge's queue until the host rates it.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__KR_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ann", color: "#2ee6c5", avatar: "🐡", connected: true, manual: false },
+      { pid: "p2", name: "Bo", color: "#ff6b57", avatar: "🦑", connected: true, manual: false },
+      { pid: "p3", name: "Cy", color: "#8cb0ff", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Di", color: "#e6b800", avatar: "🦀", connected: true, manual: false },
+      { pid: "p5", name: "Ed", color: "#c1121f", avatar: "🐢", connected: true, manual: false },
+    ];
+    const ROOM = { code: "KRHA", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard) ============ */
+
+    const JS = ["kr-content.js", "kr-select.js", "kr-core.js", "data.js", "kr-sound.js", "kr-clock.js",
+      "kr-view.js", "kr-party.js", "kr-app.js", "kr-editor.js", "kr-room.js", "kr-phone.js"];
+    const CSS = ["kr.css", "kr-phone.css"];
+    const ASSETS = JS.map((f) => `../js/${f}`).concat(CSS.map((f) => `../css/${f}`)).concat([
+      "../../../shared/theme.css", "../../../shared/theme-components.css", "../../../shared/library.js",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../sets/index.json", "../sets/kids-night.json", "../sets/pop-culture.json",
+      "fixtures/harness-game.json", "../prompts.json",
+    ]);
+
+    // ?store=harness keeps this run out of the real host's save on the same origin.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-kr-state-v1-harness", "gsc-kr-draft-v1-harness"];
+    const REAL_KEYS = ["gsc-kr-state-v1", "gsc-kr-draft-v1"];
+    const REAL_BEFORE = REAL_KEYS.map((k) => localStorage.getItem(k));
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().KrApp.core();
+    const click = (id) => H(id).click();
+    const hostText = () => HD().body.textContent;
+
+    async function bootHost(clear) {
+      // Clear BEFORE the frame loads a page, never while one is unloading.
+      if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().KrApp && HW().KrApp.state().game && HW().KrApp.state().sourceKind === "url",
+        "host boot with the fixture");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.KrPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const view = (pid) => PW(pid).KrPhone.view();
+    const phoneText = (pid) => PD(pid).body.textContent;
+
+    function phoneSays(pid, text) {
+      PW(pid).KrPhone.type(text);
+      PW(pid).KrPhone.button().click();
+    }
+
+    /* ============================================================
+       KR-I1 / KR-I2 — five phones answer; one resubmits; the judge rules
+       ============================================================ */
+
+    const ANSWERS = { p1: "Apple", p2: "Kiwi", p3: "Rambutan", p4: "litchi", p5: "Zqdurian" };
+
+    async function scenarioAnswers() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().KrApp.state().setup.players.length === 5, "roster from the shell");
+      check("KR-I1 all five phones from the shell roster reach the setup screen",
+        HW().KrApp.state().setup.players.map((p) => p.name).join(",") === "Ann,Bo,Cy,Di,Ed",
+        HW().KrApp.state().setup.players.map((p) => p.name).join(","));
+      if (H("kr-set-shuffle").checked) H("kr-set-shuffle").click();
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "intro", "the intro");
+      click("btn-open");
+      await waitFor(() => ["p1", "p5"].every((pid) => view(pid).screen === "answer"), "the answer screens");
+      check("KR-I1 every phone shows the prompt, a field and a running clock",
+        PLAYERS.every((p) => PW(p.pid).KrPhone.promptText() === "Name a fruit"
+          && !PD(p.pid).getElementById("kr-phone-form").classList.contains("hidden"))
+        && /^\d+s$/.test(PD("p1").getElementById("kr-phone-clock").textContent),
+        PD("p1").getElementById("kr-phone-clock").textContent);
+
+      // KR-I2: Ann sends Mango, then changes her mind before the clock ends.
+      phoneSays("p1", "Mango");
+      await waitFor(() => core().dive.answers.p1 === "Mango", "Ann's first answer");
+      await waitFor(() => view("p1").sent, "Ann's sent tick");
+      check("KR-I2 a sent answer comes back with “sent ✓ — you can change it”",
+        /Sent ✓ — you can change it/.test(phoneText("p1"))
+        && PW("p1").KrPhone.button().textContent === "Change my answer", PD("p1").getElementById("kr-phone-sub").textContent);
+      phoneSays("p1", ANSWERS.p1);
+      await waitFor(() => core().dive.answers.p1 === "Apple", "Ann's second answer");
+      check("KR-I2 a phone resubmits before close and the new answer replaces the old",
+        core().dive.answers.p1 === "Apple" && H("kr-answered").textContent === "1 / 5 answered",
+        H("kr-answered").textContent);
+
+      ["p2", "p3", "p4"].forEach((pid) => phoneSays(pid, ANSWERS[pid]));
+      await waitFor(() => Object.keys(core().dive.answers).length === 4, "four answers");
+      check("KR-I1 NO ANSWER IS ANYWHERE IN THE HOST DOCUMENT WHILE THE PROMPT IS OPEN",
+        Object.values(ANSWERS).concat(["Mango"]).every((a) => hostText().toLowerCase().indexOf(a.toLowerCase()) < 0),
+        `searched ${hostText().length} characters`);
+      check("KR-I1 no phone holds another player's answer, nor the rated list",
+        PLAYERS.every((p) => Object.keys(ANSWERS).every((other) => other === p.pid
+          || phoneText(p.pid).toLowerCase().indexOf(ANSWERS[other].toLowerCase()) < 0))
+        && PLAYERS.every((p) => ["Banana", "Lychee", "Kiwifruit"].every((w) => phoneText(p.pid).indexOf(w) < 0)));
+      const before = JSON.stringify(core().dive.answers);
+      PW("p2").KrPhone.me.send({ t: "puffer", text: "Zqwrong" });
+      PW("p2").KrPhone.me.send({ t: "review", group: "x", tier: "krillion" });
+      PW("p2").KrPhone.me.send({ t: "answer", text: "x".repeat(5000) });
+      await sleep(150);
+      check("KR-I1 frames for the wrong screen, unknown frames and oversize frames are ignored",
+        JSON.stringify(core().dive.answers) === before, JSON.stringify(core().dive.answers));
+
+      phoneSays("p5", ANSWERS.p5);
+      await waitFor(() => core().phase === "reveal", "the round closing when everyone has answered");
+      check("KR-I1 the round closes once everyone has answered; matched answers already carry their tier",
+        HW().KrCore.groups(core()).filter((g) => g.onList).map((g) => `${g.label}:${g.tier}`).sort().join(",")
+          === "Apple:prawn,Kiwi:rare,Lychee:deepcut,Rambutan:krillion",
+        HW().KrCore.groups(core()).map((g) => `${g.label}:${g.tier}`).join(","));
+      check("KR-I1 the alias “litchi” matched Lychee (Deep Cut)",
+        HW().KrCore.groups(core()).find((g) => g.pids.indexOf("p4") >= 0).label === "Lychee");
+    }
+
+    async function scenarioJudge() {
+      const queue = () => [...HD().querySelectorAll("#kr-queue .kr-queue-item")];
+      check("KR-I1 the off-list answer waits in the judge's queue with the player's exact text",
+        queue().length === 1 && queue()[0].textContent.indexOf("Ed: “Zqdurian”") >= 0
+        && !H("kr-queue-box").classList.contains("hidden"), queue().map((q) => q.textContent).join(" | "));
+      check("KR-I1 nothing can be revealed until the judge rules", H("btn-reveal").disabled === true
+        && HD().querySelectorAll("#kr-groups .kr-group.is-shown").length === 0, H("btn-reveal").textContent);
+      await waitFor(() => view("p5").screen === "wait", "Ed waiting");
+      check("KR-I1 Ed's phone says the judge is reviewing", /judge is reviewing/.test(phoneText("p5")));
+      queue()[0].querySelector('[data-tier="rare"]').click();
+      const remember = HD().querySelector("#kr-queue .kr-remember");
+      check("KR-I1 a ruling offers “Add to this question”", remember && remember.textContent === "Add to this question");
+      remember.click();
+      check("KR-I1 Add to this question remembers the answer and its tier in the session content",
+        core().learned.length === 1 && HW().KrApp.state().game.prompts[0].answers.some((a) => a.text === "Zqdurian"
+          && a.tier === "rare"), JSON.stringify(core().learned));
+      const shown = () => [...HD().querySelectorAll("#kr-groups .kr-group.is-shown .kr-group-answer")].map((n) => n.textContent);
+      const seen = [];
+      while (core().phase === "reveal" && seen.length < 10) {
+        click("btn-reveal");
+        seen.push(shown().join("|"));
+      }
+      check("KR-I1 the reveal walks Prawn → One in a Krillion; the rarest lands last",
+        seen[3] === "Apple|Kiwi|Zqdurian|Lychee|Rambutan".split("|").slice(0, 4).join("|")
+        && seen[4] === "Apple|Kiwi|Zqdurian|Lychee|Rambutan", seen.slice(0, 5).join(" / "));
+      check("KR-I1 points by tier: 10 · 60 · 100 · 85 · 60, banked on the depth board",
+        core().phase === "depth" && core().players.map((p) => p.score).join(",") === "10,60,100,85,60",
+        core().players.map((p) => p.score).join(","));
+      await waitFor(() => view("p3").screen === "reveal", "the phones' reveal");
+      check("KR-I1 each phone shows its own tier, points and depth",
+        view("p3").tier === "One in a Krillion" && view("p3").points === 100 && view("p3").depth === 1000
+        && view("p5").tier === "Rare" && /1,000 m deep/.test(phoneText("p3")), JSON.stringify(view("p3")));
+      check("KR-I1 the depth board shows the per-tier tally and every marker",
+        /Prawn 1 · Schooler 0 · Rare 2 · Deep Cut 1 · One in a Krillion 1 · Missed 0/.test(H("kr-depth-tally").textContent)
+        && HD().querySelectorAll("#kr-depth-reef .kr-lane").length === 5, H("kr-depth-tally").textContent);
+      check("KR-I6 the depth board fits 1280×720 with no vertical scroll",
+        HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 1,
+        `${HD().documentElement.scrollHeight} / ${HD().documentElement.clientHeight}`);
+    }
+
+    /* ============================================================
+       KR-I3 — reload mid-prompt keeps the deadline; game lobby keep / resume
+       ============================================================ */
+
+    async function scenarioReload() {
+      click("btn-next-prompt");
+      click("btn-open");
+      await waitFor(() => view("p2").screen === "answer", "prompt 2 on the phones");
+      phoneSays("p2", "Alpha1");
+      await waitFor(() => core().dive.answers.p2 === "Alpha1", "Bo's answer");
+      await sleep(1200);
+      const left = core().clock.deadline - Date.now();
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "prompt", "the restored prompt");
+      const after = core().clock.deadline - Date.now();
+      check("KR-I3 a host reload mid-prompt keeps the remaining time (frozen on save, thawed on load)",
+        Math.abs(after - left) < 1500 && after > 20000, `${Math.round(left)} ms before, ${Math.round(after)} ms after`);
+      check("KR-I3 the reload keeps the answers already in, still hidden",
+        core().dive.answers.p2 === "Alpha1" && hostText().indexOf("Alpha1") < 0
+        && H("kr-answered").textContent === "1 / 5 answered", H("kr-answered").textContent);
+      await waitFor(() => view("p2").sent && view("p2").mine === "Alpha1", "Bo's view after the reload");
+      check("KR-I3 the phones keep their own answer after the host reloads", view("p2").mine === "Alpha1");
+
+      click("btn-game-lobby");
+      check("KR-I5 X-1 Game lobby opens the keep / start-over dialog",
+        !H("kr-lobby-modal").classList.contains("hidden") && H("kr-lobby-modal").querySelector("[role=dialog]") !== null);
+      click("btn-lobby-keep");
+      check("KR-I5 X-1 Keep this game returns to setup with a Resume button",
+        !H("screen-setup").classList.contains("hidden") && !H("btn-resume").classList.contains("hidden") && core() === null);
+      await sleep(400);
+      click("btn-resume");
+      check("KR-I5 X-1 Resume restores the exact prompt, answers and clock (frozen while parked)",
+        core() && core().phase === "prompt" && core().dive.answers.p2 === "Alpha1"
+        && core().clock.deadline - Date.now() > 20000, core() && Math.round(core().clock.deadline - Date.now()));
+      check("KR-I6 the prompt screen fits 1280×720 with no vertical scroll",
+        HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 1,
+        `${HD().documentElement.scrollHeight} / ${HD().documentElement.clientHeight}`);
+    }
+
+    /* ============================================================
+       KR-I4 — a Puffer Party round with a pop
+       ============================================================ */
+
+    async function scenarioPuffer() {
+      click("btn-game-lobby");
+      click("btn-lobby-restart");
+      check("KR-I5 X-1 Start over clears the game but keeps the players and the prompts",
+        core() === null && HW().KrApp.state().resumable === null && HW().KrApp.state().setup.players.length === 5
+        && HW().KrApp.state().game !== null);
+      H("kr-mode-puffer").click();
+      click("btn-start");
+      click("btn-pstart");
+      await waitFor(() => view("p1").screen === "puffer-hold", "Ann holding the puffer");
+      check("KR-I4 only the holder's phone can answer; the rest watch",
+        ["p2", "p3", "p4", "p5"].every((pid) => view(pid).screen === "puffer-watch")
+        && !PD("p1").getElementById("kr-phone-form").classList.contains("hidden"), view("p2").sub);
+      const prompt = core().game.prompts[core().puffer.index];
+      phoneSays("p2", prompt.answers[1].text);
+      await sleep(120);
+      check("KR-I4 a non-holder's answer is ignored", core().puffer.used.length === 0);
+      phoneSays("p1", prompt.answers[0].text);
+      await waitFor(() => core().puffer.holder === "p2", "the pass");
+      check("KR-I4 an on-list answer passes at once and the clock gets shorter",
+        core().clock.seconds === 18 && H("kr-used").textContent.indexOf(prompt.answers[0].text) >= 0, core().clock.seconds);
+      await waitFor(() => view("p2").screen === "puffer-hold", "Bo holding");
+      phoneSays("p2", prompt.answers[0].text);
+      await waitFor(() => core().puffer.notice && core().puffer.notice.kind === "used", "the used notice");
+      check("KR-I4 a used answer is refused and Bo keeps the puffer",
+        core().puffer.holder === "p2" && /already used/.test(H("kr-pnotice").textContent), H("kr-pnotice").textContent);
+      phoneSays("p2", "Zqmadeup");
+      await waitFor(() => core().puffer.pending, "the pending ruling");
+      check("KR-I4 an off-list answer waits for the judge's live ruling",
+        !H("kr-pending").classList.contains("hidden") && H("kr-pending-text").textContent.indexOf("Zqmadeup") >= 0);
+      HD().querySelector('#kr-pending-tiers [data-tier="invalid"]').click();
+      check("KR-I4 Not valid keeps the puffer with the clock running",
+        core().puffer.holder === "p2" && Number.isFinite(core().clock.deadline) && !core().puffer.pending);
+      click("btn-pop");
+      check("KR-I4 Pop costs the holder a heart and ends the round",
+        core().phase === "popped" && core().players[1].hearts === 1 && /Bo popped/.test(H("kr-pholder").textContent),
+        H("kr-pholder").textContent);
+      click("btn-pnext");
+      check("KR-I4 the next round starts with the next player on a new prompt",
+        core().phase === "pufferReady" && core().puffer.holder === "p3" && core().puffer.index !== 0, core().puffer.holder);
+      check("KR-I6 the Puffer Party screen fits 1280×720 with no vertical scroll",
+        HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 1,
+        `${HD().documentElement.scrollHeight} / ${HD().documentElement.clientHeight}`);
+    }
+
+    /* ============================================================
+       KR-I5 — editor (rated table, import, library download) and the set library
+       ============================================================ */
+
+    async function scenarioEditorLibrary() {
+      click("btn-game-lobby");
+      click("btn-lobby-restart");
+      click("btn-editor");
+      check("KR-I5 the editor opens with the prompt list and a rated-answer table",
+        !H("screen-editor").classList.contains("hidden") && H("kr-ed-answers").querySelectorAll("tr").length === 7
+        && H("kr-ed-answers").querySelector("select").options.length === 5, H("kr-ed-answer-count").textContent);
+      click("btn-editor-reset");
+      const fruit = HW().KrEditor.draft().prompts.findIndex((p) => p.text === "Name a fruit");
+      click("btn-editor-import");
+      check("KR-I5 Import judged answers folds the judge's “Zqdurian” into Name a fruit",
+        fruit >= 0 && HW().KrEditor.draft().prompts[fruit].answers.some((a) => a.text === "Zqdurian" && a.tier === "rare")
+        && /Imported 1 judged answer/.test(H("kr-editor-warn").textContent), H("kr-editor-warn").textContent);
+      HW().KrEditor.select(fruit);
+      check("KR-I5 the imported answer is a row in that prompt's table",
+        [...H("kr-ed-answers").querySelectorAll("input")].some((i) => i.value === "Zqdurian"));
+      H("btn-ed-add-answer").click();
+      check("KR-I5 an empty answer row is named in a plain-English message",
+        /no text/.test(H("kr-editor-msg").textContent), H("kr-editor-msg").textContent);
+      const rows = H("kr-ed-answers").querySelectorAll("tr");
+      rows[rows.length - 1].querySelector("button").click();
+      H("kr-ed-title").value = "Harness Night";
+      H("kr-ed-title").dispatchEvent(new Event("input", { bubbles: true }));
+      const realClick = HW().HTMLAnchorElement.prototype.click;
+      let downloaded = "";
+      HW().HTMLAnchorElement.prototype.click = function () { downloaded = this.download; };
+      click("btn-editor-library");
+      HW().HTMLAnchorElement.prototype.click = realClick;
+      const manifest = H("kr-editor-manifest").textContent;
+      check("KR-I5 X-3 Download for the library saves harness-night.json and prints the manifest entry",
+        downloaded === "harness-night.json" && manifest.indexOf("games/krillion/sets/harness-night.json") >= 0
+        && manifest.indexOf('"file": "harness-night.json"') >= 0 && manifest.indexOf('"prompts": 100') >= 0,
+        `${downloaded} · ${manifest.split("\n")[0]}`);
+      click("btn-editor-use");
+      check("KR-I5 Use in game loads the edited file through the same validator",
+        H("screen-editor").classList.contains("hidden") && HW().KrApp.state().game.title === "Harness Night",
+        HW().KrApp.state().source);
+      const picker = await waitFor(() => HD().querySelector("#kr-library select"), "the library picker");
+      await waitFor(() => picker.options.length >= 2, "the manifest");
+      check("KR-I5 X-2 the library picker lists the two shipped sets",
+        [...picker.options].map((o) => o.textContent).join(",") === "Kids' night,Pop culture",
+        [...picker.options].map((o) => o.textContent).join(","));
+      picker.value = "pop-culture.json";
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+      HD().querySelector("#kr-library .gsc-library-load").click();
+      await waitFor(() => HW().KrApp.state().source === "set: Pop culture", "the set to load");
+      check("KR-I5 X-2 loading a set validates it and sets the source note",
+        H("kr-source").textContent === "set: Pop culture" && HW().KrApp.state().game.prompts.length === 40,
+        H("kr-source").textContent);
+    }
+
+    /* ============================================================
+       KR-I6 — gates
+       ============================================================ */
+
+    async function scenarioGates() {
+      const texts = await Promise.all(JS.map((f) => fetch(`../js/${f}`, { cache: "no-store" }).then((r) => r.text())));
+      const css = await Promise.all(CSS.map((f) => fetch(`../css/${f}`, { cache: "no-store" }).then((r) => r.text())));
+      const html = await fetch("../index.html", { cache: "no-store" }).then((r) => r.text());
+      const self = await fetch("harness.html", { cache: "no-store" }).then((r) => r.text());
+      const banned = new RegExp(["\\.inner" + "HTML", "insertAdjacent" + "HTML", "outer" + "HTML\\s*=",
+        "document\\.wri" + "te", "ev" + "al\\(", "new Func" + "tion"].join("|"));
+      check("KR-I6 V3 no inner-HTML, string evaluation or document writes anywhere in the game or this harness",
+        texts.concat([html, self]).every((t) => !banned.test(t)));
+      check("KR-I6 V4 no console-dot-log in the game's scripts", texts.every((t) => t.indexOf(["console", "log"].join(".")) < 0));
+      const long = texts.concat(css).concat([html, self]).map((t, i) => [i, t.split("\n").length]).filter(([, n]) => n >= 800);
+      check("KR-I6 V2 every file is under 800 lines", long.length === 0, JSON.stringify(long));
+      const outside = css.map((t) => (t.split("@media (prefers-reduced-motion: no-preference)")[0]
+        .match(/@keyframes|animation:/g) || []).length);
+      check("KR-I6 every @keyframes and animation: sits inside prefers-reduced-motion: no-preference",
+        outside.every((n) => n === 0), outside.join(","));
+      check("KR-I6 no local [data-gsc-game] palette override, no gradients, blur or text glow",
+        css.every((t) => t.indexOf("[data-gsc-game") < 0 && !/gradient\(|backdrop-filter|text-shadow/.test(t)));
+      check("KR-I6 V7 body data-gsc-game, #gsc-join and the embedded class are wired",
+        HD().body.dataset.gscGame === "krillion" && H("gsc-join") !== null
+        && HD().body.classList.contains("gsc-embedded") && PD("p1").body.classList.contains("player-mode"), HD().body.className);
+      check("KR-I6 the splash is skipped when embedded (the hub shows its own)", H("gsc-splash").classList.contains("hidden"));
+      const bar = [...HD().querySelectorAll(".kr-bar-actions button")].filter((b) => !b.classList.contains("hidden"))
+        .map((b) => b.id);
+      check("KR-I6 the toolbar reads Sound · Editor · Game lobby, in that order",
+        bar.join(",") === "btn-sound,btn-editor,btn-game-lobby", bar.join(","));
+      const emoji = /\p{Extended_Pictographic}/u;
+      check("KR-I6 UI-10 no emoji anywhere in the host screen's text", !emoji.test(hostText()));
+      check("KR-I6 V-store the run is namespaced and leaves the real save untouched",
+        HW().KrApp.STORAGE_KEY === "gsc-kr-state-v1-harness" && HW().KrEditor.DRAFT_KEY === "gsc-kr-draft-v1-harness"
+        && REAL_KEYS.every((k, i) => localStorage.getItem(k) === REAL_BEFORE[i]));
+    }
+
+    /** V-phone: 320 px wide, 56 px targets, no sideways scroll — on a writing screen. */
+    async function scenarioPhoneGates() {
+      await waitFor(() => view("p3").screen === "answer"
+        && !PD("p3").getElementById("kr-phone-form").classList.contains("hidden"), "Cy's answer screen");
+      const send = PD("p3").getElementById("btn-phone-send");
+      const input = PD("p3").getElementById("kr-phone-text");
+      check("KR-I6 V-phone the answer field and Send button are at least 56 px tall at 320 px",
+        send.getBoundingClientRect().height >= 56 && input.getBoundingClientRect().height >= 56,
+        `${Math.round(send.getBoundingClientRect().height)} / ${Math.round(input.getBoundingClientRect().height)}`);
+      const wide = [...phoneFrames.keys()].filter((pid) => {
+        const d = PD(pid).documentElement;
+        return d.scrollWidth > d.clientWidth + 1;
+      });
+      check("KR-I6 V-phone no phone scrolls sideways at 320 px", wide.length === 0, wide.join(","));
+      const hostScreens = [...PD("p3").querySelectorAll(".kr-screen:not(.kr-phone)")]
+        .filter((n) => PW("p3").getComputedStyle(n).display !== "none").map((n) => n.id);
+      check("KR-I6 V-phone a phone shows only the phone card — no host screen, no toolbar",
+        hostScreens.length === 0 && PW("p3").getComputedStyle(PD("p3").querySelector(".kr-bar")).display === "none"
+        && PD("p3").getElementById("kr-phone-card").getBoundingClientRect().width >= 280, hostScreens.join(","));
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioAnswers();
+        await scenarioJudge();
+        await scenarioReload();
+        await scenarioPhoneGates();
+        await scenarioPuffer();
+        await scenarioEditorLibrary();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      void shellLog;
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

@@ -1,62 +1,45 @@
 /* ============================================================
-   Match Game — the phone controller
-   320-430 px portrait. One card, one prompt, one field, one
-   thumb-sized button. Every target is at least --tap (56 px)
-   and nothing scrolls sideways at 320 px.
+   Match Game — the phone controller, design system v3
+   320-430 px portrait. One flat card, the prompt, one field and
+   one 56 px button. Nothing scrolls sideways at 320 px. No
+   gradients, glows or uppercase; the accent is the Send button.
 
-   The phone is deliberately plain: a panelist must be able to
-   hold it flat on the table, and the only secret it ever shows
-   is that panelist's own answer.
+   The only secret a phone ever shows is its own panelist's
+   answer, so it can lie flat on the table.
    ============================================================ */
 
-.screen-phone {
-  padding: 0.8rem 0.7rem 1.2rem;
-  gap: 0.6rem;
-}
+.screen-phone:not(.hidden) { padding: 14px 12px 20px; gap: 10px; }
 
 .phone-card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.9rem 0.85rem 1rem;
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  border-top: 4px solid var(--accent);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-panel);
+  gap: 10px;
+  padding: 16px 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
 }
 
-.phone-card.is-panel { border-top-color: var(--accent); }
-.phone-card.is-audience { border-top-color: var(--accent-2); }
-.phone-card.is-hth { border-top-color: var(--mg-leaf); }
-.phone-card.is-sent { background: var(--panel-strong); }
-
+/* A plain label: which screen this is (≥ 12 px, MG-D14). */
 .phone-kicker {
   margin: 0;
-  font-size: 0.7rem;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: var(--mg-leaf);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink-dim);
 }
 
 .phone-prompt {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(22px, 7vw, 32px);
-  line-height: 1.1;
-  letter-spacing: var(--track-display);
+  font-size: clamp(20px, 6vw, 26px);
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--ink);
   word-break: break-word;
 }
 
-.phone-hint {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--accent-2);
-  min-height: 1em;
-}
+.phone-hint { margin: 0; font-size: 1rem; color: var(--ink-dim); min-height: 1em; }
 
-.phone-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.phone-form { display: flex; flex-direction: column; gap: 8px; }
 
 .phone-form input {
   width: 100%;
@@ -64,92 +47,45 @@
   font-family: var(--font-ui);
   font-size: 1.05rem;
   color: var(--ink);
-  background: var(--well);
-  border: 2px solid var(--panel-line);
-  border-radius: var(--radius);
+  background: var(--stage-base);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
   padding: 0.6em 0.7em;
 }
 
-.phone-form input:focus-visible {
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
-  border-color: var(--accent);
-}
+.phone-form .btn { min-height: var(--tap); }
 
-.phone-sub {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--ink-dim);
-  line-height: 1.4;
-}
+.phone-sub { margin: 0; font-size: 1rem; color: var(--ink-dim); line-height: 1.45; }
 
-.phone-extra { display: flex; flex-direction: column; gap: 0.4rem; }
+.phone-extra { display: flex; flex-direction: column; gap: 8px; }
 
+/* Your own answer, read back to you. */
 .phone-mine {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.6rem 0.7rem;
-  /* Both stops checked against --accent-ink: 7.5:1 and 9.4:1. */
-  background: linear-gradient(160deg, var(--mg-orange) 0%, var(--mg-mustard) 100%);
-  color: var(--accent-ink);
-  border-radius: var(--radius);
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--panel-strong);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
 }
-.phone-mine .k {
-  margin: 0;
-  font-size: 0.68rem;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-}
-.phone-mine .v {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  letter-spacing: var(--track-display);
-  word-break: break-word;
-}
+.phone-mine .k { margin: 0; font-size: 0.95rem; color: var(--ink-dim); }
+.phone-mine .v { margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--ink); word-break: break-word; }
 
-.phone-standings {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
+.phone-standings { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hairline); }
 .phone-standings li {
   display: flex;
   justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.5rem 0.65rem;
-  background: var(--well);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 1rem;
 }
+.phone-standings li span:last-child { color: var(--gold-text); font-weight: 600; }
 
-.phone-score {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--ink-mute);
-}
+.phone-score { margin: 0; font-size: 0.95rem; color: var(--ink-mute); }
 
-.phone-status {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--mg-leaf);
-  min-height: 1.1em;
-}
+.phone-status { margin: 0; font-size: 1rem; font-weight: 500; color: var(--green); min-height: 1.2em; }
 
-#gsc-join { margin-bottom: 0.6rem; }
-
-/* Give the join card the same room the game card gets. */
+#gsc-join { margin-bottom: 10px; }
 #gsc-join input, #gsc-join button { min-height: var(--tap); }
-
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes mg-phone-in {
-    from { transform: translateY(10px); opacity: 0; }
-    to { transform: none; opacity: 1; }
-  }
-
-  .phone-card { animation: mg-phone-in var(--dur) var(--ease-out) both; }
-}

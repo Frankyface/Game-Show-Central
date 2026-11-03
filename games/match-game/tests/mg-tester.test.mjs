@@ -419,9 +419,7 @@ test("T-validate refuses 29 prompts, a missing blank, 161 chars, panelSize 7 and
   assert.doesNotThrow(() => Core.validateGame(ok));
 });
 
-test("T-validate a 161-character prompt is refused, not silently cut to 160 (MG-D4)", {
-  todo: "open defect MG-D4: normalizePrompt truncates instead of refusing; M-U1 pins the truncation",
-}, () => {
+test("T-validate a 161-character prompt is refused, not silently cut to 160 (MG-D4)", () => {
   const g = makeGame({ prompts: makeGame().prompts.map((p, i) => (i === 0 ? { text: `___ ${"y".repeat(157)}` } : p)) });
   assert.equal(g.prompts[0].text.length, 161);
   assert.throws(() => Core.validateGame(g));
@@ -541,9 +539,7 @@ test("T-proto prototype-shaped types, pids, slots and merge keys never reach or 
 
 void CONTESTANTS; void panelOf;
 
-test("T-top3 a merged row keeps the TARGET's wording, not the folded-in answer (MG-D3)", {
-  todo: "open defect MG-D3: bestLabel ties on exact text, so 'Map' folded into flashlight/Flashlight labels the row 'Map'",
-}, () => {
+test("T-top3 a merged row keeps the TARGET's wording, not the folded-in answer (MG-D3)", () => {
   let s = toBoard([["a1", "Map"], ["a2", "flashlight"], ["a3", "Flashlight"], ["a4", "gloves"]]);
   s = R(s, { type: "mergeAnswers", from: "map", into: "flashlight" });
   const top = Core.topThree(s);

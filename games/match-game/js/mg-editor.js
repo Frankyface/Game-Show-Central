@@ -140,7 +140,7 @@ function mgEdNumbers(text, count) {
   return list.length ? list.slice(0, 6) : null;
 }
 
-function mgWireSettings() {
+function mgWireEditorSettings() {
   $("mg-ed-title").addEventListener("input", (e) => { mgDraft.title = e.target.value; mgTouchDraft(); });
   $("mg-ed-currency").addEventListener("input", (e) => {
     mgDraft.settings.currency = e.target.value.slice(0, 3);
@@ -345,7 +345,7 @@ function mgWireEditor() {
     mgSaveDraft();
     mgRenderEditor();
   });
-  mgWireSettings();
+  mgWireEditorSettings();
 }
 
 if (!(window.GSC && window.GSC.mode && window.GSC.mode.endsWith("-player"))) {

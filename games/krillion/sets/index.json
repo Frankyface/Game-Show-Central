@@ -1,0 +1,22 @@
+[
+  {
+    "file": "kids-night.json",
+    "name": "Kids' night",
+    "description": "Zoo animals, playground games, fairy tales and packed lunches. Every answer list is pitched at primary-school age.",
+    "by": "Game Show Central",
+    "counts": {
+      "prompts": 40,
+      "rated answers": 746
+    }
+  },
+  {
+    "file": "pop-culture.json",
+    "name": "Pop culture",
+    "description": "Streaming, memes, pop stars, Pixar and Pokémon — from Myspace to the latest Netflix hit.",
+    "by": "Game Show Central",
+    "counts": {
+      "prompts": 40,
+      "rated answers": 851
+    }
+  }
+]

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krillion</title>
+  <meta name="description" content="A party game of rare answers: everyone answers the same prompt and every answer is graded against a rated list, from Prawn to One in a Krillion. Phones optional. Bring your own prompts as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/kr.css">
+  <link rel="stylesheet" href="css/kr-phone.css">
+</head>
+<body data-gsc-game="krillion">
+
+  <header class="kr-bar">
+    <h1 class="kr-bar-title">Krillion</h1>
+    <span id="kr-bar-sub" class="kr-bar-sub"></span>
+    <div class="kr-bar-actions">
+      <span id="kr-room-chip" class="kr-chip hidden"></span>
+      <button id="btn-sound" class="kr-btn kr-btn-line kr-btn-sm" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="kr-btn kr-btn-line kr-btn-sm" type="button">Editor</button>
+      <button id="btn-game-lobby" class="kr-btn kr-btn-line kr-btn-sm" type="button">Game lobby</button>
+    </div>
+  </header>
+
+  <p id="kr-error" class="kr-error hidden" role="alert"></p>
+
+  <main id="kr-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="kr-screen kr-setup">
+      <div class="kr-setup-head">
+        <h2 class="kr-hero">Krillion</h2>
+        <p class="kr-lede">Everyone answers the same prompt. Each answer is checked against a rated list &mdash;
+          the rarer it is, the deeper you dive. Add the players, pick a mode and press Start.</p>
+      </div>
+
+      <div class="kr-setup-cols">
+        <div class="kr-panel">
+          <h3 class="kr-label">Players <span id="kr-player-count" class="kr-count"></span></h3>
+          <ul id="kr-player-list" class="kr-player-list"></ul>
+          <form id="kr-add-form" class="kr-inline" autocomplete="off">
+            <label class="visually-hidden" for="kr-add-name">Add a player without a phone</label>
+            <input id="kr-add-name" class="kr-field" type="text" maxlength="24" placeholder="Add a player without a phone">
+            <button class="kr-btn kr-btn-line" type="submit">Add</button>
+          </form>
+          <h3 class="kr-label">Phones <span class="kr-quiet">(optional)</span></h3>
+          <div id="kr-room-controls" class="kr-inline">
+            <button id="btn-open-room" class="kr-btn kr-btn-line" type="button">Open room (phones)</button>
+          </div>
+          <p id="kr-room-status" class="kr-hint">Closed &mdash; you can type every player&rsquo;s answer on this screen.</p>
+          <p id="kr-join-note" class="kr-hint hidden">Players open <span id="kr-join-url" class="kr-mono"></span></p>
+        </div>
+
+        <div class="kr-panel">
+          <h3 class="kr-label">Mode</h3>
+          <div class="kr-modes" role="radiogroup" aria-label="Mode">
+            <label class="kr-mode"><input id="kr-mode-deep" type="radio" name="kr-mode" value="deepDive">
+              <span><strong>Deep Dive</strong> &mdash; everyone answers at once; the rarest answer scores most.</span></label>
+            <label class="kr-mode"><input id="kr-mode-puffer" type="radio" name="kr-mode" value="puffer">
+              <span><strong>Puffer Party</strong> &mdash; pass the puffer with a fresh answer before it pops.</span></label>
+          </div>
+          <div id="kr-rules-deep" class="kr-rules">
+            <label class="kr-num">Round seconds <input id="kr-set-seconds" class="kr-field" type="number" min="5" max="300" inputmode="numeric"></label>
+            <label class="kr-num">Prompts per game <input id="kr-set-prompts" class="kr-field" type="number" min="1" max="50" inputmode="numeric"></label>
+          </div>
+          <div id="kr-set-points" class="kr-rules kr-points" aria-label="Points per tier"></div>
+          <div id="kr-rules-puffer" class="kr-rules hidden">
+            <label class="kr-num">Hearts <input id="kr-set-hearts" class="kr-field" type="number" min="1" max="9" inputmode="numeric"></label>
+            <label class="kr-num">Most hearts <input id="kr-set-max" class="kr-field" type="number" min="1" max="9" inputmode="numeric"></label>
+            <label class="kr-num">Clock starts at (s) <input id="kr-set-start" class="kr-field" type="number" min="2" max="120" inputmode="numeric"></label>
+            <label class="kr-num">Shortest clock (s) <input id="kr-set-floor" class="kr-field" type="number" min="1" max="120" inputmode="numeric"></label>
+            <label class="kr-num">Meter for a heart <input id="kr-set-meter" class="kr-field" type="number" min="1" max="1000" inputmode="numeric"></label>
+            <label class="kr-num">Round cap (0 = none) <input id="kr-set-cap" class="kr-field" type="number" min="0" max="200" inputmode="numeric"></label>
+          </div>
+        </div>
+
+        <div class="kr-panel">
+          <h3 class="kr-label">Prompts</h3>
+          <p id="kr-source" class="kr-hint">Loading prompts&hellip;</p>
+          <p id="kr-prompt-count" class="kr-hint"></p>
+          <div id="kr-library" class="kr-library"></div>
+          <div class="kr-inline">
+            <button id="btn-load-json" class="kr-btn kr-btn-line" type="button">Load prompts (.json)</button>
+            <input id="kr-file" class="visually-hidden" type="file" accept="application/json,.json">
+          </div>
+          <label class="kr-check"><input id="kr-set-shuffle" type="checkbox"> Shuffle the prompts</label>
+        </div>
+      </div>
+
+      <p id="kr-setup-warn" class="kr-hint kr-warn" role="status"></p>
+      <div class="kr-actions">
+        <button id="btn-resume" class="kr-btn kr-btn-line kr-btn-lg hidden" type="button">Resume the game</button>
+        <button id="btn-start" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Start</button>
+      </div>
+    </section>
+
+    <!-- ===================== Deep Dive: the prompt before the clock ===================== -->
+    <section id="screen-intro" class="kr-screen kr-center hidden">
+      <p id="kr-intro-round" class="kr-meta">&nbsp;</p>
+      <p id="kr-intro-text" class="kr-prompt">&nbsp;</p>
+      <p class="kr-hint">Read the prompt out, then start the clock. Every answer stays hidden until the round closes.</p>
+      <div class="kr-actions">
+        <button id="btn-open" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Start the clock</button>
+        <button id="btn-swap" class="kr-btn kr-btn-line" type="button">Different prompt</button>
+        <button id="btn-intro-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
+        <button id="btn-intro-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+      </div>
+    </section>
+
+    <!-- ===================== Deep Dive: answers coming in ===================== -->
+    <section id="screen-prompt" class="kr-screen hidden">
+      <div class="kr-prompt-row">
+        <div class="kr-prompt-main">
+          <p id="kr-prompt-round" class="kr-meta">&nbsp;</p>
+          <p id="kr-prompt-text" class="kr-prompt">&nbsp;</p>
+        </div>
+        <div class="kr-clock-box">
+          <p id="kr-clock" class="kr-clock" aria-live="off">30</p>
+          <div class="kr-clock-track"><div id="kr-clock-bar" class="kr-clock-bar"></div></div>
+          <p id="kr-answered" class="kr-answered" role="status" aria-live="polite">0 / 0 answered</p>
+        </div>
+      </div>
+      <ul id="kr-chips" class="kr-chips" aria-label="Who has answered"></ul>
+      <aside id="kr-plist-box" class="kr-list hidden" aria-label="The rated answer list">
+        <h3 class="kr-label">The rated list <span class="kr-quiet">&mdash; everyone on a shared screen can see this</span></h3>
+        <ul id="kr-plist" class="kr-list-items"></ul>
+      </aside>
+      <form id="kr-type-form" class="kr-type" autocomplete="off">
+        <label class="kr-type-label" for="kr-type-who">Type an answer for</label>
+        <select id="kr-type-who" class="kr-field"></select>
+        <label class="visually-hidden" for="kr-type-text">Their answer</label>
+        <input id="kr-type-text" class="kr-field kr-type-text" type="text" maxlength="40" spellcheck="false" placeholder="Their answer">
+        <button class="kr-btn kr-btn-line" type="submit">Lock it in</button>
+        <label class="kr-check"><input id="kr-hide-typing" type="checkbox"> Hide what I type</label>
+      </form>
+      <div class="kr-actions">
+        <button id="btn-close" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Close the answers</button>
+        <button id="btn-pause" class="kr-btn kr-btn-line" type="button">Pause the clock</button>
+        <button id="btn-plist" class="kr-btn kr-btn-line" type="button" aria-pressed="false">Show the rated list</button>
+        <button id="btn-prompt-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
+        <button id="btn-prompt-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+      </div>
+    </section>
+
+    <!-- ===================== Deep Dive: judge, then surface to abyss ===================== -->
+    <section id="screen-reveal" class="kr-screen hidden">
+      <div class="kr-reveal-head">
+        <p id="kr-reveal-text" class="kr-prompt-sm">&nbsp;</p>
+        <p id="kr-reveal-state" class="kr-meta" role="status" aria-live="polite">&nbsp;</p>
+        <p id="kr-tally" class="kr-tally">&nbsp;</p>
+      </div>
+      <div class="kr-reveal-body">
+        <section id="kr-queue-box" class="kr-queue hidden" aria-label="Judge's review">
+          <h3 class="kr-label">Not on the list &mdash; your ruling</h3>
+          <ul id="kr-queue" class="kr-queue-list"></ul>
+        </section>
+        <ol id="kr-groups" class="kr-groups" aria-label="Answers"></ol>
+        <aside id="kr-list-box" class="kr-list hidden" aria-label="The rated answer list">
+          <h3 class="kr-label">The rated list</h3>
+          <ul id="kr-list" class="kr-list-items"></ul>
+        </aside>
+      </div>
+      <div id="kr-reef" class="kr-reef kr-reef-strip" aria-label="Depth"></div>
+      <div class="kr-actions">
+        <button id="btn-reveal" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Reveal the next answer</button>
+        <button id="btn-list" class="kr-btn kr-btn-line" type="button" aria-pressed="false">Show the rated list</button>
+        <button id="btn-reveal-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
+        <button id="btn-reveal-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+      </div>
+    </section>
+
+    <!-- ===================== Deep Dive: depth board ===================== -->
+    <section id="screen-depth" class="kr-screen hidden">
+      <div class="kr-depth-head">
+        <h2 id="kr-depth-title" class="kr-title">Depth board</h2>
+        <p id="kr-depth-sub" class="kr-meta">&nbsp;</p>
+        <p id="kr-depth-tally" class="kr-tally">&nbsp;</p>
+      </div>
+      <div id="kr-depth-reef" class="kr-reef kr-reef-full" aria-label="Depth board" aria-live="polite"></div>
+      <div class="kr-actions">
+        <button id="btn-next-prompt" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Next prompt</button>
+        <button id="btn-depth-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
+        <button id="btn-depth-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+      </div>
+    </section>
+
+    <!-- ===================== Puffer Party ===================== -->
+    <section id="screen-puffer" class="kr-screen hidden">
+      <div class="kr-puffer">
+        <div id="kr-ring" class="kr-ring" aria-label="The ring">
+          <div class="kr-ring-centre">
+            <p id="kr-pclock" class="kr-clock">12</p>
+            <p id="kr-pholder" class="kr-pholder" aria-live="polite">&nbsp;</p>
+          </div>
+        </div>
+        <div class="kr-puffer-side">
+          <p id="kr-pround" class="kr-meta">&nbsp;</p>
+          <p id="kr-ptext" class="kr-prompt-sm">&nbsp;</p>
+          <p id="kr-pnotice" class="kr-notice" role="status" aria-live="polite">&nbsp;</p>
+          <div id="kr-pending" class="kr-pending hidden">
+            <p id="kr-pending-text" class="kr-pending-text">&nbsp;</p>
+            <div id="kr-pending-tiers" class="kr-tier-buttons"></div>
+          </div>
+          <form id="kr-ptype-form" class="kr-inline" autocomplete="off">
+            <label class="visually-hidden" for="kr-ptype-text">The holder's answer</label>
+            <input id="kr-ptype-text" class="kr-field" type="text" maxlength="40" spellcheck="false" placeholder="Type the holder's answer">
+            <button class="kr-btn kr-btn-line" type="submit">Submit</button>
+          </form>
+          <h3 class="kr-label">Used this round <span id="kr-used-count" class="kr-count"></span></h3>
+          <ul id="kr-used" class="kr-used"></ul>
+        </div>
+      </div>
+      <div class="kr-actions">
+        <button id="btn-pstart" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Start the clock</button>
+        <button id="btn-pnext" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Next round</button>
+        <button id="btn-pop" class="kr-btn kr-btn-danger" type="button">Pop</button>
+        <button id="btn-ppause" class="kr-btn kr-btn-line" type="button">Pause the clock</button>
+        <button id="btn-pundo" class="kr-btn kr-btn-line" type="button">Undo</button>
+        <button id="btn-pfinish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+      </div>
+    </section>
+
+    <!-- ===================== Result ===================== -->
+    <section id="screen-result" class="kr-screen kr-center hidden">
+      <p id="kr-result-kicker" class="kr-meta">&nbsp;</p>
+      <h2 id="kr-winner" class="kr-hero">&nbsp;</h2>
+      <p id="kr-winner-sub" class="kr-lede">&nbsp;</p>
+      <ol id="kr-standings" class="kr-standings" aria-live="polite"></ol>
+      <div class="kr-actions">
+        <button id="btn-new-game" class="kr-btn kr-btn-primary kr-btn-lg" type="button">New game</button>
+        <button id="btn-result-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="kr-screen kr-editor hidden" role="dialog" aria-label="Prompt editor" aria-modal="false">
+      <div class="kr-editor-bar">
+        <h2 class="kr-label kr-editor-title">Prompt editor</h2>
+        <div class="kr-inline">
+          <button id="btn-editor-use" class="kr-btn kr-btn-primary" type="button">Use in game</button>
+          <button id="btn-editor-download" class="kr-btn kr-btn-line" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="kr-btn kr-btn-line" type="button">Download for the library</button>
+          <button id="btn-editor-import" class="kr-btn kr-btn-line" type="button">Import judged answers</button>
+          <button id="btn-editor-reset" class="kr-btn kr-btn-quiet" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="kr-btn kr-btn-quiet" type="button">Start blank</button>
+          <button id="btn-editor-close" class="kr-btn kr-btn-quiet" type="button">Close</button>
+        </div>
+      </div>
+      <p id="kr-editor-msg" class="kr-error hidden" role="alert"></p>
+      <p id="kr-editor-warn" class="kr-hint" role="status"></p>
+      <pre id="kr-editor-manifest" class="kr-manifest hidden" aria-label="Manifest line to paste"></pre>
+      <div class="kr-editor-grid">
+        <div class="kr-editor-col">
+          <label class="kr-num">Title <input id="kr-ed-title" class="kr-field" type="text" maxlength="80"></label>
+          <label class="kr-num">Mode
+            <select id="kr-ed-mode" class="kr-field"><option value="deepDive">Deep Dive</option><option value="puffer">Puffer Party</option></select></label>
+          <label class="kr-num">Round seconds <input id="kr-ed-seconds" class="kr-field" type="number" min="5" max="300"></label>
+          <label class="kr-num">Prompts per game <input id="kr-ed-prompts" class="kr-field" type="number" min="1" max="50"></label>
+          <h3 class="kr-label">Prompts <span id="kr-ed-count" class="kr-count"></span></h3>
+          <ol id="kr-ed-list" class="kr-ed-list"></ol>
+          <div class="kr-inline">
+            <button id="btn-ed-add-prompt" class="kr-btn kr-btn-line kr-btn-sm" type="button">Add a prompt</button>
+            <button id="btn-ed-del-prompt" class="kr-btn kr-btn-danger kr-btn-sm" type="button">Delete this prompt</button>
+          </div>
+        </div>
+        <div class="kr-editor-col kr-editor-wide">
+          <label class="kr-num">Prompt <input id="kr-ed-text" class="kr-field" type="text" maxlength="120"></label>
+          <label class="kr-num">Category <input id="kr-ed-category" class="kr-field" type="text" maxlength="30"></label>
+          <h3 class="kr-label">Rated answers <span id="kr-ed-answer-count" class="kr-count"></span></h3>
+          <p class="kr-hint">One row per answer. Aliases are other spellings, comma separated. Cover every tier &mdash;
+            common answers are Prawn, genuinely obscure ones are One in a Krillion.</p>
+          <table class="kr-ed-table">
+            <thead><tr><th scope="col">Answer</th><th scope="col">Aliases</th><th scope="col">Tier</th><th scope="col"><span class="visually-hidden">Remove</span></th></tr></thead>
+            <tbody id="kr-ed-answers"></tbody>
+          </table>
+          <button id="btn-ed-add-answer" class="kr-btn kr-btn-line kr-btn-sm" type="button">Add an answer</button>
+          <p class="kr-hint">The library workflow: press <strong>Download for the library</strong>, drop the file into
+            <span class="kr-mono">games/krillion/sets/</span> and paste the line it gives you into
+            <span class="kr-mono">sets/index.json</span>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="kr-screen kr-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="kr-phone-card" class="kr-phone-card">
+        <p id="kr-phone-kicker" class="kr-phone-kicker">Krillion</p>
+        <p id="kr-phone-prompt" class="kr-phone-prompt" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="kr-phone-clock" class="kr-phone-clock" aria-live="off"></p>
+        <form id="kr-phone-form" class="kr-phone-form hidden" autocomplete="off">
+          <label class="visually-hidden" for="kr-phone-text">Your answer</label>
+          <input id="kr-phone-text" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Your answer">
+          <button id="btn-phone-send" class="kr-btn kr-btn-primary kr-phone-send" type="submit">Send</button>
+        </form>
+        <p id="kr-phone-sub" class="kr-phone-sub">&nbsp;</p>
+        <div id="kr-phone-extra" class="kr-phone-extra"></div>
+        <p id="kr-phone-status" class="kr-phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Game lobby: keep this game, or start over (docs/19 §1) ============ -->
+  <div id="kr-lobby-modal" class="kr-modal-backdrop hidden">
+    <div class="kr-modal" role="dialog" aria-modal="true" aria-labelledby="kr-lobby-title">
+      <h2 id="kr-lobby-title" class="kr-modal-title">Back to the setup screen</h2>
+      <p class="kr-modal-body">Keep the game and you can pick it up again with <strong>Resume</strong>.
+        Start over clears the game in progress &mdash; the players, the prompts and the settings stay.</p>
+      <div class="kr-actions kr-actions-end">
+        <button id="btn-lobby-keep" class="kr-btn kr-btn-primary" type="button">Keep this game</button>
+        <button id="btn-lobby-restart" class="kr-btn kr-btn-danger" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="kr-btn kr-btn-quiet" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Title card (standalone only; the hub shows its own) ============ -->
+  <div id="gsc-splash" class="kr-splash hidden" role="status" aria-live="polite">
+    <p id="gsc-splash-title" class="kr-hero"></p>
+    <p id="gsc-splash-sub" class="kr-lede"></p>
+  </div>
+
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
+  <script src="js/kr-content.js"></script>
+  <script src="js/kr-select.js"></script>
+  <script src="js/kr-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/kr-sound.js"></script>
+  <script src="js/kr-clock.js"></script>
+  <script src="js/kr-view.js"></script>
+  <script src="js/kr-party.js"></script>
+  <script src="js/kr-app.js"></script>
+  <script src="js/kr-editor.js"></script>
+  <script src="js/kr-room.js"></script>
+  <script src="js/kr-phone.js"></script>
+</body>
+</html>

@@ -111,13 +111,20 @@
     return out;
   }
 
-  /** The wording most people used; a tie goes to the first one seen. */
-  function bestLabel(texts) {
+  /**
+   * The wording most people used for THIS answer; a tie goes to the first one
+   * seen. Only texts whose own key is the group's key count, so an answer the
+   * host folded in never names the row (MG-D3). All variants are the fallback.
+   */
+  function bestLabel(texts, key) {
     let best = "";
     let bestCount = -1;
-    texts.forEach((count, text) => {
-      if (count > bestCount) { best = text; bestCount = count; }
+    const pick = (own) => texts.forEach((row, text) => {
+      if (own && row.key !== key) return;
+      if (row.count > bestCount) { best = text; bestCount = row.count; }
     });
+    pick(true);
+    if (!best) pick(false);
     return best;
   }
 
@@ -138,14 +145,15 @@
       const group = byKey.get(key);
       group.count += 1;
       group.pids.push(entry.pid);
-      group.texts.set(entry.text, (group.texts.get(entry.text) || 0) + 1);
+      const seen = group.texts.get(entry.text) || { count: 0, key: entry.key };
+      group.texts.set(entry.text, { count: seen.count + 1, key: entry.key });
     });
     const rows = [...byKey.values()].map((group) => ({
       key: group.key,
       count: group.count,
       order: group.order,
       pids: group.pids,
-      text: bestLabel(group.texts),
+      text: bestLabel(group.texts, group.key),
       variants: [...group.texts.keys()],
     }));
     rows.sort((a, b) => (b.count - a.count) || (a.order - b.order));

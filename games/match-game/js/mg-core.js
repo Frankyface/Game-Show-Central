@@ -201,7 +201,10 @@
     if (slot === null || state.current.order.indexOf(slot) < 0) return state;
     const text = cleanText(event.text, ANSWER_MAX);
     if (!text) return state;
-    return withCurrent(state, { answers: Object.assign({}, state.current.answers, { [slot]: text }) });
+    const fields = { answers: Object.assign({}, state.current.answers, { [slot]: text }) };
+    const phone = state.current.phoneSlots || [];
+    if (event.fromPhone === true && phone.indexOf(slot) < 0) fields.phoneSlots = phone.concat([slot]);
+    return withCurrent(state, fields);
   }
 
   /** The contestant's answer, typed by the host and locked before any reveal. */
@@ -294,7 +297,7 @@
     const list = state.audience.submissions;
     const at = list.findIndex((s) => s.pid === pid);
     if (at < 0 && list.length >= MAX_SUBMISSIONS) return state;
-    const entry = { pid, text, key };
+    const entry = event.fromPhone === true ? { pid, text, key, phone: true } : { pid, text, key };
     return withAudience(state, {
       submissions: at < 0 ? list.concat([entry]) : list.map((s, i) => (i === at ? entry : s)),
     });
@@ -376,8 +379,8 @@
     if (state.phase !== "hthPrompt" || !state.hth || state.hth.revealed) return state;
     const text = cleanText(event.text, ANSWER_MAX);
     if (!text) return state;
-    const who = event.who === "contestant" ? "contestantText" : "panelText";
-    return withHth(state, { [who]: text });
+    if (event.who === "contestant") return withHth(state, { contestantText: text });
+    return withHth(state, { panelText: text, panelFromPhone: event.fromPhone === true });
   }
 
   function revealHth(state) {
@@ -393,6 +396,7 @@
    */
   function evSpin(state, event) {
     if (state.phase !== "hthPrompt" || !state.hth || state.hth.match !== null) return state;
+    if (state.hth.spun || state.hth.revealed) return state;   // the show spins once (MG-D12)
     const list = state.game.settings.multipliers;
     if (!list.length) return state;
     const raw = Number.isFinite(event.roll) ? event.roll
@@ -422,7 +426,42 @@
 
   function evUndo(state) {
     if (!state.history.length) return state;
-    return patch(state.history[state.history.length - 1], { history: state.history.slice(0, -1) });
+    const previous = patch(state.history[state.history.length - 1], { history: state.history.slice(0, -1) });
+    return carryPhoneInput(previous, state);
+  }
+
+  /**
+   * Phone answers are not host decisions, so they never go on the undo stack
+   * (MG-D15) — and an undo must not wipe one that arrived after the decision
+   * being undone. Anything a phone wrote for the same, still-open card is
+   * carried back into the restored state.
+   */
+  function carryPhoneInput(prev, now) {
+    let out = prev;
+    const pc = prev.current;
+    const nc = now.current;
+    if (pc && nc && pc.index === nc.index && pc.seat === nc.seat && prev.round === now.round
+      && pc.revealed === 0 && (nc.phoneSlots || []).length) {
+      const answers = Object.assign({}, pc.answers);
+      nc.phoneSlots.forEach((slot) => { if (has(nc.answers, slot)) answers[slot] = nc.answers[slot]; });
+      out = withCurrent(out, { answers, phoneSlots: nc.phoneSlots.slice() });
+    }
+    const pa = prev.audience;
+    const na = now.audience;
+    if (pa && na && pa.index === na.index && pa.open) {
+      let list = pa.submissions;
+      na.submissions.filter((e) => e.phone).forEach((e) => {
+        const at = list.findIndex((x) => x.pid === e.pid);
+        list = at < 0 ? list.concat([e]) : list.map((x, i) => (i === at ? e : x));
+      });
+      out = withAudience(out, { submissions: list });
+    }
+    const ph = prev.hth;
+    const nh = now.hth;
+    if (ph && nh && ph.slot === nh.slot && ph.index === nh.index && !ph.revealed && nh.panelFromPhone) {
+      out = withHth(out, { panelText: nh.panelText, panelFromPhone: true });
+    }
+    return out;
   }
 
   const HANDLERS = {
@@ -466,7 +505,8 @@
     if (typeof handler !== "function") return state;
     const next = handler(state, event);
     if (!next || next === state) return state;
-    if (NO_HISTORY.has(event.type)) return next;
+    // A phone's answer is not a host decision: it never lands on the undo stack.
+    if (NO_HISTORY.has(event.type) || event.fromPhone === true) return next;
     return patch(next, { history: state.history.concat([snapshot(state)]).slice(-MAX_HISTORY) });
   }
 

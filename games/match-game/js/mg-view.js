@@ -193,14 +193,17 @@ const MgView = (function () {
   function buildCard(card, o) {
     const node = el("div", "card-seat");
     node.dataset.slot = String(card.slot);
-    node.appendChild(el("p", "card-name", card.name));
+    // The name and the judgement share one line so six cards fit 1280x676.
+    const head = el("div", "card-head");
+    head.appendChild(el("p", "card-name", card.name));
+    head.appendChild(el("p", "card-mark"));
+    node.appendChild(head);
     const flip = el("div", "card-flip");
     const inner = el("div", "card-inner");
     inner.appendChild(el("div", "card-face card-front"));
     inner.appendChild(el("div", "card-face card-back"));
     flip.appendChild(inner);
     node.appendChild(flip);
-    node.appendChild(el("p", "card-mark"));
     if (o.typeable) node.appendChild(buildCardForm(card.slot));
     if (o.pickable) node.appendChild(buildPickButton(card.slot));
     return node;
@@ -234,7 +237,7 @@ const MgView = (function () {
     return btn;
   }
 
-  const MARKS = { true: "match", false: "no match" };
+  const MARKS = { true: "Match", false: "No match" };
 
   function paintCard(node, card, o) {
     if (!node) return;
@@ -251,7 +254,9 @@ const MgView = (function () {
       card.judged === null ? "" : MARKS[String(card.judged)];
     const form = node.querySelector(".card-form");
     if (form) {
-      const usable = o.typeable && !card.locked && !o.frozen;
+      // A seat with a phone is written from that phone only: the host cannot
+      // overwrite a panelist's secret answer by mistake (MG-D16).
+      const usable = o.typeable && !card.locked && !o.frozen && !card.pid;
       form.hidden = !usable;
       const input = form.querySelector(".card-input");
       input.type = o.hideTyping ? "password" : "text";
@@ -263,9 +268,10 @@ const MgView = (function () {
   }
 
   function frontText(card, o) {
-    if (card.locked) return "already matched";
-    if (card.answered) return "answered";
-    return o && o.frozen ? "no answer" : "waiting…";
+    if (card.locked) return "Already matched";
+    if (card.answered) return "Answered";
+    if (o && o.frozen) return "No answer";
+    return card.pid ? "Writing on a phone…" : "Waiting…";
   }
 
   /* ============ The prompt screen ============ */
@@ -395,7 +401,8 @@ const MgView = (function () {
     setText("mg-title", app.game ? app.game.title : "Match Game");
     const sound = $("btn-sound");
     const on = window.MgSound.enabled();
-    sound.textContent = on ? "Sound on" : "Sound off";
+    sound.textContent = on ? "Sound" : "Sound off";
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, on ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(on));
     $("btn-game-lobby").disabled = !app.core && !app.resumable;
     // Painted from the topbar, not from renderSetup: the flag changes on

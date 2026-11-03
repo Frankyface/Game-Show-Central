@@ -155,7 +155,7 @@ function pylSquareCard(square, index) {
     name.value = square.prize || "";
     name.setAttribute("aria-label", `Square ${index + 1} prize name`);
     name.addEventListener("input", (e) => {
-      pylDraft.boards[pylEdBoard][index] = Object.assign({}, square, { prize: e.target.value });
+      pylDraft.boards[pylEdBoard][index] = Object.assign({}, pylDraft.boards[pylEdBoard][index], { prize: e.target.value });
       pylSaveDraft();
       pylPaintProblems();
     });
@@ -172,7 +172,7 @@ function pylSquareCard(square, index) {
     amount.setAttribute("aria-label", `Square ${index + 1} amount`);
     amount.addEventListener("input", (e) => {
       const n = Math.round(Number(e.target.value));
-      const next = Object.assign({}, square);
+      const next = Object.assign({}, pylDraft.boards[pylEdBoard][index]); // the live square, not the render-time copy
       if (type === "prize") next.value = n; else next.cash = n;
       pylDraft.boards[pylEdBoard][index] = next;
       pylSaveDraft();

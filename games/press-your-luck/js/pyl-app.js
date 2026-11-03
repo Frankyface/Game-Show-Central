@@ -96,7 +96,7 @@ function pylCue(event, before, after) {
 /** Send an event to the pure core, with the matching sound cue. */
 function pylDispatch(event) {
   const state = pylApp.core;
-  if (!state) return;
+  if (!state || pylApp.spin) return;    // nothing moves while the light is in the air (hotkeys U/N, End)
   if (event.type === "stop") { pylSpin(); return; }
   const next = window.PylCore.reduce(state, event, Math.random);
   if (next === state) return;

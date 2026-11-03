@@ -65,9 +65,9 @@
   /* ============ Inbound: answers only, each re-checked ============ */
 
   const EVENTS = {
-    panel: (pid, msg) => ({ type: "panelAnswer", pid, text: msg.text }),
-    audience: (pid, msg) => ({ type: "audienceAnswer", pid, text: msg.text }),
-    hth: (pid, msg) => ({ type: "hthAnswer", text: msg.text, who: "panel" }),
+    panel: (pid, msg) => ({ type: "panelAnswer", pid, text: msg.text, fromPhone: true }),
+    audience: (pid, msg) => ({ type: "audienceAnswer", pid, text: msg.text, fromPhone: true }),
+    hth: (pid, msg) => ({ type: "hthAnswer", text: msg.text, who: "panel", fromPhone: true }),
   };
 
   function onMessage(pid, raw) {
@@ -212,7 +212,7 @@
     paintRoom();
     // The hub shows its own title card on a game switch, so the game only
     // shows one when it is standing alone (docs/09, the double-splash fix).
-    if (!embedded) window.MgApp.showSplash("Match Game", "Six answers, face down.");
+    if (!embedded) window.MgApp.showSplash("Match Game");
     const exit = $("btn-exit");
     if (exit && room.exit) {
       show(exit, embedded);

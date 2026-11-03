@@ -203,7 +203,9 @@ async function mgLoadContent() {
       await mgFetchGame(url, `Prompts from ${url}`, "url");
       return;
     } catch (err) {
-      mgError(`Couldn’t load ${url}: ${err.message}. Falling back to the shipped prompts.`);
+      const kept = mgApp.game && mgApp.sourceKind !== "default";
+      mgNote(`Couldn’t load ${url}: ${String(err.message).replace(/[.\s]+$/, "")}. `
+        + (kept ? "Keeping the prompts you had." : "Using the shipped prompts instead."));
     }
   }
   if (mgApp.game && mgApp.sourceKind !== "default") return;
@@ -422,11 +424,22 @@ function mgLockHth() {
   field.value = "";
 }
 
+/** A panelist with no phone: the host types their Head-to-Head card (MG-D1). */
+function mgLockHthPanel() {
+  const field = $("mg-hth-panel-text");
+  if (!field.value.trim()) { mgError("Type the panelist’s answer first."); return; }
+  mgError("");
+  mgDispatch({ type: "hthAnswer", text: field.value, who: "panel" });
+  field.value = "";
+}
+
 /** The wheel: the roll goes into the event so undo and a reload replay it. */
 function mgSpin() {
   if (mgApp.spinning) return;
-  window.MgSound.play("spin");
+  const before = mgApp.core;
   mgDispatch({ type: "spin", roll: Math.random() });
+  if (mgApp.core === before) return;          // already spun: the show spins once
+  window.MgSound.play("spin");
   if (mgReducedMotion()) return;
   mgSet({ spinning: true });
   if (mgSpinTimer) clearTimeout(mgSpinTimer);
@@ -459,13 +472,15 @@ function mgResume() {
 
 /* ============ The splash (design-system §3) ============ */
 
-function mgShowSplash(title, sub) {
+const MG_SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
+
+function mgShowSplash(title) {
   const node = $("gsc-splash");
   if (!node || mgReducedMotion()) return;
   setText("gsc-splash-title", title);
-  setText("gsc-splash-sub", sub);
+  setText("gsc-splash-sub", "");
   show(node, true);
-  setTimeout(() => show(node, false), 1200);
+  setTimeout(() => show(node, false), MG_SPLASH_MS);
 }
 
 /* ============ Wiring ============ */
@@ -578,6 +593,7 @@ function mgWireSetup() {
 function mgWireForms() {
   $("mg-guess-form").addEventListener("submit", (e) => { e.preventDefault(); mgLockGuess(); });
   $("mg-hth-form").addEventListener("submit", (e) => { e.preventDefault(); mgLockHth(); });
+  $("mg-hth-panel-form").addEventListener("submit", (e) => { e.preventDefault(); mgLockHthPanel(); });
   $("mg-aud-host-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const field = $("mg-aud-host-text");
@@ -629,6 +645,37 @@ function mgMountLibrary() {
   });
 }
 
+/* ============ Room scope (MG-D2) ============ */
+
+/** Does this saved game seat anyone by a phone id? */
+function mgSeatsPhones(state) {
+  return !!state && (state.panel.some((p) => p.pid) || state.contestants.some((c) => c.pid));
+}
+
+/**
+ * A saved game belongs to the room it was played in. Phone ids (p1, p2, …)
+ * are issued per room, so in a NEW room the old seats would be inherited by
+ * whoever is issued that id next. A different room code drops every phone
+ * seat, and any game that seats a phone; host-typed seats keep their names.
+ * The Pyramid pattern (games/pyramid/js/pyr-app.js pyrBindRoom).
+ */
+function mgBindRoom(code) {
+  if (typeof code !== "string" || !code || mgApp.roomCode === code) return;
+  const unseat = (row) => (row.pid ? Object.assign({}, row, { pid: "" }) : row);
+  const setup = Object.assign({}, mgApp.setup, {
+    players: mgApp.setup.players.filter((p) => p.manual),
+    contestants: mgApp.setup.contestants.map(unseat),
+    panel: mgApp.setup.panel.map(unseat),
+  });
+  const core = mgSeatsPhones(mgApp.core) ? null : mgApp.core;
+  const resumable = mgSeatsPhones(mgApp.resumable) ? null : mgApp.resumable;
+  const cleared = core !== mgApp.core || resumable !== mgApp.resumable;
+  mgSet({ roomCode: code, setup, core, resumable });
+  if (cleared) {
+    mgNote("This is a new room, so the game in progress was cleared — its phone seats belonged to the old room.");
+  }
+}
+
 /* ============ Boot ============ */
 
 function mgBoot() {
@@ -643,6 +690,10 @@ function mgBoot() {
   MG_CLICKS.forEach(([id, fn]) => {
     const node = $(id);
     if (node) node.addEventListener("click", fn);
+  });
+  // docs/21 rules 5 and 9: an icon beside each toolbar label (shared/icons.js).
+  [["btn-editor", "edit"], ["btn-game-lobby", "lobby"], ["btn-undo", "undo"]].forEach(([id, icon]) => {
+    if (window.GSCIcons && $(id)) window.GSCIcons.prepend($(id), icon);
   });
   mgWireSetup();
   mgWireForms();
@@ -672,10 +723,7 @@ window.MgApp = {
   addPlayer: mgAddPlayer,
   removePlayer: mgRemovePlayer,
   setPhoneCount: (n) => { if (n !== mgApp.phoneCount) mgSet({ phoneCount: n }); },
-  bindRoom: (code) => {
-    const next = code || null;
-    if (mgApp.roomCode !== next) mgSet({ roomCode: next });
-  },
+  bindRoom: mgBindRoom,
   setPanelName: mgSetPanelName,
   setPanelPid: mgSetPanelPid,
   setContestantName: mgSetContestantName,
