@@ -103,9 +103,9 @@
     if (!room || !state) return;
     if (room.setTitle) room.setTitle(titleFor(state));
     if (room.reportScores && state.phase === "standings") {
+      // Tester fix (MG-D7): host-typed contestants have no pid; the hub keys those rows by name.
       const rows = core().standings(state)
-        .filter((row) => row.pid)
-        .map((row) => ({ pid: row.pid, name: row.name, score: row.money }));
+        .map((row) => ({ pid: row.pid || null, name: row.name, score: row.money }));
       if (rows.length) room.reportScores(rows);
     }
   }

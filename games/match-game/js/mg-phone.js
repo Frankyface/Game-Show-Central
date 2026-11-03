@@ -135,6 +135,7 @@
     document.body.classList.add("player-mode");
     if (GSC.mode === "embed-player") document.body.classList.add("gsc-embedded");
     show($("screen-phone"), true);
+    show($("screen-setup"), false);   // tester fix (MG-D0): the host setup form was showing above the phone card
     $("mg-phone-form").addEventListener("submit", (e) => {
       e.preventDefault();
       send($("mg-phone-text").value);

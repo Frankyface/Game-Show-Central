@@ -145,7 +145,7 @@ body {
 
 .btn-green {
   background: linear-gradient(180deg, var(--mg-leaf) 0%, var(--mg-avocado) 100%);
-  color: #12200a;
+  color: #0a1205;   /* tester fix (MG-D9): #12200a was 4.46:1 on the avocado stop; this is 5.0:1 */
   box-shadow: 0 4px 14px rgba(107, 142, 35, 0.35);
 }
 
@@ -601,6 +601,9 @@ body {
 }
 .other-count { color: var(--ink-mute); font-size: 0.78rem; }
 .merge-box { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+/* Tester fix (MG-D5): merge buttons get their own line so a 40-char answer never collapses to one letter per line. */
+.board-row .merge-box { grid-column: 2 / -1; }
+.other-row .merge-box { grid-column: 1 / -1; }
 
 .guesses {
   list-style: none;

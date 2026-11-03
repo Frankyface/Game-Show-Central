@@ -316,7 +316,7 @@
     const into = normaliseAnswer(event.into);
     if (!from || !into || from === into) return state;
     const merges = Object.assign({}, state.audience.merges);
-    if (resolveKey(merges, into) === from) return state;                // never a loop
+    if (resolveKey(merges, into) === resolveKey(merges, from)) return state; // never a loop
     merges[from] = into;
     return withAudience(state, { merges });
   }

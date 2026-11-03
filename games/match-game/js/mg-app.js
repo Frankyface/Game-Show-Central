@@ -501,6 +501,9 @@ const MG_CLICKS = [
   ["btn-result-undo", () => mgDispatch({ type: "undo" })],
   ["btn-standings-undo", () => mgDispatch({ type: "undo" })],
   ["btn-new-game", mgLobbyRestart],
+  // Tester fix (MG-D6): "Play another game" had no handler. Embedded → the hub lobby.
+  ["btn-next-game", () => { const r = window.MgRoom && window.MgRoom.room;
+    if (r && r.exit && document.body.classList.contains("gsc-embedded")) r.exit(); else mgLobbyRestart(); }],
   ["btn-game-lobby", mgOpenLobby],
   ["btn-lobby-keep", mgLobbyKeep],
   ["btn-lobby-restart", mgLobbyRestart],

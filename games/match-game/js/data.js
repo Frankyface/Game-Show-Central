@@ -94,7 +94,7 @@ globalThis.MG_DEFAULT_GAME = {
     { "text": "The chore nobody in the house wants to do", "hint": "" },
     { "text": "Something you would take to a desert island", "hint": "" },
     { "text": "A truly useless superpower", "hint": "" },
-    { "text": "Something you say when you stub your toe", "hint": "" },
+    { "text": "A noise a car should never make", "hint": "" },
     { "text": "Something that always breaks on holiday", "hint": "" },
     { "text": "A bad present for a teacher", "hint": "" },
     { "text": "Something you find under the sofa cushions", "hint": "" },
