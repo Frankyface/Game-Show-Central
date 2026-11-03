@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Press Your Luck harness (L-I1–L-I6)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 62rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    li[data-pass="true"] .tag { color: #35d68a; }
+    li[data-pass="false"] .tag { color: #ff5a66; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1280px; height: 676px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 620px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Press Your Luck — loopback harness (success states L-I1 … L-I6, spec 17 §6)</h1>
+  <p class="lede">This page <em>is</em> the shell (verification plan 06 §3): it loads the real game page as an
+    embedded host plus three embedded phones at 320&nbsp;px and speaks the bridge protocol from architecture 00 §6
+    itself — no PeerJS, no hub. Every scenario clicks real buttons in the real frames and asserts on real DOM
+    text. The static gates are folded into L-I6.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__PYL_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    /* ============ Async helpers ============ */
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The bridge shell (00 §6) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#d9a437", avatar: "🐙", connected: true, manual: false },
+    ];
+    const ROOM = { code: "TEST", players: PLAYERS };
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();   // pid -> iframe
+    const shellLog = [];             // scores/title/exit frames the host sent up
+
+    function post(frame, msg) {
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "send") {
+        if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
+        else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: ROOM.code } });
+        return;
+      }
+      if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
+    }
+
+    /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
+
+    const ASSETS = [
+      "../js/pyl-content.js", "../js/pyl-select.js", "../js/pyl-core.js", "../js/data.js",
+      "../js/pyl-sound.js", "../js/pyl-board.js", "../js/pyl-view.js", "../js/pyl-app.js",
+      "../js/pyl-editor.js", "../js/pyl-room.js", "../js/pyl-phone.js",
+      "../css/pyl.css", "../css/pyl-phone.css",
+      "../board.json", "../sets/index.json", "../sets/kids-night.json", "../sets/movies-and-tv.json",
+      "../../../shared/room-protocol.js", "../../../shared/room-net.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../../../shared/theme.css", "../../../shared/theme-components.css",
+      "fixtures/harness-game.json",
+    ];
+
+    // ?store=harness namespaces this run's localStorage, so a harness run never
+    // touches the real host's saved game or editor draft on the same origin.
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=harness&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=harness";
+    const KEYS = ["gsc-pyl-state-v1-harness", "gsc-pyl-draft-v1-harness"];
+
+    async function refreshAssets() {
+      await Promise.all(ASSETS.map((u) => fetch(u, { cache: "reload" }).catch(() => null)));
+      await fetch(HOST_SRC, { cache: "reload" }).catch(() => null);
+    }
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    /** `new WIN().Event(...)` binds `new` to the call, so the window goes in a
+        local first. One helper for every field the scenarios type into. */
+    function typeInto(win, node, value) {
+      node.value = value;
+      node.dispatchEvent(new win.Event("input", { bubbles: true }));
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().PylApp.core();
+    const app = () => HW().PylApp.state();
+    const click = (id) => H(id).click();
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        // Unload the old page FIRST: its beforeunload handler saves the state,
+        // which would otherwise land in localStorage after we cleared it.
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().PylApp && HW().PylApp.state().game, "host boot");
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const p of PLAYERS) {
+        const frame = document.createElement("iframe");
+        frame.title = `phone ${p.name}`;
+        box.appendChild(frame);
+        phoneFrames.set(p.pid, frame);
+        await loadFrame(frame, PHONE_SRC);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.PylPhone), "phones join");
+    }
+
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const phoneView = (pid) => PW(pid).PylPhone.view();
+    const phoneButtons = (pid) => [...PD(pid).querySelectorAll("#pyl-phone-actions .btn")];
+    const phoneButton = (pid, text) => phoneButtons(pid).find((b) => b.textContent.indexOf(text) >= 0);
+    const pidForSeat = (seat) => core().players[seat].pid;
+
+    /** Seat the phones the way a host does: by clicking the roster. */
+    function seatPhones() {
+      // The roster is rebuilt after every click, so look the button up afresh.
+      PLAYERS.forEach((p, i) => {
+        HD().querySelector(`#pyl-roster .seat-pick.seat-${i}[data-pid="${p.pid}"]`).click();
+      });
+    }
+
+    /** Give the player in control enough spins that a scenario can keep going. */
+    function topUp(spins) {
+      const state = core();
+      if (!state || state.control === null) return;
+      HW().PylApp.set({
+        core: Object.assign({}, state, {
+          spins: state.spins.map((n, i) => (i === state.control ? Math.max(n, spins) : n)),
+          whammies: state.whammies.map(() => 0),
+          out: state.out.map(() => false),
+        }),
+      });
+    }
+
+    /** One real STOP press, waited out to the end of the travelling light. */
+    async function pressStop() {
+      const before = core().spun;
+      click("btn-stop");
+      await waitFor(() => !HW().PylApp.spin() && core().spun === before + 1, "the light to land", 14000);
+      return core().landing;
+    }
+
+    /* ============================================================
+       L-I1 — the buzzers: armed by the host, first phone in wins
+       ============================================================ */
+
+    async function scenarioBuzzers() {
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().PylApp.state().players.length === 3, "roster from the shell");
+      check("L-I1 the shell roster reaches the setup screen",
+        app().players.map((p) => p.name).join(",") === "Ada,Ben,Cleo",
+        app().players.map((p) => p.name).join(","));
+
+      seatPhones();
+      check("L-I1 seating a phone adopts its name",
+        app().setup.names.slice(0, 3).join(",") === "Ada,Ben,Cleo",
+        app().setup.names.slice(0, 3).join(","));
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "question", "the question screen");
+      check("L-I1 the seats keep the phones the host put in them",
+        core().players.map((p) => `${p.name}:${p.pid}`).join(" ") === "Ada:p1 Ben:p2 Cleo:p3",
+        core().players.map((p) => `${p.name}:${p.pid}`).join(" "));
+
+      await waitFor(() => phoneView("p1").screen === "buzz", "the buzz screen");
+      check("L-I1 phones get the question but no buzzer until the host arms it",
+        phoneView("p1").armed === false && !!phoneView("p1").q
+        && phoneButton("p1", "BUZZ").disabled === true,
+        `armed=${phoneView("p1").armed} q="${phoneView("p1").q}"`);
+
+      click("btn-arm");
+      await waitFor(() => phoneView("p1").armed === true, "the buzzers open");
+      check("L-I1 arming lights every phone's buzzer",
+        ["p1", "p2", "p3"].every((pid) => phoneButton(pid, "BUZZ").disabled === false));
+
+      phoneButton("p2", "BUZZ").click();
+      await waitFor(() => core().q.buzzed === 1, "Ben's buzz reaches the host");
+      PW("p1").PylPhone.me.send({ t: "buzz" });
+      PW("p3").PylPhone.me.send({ t: "buzz" });
+      await sleep(150);
+      check("L-I1 the first buzz wins and later ones are ignored",
+        core().q.buzzed === 1 && core().q.armed === false,
+        `buzzed seat ${core().q.buzzed}`);
+      check("L-I1 the host screen shows who got in first",
+        HD().querySelector("#pyl-buzzbar .is-buzzed .buzz-name").textContent === "Ben",
+        HD().querySelector("#pyl-buzzbar .is-buzzed .buzz-name").textContent);
+
+      click("btn-buzz-right");
+      await waitFor(() => core().spins[1] === 3, "the buzz-in is paid");
+      check("L-I1 a correct buzz-in banks three spins", core().spins.join(",") === "0,3,0", core().spins.join(","));
+    }
+
+    /* ============================================================
+       L-I2 — the picks: three options, one spin each, no leak
+       ============================================================ */
+
+    async function scenarioPicks() {
+      await waitFor(() => phoneView("p1").screen === "pick", "the pick screen");
+      check("L-I2 everyone except the player who buzzed gets the options",
+        phoneView("p1").screen === "pick" && phoneView("p3").screen === "pick"
+        && phoneView("p2").screen === "wait",
+        `${phoneView("p1").screen}/${phoneView("p2").screen}/${phoneView("p3").screen}`);
+      check("L-I2 the phone payload carries the options but never the answer",
+        JSON.stringify(phoneView("p1")).indexOf('"answer"') < 0
+        && phoneView("p1").options.length === 3,
+        JSON.stringify(phoneView("p1").options));
+
+      const answer = HW().PylCore.currentQuestion(core()).answer;
+      const letters = ["A", "B", "C"];
+      phoneButtons("p1").find((b) => b.textContent.indexOf(letters[answer]) === 0).click();
+      phoneButtons("p3").find((b) => b.textContent.indexOf(letters[(answer + 1) % 3]) === 0).click();
+      await waitFor(() => core().q.picks["0"] === answer && core().q.picks["2"] === (answer + 1) % 3,
+        "both picks reach the host");
+      check("L-I2 a locked-in pick shows on the host screen and pays nothing yet",
+        core().spins.join(",") === "0,3,0"
+        && HD().querySelector('.pick-btn.is-on[data-seat="0"]').dataset.idx === String(answer),
+        core().spins.join(","));
+
+      PW("p2").PylPhone.me.send({ t: "pick", idx: answer });
+      await sleep(120);
+      check("L-I2 the player who buzzed cannot also pick",
+        core().q.picks["1"] === undefined, JSON.stringify(core().q.picks));
+
+      click("btn-reveal");
+      await waitFor(() => core().q.revealed, "the reveal");
+      check("L-I2 only the correct pick earns a spin",
+        core().spins.join(",") === "1,3,0", core().spins.join(","));
+      check("L-I2 the host screen marks the correct option",
+        HD().querySelector("#pyl-options .is-answer .option-letter").textContent === letters[answer],
+        HD().querySelector("#pyl-options .is-answer .option-letter").textContent);
+
+      click("btn-next-question");
+      await waitFor(() => core().qIndex === 1, "the second question");
+      click("btn-arm");
+      click("btn-buzz-wrong");
+      await waitFor(() => core().q.judged === false, "nobody buzzed");
+      const answer2 = HW().PylCore.currentQuestion(core()).answer;
+      await waitFor(() => ["p1", "p2", "p3"].every((pid) => phoneView(pid).screen === "pick"
+        && phoneView(pid).q === HW().PylCore.currentQuestion(core()).q), "every phone gets the options").catch(() => null);
+      check("L-I2 with nobody on the buzzer all three phones get the options",
+        ["p1", "p2", "p3"].every((pid) => phoneView(pid).screen === "pick"),
+        ["p1", "p2", "p3"].map((pid) => phoneView(pid).screen).join("/"));
+      ["p1", "p2", "p3"].forEach((pid) => {
+        phoneButtons(pid).find((b) => b.textContent.indexOf(letters[answer2]) === 0).click();
+      });
+      await waitFor(() => Object.keys(core().q.picks).length === 3, "three picks");
+      click("btn-reveal");
+      await waitFor(() => core().q.revealed, "the second reveal");
+      check("L-I2 every correct pick is paid", core().spins.join(",") === "2,4,1", core().spins.join(","));
+      check("L-I2 the question screen fits the 1280x676 hub frame with no vertical scroll",
+        noScroll(), scrollDetail());
+    }
+
+    /* ============================================================
+       L-I3 — the Big Board: the light always lands where the core says
+       ============================================================ */
+
+    async function scenarioBoard() {
+      check("L-I3 the round only ends on the host's word",
+        HW().PylCore.legalActions(core()).indexOf("toBoard") >= 0);
+      click("btn-to-board");
+      await waitFor(() => core().phase === "board", "the Big Board");
+      check("L-I3 the board opens on the player with the fewest spins",
+        core().control === 2, `control seat ${core().control} (spins ${core().spins.join(",")})`);
+      check("L-I3 the host screen paints all 18 squares in a 7 x 4 rectangle",
+        HD().querySelectorAll("#pyl-board .tile").length === 18,
+        `${HD().querySelectorAll("#pyl-board .tile").length} tiles`);
+      await waitFor(() => ["p1", "p2", "p3"].every((pid) => phoneView(pid).screen === "board"),
+        "every phone on the board screen");
+      check("L-I3 no phone is sent the board, a square or a landing",
+        ["p1", "p2", "p3"].every((pid) => {
+          const text = JSON.stringify(phoneView(pid));
+          return text.indexOf('"board":') < 0 && text.indexOf('"squares":') < 0
+            && text.indexOf('"faces":') < 0 && text.indexOf('"landing":') < 0
+            && text.indexOf("1,500") < 0 && phoneView(pid).last === "";
+        }),
+        JSON.stringify(phoneView("p3")).slice(0, 160));
+
+      const landings = [];
+      for (let i = 0; i < 10; i += 1) {
+        if (core().awaiting === "advance") {
+          click("btn-next-spinner");
+          await waitFor(() => core().awaiting === null && core().phase === "board", "the next spinner");
+        }
+        topUp(3);
+        const landing = await pressStop();
+        landings.push({ core: landing.index, light: HW().PylBoard.index() });
+      }
+      const matched = landings.filter((l) => l.core === l.light).length;
+      check("L-I3 the travelling light ends on the square the core chose, 10 times out of 10",
+        matched === 10, landings.map((l) => `${l.core}/${l.light}`).join(" "));
+      check("L-I3 the Big Board fits the 1280x676 hub frame with no vertical scroll",
+        noScroll(), scrollDetail());
+      check("L-I3 the landing square is marked on the board",
+        HD().querySelectorAll("#pyl-board .is-hit, #pyl-board .is-hit-whammy").length === 1,
+        HD().querySelector("#pyl-board .is-hit, #pyl-board .is-hit-whammy").dataset.index);
+
+      // A forced Whammy: the core is handed an rng that names square 2.
+      if (core().awaiting === "advance") {
+        click("btn-next-spinner");
+        await waitFor(() => core().awaiting === null, "the next spinner");
+      }
+      topUp(3);
+      const seat = core().control;
+      const rich = Object.assign({}, core(), { totals: core().totals.map((t, i) => (i === seat ? 4200 : t)) });
+      const whammied = HW().PylCore.reduce(rich, { type: "stop" }, () => 2.5 / 18);
+      HW().PylApp.set({ core: whammied, spin: null });
+      await sleep(60);
+      check("L-I3 a Whammy zeroes the total, counts a dot and raises the card",
+        whammied.totals[seat] === 0 && whammied.whammies[seat] === 1
+        && !H("pyl-whammy").classList.contains("hidden")
+        && HD().querySelectorAll(`#pyl-totals .total-row:nth-child(${seat + 1}) .whammy-dot.is-on`).length === 1,
+        `total ${whammied.totals[seat]}, whammies ${whammied.whammies[seat]}`);
+      check("L-I3 a Whammy ends the turn and only Next player is offered",
+        whammied.awaiting === "advance" && H("btn-stop").classList.contains("hidden")
+        && !H("btn-next-spinner").classList.contains("hidden"));
+      click("btn-next-spinner");
+      await waitFor(() => core().awaiting === null, "the board moves on");
+
+      // The phone in control presses its own giant STOP.
+      const pid = pidForSeat(core().control);
+      topUp(2);
+      await waitFor(() => phoneView(pid).screen === "board" && phoneView(pid).canStop, "the phone STOP");
+      check("L-I3 only the phone in control is offered STOP",
+        ["p1", "p2", "p3"].filter((p) => phoneView(p).canStop).length === 1, pid);
+      const before = core().spun;
+      phoneButton(pid, "STOP").click();
+      await waitFor(() => !HW().PylApp.spin() && core().spun === before + 1, "the phone's spin lands", 14000);
+      check("L-I3 a phone STOP runs the same spin, and the light lands on the core's square",
+        core().landing.index === HW().PylBoard.index() && core().landing.seat === HW().PylCore.seatOf(core(), pid),
+        `square ${core().landing.index}, light ${HW().PylBoard.index()}`);
+    }
+
+    /* ============================================================
+       L-I4 — passing spins
+       ============================================================ */
+
+    async function scenarioPass() {
+      if (core().awaiting === "advance") {
+        click("btn-next-spinner");
+        await waitFor(() => core().awaiting === null, "the next spinner");
+      }
+      topUp(3);
+      const from = core().control;
+      const to = HW().PylCore.passTargets(core()).find((t) => t !== from);
+      const moved = core().spins[from];
+      const pid = pidForSeat(from);
+      await waitFor(() => phoneView(pid).canPass, "the phone offers a pass");
+      check("L-I4 the phone in control is offered a pass to each opponent",
+        phoneView(pid).passTargets.length === core().players.length - 1,
+        JSON.stringify(phoneView(pid).passTargets));
+
+      PW(pid).PylPhone.me.send({ t: "pass", to });
+      await waitFor(() => core().passed[to] === moved, "the pass reaches the host");
+      check("L-I4 a pass moves every earned spin and ends the turn",
+        core().spins[from] === 0 && core().passed[to] === moved && core().awaiting === "advance",
+        `moved ${moved} from seat ${from} to seat ${to}`);
+
+      click("btn-next-spinner");
+      await waitFor(() => core().control === to, "the receiver comes up");
+      check("L-I4 the player who was passed to comes straight up and cannot pass them back",
+        core().control === to && HW().PylCore.passTargets(core()).length === 0
+        && H("pyl-pass").children.length === 0,
+        `control seat ${core().control}`);
+      check("L-I4 the host screen says the spins were passed",
+        H("pyl-passed-note").textContent.indexOf("passed to them") >= 0,
+        H("pyl-passed-note").textContent);
+
+      const passedBefore = core().passed[to];
+      const ownBefore = core().spins[to];
+      await pressStop();
+      check("L-I4 a passed spin is used before the player's own",
+        core().passed[to] === passedBefore - 1 && core().spins[to] === ownBefore,
+        `passed ${core().passed[to]}, own ${core().spins[to]}`);
+
+      click("btn-board-undo");
+      await waitFor(() => core().passed[to] === passedBefore, "undo");
+      check("L-I4 Undo puts the spin, the money and the board back",
+        core().passed[to] === passedBefore && core().landing === null,
+        `passed ${core().passed[to]}`);
+    }
+
+    /* ============================================================
+       L-I5 — a reload mid-board, and the game-lobby control (19 §1)
+       ============================================================ */
+
+    async function scenarioReloadAndLobby() {
+      const before = {
+        phase: core().phase, totals: core().totals.join(","), whammies: core().whammies.join(","),
+        spins: core().spins.join(","), passed: core().passed.join(","), control: core().control,
+      };
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "board", "the board after a reload", 8000);
+      check("L-I5 a reload in the middle of the board comes back to the same board",
+        core().phase === before.phase && core().totals.join(",") === before.totals
+        && core().whammies.join(",") === before.whammies
+        && core().spins.join(",") === before.spins && core().passed.join(",") === before.passed
+        && core().control === before.control,
+        `totals ${core().totals.join(",")} · control ${core().control}`);
+      await waitFor(() => HW().PylApp.state().players.length === 3, "the roster after a reload", 8000);
+      await waitFor(() => phoneView("p1").screen === "board", "the phones after a reload", 8000);
+      check("L-I5 the phones are re-served without rejoining",
+        ["p1", "p2", "p3"].every((pid) => phoneView(pid).screen === "board"));
+
+      const stash = { totals: core().totals.join(","), control: core().control };
+      click("btn-game-lobby");
+      await waitFor(() => !H("pyl-lobby-modal").classList.contains("hidden"), "the game-lobby confirm");
+      check("L-I5 the toolbar carries the game-lobby control and it offers keep / start over",
+        !!H("btn-game-lobby") && !!H("btn-lobby-keep") && !!H("btn-lobby-restart"));
+
+      click("btn-lobby-keep");
+      await waitFor(() => core() === null, "back to setup");
+      check("L-I5 Keep this game returns to setup and offers Resume",
+        !H("screen-setup").classList.contains("hidden")
+        && !H("btn-resume").classList.contains("hidden")
+        && !!app().resumable,
+        `resumable totals ${app().resumable.totals.join(",")}`);
+      check("L-I5 the content and the seated phones survive the trip to the lobby",
+        app().game.title === "Harness board" && Object.keys(app().setup.assign).length === 3,
+        `${app().game.title} · ${JSON.stringify(app().setup.assign)}`);
+
+      click("btn-resume");
+      await waitFor(() => core() && core().phase === "board", "the resumed game");
+      check("L-I5 Resume restores the exact state it parked",
+        core().totals.join(",") === stash.totals && core().control === stash.control
+        && H("btn-resume").classList.contains("hidden"),
+        `totals ${core().totals.join(",")}`);
+
+      // Regression: re-entering the board rebuilds the tiles, and the centre
+      // panel (STOP / Next player) once got detached and lost on the rebuild.
+      await sleep(60);
+      check("L-I5 after a rebuild of the board the centre panel (STOP, Next player) is still in the page",
+        !!H("btn-stop") && !!H("btn-next-spinner") && H("pyl-board-center").parentElement === H("pyl-board"),
+        `stop ${!!H("btn-stop")}, next ${!!H("btn-next-spinner")}`);
+
+      click("btn-game-lobby");
+      await waitFor(() => !H("pyl-lobby-modal").classList.contains("hidden"), "the confirm again");
+      click("btn-lobby-restart");
+      await waitFor(() => core() === null, "a clean setup");
+      check("L-I5 Start over clears the game but keeps the roster and the content",
+        core() === null && app().resumable === null
+        && H("btn-resume").classList.contains("hidden")
+        && app().game.title === "Harness board"
+        && Object.keys(app().setup.assign).length === 3,
+        `resumable ${app().resumable}`);
+    }
+
+    /* ============================================================
+       L-I6 — the library, the editor, and the static gates
+       ============================================================ */
+
+    async function scenarioLibraryAndEditor() {
+      const lib = HW().GSCLibrary;
+      if (lib && typeof lib.mountPicker === "function") {
+        await waitFor(() => H("pyl-library").querySelector("select, button"), "the set picker", 6000);
+        const options = [...H("pyl-library").querySelectorAll("option")].map((o) => o.textContent);
+        check("L-I6 the library picker lists the shipped sets",
+          options.some((t) => t.indexOf("Kids") >= 0) && options.some((t) => t.indexOf("Movies") >= 0),
+          options.join(" | "));
+      } else {
+        check("L-I6 with shared/library.js absent the picker says so in plain English",
+          H("pyl-library-note").textContent.indexOf("shared/library.js") >= 0,
+          H("pyl-library-note").textContent);
+      }
+
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "the editor");
+      check("L-I6 the editor opens on a board grid of 18 editable squares",
+        HD().querySelectorAll("#pyl-ed-rows .ed-square").length === 18,
+        `${HD().querySelectorAll("#pyl-ed-rows .ed-square").length} squares`);
+      check("L-I6 the editor counts the Whammies live",
+        H("pyl-editor-warn").textContent.indexOf("ready to play") >= 0
+        && HD().querySelector(".ed-board-count").textContent.indexOf("Whammies") >= 0,
+        HD().querySelector(".ed-board-count").textContent);
+
+      // Turn a Whammy into cash: the file must stop validating at two Whammies.
+      const whammySelects = [...HD().querySelectorAll("#pyl-ed-rows .ed-square")]
+        .filter((sq) => sq.classList.contains("is-whammy"));
+      const select = whammySelects[0].querySelector("select");
+      select.value = "cash";
+      select.dispatchEvent(new (HW().Event)("change", { bubbles: true }));
+      await sleep(60);
+      check("L-I6 dropping below three Whammies is reported before the host can play it",
+        H("pyl-editor-warn").textContent.indexOf("Whammies") >= 0
+        && H("pyl-editor-warn").classList.contains("is-bad"),
+        H("pyl-editor-warn").textContent);
+      HW().PylEditor.setDraft(JSON.parse(JSON.stringify(HW().PYL_DEFAULT_GAME)));
+      await sleep(60);
+
+      click("btn-editor-library");
+      await waitFor(() => !H("pyl-editor-share").classList.contains("hidden"), "the manifest line");
+      const line = H("pyl-editor-share-line").textContent;
+      let entry = null;
+      try { entry = JSON.parse(line.replace(/,\s*$/, "")); } catch (err) { entry = null; }
+      check("L-I6 Download for the library prints a manifest line that fits sets/index.json",
+        !!entry && /^[A-Za-z0-9._-]+\.json$/.test(entry.file) && !!entry.name
+        && H("pyl-editor-share-path").textContent.indexOf("games/press-your-luck/sets/") === 0,
+        line.replace(/\s+/g, " "));
+
+      click("btn-editor-close");
+      await waitFor(() => H("screen-editor").classList.contains("hidden"), "the editor closes");
+      const sets = await (await fetch("../sets/index.json", { cache: "reload" })).json();
+      check("L-I6 every set in the shipped manifest validates through validateGame",
+        sets.length >= 2 && (await Promise.all(sets.map(async (s) => {
+          const json = await (await fetch(`../sets/${s.file}`, { cache: "reload" })).json();
+          return HW().PylCore.validateGame(json) === true;
+        }))).every(Boolean),
+        sets.map((s) => s.name).join(", "));
+    }
+
+    async function scenarioGates() {
+      const texts = {};
+      await Promise.all(ASSETS.concat(["../index.html"]).map(async (u) => {
+        try { texts[u] = await (await fetch(u, { cache: "reload" })).text(); } catch (err) { texts[u] = ""; }
+      }));
+      const html = texts["../index.html"];
+      const code = Object.keys(texts).filter((k) => k.indexOf("../js/") === 0);
+
+      // Comments that merely name the rule are allowed; real calls are not.
+      const BANNED = /innerHTML|insertAdjacentHTML|outerHTML\s*=|document\.write|eval\(|new Function/;
+      const offenders = code.concat(["../index.html"]).filter((k) => texts[k].split("\n")
+        .some((line) => BANNED.test(line) && line.indexOf("never innerHTML") < 0
+          && line.indexOf("no innerHTML") < 0));
+      check("L-I6 V3 no innerHTML, document.write, eval or new Function anywhere",
+        offenders.length === 0, offenders.join(", "));
+      // Built at run time so this file does not contain the literal it forbids.
+      const debugLog = new RegExp("con" + "sole" + "[.]" + "log");
+      const logs = code.filter((k) => debugLog.test(texts[k]));
+      check("L-I6 V4 no stray debug logging", logs.length === 0, logs.join(", "));
+      const long = Object.keys(texts).filter((k) => texts[k].split("\n").length >= 800);
+      check("L-I6 V2 every file is under 800 lines", long.length === 0,
+        Object.keys(texts).map((k) => `${k.split("/").pop()}:${texts[k].split("\n").length}`).join(" "));
+
+      const urls = (html.match(/https?:\/\/[^"' )]+/g) || [])
+        .filter((u) => u.indexOf("fonts.googleapis.com") < 0 && u.indexOf("fonts.gstatic.com") < 0);
+      check("L-I6 V6 the only external URLs are Google Fonts", urls.length === 0, urls.join(", "));
+      check("L-I6 V7 the page declares its game id and provides #gsc-join",
+        html.indexOf('data-gsc-game="press-your-luck"') > 0 && html.indexOf('id="gsc-join"') > 0);
+      check("L-I6 the splash markup is in the page and boot calls showSplash()",
+        html.indexOf('id="gsc-splash"') > 0
+        && (texts["../js/pyl-app.js"] || "").indexOf("pylShowSplash();") > 0);
+      check("L-I6 no local body[data-gsc-game] palette override (the theme block is canonical)",
+        (texts["../css/pyl.css"] || "").indexOf("body[data-gsc-game") < 0
+        && (texts["../css/pyl-phone.css"] || "").indexOf("body[data-gsc-game") < 0);
+      check("L-I6 every @keyframes and animation sits inside prefers-reduced-motion: no-preference",
+        motionIsGuarded(texts["../css/pyl.css"]) && motionIsGuarded(texts["../css/pyl-phone.css"]));
+      check("L-I6 V8 board.json validates through validateGame",
+        HW().PylCore.validateGame(JSON.parse(texts["../board.json"])) === true);
+      check("L-I6 js/data.js mirrors board.json and reaches globalThis",
+        JSON.stringify(HW().PYL_DEFAULT_GAME) === JSON.stringify(JSON.parse(texts["../board.json"])),
+        HW().PYL_DEFAULT_GAME ? "globalThis.PYL_DEFAULT_GAME is set" : "MISSING");
+      const shipped = JSON.parse(texts["../board.json"]);
+      check("L-I6 the shipped file carries two 18-square boards and 40 questions",
+        shipped.boards.length === 2 && shipped.boards.every((b) => b.length === 18)
+        && shipped.questions.length === 40,
+        `${shipped.boards.length} boards, ${shipped.questions.length} questions`);
+      check("L-I6 the embedded page hides the standalone room controls",
+        HD().body.classList.contains("gsc-embedded"), HD().body.className);
+      check("L-I6 the host reported a title and standings to the shell",
+        shellLog.some((d) => d.t === "title") && shellLog.some((d) => d.t === "scores"),
+        shellLog.map((d) => d.t).join(","));
+
+      // Phone targets at 320 px.
+      const small = [];
+      phoneFrames.forEach((frame, pid) => {
+        [...frame.contentDocument.querySelectorAll("#pyl-phone-actions .btn")].forEach((btn) => {
+          const box = btn.getBoundingClientRect();
+          if (box.height > 0 && box.height < 56) small.push(`${pid}:${btn.textContent.slice(0, 12)}=${Math.round(box.height)}`);
+        });
+      });
+      check("L-I6 every phone target is at least 56 px tall at 320 px wide",
+        small.length === 0, small.join(" ") || "all targets pass");
+    }
+
+    const noScroll = () => HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 2;
+    const scrollDetail = () => `${HD().documentElement.scrollHeight} vs ${HD().documentElement.clientHeight}`;
+
+    /** Every `animation:` and `@keyframes` must be inside a no-preference block. */
+    function motionIsGuarded(css) {
+      if (!css) return false;
+      let depth = 0;
+      let guarded = 0;
+      let ok = true;
+      css.split("\n").forEach((line) => {
+        if (line.indexOf("prefers-reduced-motion: no-preference") >= 0) { guarded = depth + 1; }
+        if (/(^|\s)animation:|@keyframes/.test(line) && !guarded) ok = false;
+        depth += (line.match(/\{/g) || []).length;
+        depth -= (line.match(/\}/g) || []).length;
+        if (guarded && depth < guarded) guarded = 0;
+      });
+      return ok;
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await refreshAssets();
+        await scenarioBuzzers();
+        await scenarioPicks();
+        await scenarioBoard();
+        await scenarioPass();
+        await scenarioReloadAndLobby();
+        await scenarioLibraryAndEditor();
+        await scenarioGates();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

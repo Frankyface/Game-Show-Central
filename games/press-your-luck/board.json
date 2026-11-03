@@ -1,0 +1,107 @@
+{
+  "title": "Press Your Luck — Game Night",
+  "settings": {
+    "currency": "$",
+    "questionsPerRound": 4,
+    "buzzSpins": 3,
+    "pickSpins": 1,
+    "whammyLimit": 4,
+    "rounds": 2,
+    "rotate": false
+  },
+  "boards": [
+    [
+      { "cash": 300 },
+      { "cash": 500 },
+      { "whammy": true },
+      { "cash": 750, "spin": true },
+      { "cash": 400 },
+      { "prize": "Movie night for four", "value": 600 },
+      { "cash": 900 },
+      { "whammy": true },
+      { "cash": 250, "spin": true },
+      { "cash": 1000 },
+      { "cash": 350 },
+      { "prize": "Coffee for a year", "value": 800 },
+      { "whammy": true },
+      { "cash": 600 },
+      { "cash": 450, "spin": true },
+      { "cash": 1250 },
+      { "whammy": true },
+      { "cash": 550 }
+    ],
+    [
+      { "cash": 1000 },
+      { "cash": 1500, "spin": true },
+      { "whammy": true },
+      { "cash": 2000 },
+      { "prize": "Weekend getaway", "value": 2500 },
+      { "cash": 1200 },
+      { "whammy": true },
+      { "cash": 1750, "spin": true },
+      {
+        "cash": 3000,
+        "alternatives": [
+          { "cash": 1400 },
+          { "prize": "Home cinema night", "value": 2600 }
+        ]
+      },
+      { "cash": 1300 },
+      { "whammy": true },
+      { "cash": 2200 },
+      { "prize": "New bicycle", "value": 1800 },
+      { "cash": 1100, "spin": true },
+      { "whammy": true },
+      {
+        "cash": 4000,
+        "alternatives": [
+          { "cash": 2500, "spin": true }
+        ]
+      },
+      { "cash": 1600 },
+      { "whammy": true }
+    ]
+  ],
+  "questions": [
+    { "q": "Which planet is closest to the Sun?", "options": ["Venus", "Mercury", "Mars"], "answer": 1 },
+    { "q": "How many strings does a standard violin have?", "options": ["Four", "Five", "Six"], "answer": 0 },
+    { "q": "What is the largest ocean on Earth?", "options": ["Atlantic", "Indian", "Pacific"], "answer": 2 },
+    { "q": "Which gas do plants take in from the air to make their food?", "options": ["Oxygen", "Carbon dioxide", "Nitrogen"], "answer": 1 },
+    { "q": "In which country would you find the Great Barrier Reef?", "options": ["Australia", "Brazil", "Thailand"], "answer": 0 },
+    { "q": "What is the tallest land animal alive today?", "options": ["Elephant", "Giraffe", "Camel"], "answer": 1 },
+    { "q": "How many minutes are there in a full day?", "options": ["1,440", "2,400", "960"], "answer": 0 },
+    { "q": "Which metal is liquid at room temperature?", "options": ["Mercury", "Aluminium", "Zinc"], "answer": 0 },
+    { "q": "What is the capital city of Canada?", "options": ["Toronto", "Ottawa", "Vancouver"], "answer": 1 },
+    { "q": "How many sides does a hexagon have?", "options": ["Five", "Six", "Seven"], "answer": 1 },
+    { "q": "Which sea creature has three hearts?", "options": ["Octopus", "Dolphin", "Shark"], "answer": 0 },
+    { "q": "What does a barometer measure?", "options": ["Air pressure", "Humidity", "Wind speed"], "answer": 0 },
+    { "q": "Which planet is famous for its bright ring system?", "options": ["Jupiter", "Saturn", "Neptune"], "answer": 1 },
+    { "q": "How many lines does a standard music staff have?", "options": ["Four", "Five", "Six"], "answer": 1 },
+    { "q": "What is the hardest naturally occurring substance?", "options": ["Quartz", "Diamond", "Obsidian"], "answer": 1 },
+    { "q": "Sumo wrestling is the national sport of which country?", "options": ["China", "Japan", "Korea"], "answer": 1 },
+    { "q": "How many players does one soccer team have on the field at kickoff?", "options": ["Nine", "Ten", "Eleven"], "answer": 2 },
+    { "q": "What is the main ingredient in traditional hummus?", "options": ["Chickpeas", "Lentils", "White beans"], "answer": 0 },
+    { "q": "Which ocean liner sank on her maiden voyage in 1912?", "options": ["Lusitania", "Titanic", "Britannic"], "answer": 1 },
+    { "q": "Mixing blue and yellow paint gives you which colour?", "options": ["Green", "Purple", "Orange"], "answer": 0 },
+    { "q": "How many degrees are there in a right angle?", "options": ["Forty-five", "Ninety", "One hundred and eighty"], "answer": 1 },
+    { "q": "Which organ pumps blood around the body?", "options": ["Liver", "Heart", "Lung"], "answer": 1 },
+    { "q": "Which is the largest hot desert on Earth?", "options": ["Sahara", "Gobi", "Kalahari"], "answer": 0 },
+    { "q": "In cooking, what does \"al dente\" describe?", "options": ["Pasta with a bite", "A crisp bread crust", "A thickened sauce"], "answer": 0 },
+    { "q": "How many keys are there on a standard full-size piano?", "options": ["Seventy-six", "Eighty-eight", "Ninety-six"], "answer": 1 },
+    { "q": "Which language has the most native speakers in the world?", "options": ["English", "Mandarin Chinese", "Spanish"], "answer": 1 },
+    { "q": "What is the chemical symbol for gold?", "options": ["Go", "Au", "Ag"], "answer": 1 },
+    { "q": "Which flightless bird lives on the ice of Antarctica?", "options": ["Penguin", "Puffin", "Albatross"], "answer": 0 },
+    { "q": "How many time zones does the mainland United States span?", "options": ["Three", "Four", "Five"], "answer": 1 },
+    { "q": "What is the longest river in South America?", "options": ["Parana", "Amazon", "Orinoco"], "answer": 1 },
+    { "q": "Which vitamin does your skin make from sunlight?", "options": ["Vitamin C", "Vitamin D", "Vitamin K"], "answer": 1 },
+    { "q": "In chess, which piece moves only on the diagonals?", "options": ["Rook", "Bishop", "Knight"], "answer": 1 },
+    { "q": "What do you call a group of lions?", "options": ["A pack", "A pride", "A herd"], "answer": 1 },
+    { "q": "Water freezes at what temperature in Fahrenheit?", "options": ["Zero degrees", "Thirty-two degrees", "Sixty-four degrees"], "answer": 1 },
+    { "q": "How many bones are there in a typical adult human body?", "options": ["186", "206", "226"], "answer": 1 },
+    { "q": "Which planet is known as the Red Planet?", "options": ["Venus", "Mars", "Mercury"], "answer": 1 },
+    { "q": "On the internet, what does \"www\" stand for?", "options": ["World Wide Web", "Wide World Web", "Web Wide World"], "answer": 0 },
+    { "q": "Which fruit is mashed to make guacamole?", "options": ["Avocado", "Tomato", "Lime"], "answer": 0 },
+    { "q": "How many colours are traditionally counted in a rainbow?", "options": ["Five", "Six", "Seven"], "answer": 2 },
+    { "q": "What is the smallest prime number?", "options": ["Zero", "One", "Two"], "answer": 2 }
+  ]
+}

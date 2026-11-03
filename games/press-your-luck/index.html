@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Press Your Luck</title>
+  <meta name="description" content="Press Your Luck for game night: buzz in on the questions to earn spins, then stop the travelling light on the Big Board. Big money, no Whammies. Bring your own board as JSON.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../shared/theme.css">
+  <link rel="stylesheet" href="css/pyl.css">
+  <link rel="stylesheet" href="css/pyl-phone.css">
+</head>
+<body data-gsc-game="press-your-luck">
+
+  <header class="topbar">
+    <h1 id="pyl-title" class="topbar-title">Press Your Luck</h1>
+    <div class="topbar-actions">
+      <span id="pyl-room-chip" class="room-chip hidden"></span>
+      <button id="btn-sound" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Board editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">&#8634; Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm hidden" type="button">Back to lobby</button>
+    </div>
+  </header>
+
+  <p id="pyl-error" class="error-msg hidden" role="alert"></p>
+
+  <main id="pyl-main">
+
+    <!-- ===================== Setup ===================== -->
+    <section id="screen-setup" class="screen screen-setup">
+      <div class="card gsc-card">
+        <p class="kicker gsc-eyebrow">Big money, no Whammies!</p>
+        <h2 class="card-title">Press Your Luck</h2>
+        <p id="pyl-source" class="source-note">Loading the board&hellip;</p>
+
+        <div class="setup-cols">
+          <div class="setup-block">
+            <h3 class="setup-heading">Players</h3>
+            <label class="field field-inline">How many
+              <select id="pyl-seat-count">
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+            <div id="pyl-seats" class="seat-fields">
+              <label class="field seat-field" data-seat="0">Player 1
+                <input id="pyl-seat-0" type="text" maxlength="24" autocomplete="off" spellcheck="false" value="Player 1">
+              </label>
+              <label class="field seat-field" data-seat="1">Player 2
+                <input id="pyl-seat-1" type="text" maxlength="24" autocomplete="off" spellcheck="false" value="Player 2">
+              </label>
+              <label class="field seat-field" data-seat="2">Player 3
+                <input id="pyl-seat-2" type="text" maxlength="24" autocomplete="off" spellcheck="false" value="Player 3">
+              </label>
+              <label class="field seat-field" data-seat="3">Player 4
+                <input id="pyl-seat-3" type="text" maxlength="24" autocomplete="off" spellcheck="false" value="Player 4">
+              </label>
+            </div>
+            <h3 class="setup-heading">Phones in the seats <span id="pyl-roster-count" class="count-badge"></span></h3>
+            <p class="hint">Optional. The host can buzz, pick and press STOP for everyone from this screen.</p>
+            <ul id="pyl-roster" class="roster"></ul>
+          </div>
+
+          <div class="setup-block">
+            <h3 class="setup-heading">Phones <span class="hint-inline">(optional)</span></h3>
+            <div id="pyl-room-controls" class="inline-form">
+              <button id="btn-open-room" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Open room (phones)</button>
+            </div>
+            <p id="pyl-room-status" class="hint">Closed &mdash; the host can run every part of the game alone.</p>
+            <p id="pyl-join-note" class="hint hidden">Players open <span id="pyl-join-url" class="mono"></span></p>
+
+            <h3 class="setup-heading">Rules</h3>
+            <div class="setting-row">
+              <label class="field">Questions a round
+                <input id="pyl-set-qpr" type="number" min="1" max="12" step="1" inputmode="numeric">
+              </label>
+              <label class="field">Rounds
+                <input id="pyl-set-rounds" type="number" min="1" max="6" step="1" inputmode="numeric">
+              </label>
+            </div>
+            <div class="setting-row">
+              <label class="field">Spins for a buzz-in
+                <input id="pyl-set-buzz" type="number" min="0" max="10" step="1" inputmode="numeric">
+              </label>
+              <label class="field">Spins for a pick
+                <input id="pyl-set-pick" type="number" min="0" max="10" step="1" inputmode="numeric">
+              </label>
+              <label class="field">Whammies to go out
+                <input id="pyl-set-limit" type="number" min="1" max="10" step="1" inputmode="numeric">
+              </label>
+            </div>
+            <label class="check"><input id="pyl-set-rotate" type="checkbox"> Rotate the squares that carry alternatives between turns</label>
+
+            <h3 class="setup-heading">Questions and boards</h3>
+            <div id="pyl-library" class="library-box"></div>
+            <p id="pyl-library-note" class="hint-inline"></p>
+            <div class="inline-form">
+              <button id="btn-load-json" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Load a board file (.json)</button>
+              <input id="pyl-file" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+            <p id="pyl-content-note" class="hint"></p>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-resume" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big hidden" type="button">Resume the game</button>
+          <button id="btn-start" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Start the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Question round ===================== -->
+    <section id="screen-question" class="screen hidden">
+      <div class="q-head">
+        <p id="pyl-q-kicker" class="kicker gsc-eyebrow">Round 1 &middot; Question 1</p>
+        <span id="pyl-q-badge" class="gsc-badge value-badge">3 spins</span>
+      </div>
+      <h2 id="pyl-q-text" class="q-text gsc-display">&nbsp;</h2>
+
+      <ul id="pyl-buzzbar" class="buzzbar" aria-label="Buzzers"></ul>
+      <ul id="pyl-options" class="options" aria-label="The three options"></ul>
+      <ul id="pyl-picks" class="picks" aria-label="Locked-in picks"></ul>
+
+      <p id="pyl-q-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+
+      <div class="controls">
+        <button id="btn-arm" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">
+          Arm the buzzers <kbd class="gsc-kbd">A</kbd>
+        </button>
+        <button id="btn-buzz-right" class="btn btn-gold btn-big gsc-btn gsc-btn-big" type="button">
+          Correct <kbd class="gsc-kbd">Y</kbd>
+        </button>
+        <button id="btn-buzz-wrong" class="btn btn-ghost btn-big gsc-btn gsc-btn-danger gsc-btn-big" type="button">
+          Wrong / nobody <kbd class="gsc-kbd">N</kbd>
+        </button>
+        <button id="btn-reveal" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">
+          Reveal the picks <kbd class="gsc-kbd">R</kbd>
+        </button>
+        <button id="btn-next-question" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Next question</button>
+        <button id="btn-to-board" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">To the Big Board</button>
+        <button id="btn-q-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
+        <button id="btn-q-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End the game</button>
+      </div>
+    </section>
+
+    <!-- ===================== The Big Board ===================== -->
+    <section id="screen-board" class="screen hidden">
+      <div class="board-frame">
+        <div id="pyl-board" class="board" aria-label="The Big Board"></div>
+
+        <div id="pyl-board-center" class="board-center">
+          <p id="pyl-control-name" class="control-name">&nbsp;</p>
+          <p id="pyl-spins-left" class="spins-left" aria-live="polite">&nbsp;</p>
+          <button id="btn-stop" class="btn btn-stop gsc-btn" type="button">
+            <span class="stop-word">STOP</span>
+            <span class="stop-key">space</span>
+          </button>
+          <p id="pyl-passed-note" class="passed-note">&nbsp;</p>
+          <div id="pyl-pass" class="pass-row"></div>
+          <button id="btn-next-spinner" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big hidden" type="button">Next player</button>
+        </div>
+
+        <div id="pyl-whammy" class="whammy-card hidden" role="status" aria-live="assertive">
+          <p class="whammy-word">WHAMMY!</p>
+          <p id="pyl-whammy-sub" class="whammy-sub">&nbsp;</p>
+        </div>
+        <div id="pyl-hit" class="hit-card hidden" role="status" aria-live="polite">
+          <p id="pyl-hit-top" class="hit-top">&nbsp;</p>
+          <p id="pyl-hit-sub" class="hit-sub">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="board-rail">
+        <ul id="pyl-totals" class="totals" aria-label="Totals"></ul>
+        <p id="pyl-board-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
+        <div class="minor-row">
+          <button id="btn-board-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
+          <button id="btn-board-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End the game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Result / standings ===================== -->
+    <section id="screen-result" class="screen hidden">
+      <p id="pyl-result-kicker" class="kicker gsc-eyebrow">&nbsp;</p>
+      <h2 id="pyl-result-winner" class="winner-name">&nbsp;</h2>
+      <ol id="pyl-standings" class="standings"></ol>
+      <div class="controls">
+        <button id="btn-play-again" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Play again</button>
+        <button id="btn-result-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+      </div>
+    </section>
+
+    <!-- ===================== Editor ===================== -->
+    <section id="screen-editor" class="screen screen-editor hidden" role="dialog"
+             aria-label="Board editor" aria-modal="false">
+      <div class="editor-bar">
+        <h2 class="screen-title">Board editor</h2>
+        <div class="editor-bar-actions">
+          <button id="btn-editor-use" class="btn btn-blue gsc-btn gsc-btn-primary" type="button">Use in game</button>
+          <button id="btn-editor-download" class="btn btn-gold gsc-btn" type="button">Download JSON</button>
+          <button id="btn-editor-library" class="btn btn-gold gsc-btn" type="button">Download for the library</button>
+          <button id="btn-editor-reset" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Reset to shipped</button>
+          <button id="btn-editor-blank" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Start blank</button>
+          <button id="btn-editor-close" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Close</button>
+        </div>
+      </div>
+      <p id="pyl-editor-msg" class="error-msg hidden" role="alert"></p>
+      <p id="pyl-editor-warn" class="notice"></p>
+      <div id="pyl-editor-share" class="share-box hidden">
+        <p class="share-title">To add this to the library, commit the file and paste this line into <span class="mono">games/press-your-luck/sets/index.json</span>:</p>
+        <p id="pyl-editor-share-path" class="mono share-path">&nbsp;</p>
+        <pre id="pyl-editor-share-line" class="share-line"></pre>
+      </div>
+
+      <div class="editor-grid">
+        <div class="editor-col">
+          <h3 class="setup-heading">Settings</h3>
+          <label class="field">Title
+            <input id="pyl-ed-title" type="text" maxlength="80" autocomplete="off">
+          </label>
+          <label class="field">Currency symbol
+            <input id="pyl-ed-currency" type="text" maxlength="3" autocomplete="off">
+          </label>
+          <div class="setting-row">
+            <label class="field">Questions a round
+              <input id="pyl-ed-qpr" type="number" min="1" max="12" step="1" inputmode="numeric">
+            </label>
+            <label class="field">Rounds
+              <input id="pyl-ed-rounds" type="number" min="1" max="6" step="1" inputmode="numeric">
+            </label>
+          </div>
+          <div class="setting-row">
+            <label class="field">Buzz spins
+              <input id="pyl-ed-buzz" type="number" min="0" max="10" step="1" inputmode="numeric">
+            </label>
+            <label class="field">Pick spins
+              <input id="pyl-ed-pick" type="number" min="0" max="10" step="1" inputmode="numeric">
+            </label>
+            <label class="field">Whammy limit
+              <input id="pyl-ed-limit" type="number" min="1" max="10" step="1" inputmode="numeric">
+            </label>
+          </div>
+          <label class="check"><input id="pyl-ed-rotate" type="checkbox"> Rotate squares with alternatives</label>
+          <p class="hint">A board is 18 squares: cash, cash with an extra spin, a prize with a value,
+            or a Whammy. Every board needs between three and six Whammies.</p>
+        </div>
+
+        <div class="editor-col editor-col-wide">
+          <div class="editor-tabs" role="tablist" aria-label="What to edit">
+            <button id="btn-ed-tab-board" class="btn btn-ghost btn-small gsc-btn gsc-btn-sm" type="button" role="tab" aria-selected="true">Boards</button>
+            <button id="btn-ed-tab-questions" class="btn btn-ghost btn-small gsc-btn gsc-btn-sm" type="button" role="tab" aria-selected="false">Questions</button>
+            <span id="pyl-ed-count" class="count-badge"></span>
+            <button id="btn-ed-add" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">+ Add</button>
+          </div>
+          <div id="pyl-ed-rows" class="ed-rows"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== Phone ===================== -->
+    <section id="screen-phone" class="screen screen-phone hidden">
+      <div id="gsc-join"></div>
+      <div id="pyl-phone-card" class="phone-card">
+        <p id="pyl-phone-kicker" class="phone-kicker">&nbsp;</p>
+        <p id="pyl-phone-headline" class="phone-headline" aria-live="polite">Waiting for the host&hellip;</p>
+        <p id="pyl-phone-sub" class="phone-sub">&nbsp;</p>
+        <div id="pyl-phone-actions" class="phone-actions"></div>
+        <p id="pyl-phone-status" class="phone-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ Round-over interstitial ============ -->
+  <div id="pyl-round-over" class="overlay hidden" role="dialog" aria-modal="false" aria-label="Round over">
+    <div class="overlay-card gsc-modal">
+      <p id="pyl-round-kicker" class="kicker gsc-eyebrow">Round over</p>
+      <p id="pyl-round-title" class="overlay-title gsc-modal-title">&nbsp;</p>
+      <ol id="pyl-round-standings" class="standings standings-small"></ol>
+      <p id="pyl-round-sub" class="overlay-sub">&nbsp;</p>
+      <div class="controls gsc-modal-actions">
+        <button id="btn-next-round" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Next round</button>
+        <button id="btn-round-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+        <button id="btn-round-end" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">End the game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Game lobby confirm (cross-cutting 19 §1) ============ -->
+  <div id="pyl-lobby-modal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pyl-lobby-title">
+    <div class="overlay-card gsc-modal">
+      <p id="pyl-lobby-title" class="overlay-title gsc-modal-title">Back to the game lobby</p>
+      <p class="overlay-sub">Keep this game and you can pick it up exactly where it stands.</p>
+      <div class="controls gsc-modal-actions">
+        <button id="btn-lobby-keep" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Keep this game</button>
+        <button id="btn-lobby-restart" class="btn btn-ghost btn-big gsc-btn gsc-btn-danger gsc-btn-big" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Title card shown for 1.2 s when the hub switches here ============
+       Same node, ids and classes as the hub's own splash (js/hub-host.js):
+       decorative, pointer-events:none, skipped under prefers-reduced-motion and
+       when embedded (the hub shows its own). ============ -->
+  <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
+    <p class="gsc-splash-kicker">Game Show Central presents</p>
+    <p id="gsc-splash-title" class="gsc-splash-title"></p>
+    <div class="gsc-splash-rule"></div>
+    <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
+  </div>
+
+  <!-- The shared room stack + the GSC SDK (architecture 00 §7). Embedded in the
+       hub these relay through postMessage; standalone they open a PeerJS room.
+       The game plays host-only even if they fail to load. -->
+  <script src="../../shared/room-protocol.js"></script>
+  <script src="../../shared/room-net.js"></script>
+  <script src="../../shared/room-host.js"></script>
+  <script src="../../shared/room-player.js"></script>
+  <script src="../../shared/bridge.js"></script>
+  <script src="../../shared/library.js"></script>
+  <script src="js/pyl-content.js"></script>
+  <script src="js/pyl-select.js"></script>
+  <script src="js/pyl-core.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/pyl-sound.js"></script>
+  <script src="js/pyl-board.js"></script>
+  <script src="js/pyl-view.js"></script>
+  <script src="js/pyl-app.js"></script>
+  <script src="js/pyl-editor.js"></script>
+  <script src="js/pyl-room.js"></script>
+  <script src="js/pyl-phone.js"></script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+/* ============================================================
+   Press Your Luck — phone controller
+   320-430 px portrait, one thumb. Every control is at least the
+   shared --tap (56px); the BUZZ and STOP buttons are far bigger
+   than that because they are races. Nothing here is shown on the
+   host screen (`.screen-phone` only leaves `hidden` in player
+   mode), and no colour carries meaning on its own.
+   ============================================================ */
+
+.screen-phone {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.7rem 0.7rem 1.4rem;
+  box-sizing: border-box;
+}
+
+.phone-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 0.8rem 1.1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-line);
+}
+.phone-card.is-mine { border-color: var(--pyl-cyan); }
+.phone-card.is-armed { border-color: var(--pyl-yellow); }
+
+.phone-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--pyl-cyan);
+}
+.phone-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: var(--track-display);
+}
+.phone-sub { margin: 0; color: var(--ink-dim); font-size: 0.92rem; }
+.phone-status { margin: 0; color: var(--ink-mute); font-size: 0.82rem; min-height: 1.1em; }
+.phone-last {
+  margin: 0.3rem 0 0; padding: 0.5rem 0.6rem;
+  border-radius: var(--radius); background: var(--well);
+  color: var(--ink-dim); font-size: 0.9rem;
+}
+
+.phone-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.2rem; }
+
+/* ============ The two race buttons ============ */
+
+.btn-buzz, .btn-stop-phone {
+  width: 100%;
+  min-height: 12rem;
+  border-radius: var(--radius-xl);
+  border: 4px solid #fff;
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+/* Scoped under .phone-actions (and repeated for :hover) so the shared .gsc-btn
+   hover wash can never replace the fill under a resting thumb or mouse. */
+.phone-actions .btn-buzz,
+.phone-actions .btn-buzz:hover {
+  background: linear-gradient(180deg, #ff5c5c, #cc1029);
+  color: #fff;
+}
+.phone-actions .btn-buzz:disabled,
+.phone-actions .btn-buzz:disabled:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-mute);
+  border-color: var(--panel-line);
+  cursor: default;
+}
+.phone-actions .btn-stop-phone,
+.phone-actions .btn-stop-phone:hover {
+  background: linear-gradient(180deg, var(--pyl-pink-lit), var(--pyl-pink-deep));
+  color: var(--pyl-pink-ink);
+}
+.btn-buzz:focus-visible, .btn-stop-phone:focus-visible {
+  outline: 4px solid var(--pyl-cyan);
+  outline-offset: 3px;
+}
+
+/* ============ Picks ============ */
+
+.phone-picks { display: flex; flex-direction: column; gap: 0.5rem; }
+.btn-pick {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0.8rem 0.9rem;
+  text-align: left;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--panel-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+.phone-actions .btn-pick.is-on,
+.phone-actions .btn-pick.is-on:hover {
+  background: var(--pyl-cyan);
+  color: var(--pyl-cyan-ink);
+  border-color: #fff;
+  font-weight: 700;
+}
+.btn-pick:focus-visible { outline: 3px solid var(--pyl-yellow); outline-offset: 2px; }
+
+/* ============ Passing ============ */
+
+.phone-pass { display: flex; flex-direction: column; gap: 0.4rem; }
+.btn-wide { width: 100%; min-height: var(--tap); }
+
+/* ============ This phone's standing ============ */
+
+.phone-mine {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.1rem 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+.phone-mine .k { margin: 0; font-weight: 600; }
+.phone-mine .v {
+  margin: 0; text-align: right;
+  font-family: var(--font-display); font-size: 1.5rem; color: var(--pyl-yellow);
+}
+.phone-mine .w { margin: 0; grid-column: 1 / -1; font-size: 0.78rem; color: var(--ink-mute); }
+
+.phone-standings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.phone-standings li {
+  display: flex; justify-content: space-between; gap: 0.6rem;
+  padding: 0.55rem 0.7rem; border-radius: var(--radius); background: var(--well);
+}
+.phone-standings li.is-winner { background: rgba(255, 225, 77, 0.16); }
+
+/* ============ Motion (design-system rule: all of it lives in here) ============ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pyl-phone-ready {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0.55); }
+    50% { box-shadow: 0 0 0 12px rgba(255, 92, 92, 0); }
+  }
+  .btn-buzz:not(:disabled) { animation: pyl-phone-ready 1.5s ease-in-out infinite; }
+  .btn-stop-phone { animation: pyl-phone-ready 1.5s ease-in-out infinite; }
+}
