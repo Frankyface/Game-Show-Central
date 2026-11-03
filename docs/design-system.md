@@ -1,4 +1,4 @@
-# Design system v2 — Game Show Central
+# Design system v3 — Game Show Central
 
 One broadcast package across the hub and every game. This is the reference the
 game agents work from: every token and every component class, each with a
@@ -35,6 +35,136 @@ nothing renders as before, apart from a richer body stage and a shared focus
 ring — both strict improvements.
 
 ---
+
+## 0. v3: what changed (docs/21-ui-cleanup-brief.md)
+
+The v2 look read as a generated mock-up: marquee bulbs, glowing gold, CSS-drawn
+card art, emoji iconography, glass panels and shouty uppercase. **v3 keeps
+every v1/v2 token and class name** — so no game breaks — and changes the
+values to a quiet, editorial broadcast look. Where this document's later
+sections still describe a v2 *look* (gradients, glow, uppercase, rails), v3
+values now apply; the class names and examples remain valid.
+
+| Area | v2 | v3 |
+| --- | --- | --- |
+| Stage | layered radial spotlight + accent bloom + vignette | flat: `color-mix(--accent 5%, #0b0d12)` (`--stage-base`), nothing else |
+| Surfaces | translucent glass, 12 px blur, accent rails, nested panels | **one** flat level: `--surface #151820`, 1 px `--hairline` (10 % white), 8 px radius, no blur, no rails |
+| Type | Anton uppercase with tracking on titles, labels, buttons | Anton only for the **one hero** per screen (game name, money, room code), source case, no tracking; everything else Inter 400/500/600, sentence case |
+| Eyebrows | "WELCOME TO", "SURVEY SAYS…" on every panel | removed; `.gsc-eyebrow` is now a quiet sentence-case group label |
+| Buttons | gradient fill, glow, uppercase, pill-ish | 6 px radius, 44–48 px host / 56 px phone, sentence case 600; primary = flat accent + `--accent-ink`, secondary = hairline outline, danger = red outline |
+| Gold | the hub's accent, titles, buttons | **money only** (`--gold*` unchanged in value) |
+| Focus | gold ring | `--focus #9ec1ff`, 2 px |
+| Icons | emoji | `shared/icons.js` (`GSCIcons`) inline SVG, 1.5 px stroke, `currentColor` |
+| Motion | hover lifts, shimmer, idle pulses, marquee chase, splash glow | only motion that carries meaning (flip, reveal, clock, reconnect dot); `gsc-glow/-shimmer/-pulse/-bulbs-*` keyframes kept as **no-ops** |
+| Splash | 600 ms, glowing hero, kicker + tagline | **600 ms** plain card: the name in Anton + one accent rule on the flat stage |
+| `.gsc-marquee`, `.gsc-sheen` | running bulbs, light sweep | render nothing (names kept) |
+
+**New tokens:** `--surface`, `--hairline`, `--stage-base` (and `--radius-sm`
+is now the 6 px control radius). **Changed values, same names:** `--panel`
+(= `--surface`, opaque), `--panel-strong`, `--panel-line` (= `--hairline`),
+`--panel-blur: 0`, `--radius`/`--radius-lg`/`--radius-xl: 8px`,
+`--shadow-*: none`, `--ink*` (neutral greys, not lavender), `--fs-*` (calmer
+scale; `--fs-title` is Inter-sized), `--track-*: 0`, `--focus`. The v1
+`.btn` family in `shared/theme.css` now has the v3 look too, so **every game
+that uses `.btn` changes on its own** — `.btn-gold` is the primary button and
+fills with the game's **accent**, not gold.
+
+**Contrast:** `--ink` 16.7:1 on the stage, `--ink-dim` 8.0:1 and `--ink-mute`
+5.6:1 on a surface, every `--accent-ink` ≥ 4.6:1 on its accent. The hub's own
+accent moved from gold to `#2f5fe0` (white ink 5.5:1).
+
+### `shared/icons.js` — `GSCIcons`
+
+```html
+<script src="../../shared/icons.js"></script>
+```
+
+```js
+const svg = GSCIcons.make("sound");              // <svg class="gsc-icon gsc-icon-sound"> 18 px
+GSCIcons.make("undo", { size: 16 });             // 12–32, clamped
+GSCIcons.make("lock", { label: "Locked" });      // only when no text label sits beside it
+GSCIcons.prepend(button, "sound-off");           // put it before the label; replaces a previous one
+GSCIcons.names();                                // the registry
+```
+
+Icons: `sound`, `sound-off`, `settings`, `back`, `undo`, `lobby`, `edit`,
+`phone`, `check`, `cross`, `play`, `pause`, `chevron-down`, `copy`, `lock`.
+A 24-unit grid, 1.5 px stroke, round caps/joins, no fill, `currentColor`,
+`aria-hidden` by default (the button's text carries the meaning). Built with
+`createElementNS`; an unknown name returns `null` and warns. **Icons go
+beside a text label, never instead of one** on host toolbars (rule 9). If
+your JS re-sets a button's `textContent`, call `GSCIcons.prepend` again
+afterwards. Tested in `tests/icons.test.mjs`.
+
+### Per-game checklist (tick every line; docs/21 §2)
+
+Copy this list into your report and tick it.
+
+**Tokens and stage**
+- [ ] `<body data-gsc-game="<id>">`; no local `--accent*` / `--stage-glow` overrides.
+- [ ] Your `body` paints no radial/linear gradient, spotlight or vignette; delete
+      your `body { background: … }` or set it to `var(--stage-bg)`.
+- [ ] `--stage-deep` / `--stage-night` in your `:root` may stay, but nothing
+      paints a gradient from them.
+
+**Type (rule 1)**
+- [ ] Anton appears for **one** hero per screen only (game name / money / room
+      code); everything else is Inter 400/500/600.
+- [ ] No `text-transform: uppercase` and no `letter-spacing` > 0 outside that
+      hero (the phone room-code input is the one allowed exception).
+- [ ] Decorative eyebrows deleted ("SURVEY SAYS…", "BIG MONEY, BIG PRIZES…",
+      "TONIGHT'S TEAM PLAYS FOR…"); a label stays only when it names a control group.
+- [ ] Body text ≥ 16 px, controls ≥ 15 px.
+
+**Colour (rule 2)**
+- [ ] The accent is used for exactly: the active state, the primary button, one
+      rule or underline.
+- [ ] Gold (`--gold*`) only on money amounts.
+- [ ] No `text-shadow`, no glow `box-shadow`, no neon.
+
+**Surfaces (rule 3)**
+- [ ] One panel level (`var(--surface)` + `1px solid var(--hairline)` + `var(--radius)`).
+- [ ] No `backdrop-filter`, no translucent panel inside a panel, no accent rails
+      (`border-left/top: Npx solid var(--accent)` on panels).
+- [ ] Dividers are `var(--hairline)`.
+
+**Buttons (rule 4)**
+- [ ] 6 px radius, 44–48 px tall on host, 56 px on phones, sentence case, 600.
+- [ ] Primary = accent fill + `--accent-ink`; secondary = hairline outline; danger = red outline.
+- [ ] No gradient fill, no glow, no uppercase in any button rule.
+
+**Icons (rule 5)**
+- [ ] Zero emoji in host-screen DOM text (titles, toolbars, chips, buttons,
+      banners). Emoji only in player avatars (phones, rosters).
+- [ ] Where an icon helps, `GSCIcons.make/prepend` beside a text label.
+
+**Motion (rule 8)**
+- [ ] Only meaningful motion remains (reveal/flip, wheel spin, case open, clock).
+- [ ] No hover lifts (`translateY` on `:hover`), shimmer, idle pulses, splash glow.
+- [ ] Every `@keyframes` and `animation:` sits inside
+      `@media (prefers-reduced-motion: no-preference)`; `getAnimations()` is
+      empty under `reduce`.
+- [ ] The game-switch splash is the 600 ms plain card (copy `showSplash()` from
+      `js/hub-host.js`: `SPLASH_MS = 600`, sub line empty, no kicker).
+
+**Host toolbar (rule 9)**
+- [ ] One bar: game name (Inter 600, 18 px) on the left; on the right, in this
+      order: **Sound**, **Editor**, **Game lobby** — icon + text label each.
+- [ ] Embedded (`body.gsc-embedded`): nothing else in the bar (the hub's shell
+      bar already carries Lobby and the room chip).
+
+**Copy (rule 10)**
+- [ ] No tagline-speak in chrome. Each setup screen has one plain sentence that
+      says what to do next. Error messages unchanged.
+
+**Gates (docs/21 §3)**
+- [ ] JS edits limited to class names, `GSCIcons` insertion and toolbar order.
+- [ ] Unit tests and `tests/harness.html` green before and after.
+- [ ] Host fits 1280×720 and 1280×676 (inside the hub bar) with no vertical
+      scroll in play; phone 320×640 no horizontal scroll, targets ≥ 56 px.
+- [ ] Contrast ≥ 4.5:1 (sample the DOM); every file < 800 lines.
+- [ ] UI-10 no emoji outside roster/avatar elements; UI-11 no `backdrop-filter`,
+      `text-shadow` glow or gradient under text; UI-12 toolbar order as above.
 
 ## 1. Tokens
 
@@ -77,7 +207,7 @@ splash card do exactly that):
 
 | `data-gsc-game` | `--accent` | `--accent-2` | `--stage-glow` |
 | --- | --- | --- | --- |
-| `hub` | `#ffcc4d` gold | `#ff4d5e` marquee red | `#33124f` |
+| `hub` | `#2f5fe0` | `#8fb0ff` | — (v3: flat) |
 | `jeopardy` | `#2b34ff` | `#ffcc4d` | `#0a1158` |
 | `family-feud` | `#e21b3c` | `#ffcc4d` | `#10306b` |
 | `wheel-of-fortune` | `#9d4edd` | `#2ec4b6` | `#3d1268` |
@@ -92,6 +222,7 @@ splash card do exactly that):
 | `one-vs-100` | `#19c9ff` electric cyan | `#ffcc4d` bank gold | `#062a3d` |
 | `press-your-luck` | `#ff3ea5` hot pink | `#ffe14d` | `#2a0b45` deep purple |
 | `match-game` | `#ff8c1a` 70s orange | `#e6b800` mustard | `#3b1f0e` chocolate |
+| `krillion` | `#2ee6c5` teal | `#ff6b57` coral | `#03111f` |
 
 ```html
 <body data-gsc-game="family-feud">          <!-- whole page wears Feud red -->
@@ -357,7 +488,7 @@ changes, so a game that ships no sets simply shows a one-line note.
 
 ## 4. The splash (`.gsc-splash`)
 
-A 1.2 s title card on a game switch, on the host screen and on every phone.
+A 600 ms plain title card on a game switch, on the host screen and on every phone.
 
 ```html
 <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
@@ -371,7 +502,7 @@ A 1.2 s title card on a game switch, on the host screen and on every phone.
 Rules the hub follows and games should copy:
 
 - `pointer-events: none` — it can never swallow a click, even if a timer is lost.
-- Show it by removing `.hidden`, hide it 1200 ms later. Nothing waits on it and
+- Show it by removing `.hidden`, hide it 600 ms later. Nothing waits on it and
   no message is delayed by it.
 - **Skip it entirely** when `matchMedia("(prefers-reduced-motion: reduce)").matches`.
 - Put the game id on the node (`data-gsc-game="millionaire"`) so the card wears
@@ -382,7 +513,7 @@ The hub's implementation is `showSplash()` in `js/hub-host.js` and
 
 ---
 
-## 5. Adopting v2 in three steps
+## 5. Adopting v2/v3 in three steps (then run the §0 checklist)
 
 1. **Link the theme and name your game.**
    `<link rel="stylesheet" href="../../shared/theme.css">` and

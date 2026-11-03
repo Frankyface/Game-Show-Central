@@ -281,3 +281,61 @@ normalisation, and the whole picker over a small fake DOM.
 8. **Mount the library picker** under your Questions/content section even
    before you have a `sets/` folder — it hides itself with a one-line note
    until a manifest exists. Do not re-implement the fetch or the validation.
+
+## 8. v3 cleanup pass (docs/21-ui-cleanup-brief.md) — supersedes the look above
+
+The user's verdict on v2 was that it "looks fake". This pass rebuilds the shared tokens/components and the hub to docs/21 §2. Sections 1–7 above describe the v2 look; where they conflict with this section, this section wins. Every v1/v2 token and class *name* is kept, so no game breaks.
+
+### What changed
+
+| File | Change |
+| --- | --- |
+| `shared/theme.css` (358) | v3 values for every token; new `--surface`, `--hairline`, `--stage-base`; flat `--stage-bg`; v1 `.btn` family restyled (6 px, sentence case, 600, `.btn-gold` = accent fill); `.gsc-title` / `.gsc-eyebrow` now Inter, sentence case; hub accent gold to `#2f5fe0`; `krillion` accent block added (15 games + hub). |
+| `shared/theme-components.css` (563) | every `.gsc-*` class kept and flattened (no blur, glow, gradient, rails or uppercase); decorative keyframes kept as no-ops; `.gsc-marquee` / `.gsc-sheen` render nothing; splash = 600 ms plain card. |
+| `shared/icons.js` (164, new) | `GSCIcons.make(name, {size, label})`, `prepend`, `names`, `has` — 15 stroke icons, `createElementNS`, `currentColor`, 1.5 px stroke. |
+| `tests/icons.test.mjs` (new) | 6 tests: registry, SVG attributes, size clamp, label, unknown name. |
+| `index.html` | no "Welcome to", no marquee, no emoji; landing = title + one sentence + three buttons + cards; lobby join-steps list replaced by one plain sentence; splash markup = name + rule; loads `shared/icons.js`. |
+| `css/hub.css` (423) | rewritten: flat cards with a 3 px accent bar, Anton name, blurb, plain tags; the lobby is a page that scrolls (no inner scroll panel); plain roster list; scoreboard as a ranked table; flat 48 px shell bar. |
+| `css/hub-phone.css` (146) | rewritten: flat 6 % accent screens, no pulse, 56 px targets. |
+| `css/hub-art.css` | deleted (the CSS-drawn card art). |
+| `js/hub-registry.js` | a factual one-line `blurb` for all 15 games (including `krillion`). |
+| `js/hub-host.js` (743) | icon insertion only: a `withIcon()` helper (Copy link, Lock, Sound, Lobby, room chip); emoji removed from the strings it renders; cards built from `blurb` + plain tags (`cardBody`); `SPLASH_MS` 1200 to 600, sub line empty. The two v2 `dataset.game` art hooks are gone. |
+| `js/hub-player.js` (433) | `SPLASH_MS` 600, sub line empty. |
+
+No reducer, message, state or id changed. Harness-selected strings and classes ("Lock lobby", `.tile-name`, `.tile-play`, `.roster-*`, `.btn-gold`, `.btn-danger`) are intact.
+
+### Before / after measurements (1280×720 unless noted)
+
+| Measure | v2 (before) | v3 (after) |
+| --- | --- | --- |
+| Landing page height | 720, 14 cards forced into 7×2 | 1354 — the page scrolls (brief: reflow + page scroll), 15 cards, 4 columns |
+| Landing card height | uneven per row | 229 px, all equal (`grid-auto-rows: 1fr`) |
+| Landing running animations | 2 (marquee chase) | 0 |
+| Emoji in host DOM text outside roster/avatar | 30+ (card badges, ⌂, 🔔, 🔊, 🔒, game icons) | 0 (DOM walk: landing, lobby, shell bar) |
+| Elements with `backdrop-filter` | 5 (panels, shell bar) | 0 |
+| `text-shadow` on text | 3 (title, room code, splash) | 0 |
+| Gradient background under text | 6 (buttons, cards, splash) | 0 |
+| Lobby game grid | 3×5 inside a 648 px inner scroll panel (801 px content) | no inner scroll (`overflow: visible`), 4 columns, page height about 1900 |
+| Lobby tile height | 155 px, chips truncated, tagline clamped | 334 px, all equal, nothing truncated |
+| Room code | 150 px gold Anton, stacked shadow, breathing glow | 136 px plain ink Anton, no shadow |
+| Shell bar | 44 px translucent + 14 px blur, Anton name tinted by accent, "CODE · n 🔔" | 48 px flat surface, name Inter 600 18 px, "Room CODE · n connected" + phone icon, Lobby + lobby icon |
+| Splash | 1200 ms, glow, kicker + tagline | 600 ms plain card (shown at t=0, hidden at t=700 ms — measured) |
+| Contrast (DOM sample) | min 5.91:1 | min 5.48:1 over 71 (landing) and 108 (lobby) text elements; 0 below 4.5 |
+| Reduced-motion CSSOM walk | 0 ungated | 0 ungated `@keyframes` / `animation` rules across theme, components, hub, phone |
+| Phone join 320×640 | fits, taps ≥ 56 | fits exactly (320×640), min tap 56 px tall, 69 px wide |
+| Phone waiting 320×640 | avatar pulse running | 0 animations, fits, Leave 56 px |
+
+The v2 counts for emoji, `backdrop-filter`, `text-shadow` and gradients are read from the v2 source (sections 1–3 above), not from a DOM walk; every v3 figure is measured in the live DOM.
+
+### Test results (this pass)
+
+- `node --test tests/*.mjs` (hub + shared): 132/132 pass, including the 29 library tests and 6 new icon tests.
+- `node --test` at the root: 1298/1300. The failures are in `games/match-game/tests/` (`mg-content.js` prompt-length normalisation), a game being built concurrently by another agent; no hub or shared file is involved.
+- `tests/hub-harness.html` on port 8671: 16/16 pass, including L-I10 (no banned sinks, every file under 800 lines).
+- Static grep: no `backdrop-filter`, `text-shadow` or `gradient(` in `shared/theme*.css`, `css/hub.css`, `css/hub-phone.css`. The only uppercase/tracking left is the phone's 4-letter room-code input (the hero of that screen).
+
+### Follow-ups for the game passes
+
+- Pyramid (`#f4b400`) and Password (`#f2c94c`) accents are gold, which v3 reserves for money. Their agents should decide whether to keep them or shift hue; the theme blocks are the only place to change it.
+- Games still paint their own v2 stages and Anton-uppercase headings until their pass; the shared `.btn`, `.gsc-*` classes and the library picker already render v3 inside every game that links `shared/theme.css` (seen in Family Feud).
+- The per-game checklist is `docs/design-system.md` §0 "Per-game checklist".

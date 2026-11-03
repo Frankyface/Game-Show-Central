@@ -1,403 +1,248 @@
 /* ============================================================
-   Game Show Central — hub shell styles (design system v2)
-   The host half: the landing, the lobby, the shell bar and dialogs, for
-   a projector at 1280x720 and up with NO page scroll. The phone
+   Game Show Central — hub shell styles (design system v3)
+   The host half: landing, lobby, shell bar, dialogs. The phone
    controller lives in css/hub-phone.css.
-   The hub keeps a midnight-violet stage with a gold marquee accent so
-   it never looks like one of its games.
-   Tokens and components come from shared/theme.css (+ theme-components.css);
-   nothing here re-invents a token.
+
+   v3 rules (docs/21-ui-cleanup-brief.md §2): a flat stage, one surface
+   level with a hairline, Anton only for the one hero per screen (the
+   site title on the landing, the room code in the lobby, each game's
+   name on its card), Inter 400/500/600 for everything else, sentence
+   case, no glow, no blur, no hover lifts, no decorative motion. The
+   lobby SCROLLS AS A PAGE: no inner scroll panels.
+   Tokens and components come from shared/theme.css.
    ============================================================ */
 
 :root {
-  /* v1 stage overrides for the hub. --stage-glow and the v2 accents live
-     on body[data-gsc-game="hub"] in shared/theme.css. */
-  --stage-deep: #150a2c;
-  --stage-night: #05010e;
-  --stage-card: #1b0c33;
-  --stage-accent: #e23c50;
-  --shell-bar-h: 44px;
+  --shell-bar-h: 48px;
+  --content-w: 1240px;
 }
 
 body {
   overflow-x: hidden;
   font-size: var(--fs-ui);
+  line-height: 1.45;
 }
 
 .screen { padding: 1.5rem; }
 
+/* A heading that names a section of the page (not a decoration). */
+.section-heading,
+.card-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
 /* ============================================================
-   The hub opts its v1 .btn family into the v2 button look. A game
-   adopts it by adding `.gsc-btn` in its own markup instead — see
-   docs/design-system.md §"Adopting v2 in three steps".
+   Game cards — shared by the landing and the lobby
+   Name in Anton, one factual line, plain tags, a thin accent bar.
    ============================================================ */
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45em;
-  min-height: 38px;
-  padding: 0.5em 1.1em;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+.landing-game,
+.game-tile {
+  --tile-accent: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 1.1rem 1.05rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--tile-accent);
   border-radius: var(--radius);
-  text-decoration: none;
-  transition: transform var(--dur-fast) var(--ease-out),
-              background-color var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out);
 }
 
-.btn:hover { background: rgba(255, 255, 255, 0.13); border-color: rgba(255, 255, 255, 0.3); }
-
-.btn-gold {
-  color: var(--accent-ink);
-  /* the flat colour under the gradient, so a DOM contrast checker (and a
-     browser that drops the gradient) reads the real surface */
-  background-color: var(--gold);
-  background-image: linear-gradient(180deg, #ffe08a 0%, var(--gold) 55%, var(--gold-deep) 100%);
-  border-color: rgba(120, 88, 12, 0.65);
-  box-shadow: 0 6px 18px rgba(255, 204, 77, 0.3), var(--shadow-inset);
+.landing-game-name,
+.tile-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.75rem;
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
 }
 
-.btn-gold:hover {
-  background-image: linear-gradient(180deg, #fff0bd 0%, var(--gold) 60%, var(--gold-deep) 100%);
-  box-shadow: 0 10px 26px rgba(255, 204, 77, 0.45), var(--shadow-inset);
-  transform: translateY(-1px);
+.landing-game-blurb,
+.tile-blurb {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
 }
 
-.btn-ghost { background: transparent; border-color: rgba(255, 255, 255, 0.22); color: var(--ink); }
-.btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--gold); color: var(--gold-text); }
+.tile-chips {
+  list-style: none;
+  margin: auto 0 0;   /* tags sit at the bottom so cards line up */
+  padding: 0.25rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
 
-.btn-danger { color: #ffd9d9; background: rgba(255, 60, 60, 0.1); border-color: rgba(255, 107, 107, 0.45); }
-.btn-danger:hover { background: rgba(255, 60, 60, 0.2); border-color: var(--red); }
+.tile-chip {
+  padding: 0.15em 0.5em;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-dim);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+}
 
-.btn-big { min-height: 58px; padding: 0.7em 1.9em; font-size: 1rem; letter-spacing: 0.08em; }
-.btn-small { min-height: 32px; padding: 0.34em 0.8em; font-size: 0.71rem; }
-.btn-tap { min-height: var(--tap); font-size: 0.95rem; }
-.btn-block { width: 100%; }
+.tile-hint { margin: 0; font-size: 0.9rem; color: var(--amber); }
+.tile-play { align-self: flex-start; margin-top: 0.4rem; min-width: 96px; }
 
 /* ============================================================
    Landing
    ============================================================ */
 
-.screen-landing {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: clamp(1rem, 3vh, 2.4rem) clamp(1rem, 3vw, 2rem);
-}
+.screen-landing { padding: clamp(2rem, 6vh, 4.5rem) clamp(1rem, 4vw, 2.5rem) 3rem; }
 
 .landing-inner {
-  width: min(1240px, 100%);
+  width: min(var(--content-w), 100%);
+  margin: 0 auto;
   display: grid;
-  gap: clamp(1rem, 3vh, 1.8rem);
-}
-
-.landing-card {
-  position: relative;
-  text-align: center;
-  padding: clamp(1.8rem, 5vh, 3.2rem) clamp(1.4rem, 5vw, 3.4rem) clamp(1.5rem, 4vh, 2.4rem);
-  border-radius: var(--radius-xl);
-  background:
-    radial-gradient(90% 120% at 50% -20%, rgba(255, 204, 77, 0.16), transparent 62%),
-    linear-gradient(180deg, rgba(38, 22, 66, 0.92), rgba(10, 6, 24, 0.94));
-  border: 1px solid var(--panel-line);
-  box-shadow: var(--shadow-lift), var(--shadow-inset);
-}
-
-.landing-kicker {
-  margin: 0;
-  color: var(--ink-mute);
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  font-size: var(--fs-micro);
-  font-weight: 700;
+  gap: clamp(2rem, 5vh, 3rem);
 }
 
 .landing-title {
+  margin: 0;
   font-family: var(--font-display);
   font-weight: 400;
   font-size: var(--fs-hero);
-  line-height: 0.9;
-  letter-spacing: var(--track-display);
-  margin: 0.12em 0 0.18em;
-  text-transform: uppercase;
-  color: var(--gold-text);
-  text-shadow: 0 2px 0 #8a6914, 0 5px 0 #55400b, 0 14px 40px rgba(255, 204, 77, 0.28);
+  line-height: 0.95;
+  letter-spacing: 0;
+  color: var(--ink);
 }
 
 .landing-pitch {
-  margin: 0 auto 1.6rem;
-  max-width: 46ch;
+  margin: 1rem 0 1.75rem;
+  max-width: 52ch;
   font-size: var(--fs-body);
   color: var(--ink-dim);
 }
 
-.landing-actions {
-  display: flex;
-  gap: 0.8rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.landing-join { text-decoration: none; }
-
-.landing-strip-label {
-  margin: 0 0 0.7rem;
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--track-eyebrow);
-  color: var(--ink-mute);
-  text-align: center;
-}
+.landing-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
 .landing-games {
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
-  gap: 0.5rem;
   margin: 0;
   padding: 0;
-}
-
-.landing-game {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.5rem;
-  border-radius: var(--radius);
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  color: var(--ink);
-}
-
-.landing-game::before { height: clamp(44px, 6.2vh, 62px); }
-
-/* Fourteen games: auto-fit would leave a ragged 11 + 3. Pin the line-up to a
-   clean 7 x 2 on a projector and 5 x 3 on a laptop. */
-@media (min-width: 1140px) {
-  .landing-games { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-}
-
-@media (min-width: 860px) and (max-width: 1139px) {
-  .landing-games { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-}
-
-.landing-game-icon {
-  position: absolute;
-  top: 0.85rem;
-  left: 0.85rem;
   display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  font-size: 0.85rem;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-
-.landing-game-name {
-  font-family: var(--font-display);
-  font-size: 0.84rem;
-  line-height: 1.05;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  text-align: center;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  grid-auto-rows: 1fr;   /* every card the same height */
+  gap: 0.75rem;
 }
 
 /* ============================================================
-   Lobby — one screen, never a page scroll at 1280×720
+   Lobby — the room code is the only hero; the page scrolls
    ============================================================ */
 
 .screen-lobby {
-  height: 100dvh;
-  padding: clamp(0.8rem, 1.8vh, 1.2rem);
+  width: min(var(--content-w), 100%);
+  margin: 0 auto;
+  padding: 1.5rem clamp(1rem, 3vw, 1.75rem) 3rem;
   display: grid;
-  grid-template-columns: minmax(312px, 29%) 1fr;
-  gap: 1rem;
-  align-items: stretch;
-  overflow: hidden;
+  gap: 2rem;
 }
 
 .lobby-left {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 0.8rem;
-  min-height: 0;
-}
-
-.lobby-right {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 0.6rem;
-  min-height: 0;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(280px, 1fr) minmax(260px, 0.9fr);
+  gap: 0.75rem;
+  align-items: start;
 }
 
 .room-card, .roster-card, .night-card {
-  position: relative;
-  min-height: 0;
-  padding: 1rem 1.15rem 1.1rem;
-  border-radius: var(--radius-lg);
-  background: var(--panel);
-  border: 1px solid var(--panel-line);
-  box-shadow: var(--shadow-panel), var(--shadow-inset);
-  -webkit-backdrop-filter: blur(var(--panel-blur));
-  backdrop-filter: blur(var(--panel-blur));
-}
-
-/* The gold bloom behind the room code — one small decorative layer that
-   breathes; no filter on a large surface. */
-.room-card::after {
-  content: "";
-  position: absolute;
-  top: 8%;
-  left: 4%;
-  width: 70%;
-  height: 46%;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 204, 77, 0.3), transparent 68%);
-  opacity: 0.55;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .room-card::after { animation: gsc-glow 5s ease-in-out infinite; }
-}
-
-.room-label, .card-heading {
-  margin: 0 0 0.35rem;
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
-/* The single most important thing on a shared screen. */
-.room-code {
-  position: relative;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(88px, min(10.5vw, 20vh), 150px);
-  line-height: 0.86;
-  letter-spacing: 0.05em;
-  margin: 0 0 0.12em;
-  color: var(--gold);
-  text-shadow: 0 3px 0 #7a5c11, 0 8px 0 #4c390a, 0 18px 46px rgba(255, 204, 77, 0.3);
-}
-
-.room-join-url {
-  position: relative;
-  margin: 0 0 0.4rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--ink);
-  word-break: break-all;
-}
-
-.room-status { position: relative; margin: 0; color: var(--ink-dim); font-size: 0.95rem; }
-
-.room-controls {
-  position: relative;
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  margin-top: 0.7rem;
-}
-
-.join-steps {
-  position: relative;
-  list-style: none;
-  counter-reset: none;
-  margin: 0.85rem 0 0;
-  padding: 0.7rem 0.8rem;
-  display: grid;
-  gap: 0.3rem;
-  font-size: 0.78rem;
-  color: var(--ink-dim);
-  background: var(--well);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  min-width: 0;
+  padding: 1.1rem 1.2rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius);
 }
 
-.join-steps li { display: flex; align-items: center; gap: 0.5rem; }
+.room-label { margin: 0; font-size: 0.95rem; font-weight: 500; color: var(--ink-dim); }
 
-.join-step-n {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--accent-ink);
-  background: var(--gold);
-  border-radius: 50%;
+/* The single most important thing on a shared screen. */
+.room-code {
+  margin: 0.15rem 0 0.6rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(88px, 9vw, 136px);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  color: var(--ink);
 }
 
-/* ============ Roster ============ */
+.room-join-url {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink);
+  word-break: break-all;
+  user-select: all;   /* one click selects the whole link */
+}
 
-.roster-card { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.4rem; }
+.room-status { margin: 0; color: var(--ink-dim); font-size: 0.95rem; }
+
+.room-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.room-howto {
+  margin: 0.9rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.95rem;
+  color: var(--ink-dim);
+}
+
+/* ============ Roster: a plain list ============ */
 
 .roster-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .roster-head .card-heading { margin: 0; }
-.roster-count { color: var(--gold-text); }
+.roster-count { font-weight: 500; color: var(--ink-dim); }
 
 .roster-list, .night-list, .wait-roster {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
 }
 
-.roster-row, .night-row, .wait-row {
+.roster-row, .wait-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.35rem 0.5rem;
-  padding: 0.4rem 0.55rem;
-  background: var(--well);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-left: 3px solid transparent;
-  border-radius: var(--radius);
+  gap: 0.35rem 0.55rem;
+  min-height: 44px;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--hairline);
 }
+
+.roster-row:last-child, .wait-row:last-child { border-bottom: 0; }
 
 .roster-swatch {
-  width: 10px;
-  height: 26px;
-  border-radius: 3px;
+  width: 4px;
+  height: 22px;
+  border-radius: 2px;
   flex: 0 0 auto;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
-.roster-avatar {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  font-size: 1.15rem;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-}
+.roster-avatar { flex: 0 0 auto; font-size: 1.15rem; line-height: 1; }
 
 .roster-name, .night-name {
   flex: 1 1 5rem;
@@ -405,172 +250,55 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 500;
 }
 
-.roster-dot { font-size: 0.8rem; line-height: 1; }
+.roster-dot { font-size: 0.6rem; line-height: 1; }
 
-.roster-tag {
-  font-size: 0.66rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-mute);
-  padding: 0.2em 0.5em;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-pill);
-}
+.roster-tag { font-size: 0.85rem; color: var(--ink-mute); }
 
-.roster-row .btn-small { padding: 0.3em 0.6em; font-size: 0.67rem; min-height: 28px; }
+.roster-row .btn-small { min-height: 32px; padding: 0.25em 0.65em; font-size: 0.85rem; }
 
-.roster-empty {
-  color: var(--ink-dim);
-  padding: 0.8rem 0.2rem;
-  font-size: 0.9rem;
-  text-align: center;
-}
+.roster-empty { color: var(--ink-dim); padding: 0.5rem 0; font-size: 0.95rem; }
 
-/* ============ Tonight's leaderboard ============ */
-
-.night-card { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0.4rem; max-height: 34vh; }
+/* ============ Tonight's scoreboard: a plain table ============ */
 
 .night-list { counter-reset: rank; }
 
-.night-row { position: relative; }
+.night-row {
+  display: grid;
+  grid-template-columns: 1.6rem 4px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 40px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.night-row:last-child { border-bottom: 0; }
 
 .night-row::before {
   counter-increment: rank;
   content: counter(rank);
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  font-family: var(--font-display);
-  font-size: 0.85rem;
   color: var(--ink-mute);
-}
-
-.night-row:first-child { border-left-color: var(--gold); background: rgba(255, 204, 77, 0.1); }
-.night-row:first-child::before { color: var(--gold); }
-.night-row:nth-child(2) { border-left-color: rgba(255, 255, 255, 0.45); }
-.night-row:nth-child(3) { border-left-color: rgba(205, 127, 50, 0.7); }
-
-.night-total {
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  line-height: 1;
-  color: var(--gold-text);
   font-variant-numeric: tabular-nums;
 }
 
-/* ============================================================
-   Game cards
-   ============================================================ */
+.night-total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* ============ Game grid: reflows, never scrolls inside ============ */
 
 .game-tiles {
   list-style: none;
   margin: 0;
-  padding: 2px;
+  padding: 0;
   display: grid;
-  /* Fourteen cards: three up at 1280. Five rows do not fit the panel, so
-     this grid is the one place in the hub that scrolls — inside its own
-     bounded panel, with a visible thin scrollbar (.gsc-scroll). The PAGE
-     never scrolls. Two up around 1000px, one on a phone. */
-  grid-template-columns: repeat(auto-fit, minmax(262px, 1fr));
-  gap: 0.35rem;
-  align-content: start;
-}
-
-.game-tile {
-  --tile-accent: var(--stage-accent);
-  --art-w: 64px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 0.4rem 0.6rem 0.45rem calc(var(--art-w) + 1.05rem);
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--tile-accent) 45%, transparent);
-  background:
-    linear-gradient(120deg, color-mix(in srgb, var(--tile-accent) 22%, transparent), transparent 62%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.4));
-  box-shadow: var(--shadow-panel), var(--shadow-inset);
-  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
-              border-color var(--dur) var(--ease-out);
-}
-
-/* The art is a full-height rail on the left, out of the text flow so the
-   card is exactly as tall as its copy. */
-.game-tile::before {
-  position: absolute;
-  left: 0.45rem;
-  top: 0.45rem;
-  bottom: 0.45rem;
-  width: var(--art-w);
-  min-height: 64px;
-}
-
-.game-tile:hover, .game-tile:focus-within {
-  transform: translateY(-4px);
-  border-color: var(--tile-accent);
-  box-shadow: var(--shadow-lift), 0 0 32px color-mix(in srgb, var(--tile-accent) 32%, transparent);
-}
-
-.tile-head { display: flex; align-items: center; gap: 0.5rem; }
-.tile-icon { font-size: 1.05rem; line-height: 1; }
-
-.tile-name {
-  font-family: var(--font-display);
-  font-size: clamp(17px, 1.35vw, 22px);
-  line-height: 1;
-  letter-spacing: var(--track-display);
-  text-transform: uppercase;
-}
-
-.tile-tagline {
-  margin: 0.05rem 0 0.25rem;
-  color: var(--ink-dim);
-  font-size: 0.78rem;
-  line-height: 1.25;
-  /* at ten games the card budget is ~150px: two lines of tagline, no more */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.tile-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.22rem; }
-
-.tile-chip {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.66rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 0.24em 0.6em;
-  border-radius: var(--radius-pill);
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: var(--ink-dim);
-}
-
-.tile-hint {
-  margin: 0.15rem 0 0;
-  font-size: 0.7rem;
-  color: var(--amber);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tile-play {
-  align-self: flex-start;
-  margin-top: auto;
-  padding: 0.28em 0.85em;
-  min-height: 28px;
-  font-size: 0.7rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-auto-rows: 1fr;   /* every card the same height */
+  gap: 0.75rem;
 }
 
 /* ============================================================
@@ -583,53 +311,51 @@ body {
   height: var(--shell-bar-h);
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0 0.7rem;
-  background: rgba(7, 4, 18, 0.72);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 55%, transparent), 0 8px 24px rgba(0, 0, 0, 0.5);
+  gap: 1rem;
+  padding: 0 0.75rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
 }
 
-.shell-title { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; flex: 1 1 auto; }
+.shell-title { display: flex; align-items: baseline; gap: 0.75rem; min-width: 0; flex: 1 1 auto; }
 
 .shell-game-name {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
   white-space: nowrap;
-  color: color-mix(in srgb, var(--accent) 60%, var(--ink));
+  color: var(--ink);
 }
 
 .shell-game-sub {
   color: var(--ink-dim);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .shell-sub-error { color: var(--red); }
-.shell-broker { margin: 0; color: var(--amber); font-size: 0.78rem; white-space: nowrap; }
+.shell-broker { margin: 0; color: var(--amber); font-size: 0.9rem; white-space: nowrap; }
 
 .shell-chip {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  min-height: 34px;
+  padding: 0.3em 0.8em;
   font-family: var(--font-ui);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  background: rgba(255, 204, 77, 0.12);
-  color: var(--gold-text);
-  border: 1px solid rgba(217, 164, 55, 0.7);
-  border-radius: var(--radius-pill);
-  padding: 0.3em 0.9em;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 
-.shell-chip:hover { background: rgba(255, 204, 77, 0.22); border-color: var(--gold); }
+.shell-chip:hover { border-color: rgba(255, 255, 255, 0.4); }
 
 .shell-popover {
   position: fixed;
@@ -637,15 +363,13 @@ body {
   right: 10px;
   z-index: 40;
   width: min(360px, calc(100vw - 20px));
-  background: linear-gradient(180deg, rgba(32, 22, 58, 0.98), rgba(9, 6, 22, 0.98));
-  border: 1px solid var(--panel-line);
-  border-top: 3px solid var(--gold);
-  border-radius: var(--radius-lg);
   padding: 1rem;
-  box-shadow: var(--shadow-lift);
+  background: var(--panel-strong);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
 }
 
-.popover-url { margin: 0 0 0.6rem; color: var(--ink-dim); font-size: 0.85rem; word-break: break-all; }
+.popover-url { margin: 0 0 0.6rem; color: var(--ink-dim); font-size: 0.9rem; word-break: break-all; }
 
 .screen-game { padding: 0; }
 
@@ -666,34 +390,34 @@ body.in-game { overflow: hidden; }
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(2, 1, 10, 0.74);
   display: grid;
   place-items: center;
   padding: 1rem;
+  background: rgba(5, 6, 9, 0.78);
 }
 
 .dialog {
   width: min(460px, 100%);
   padding: 1.4rem 1.5rem 1.2rem;
-  background: linear-gradient(180deg, rgba(34, 24, 62, 0.98), rgba(10, 6, 24, 0.98));
-  border: 1px solid var(--panel-line);
-  border-top: 4px solid var(--gold);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lift);
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
 }
 
-.dialog-title {
-  font-family: var(--font-display);
-  font-size: clamp(22px, 2vw, 30px);
-  line-height: 1;
-  letter-spacing: var(--track-display);
-  margin: 0 0 0.5rem;
-  text-transform: uppercase;
-}
-
-.dialog-body { margin: 0 0 1rem; color: var(--ink-dim); line-height: 1.5; font-size: 0.92rem; }
+.dialog-title { margin: 0 0 0.5rem; font-size: var(--fs-title); font-weight: 600; line-height: 1.25; }
+.dialog-body { margin: 0 0 1rem; color: var(--ink-dim); line-height: 1.5; }
 .dialog-row { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1rem; }
 
-@media (prefers-reduced-motion: no-preference) {
-  .dialog { animation: gsc-pop var(--dur) var(--ease-spring) both; }
+/* ============================================================
+   Narrow screens
+   ============================================================ */
+
+@media (max-width: 1080px) {
+  .lobby-left { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .screen-lobby { padding: 1rem 0.75rem 2rem; }
+  .room-code { font-size: clamp(64px, 22vw, 120px); }
+  .landing-games, .game-tiles { grid-template-columns: 1fr; }
 }

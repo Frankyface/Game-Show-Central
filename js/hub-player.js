@@ -205,7 +205,7 @@ const HubPlayer = (function () {
   // The phone's half of the 1.2 s title card the host screen shows (09 §3).
   // Purely decorative: pointer-events:none, nothing waits on it, skipped under
   // reduced motion. Mirrors showSplash() in hub-host.js.
-  const SPLASH_MS = 1200;
+  const SPLASH_MS = 600; // docs/21 §2.8: a plain 600 ms title card
   let splashTimer = null;
 
   function showSplash(game) {
@@ -213,7 +213,7 @@ const HubPlayer = (function () {
     if (!node || !game) return;
     if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     $("gsc-splash-title").textContent = game.name;
-    $("gsc-splash-sub").textContent = game.tagline || "";
+    $("gsc-splash-sub").textContent = "";
     node.dataset.gscGame = game.id;
     node.classList.remove("hidden");
     if (splashTimer) clearTimeout(splashTimer);

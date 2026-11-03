@@ -78,6 +78,13 @@ const HubHost = (function () {
     return b;
   }
 
+  // Icon insertion only (docs/21 §2.5): a shared/icons.js SVG in front of a
+  // button's text label. No-ops if icons.js is not on the page.
+  function withIcon(node, name) {
+    if (node && globalThis.GSCIcons) globalThis.GSCIcons.prepend(node, name, { size: 18 });
+    return node;
+  }
+
   function show(node, visible) {
     if (node) node.classList.toggle("hidden", !visible);
   }
@@ -417,7 +424,7 @@ const HubHost = (function () {
   // screen reads like a show coming back from the break. Purely decorative: the
   // node is pointer-events:none, no message or state waits on it, and it is
   // skipped entirely when the viewer asks for reduced motion (09 §3).
-  const SPLASH_MS = 1200;
+  const SPLASH_MS = 600; // docs/21 §2.8: a plain 600 ms title card
   let splashTimer = null;
 
   function showSplash(game) {
@@ -425,7 +432,7 @@ const HubHost = (function () {
     if (!node || !game) return;
     if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     $("gsc-splash-title").textContent = game.name;
-    $("gsc-splash-sub").textContent = game.tagline || "";
+    $("gsc-splash-sub").textContent = "";
     node.dataset.gscGame = game.id; // wears that game's accent (shared/theme.css)
     node.classList.remove("hidden");
     if (splashTimer) clearTimeout(splashTimer);
@@ -469,11 +476,22 @@ const HubHost = (function () {
     if (!list || list.childElementCount) return;
     for (const game of HubRegistry.all()) {
       const li = el("li", "landing-game");
-      li.dataset.game = game.id; // styling hook only: css/hub.css draws the game's art from it
-      li.appendChild(el("span", "landing-game-icon", game.icon));
-      li.appendChild(el("span", "landing-game-name", game.name));
+      cardBody(li, game, "landing-game");
       list.appendChild(li);
     }
+  }
+
+  /** Name (Anton), one factual line, plain capability tags. Shared by the
+   *  landing cards (prefix "landing-game") and the lobby tiles ("tile"). */
+  function cardBody(li, game, prefix) {
+    li.style.setProperty("--tile-accent", game.accent);
+    li.appendChild(el("h3", `${prefix}-name`, game.name));
+    li.appendChild(el("p", `${prefix}-blurb`, game.blurb || game.tagline || ""));
+    const tags = el("ul", "tile-chips");
+    tags.appendChild(chip(`${game.players[0]}–${game.players[1]} players`));
+    if (game.teams) tags.appendChild(chip("Teams"));
+    tags.appendChild(chip(`Phones: ${game.phone.join(", ")}`));
+    li.appendChild(tags);
   }
 
   function renderRoomCard() {
@@ -500,17 +518,18 @@ const HubHost = (function () {
     row.replaceChildren();
     const open = roomStatus.status === "open";
     if (open) {
-      row.appendChild(button("btn btn-ghost btn-small", "Copy link", copyLink));
-      row.appendChild(button("btn btn-ghost btn-small", lobby.locked ? "🔒 Locked" : "Lock lobby",
+      row.appendChild(withIcon(button("btn btn-ghost btn-small", "Copy link", copyLink), "copy"));
+      row.appendChild(withIcon(button("btn btn-ghost btn-small", lobby.locked ? "Locked" : "Lock lobby",
         () => reduce({ type: "lock", locked: !lobby.locked }),
-        lobby.locked ? "Unlock the lobby" : "Lock the lobby against new players"));
+        lobby.locked ? "Unlock the lobby" : "Lock the lobby against new players"), "lock"));
       row.appendChild(button("btn btn-ghost btn-small", "Close room", closeRoom));
     } else if (roomStatus.status === "connecting") {
       row.appendChild(el("p", "hint-msg", "Reaching the room server…"));
     } else {
       row.appendChild(button("btn btn-gold btn-small", "Open room", () => openRoom()));
     }
-    row.appendChild(button("btn btn-ghost btn-small", soundOn ? "🔊 Sound on" : "🔇 Sound off", toggleSound));
+    row.appendChild(withIcon(button("btn btn-ghost btn-small", soundOn ? "Sound on" : "Sound off", toggleSound),
+      soundOn ? "sound" : "sound-off"));
   }
 
   function copyLink() {
@@ -571,18 +590,7 @@ const HubHost = (function () {
 
   function gameTile(game) {
     const li = el("li", "game-tile");
-    li.dataset.game = game.id; // styling hook only: css/hub.css draws the game's art from it
-    li.style.setProperty("--tile-accent", game.accent);
-    const head = el("div", "tile-head");
-    head.appendChild(el("span", "tile-icon", game.icon));
-    head.appendChild(el("span", "tile-name", game.name));
-    li.appendChild(head);
-    li.appendChild(el("p", "tile-tagline", game.tagline));
-    const chips = el("ul", "tile-chips");
-    chips.appendChild(chip(`phones: ${game.phone.join(" · ")}`));
-    chips.appendChild(chip(`${game.players[0]}–${game.players[1]} players`));
-    if (game.teams) chips.appendChild(chip("teams"));
-    li.appendChild(chips);
+    cardBody(li, game, "tile");
     const hint = HubRegistry.playerHint(game, lobby.order.length);
     if (hint) li.appendChild(el("p", "tile-hint", hint));
     li.appendChild(button("btn btn-gold tile-play", "Play", () => pickGame(game.id), `Play ${game.name}`));
@@ -617,7 +625,7 @@ const HubHost = (function () {
     const game = HubRegistry.find(state.activeGame);
     // Styling hook only: the bar wears the running game's accent (shared/theme.css).
     $("shell-bar").dataset.gscGame = game ? game.id : "hub";
-    $("shell-game-name").textContent = game ? `${game.icon} ${game.name}` : "";
+    $("shell-game-name").textContent = game ? game.name : "";
     $("shell-game-sub").textContent = frameError || gameSubtitle;
     $("shell-game-sub").classList.toggle("shell-sub-error", !!frameError);
     const broker = NET && roomStatus.status === "open" ? NET.brokerLabel(roomStatus.broker) : "";
@@ -625,7 +633,8 @@ const HubHost = (function () {
     const chipNode = $("shell-chip");
     const code = roomStatus.code || state.roomCode || "—";
     const n = connectedCount();
-    chipNode.textContent = `${code} · ${n} 🔔${roomStatus.broker === "ok" ? "" : " · ⚠"}`;
+    chipNode.textContent = `Room ${code} · ${n} connected${roomStatus.broker === "ok" ? "" : " · check connection"}`;
+    withIcon(chipNode, "phone");
     chipNode.setAttribute("aria-label", `Room ${code}, ${n} connected. Show room details`);
     chipNode.setAttribute("aria-expanded", popoverOpen ? "true" : "false");
   }
@@ -641,8 +650,8 @@ const HubHost = (function () {
     if (lobby.order.length === 0) list.appendChild(el("li", "roster-empty", "No players yet."));
     pop.appendChild(list);
     const row = el("div", "room-controls");
-    row.appendChild(button("btn btn-ghost btn-small", lobby.locked ? "🔒 Locked" : "Lock lobby",
-      () => reduce({ type: "lock", locked: !lobby.locked })));
+    row.appendChild(withIcon(button("btn btn-ghost btn-small", lobby.locked ? "Locked" : "Lock lobby",
+      () => reduce({ type: "lock", locked: !lobby.locked })), "lock"));
     if (roomStatus.status === "open") row.appendChild(button("btn btn-ghost btn-small", "Close room", closeRoom));
     else row.appendChild(button("btn btn-gold btn-small", "Open room", () => openRoom()));
     pop.appendChild(row);
@@ -707,6 +716,7 @@ const HubHost = (function () {
 
   function realBoot() {
     document.body.classList.add("host-mode");
+    withIcon($("shell-lobby"), "lobby");
     restore();
     wire();
     // A saved room code means the host was mid-night: reopen it so phones
