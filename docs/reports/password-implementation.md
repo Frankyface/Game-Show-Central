@@ -453,3 +453,114 @@ report. Nothing outside `games/password/**`; no git commands were run.
   that throws**; a game whose validator returns `false` will show the module's
   generic message instead of its own, so those games should return a string or
   throw.
+
+---
+
+## 12. v3 UI pass (docs/21, design-system §0) — 2026-11-03
+
+The user said the UI "looked fake". This pass reworks the look in CSS and
+markup only; JS changed only for icon insertion, two class names, the splash
+timing and one toolbar-composition rule. Behaviour is unchanged.
+
+### The one shared edit: Password's accent in `shared/theme.css`
+
+v3 reserves gold for money, and Password's v2 accent *was* gold. The block is
+now blue-forward:
+
+| Token | Before | After |
+| --- | --- | --- |
+| `--accent` | `#f2c94c` | `#7aa2ff` |
+| `--accent-2` | `#7aa2ff` | `#f2c94c` — used **only** for Lightning Round money |
+| `--accent-ink` | `#241a02` | `#0b1430` (7.2:1 on the accent) |
+| `--stage-glow` | `#0d1b4b` | `#0b0d12` (v3 paints nothing from it) |
+
+Nothing else in `shared/` was touched. The stage is the shared flat
+`color-mix(--accent 5%, #0b0d12)`, i.e. a midnight-blue tint of 5 % (measured
+`rgb(17, 20, 30)`).
+
+### What changed on screen
+
+- **One Anton hero per screen**, measured by walking the DOM: setup → the name;
+  word → the current value (in the accent); game over → the final score;
+  Lightning → the clock; result/standings → the money (in `--pwd-money`).
+  Everything else is Inter 400–600, sentence case, no tracking.
+- **The value ladder is flat steps.** The live rung is an accent fill with
+  `--accent-ink` and the visible words **"worth now"** (was visually hidden);
+  spent rungs are struck through, so the countdown reads without colour.
+- **One surface level** (`--surface` + `--hairline`, 8 px): the v2 glass,
+  gradients, accent rails (banner, team cards, standings, clue log, slots),
+  gold glows and the gradient-filled live rung / won slot are gone. Dividers
+  are hairlines.
+- **Buttons**: the shared v3 `.btn` family; `.btn-green` / `.btn-blue` are now
+  outlines (green = Correct, hairline = secondary). **Wrong** moved from the
+  primary fill to a secondary outline — the primary on the word screen is
+  *Next word*. Host controls 44–48 px, toolbar 36 px, phones 56 px.
+- **Toolbar** (UI-12): Sound · Editor · Game lobby, each with a `GSCIcons`
+  icon (`sound`/`sound-off`, `edit`, `lobby`) beside the label; the `↻` glyph
+  is gone. Embedded, "Back to lobby" is hidden by CSS — the hub bar carries it.
+- **Copy**: the setup tagline became one plain instruction ("Seat two players
+  on each team, choose how the password reaches the givers, then start."); the
+  "Game over" eyebrow and the splash kicker were removed.
+- **Splash**: `SPLASH_MS = 600`, sub line empty, no kicker; the v2 gradient
+  override was deleted so the shared flat card applies.
+- **Motion**: only `pwd-slot-bank` remains (a banked Lightning word settles in),
+  inside the reduced-motion guard. The clock pulse, rung pop and panel rise
+  were removed.
+- **Phone**: one flat surface; the giver's password stays the huge Anton hero
+  (38 px for a 14-letter word at 320 px, fits); every other phone line is Inter.
+
+### Also folded in from cross-cutting verification
+
+- **C-3**: both library sets were 90 words and tripped the game's own thin-list
+  warning. **Kids' night is now 158 and Hard mode 170** original,
+  family-friendly single words (appended; order kept), `warningsFor()` returns
+  nothing for either, and the manifest counts were updated. X-5 now asserts
+  ≥ 150 *and* no warning.
+- **Toolbar rule**: Game lobby is present but **disabled** on setup (unchanged,
+  already pinned by X-1); the confirm's buttons are now **Keep this game /
+  Start over / Cancel**, in that order ("Stay here" became "Cancel").
+  harness-x and the README follow.
+
+### Per-game checklist (design-system §0)
+
+- [x] `data-gsc-game="password"`; no local `--accent*` / `--stage-glow`
+- [x] `body` paints no gradient/spotlight/vignette
+- [x] Anton for one hero per screen; no uppercase / tracking anywhere
+- [x] Decorative eyebrows deleted; body ≥ 16 px, controls ≥ 15 px
+- [x] Accent only for active state, primary button, the live rung
+- [x] Gold only on money (`--pwd-money` on Lightning values, totals, standings)
+- [x] No `text-shadow`, glow `box-shadow`, `backdrop-filter`, gradient under text
+- [x] One panel level, hairline dividers, no accent rails
+- [x] 6 px buttons, sentence case 600; primary = accent fill; danger = red outline
+- [x] Zero emoji in host DOM text; `GSCIcons` beside toolbar labels
+- [x] Only meaningful motion; every `@keyframes`/`animation:` guarded
+- [x] Splash 600 ms plain
+- [x] Toolbar Sound · Editor · Game lobby; embedded nothing else
+- [x] JS edits limited to icons, class names, toolbar composition, splash timing
+
+### Gates
+
+Measured with an injected audit (`.scratch/password-v3/audit.js`, not shipped):
+
+| Gate | Result |
+| --- | --- |
+| 1280×676, all 8 in-play states (word, word done, revealed, game over, Lightning idle/running/done, result, standings) | 0 vertical, 0 horizontal scroll |
+| 1280×720 word + revealed | 0 / 0 |
+| contrast, every visible text node vs its composited background | min **5.62:1** host, **5.62:1** phone, none below 4.5 |
+| UI-10 emoji in host DOM text | 0 |
+| UI-11 `backdrop-filter` / `text-shadow` / gradient under text | 0 |
+| UI-12 toolbar order | Sound · Editor · Game lobby, icons on all three |
+| reduced motion (CSSOM walk, all sheets) | 0 `@keyframes`/`animation` outside the guard |
+| phone 320 px: giver, receiver, Lightning giver, result | 0 h-scroll; Clue given 56×270, Got it / Pass 56×131 |
+| `cd games/password && node --test` | **114/114** |
+| `node --test` (repo root) | **1403/1403** |
+| `tests/harness.html` | **75/75** |
+| `tests/harness-x.html` | **54/54** |
+| files < 800 | largest `tests/harness.html` 797, `js/pwd-app.js` 793 |
+
+Files changed: `shared/theme.css` (the password block only), `css/pwd.css`
+(rewritten, every class name kept), `css/pwd-phone.css` (rewritten),
+`css/pwd-editor.css`, `index.html`, `js/pwd-view.js`, `js/pwd-app.js` (one
+line), `js/pwd-lobby.js`, `sets/*.json`, `tests/harness-x.html`, `README.md`,
+this report. Backups of the pre-pass sheets and helpers are in
+`.scratch/password-v3/`. No git.

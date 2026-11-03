@@ -192,11 +192,13 @@
     async function scenarioLobbyBasics() {
       await bootFrame(hostFrame, HOST_SRC);
       const btn = E(hostFrame, "btn-game-lobby");
-      check("X-1 the toolbar carries ⟲ Game lobby, next to Sound and the editor",
-        !!btn && btn.textContent.indexOf("Game lobby") > 0
-        && btn.previousElementSibling.id === "btn-sound"
-        && btn.nextElementSibling.id === "btn-editor",
-        btn ? `${btn.textContent.trim()} between ${btn.previousElementSibling.id} and ${btn.nextElementSibling.id}` : "missing");
+      const order = [...D(hostFrame).querySelectorAll(".topbar-actions .btn")]
+        .filter((b) => b.getClientRects().length > 0).map((b) => b.id);   // what is actually on screen
+      check("X-1 / UI-12 the toolbar reads Sound · Editor · Game lobby, each with an icon",
+        !!btn && btn.textContent.trim() === "Game lobby"
+        && order.join(",") === "btn-sound,btn-editor,btn-game-lobby"
+        && order.every((id) => E(hostFrame, id).querySelector("svg.gsc-icon")),
+        `${order.join(" · ")}`);
       check("X-1 it is disabled on setup — there is nothing to leave yet",
         btn.disabled === true && !shown(hostFrame, "btn-resume"));
 
@@ -210,21 +212,21 @@
         && E(hostFrame, "pwd-lobby-body").textContent.indexOf("Password 1 of game 1") > 0
         && D(hostFrame).activeElement.id === "btn-lobby-keep",
         E(hostFrame, "pwd-lobby-body").textContent.slice(0, 70));
-      check("X-1 the confirm offers exactly Stay here / Start over / Keep this game",
+      check("X-1 the confirm offers exactly Keep this game / Start over / Cancel, in that order",
         [...D(hostFrame).querySelectorAll("#pwd-lobby-modal .gsc-modal-actions button")]
-          .map((b) => b.textContent).join(" | ") === "Stay here | Start over | Keep this game",
+          .map((b) => b.textContent).join(" | ") === "Keep this game | Start over | Cancel",
         [...D(hostFrame).querySelectorAll("#pwd-lobby-modal .gsc-modal-actions button")]
           .map((b) => b.textContent).join(" | "));
 
       const before = core(hostFrame).phase;
       click(hostFrame, "btn-lobby-cancel");
-      check("X-1 Stay here closes it and changes nothing",
+      check("X-1 Cancel closes it and changes nothing",
         !shown(hostFrame, "pwd-lobby-backdrop") && core(hostFrame).phase === before
         && app(hostFrame).state().lobbyOpen === false);
 
       click(hostFrame, "btn-game-lobby");
       D(hostFrame).dispatchEvent(new (W(hostFrame).KeyboardEvent)("keydown", { key: "Escape", bubbles: true }));
-      check("X-1 Escape is the keyboard equivalent of Stay here",
+      check("X-1 Escape is the keyboard equivalent of Cancel",
         !shown(hostFrame, "pwd-lobby-backdrop") && core(hostFrame).phase === before);
 
       click(hostFrame, "btn-game-lobby");
@@ -435,7 +437,7 @@
         D(hostFrame).querySelector("#pwd-library .gsc-library-preview").textContent
           .indexOf("Kids' night — by Game Show Central") === 0
         && D(hostFrame).querySelector("#pwd-library .gsc-library-preview").textContent
-          .indexOf("90 passwords") > 0,
+          .indexOf("158 passwords") > 0,
         D(hostFrame).querySelector("#pwd-library .gsc-library-preview").textContent);
 
       const select = D(hostFrame).querySelector("#pwd-library .gsc-library-select");
@@ -446,7 +448,7 @@
       check("X-2 loading a set adopts it, with the source note “set: <name>”",
         E(hostFrame, "pwd-source").textContent === "set: Hard mode"
         && app(hostFrame).state().game.title === "Password — Hard mode"
-        && app(hostFrame).state().game.words.length === 90
+        && app(hostFrame).state().game.words.length >= 150
         && core(hostFrame) === null,
         `${E(hostFrame, "pwd-source").textContent} · ${app(hostFrame).state().game.words.length} words`);
       check("X-2 the set's own rules land in the setup screen",
@@ -617,9 +619,10 @@
         && parsed.sets.every((s) => texts[`../sets/${s.file}`] !== null),
         parsed.ok ? parsed.sets.map((s) => `${s.name} → ${s.file}`).join(", ") : parsed.error);
       const sets = ["../sets/kids-night.json", "../sets/hard-mode.json"];
-      check("X-5 every shipped set validates through validateGame and has ≥ 80 passwords",
+      check("X-5 every shipped set validates, has ≥ 150 passwords and raises no thin-list warning",
         sets.every((u) => W(hostFrame).PwdCore.validateGame(JSON.parse(texts[u])) === true
-          && JSON.parse(texts[u]).words.length >= 80),
+          && JSON.parse(texts[u]).words.length >= 150
+          && W(hostFrame).PwdCore.warningsFor(JSON.parse(texts[u])).length === 0),
         sets.map((u) => `${u.split("/").pop()}:${JSON.parse(texts[u]).words.length}`).join("  "));
       check("X-5 no shipped set repeats a password inside itself",
         sets.every((u) => {

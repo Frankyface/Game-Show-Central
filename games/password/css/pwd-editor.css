@@ -1,5 +1,5 @@
 /* ============================================================
-   Password — editor and set-library styles
+   Password — editor and set-library styles (v3)
    Split out of css/pwd.css to keep every sheet under the 800-line
    house cap. Nothing in here paints a screen that is in play: it
    is the word editor and the "Download for the library"
@@ -39,31 +39,28 @@ textarea.ed-words {
 .library-help {
   margin: 0.6rem 0 0;
   padding: 0.7rem 0.9rem;
-  background: var(--well);
-  border-left: 4px solid var(--pwd-gold);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius);
 }
 
 .library-help-title {
   margin: 0 0 0.4rem;
-  font-family: var(--font-display);
-  font-size: 1rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pwd-gold-soft);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.library-help-step { margin: 0.25rem 0; font-size: 0.9rem; color: var(--pwd-dim); }
+.library-help-step { margin: 0.25rem 0; font-size: 0.95rem; color: var(--ink-dim); }
 
 .library-help-line {
   margin: 0.5rem 0;
   padding: 0.5rem 0.6rem;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--panel-line);
+  background: var(--stage-bg, #0b0d12);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.8rem;
-  color: var(--pwd-cream);
+  font-size: 0.85rem;
+  color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;

@@ -664,6 +664,7 @@ function pwdWireChrome() {
   const paint = () => {
     sound.textContent = window.PwdSound.enabled ? "Sound on" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.PwdSound.enabled));
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.PwdSound.enabled ? "sound" : "sound-off");
   };
   sound.addEventListener("click", () => { window.PwdSound.toggle(); paint(); });
   paint();

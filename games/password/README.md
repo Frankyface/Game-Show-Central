@@ -170,7 +170,7 @@ python -m http.server 8620          # from the repo root
 | --- | --- |
 | **Keep this game** | setup comes back with a **Resume the game** button and a line saying what is parked. The game is untouched — including the undo history — and a running Lightning clock is **stopped**, so it cannot burn down while nobody is watching. Resume hands back exactly the time that was left. |
 | **Start over** | the game in progress is dropped. The roster, the seats, the team names, the words and the rules all stay, so you can just press Start. |
-| **Stay here** (or `Escape`) | nothing happens. |
+| **Cancel** (or `Escape`) | nothing happens. |
 
 The parked game is part of the save, so it survives a reload. Pressing **Start
 the game** retires it — the note on the setup screen says so.
@@ -185,8 +185,8 @@ source note `set: <name>`. A set brings its own settings with it.
 
 | Set | What is in it |
 | --- | --- |
-| **Kids' night** | 90 playground, pet and packed-lunch words. Short game to 20, a slower 75-second Lightning Round at $50 a word. |
-| **Hard mode** | 90 abstract nouns and words you have to think around. To 25, with only 45 seconds of Lightning at $200 a word. |
+| **Kids' night** | 158 playground, pet and packed-lunch words. Short game to 20, a slower 75-second Lightning Round at $50 a word. |
+| **Hard mode** | 170 abstract nouns and words you have to think around. To 25, with only 45 seconds of Lightning at $200 a word. |
 
 The default `words.json` stays the default; the picker never loads on its own.
 Opened straight from disk (`file://`), or with no `sets/` folder, the picker

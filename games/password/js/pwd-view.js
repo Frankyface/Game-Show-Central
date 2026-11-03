@@ -176,7 +176,7 @@ const PwdView = (function () {
       const spent = v > value || (r.finished && r.won === null);
       const rung = el("div", `ladder-rung${live ? " is-live" : ""}${spent ? " is-spent" : ""}`);
       rung.appendChild(el("span", "ladder-n", String(v)));
-      if (live) rung.appendChild(el("span", "visually-hidden", "worth now"));
+      if (live) rung.appendChild(el("span", "ladder-tag", "worth now"));   // a word, not colour alone
       box.appendChild(rung);
     }
   }
@@ -422,7 +422,7 @@ const PwdView = (function () {
 
   /* ============ The splash ============ */
 
-  const SPLASH_MS = 1200;
+  const SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
   let splashTimer = null;
 
   /**
@@ -437,7 +437,7 @@ const PwdView = (function () {
     if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (document.body.classList.contains("gsc-embedded")) return;
     setText("gsc-splash-title", "Password");
-    setText("gsc-splash-sub", "One word. One guess. Ten points, then nine…");
+    setText("gsc-splash-sub", "");
     node.dataset.gscGame = "password";
     node.classList.remove("hidden");
     if (splashTimer) clearTimeout(splashTimer);

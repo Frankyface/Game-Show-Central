@@ -20,8 +20,9 @@
     <div class="topbar-actions">
       <span id="pwd-room-chip" class="room-chip hidden"></span>
       <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">&#8635; Game lobby</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Word editor</button>
+      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button"
+              aria-haspopup="dialog">Game lobby</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
     </div>
   </header>
@@ -33,8 +34,8 @@
     <!-- ===================== Setup ===================== -->
     <section id="screen-setup" class="screen screen-setup">
       <div class="card">
-        <p class="kicker">One word. One guess. Ten points, then nine, then eight&hellip;</p>
         <h2 class="card-title">Password</h2>
+        <p class="kicker">Seat two players on each team, choose how the password reaches the givers, then start.</p>
         <p id="pwd-source" class="source-note">Loading words&hellip;</p>
 
         <div class="setup-cols">
@@ -193,7 +194,7 @@
           <kbd class="gsc-kbd">C</kbd></button>
         <button id="btn-correct" class="btn btn-green btn-big" type="button">Correct
           <kbd class="gsc-kbd">Space</kbd></button>
-        <button id="btn-wrong" class="btn btn-gold btn-big" type="button">Wrong
+        <button id="btn-wrong" class="btn btn-blue btn-big" type="button">Wrong
           <kbd class="gsc-kbd">W</kbd></button>
         <button id="btn-illegal" class="btn btn-danger btn-big" type="button">Illegal clue
           <kbd class="gsc-kbd">X</kbd></button>
@@ -210,7 +211,6 @@
 
     <!-- ===================== Game over ===================== -->
     <section id="screen-over" class="screen hidden">
-      <p class="kicker">Game over</p>
       <h2 id="pwd-over-team" class="winner-name">&nbsp;</h2>
       <p id="pwd-over-score" class="final-amount">&nbsp;</p>
       <p id="pwd-over-sub" class="result-sub">&nbsp;</p>
@@ -363,9 +363,9 @@
       <h2 id="pwd-lobby-title" class="gsc-modal-title">Back to the Password lobby?</h2>
       <p id="pwd-lobby-body" class="gsc-modal-body">&nbsp;</p>
       <div class="gsc-modal-actions">
-        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Stay here</button>
-        <button id="btn-lobby-over" class="btn btn-danger" type="button">Start over</button>
         <button id="btn-lobby-keep" class="btn btn-gold" type="button">Keep this game</button>
+        <button id="btn-lobby-over" class="btn btn-danger" type="button">Start over</button>
+        <button id="btn-lobby-cancel" class="btn btn-ghost" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -374,7 +374,6 @@
        Same node, ids and classes as the hub's own splash: decorative,
        pointer-events:none, skipped entirely under prefers-reduced-motion. ============ -->
   <div id="gsc-splash" class="gsc-splash hidden" role="status" aria-live="polite">
-    <p class="gsc-splash-kicker">Game Show Central presents</p>
     <p id="gsc-splash-title" class="gsc-splash-title"></p>
     <div class="gsc-splash-rule"></div>
     <p id="gsc-splash-sub" class="gsc-splash-sub"></p>
@@ -389,6 +388,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/pwd-content.js"></script>
   <script src="js/pwd-core.js"></script>
   <script src="js/data.js"></script>

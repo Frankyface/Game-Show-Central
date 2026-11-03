@@ -112,6 +112,10 @@
   function wire() {
     const lobby = $("btn-game-lobby");
     if (!lobby) return;
+    if (window.GSCIcons) {
+      window.GSCIcons.prepend($("btn-editor"), "edit");
+      window.GSCIcons.prepend(lobby, "lobby");
+    }
     lobby.addEventListener("click", () => { open(); lobby.blur(); });
     $("btn-lobby-cancel").addEventListener("click", close);
     $("btn-lobby-keep").addEventListener("click", keep);
