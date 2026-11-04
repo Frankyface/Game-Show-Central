@@ -119,6 +119,29 @@ the start: game agents declare no local palette override, the hub agent adds the
 | password | **ship** | tester fixed PW-D1 (marks allowed while the Lightning clock was paused); minors (harness storage namespace, damaged-save message, 12 px floor) sent back. | 54 unit tests, harness 74/74, real-network run; both givers' phones carry the password and the host DOM never does; 200 words. |
 | chain-reaction | fix-then-ship → fixed | tester fixed a harness that silently stopped at 29 of 52 checks and a clock jump; CR-2 (Speed Chain clock not frozen on save) plus minors sent back. | 57 unit tests, harness 29/29, real-network run; 18 chains + 4 speed chains re-read pair by pair by the implementer. |
 
+## Phase 5 (2026-11-03): four more games, Krillion, cross-cutting round, UI v3
+
+Specs 15–21. Same process. Cross-cutting round (docs/19) applied to all games and
+verified (`cross-cutting-verification.md`): `btn-game-lobby` Keep/Resume/Start over
+(disabled, not hidden, on setup), the `shared/library.js` set picker with two themed
+sets per game and "Download for the library", TPIR prize photos through the Jeopardy
+media gate, DoND single-case animation, Chain Reaction phone tile grid. UI v3 (docs/21):
+flat stage, hairline surfaces, Inter sentence case, `shared/icons.js`, no card art, no
+emoji on host screens, hub rebuilt; per-game passes on every game.
+
+| Component | Tester verdict | Notes |
+|---|---|---|
+| the-chase | fix-then-ship → fixed | tester fixed a stale-clock restore and host screens on phones; implementer made a Chaser pass a pushback, paused the Chaser clock during pushbacks, sane $0 offers. |
+| one-vs-100 | fix-then-ship → fixed | late joiners now seated for the next game; grid overflow and trust-tie notice fixed by the tester; remaining-time clocks on phones. |
+| press-your-luck | fix-then-ship → fixed | tester fixed hotkeys mid-spin, editor edits, badge contrast, an ambiguous question; minors + v3 pass with the implementer. |
+| match-game | fix-then-ship → fixed | critical: host could not finish the Head-to-Head without phones (implementer's T4 claim was wrong) — fixed with a typed-answer form; room-scoped saves; merge labels; a global-name clash that silently disabled every settings input. |
+| krillion | see `krillion-verification.md` | author-rated tiers (Prawn … One in a Krillion), alias matching, judge's review after the 30 s round, Add to this question, editor rated-answer table + Import judged answers, Puffer Party; 100 prompts / 2,493 rated answers. |
+| cross-cutting round (10 games) | 8 ship, 2 fix-then-ship → fixed | P-1 Pyramid parked game lost on reload (one line); J-1 Jeopardy lobby button live over an open clue (now disabled while a clue is open); content fixes in Jeopardy, Chain Reaction, Weakest Link and Password sets; hub now passes `?store=` into game frames. |
+
+Lessons: a harness that clears storage before the frame unloads is rewritten by the
+outgoing page's save; `.scratch/` is shared between agents, so helper files need a
+per-game prefix; `python -m http.server` drops requests under three concurrent browsers.
+
 ## Verification pointers
 
 - `node --test` at the repo root runs every suite (shell, shared, all games).
