@@ -47,7 +47,6 @@ body {
   flex: 0 0 auto;
 }
 .kr-bar-title { margin: 0; font-size: 18px; font-weight: 600; }
-.kr-bar-sub { color: var(--kr-dim); font-size: 15px; }
 .kr-bar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 /* Toolbar: Sound · Editor · Game lobby, icon + label, 44 px (docs/21 rule 9). */
 .kr-bar-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; }
@@ -126,6 +125,7 @@ body {
 }
 .kr-center { justify-content: center; align-items: center; text-align: center; }
 .kr-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.kr-actions > .kr-btn { min-height: 48px; }   /* one height per action row, like .controls in every game */
 .kr-center .kr-actions { justify-content: center; }
 .kr-actions-end { justify-content: flex-end; }
 .kr-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }

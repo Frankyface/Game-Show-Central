@@ -273,10 +273,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.45em;
-  min-height: 40px;
+  min-height: 44px;              /* host controls are 44–48 px (docs/21 rule 4) */
   padding: 0.5em 1em;
   font-family: var(--font-ui);
-  font-size: 0.95rem;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.2;
   text-transform: none;
@@ -308,10 +308,16 @@ body {
 .btn-danger:hover { background-color: rgba(255, 107, 107, 0.08); }
 
 .btn-big { min-height: 48px; font-size: 1rem; padding: 0.6em 1.4em; }
-.btn-small { min-height: 34px; font-size: 0.9rem; padding: 0.35em 0.8em; }
+/* v1 name kept; v3 host controls never drop under 44 px or 15 px (consistency pass). */
+.btn-small { min-height: 44px; font-size: 15px; padding: 0.4em 0.9em; }
 .btn-tap { min-height: var(--tap); font-size: 1rem; }
 
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* A primary that cannot be pressed yet is not "the" primary: it reads as a
+   disabled outline, so an action row never shows two filled buttons. */
+.btn-gold:disabled,
+.gsc-btn-primary:disabled { color: var(--ink); background-color: transparent; border-color: rgba(255, 255, 255, 0.22); }
 
 /* An inline SVG from shared/icons.js inside any button. */
 .btn .gsc-icon, .gsc-btn .gsc-icon { flex: 0 0 auto; }

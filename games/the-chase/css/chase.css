@@ -99,8 +99,8 @@ body {
 .controls { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 
 .screen:not(.screen-phone) .btn { min-height: 44px; }
+.screen:not(.screen-phone) .controls > .btn { min-height: 48px; }   /* one height per action row */
 .screen:not(.screen-phone) .btn-big { min-height: 48px; }
-.topbar .btn { min-height: 38px; }
 
 /* Secondary (hairline) and "correct" (green outline) — flat, no gradients. */
 .btn-blue { color: var(--ink); background: transparent; border-color: rgba(255, 255, 255, 0.28); }

@@ -610,7 +610,7 @@
     $$("player-head-name").textContent = ui.playerName || playerName;
     const dot = $$("player-head-dot");
     if (dot) {
-      dot.textContent = connLive ? "🟢" : "🔴";
+      dot.textContent = ""; // GSC: the dot is CSS, keyed on aria-label below (gsc-look.css), no emoji
       dot.setAttribute("aria-label", connLive ? "Connected" : "Reconnecting");
     }
     const note = $$("player-buzz-note");

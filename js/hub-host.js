@@ -85,6 +85,17 @@ const HubHost = (function () {
     return node;
   }
 
+  /** Connection status: a CSS dot (theme-components.css .gsc-status-dot) plus
+      the word for screen readers. Filled = connected, hollow ring = away. */
+  function statusDot(connected) {
+    const wrap = el("span", "roster-status");
+    const dot = el("span", connected ? "gsc-status-dot" : "gsc-status-dot is-away");
+    dot.setAttribute("aria-hidden", "true");
+    wrap.appendChild(dot);
+    wrap.appendChild(el("span", "visually-hidden", connected ? "Connected" : "Away"));
+    return wrap;
+  }
+
   function show(node, visible) {
     if (node) node.classList.toggle("hidden", !visible);
   }
@@ -528,7 +539,7 @@ const HubHost = (function () {
     } else {
       row.appendChild(button("btn btn-gold btn-small", "Open room", () => openRoom()));
     }
-    row.appendChild(withIcon(button("btn btn-ghost btn-small", soundOn ? "Sound on" : "Sound off", toggleSound),
+    row.appendChild(withIcon(button("btn btn-ghost btn-small", soundOn ? "Sound" : "Sound off", toggleSound),
       soundOn ? "sound" : "sound-off"));
   }
 
@@ -562,9 +573,7 @@ const HubHost = (function () {
     li.appendChild(swatch);
     li.appendChild(el("span", "roster-avatar", player.avatar));
     li.appendChild(el("span", "roster-name", player.name));
-    const dot = el("span", "roster-dot", player.connected ? "🟢" : "🔴");
-    dot.setAttribute("aria-label", player.connected ? "Connected" : "Not connected");
-    li.appendChild(dot);
+    li.appendChild(statusDot(player.connected));
     if (player.manual) {
       li.appendChild(el("span", "roster-tag", "no phone"));
       li.appendChild(button("btn btn-ghost btn-small", "Rename",

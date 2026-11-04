@@ -523,7 +523,7 @@ function dondMountLibrary() {
 function dondWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.DondSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.DondSound.enabled ? "Sound" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.DondSound.enabled));
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.DondSound.enabled ? "sound" : "sound-off");
   };

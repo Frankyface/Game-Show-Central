@@ -12,31 +12,31 @@
 
 const GAME_REGISTRY = [
   {
-    id: "jeopardy", name: "Jeopardy", path: "games/jeopardy/", icon: "🟦", accent: "#060ce9",
+    id: "jeopardy", name: "Jeopardy", path: "games/jeopardy/", icon: "🟦", accent: "#2b34ff",
     blurb: "Pick a category and a value; buzz in first and answer in the form of a question.",
     tagline: "The classic answer-and-question board.",
     phone: ["buzzers", "wagers", "final answers"], players: [1, 8],
   },
   {
-    id: "family-feud", name: "Family Feud", path: "games/family-feud/", icon: "🎤", accent: "#c8102e",
+    id: "family-feud", name: "Family Feud", path: "games/family-feud/", icon: "🎤", accent: "#e21b3c",
     blurb: "Teams guess the top survey answers; three strikes and the other team can steal.",
     tagline: "Survey says…",
     phone: ["face-off buzzers", "fast money"], players: [2, 16], teams: true,
   },
   {
-    id: "wheel-of-fortune", name: "Wheel of Fortune", path: "games/wheel-of-fortune/", icon: "🎡", accent: "#7b2cbf",
+    id: "wheel-of-fortune", name: "Wheel of Fortune", path: "games/wheel-of-fortune/", icon: "🎡", accent: "#9d4edd",
     blurb: "Spin for a cash value, call consonants, buy vowels, and solve the word puzzle.",
     tagline: "Spin, call a letter, solve the puzzle.",
     phone: ["spin", "letters", "solve", "toss-up buzzers"], players: [1, 6],
   },
   {
-    id: "weakest-link", name: "Weakest Link", path: "games/weakest-link/", icon: "🔗", accent: "#8a0303",
+    id: "weakest-link", name: "Weakest Link", path: "games/weakest-link/", icon: "🔗", accent: "#7c99b6",
     blurb: "Answer in a chain and bank before a miss; each round the players vote someone off.",
     tagline: "Bank it before the chain breaks.",
     phone: ["secret votes"], players: [3, 12],
   },
   {
-    id: "millionaire", name: "Millionaire", path: "games/millionaire/", icon: "💎", accent: "#1d2a7a",
+    id: "millionaire", name: "Millionaire", path: "games/millionaire/", icon: "💎", accent: "#3346c8",
     blurb: "One contestant climbs fifteen multiple-choice questions with three lifelines.",
     tagline: "Fifteen questions. One hot seat.",
     phone: ["fastest finger", "hot seat", "ask the audience"], players: [1, 16],
@@ -48,7 +48,7 @@ const GAME_REGISTRY = [
     phone: ["secret bids", "plinko", "big wheel"], players: [1, 16],
   },
   {
-    id: "pyramid", name: "Pyramid", path: "games/pyramid/", icon: "🔺", accent: "#f4b400",
+    id: "pyramid", name: "Pyramid", path: "games/pyramid/", icon: "🔺", accent: "#2ec4b6",
     blurb: "One teammate describes, the other guesses, against the clock, six categories a round.",
     tagline: "Describe it. Guess it. Beat the clock.",
     phone: ["secret words for the giver", "got it / pass"], players: [2, 16], teams: true,
@@ -60,7 +60,7 @@ const GAME_REGISTRY = [
     phone: ["pick cases", "deal or no deal", "audience advice"], players: [1, 16],
   },
   {
-    id: "password", name: "Password", path: "games/password/", icon: "🔐", accent: "#f2c94c",
+    id: "password", name: "Password", path: "games/password/", icon: "🔐", accent: "#7aa2ff",
     blurb: "Partners trade one-word clues to guess a secret word; fewer clues score more.",
     tagline: "One-word clues. Ten points and falling.",
     phone: ["secret password for the givers", "clue given"], players: [2, 16], teams: true,

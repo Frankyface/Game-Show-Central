@@ -601,9 +601,9 @@ const BuzzerHost = (function () {
   function buildPlayerRow(peerId) {
     const player = roomState.players[peerId];
     const li = el("li", "buzzer-player-row");
-    // 🔴 for a dropped OR live-but-silent-past-30s connection (spec §9.3) — honest status.
+    // "Away" for a dropped OR live-but-silent-past-30s connection (spec §9.3) — honest status.
     const down = !player.connected || stalePeers.has(peerId);
-    li.appendChild(el("span", "buzzer-dot", down ? "🔴" : "🟢"));
+    li.appendChild(el("span", down ? "buzzer-dot is-away" : "buzzer-dot", down ? "Away" : "Connected")); // GSC: CSS dot + word, no emoji (gsc-look.css)
     li.appendChild(el("span", "buzzer-player-name", player.name));
     const kickBtn = el("button", "buzzer-kick", "Kick");
     kickBtn.type = "button";
@@ -615,7 +615,7 @@ const BuzzerHost = (function () {
 
   function buildRoomControls() {
     const row = el("div", "buzzer-controls");
-    const sound = el("button", "btn btn-ghost btn-small", soundOn ? "🔊 Sound on" : "🔇 Sound off");
+    const sound = el("button", "btn btn-ghost btn-small", soundOn ? "Sound" : "Sound off"); // GSC: string-only, no emoji
     sound.type = "button";
     sound.addEventListener("click", toggleSound);
     row.appendChild(sound);
@@ -634,7 +634,7 @@ const BuzzerHost = (function () {
     const visible = onBoard && roomStatus === "open";
     show(chip, visible);
     if (!visible) return;
-    chip.textContent = `${roomCode} · ${connectedCount()} connected${brokerStatusNow() === "ok" ? "" : " · ⚠"}`; // GSC: string-only, no emoji (docs/21 UI-10)
+    chip.textContent = `${roomCode} · ${connectedCount()} connected${brokerStatusNow() === "ok" ? "" : " · joins paused"}`; // GSC: string-only, no emoji (docs/21 UI-10)
     chip.setAttribute("aria-label", `Buzzer room ${roomCode}, ${connectedCount()} connected. Toggle details`);
   }
 

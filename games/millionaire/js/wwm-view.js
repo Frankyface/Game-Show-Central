@@ -150,6 +150,9 @@ const WwmView = (function () {
     const picking = state.phase === "pick";
     setText("wwm-fff-kicker", picking ? "Who is next in the hot seat?" : "Fastest Finger First");
     setText("wwm-fff-q", fffHeadline(state, picking));
+    show($("wwm-fff-grid"), !picking);
+    // When picking is the whole screen, the prompt already says it; no second heading.
+    show(document.querySelector("#screen-fff .pick-block .setup-heading"), !picking);
     renderFffItems(fff, picking);
     renderArrivals(state);
     setText("wwm-fff-notice", state.notice);
@@ -194,6 +197,8 @@ const WwmView = (function () {
     });
     setText("wwm-fff-count", rows.length ? `${rows.length} in` : "");
     show($("wwm-fff-count"), rows.length > 0);
+    show($("wwm-fff-arrivals-head"), rows.length > 0);
+    show($("wwm-fff-empty"), rows.length === 0 && !!state.fff.question && state.fff.open);
   }
 
   function renderFffButtons(state, picking) {
@@ -203,7 +208,6 @@ const WwmView = (function () {
     const seatable = !picking && state.fff.revealed && !!state.fff.winner;
     show($("btn-fff-seat"), seatable);
     if (seatable) $("btn-fff-seat").textContent = `${core().nameOf(state, state.fff.winner)} to the hot seat`;
-    $("btn-fff-undo").disabled = state.history.length === 0;
   }
 
   function renderPickList(state) {
@@ -340,7 +344,7 @@ const WwmView = (function () {
     $("btn-undo").disabled = state.history.length === 0;
     // Ending the night banks whoever is playing, so the button says what it pays.
     const banked = core().formatMoney(state, core().winningsIfWalk(state));
-    $("btn-give-up").textContent = `End the night (banks ${banked})`;
+    $("btn-give-up").textContent = `End game (banks ${banked})`;
     $("btn-give-up").title =
       `${core().nameOf(state, state.current)} is banked at ${banked} — the walk-away amount — `
       + "and the standings are shown.";

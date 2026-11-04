@@ -17,7 +17,7 @@
    ============================================================ */
 
 :root {
-  --feud-topbar: 60px;
+  --feud-topbar: 56px;               /* the shared .gsc-toolbar height */
   --feud-gutter: 24px;
 }
 

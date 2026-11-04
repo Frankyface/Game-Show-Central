@@ -14,14 +14,14 @@
 </head>
 <body data-gsc-game="deal-or-no-deal">
 
-  <header class="topbar">
-    <h1 id="dond-title" class="topbar-title">Deal or No Deal</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="dond-title" class="topbar-title gsc-toolbar-title">Deal or No Deal</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="dond-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Board editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -88,11 +88,10 @@
           <p class="gsc-banner-sub">Everyone else advises from their phone.</p>
         </div>
       </div>
-      <div id="dond-seat-list" class="seat-row"></div>
-      <ol id="dond-seat-standings" class="standings standings-small"></ol>
+      <div id="dond-seat-list" class="seat-row" aria-label="Contestants"></div>
       <div class="controls">
-        <button id="btn-seat-undo" class="btn btn-ghost" type="button">Undo</button>
-        <button id="btn-seat-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-seat-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-seat-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -128,8 +127,8 @@
         <button id="btn-swap-no" class="btn btn-blue btn-big" type="button">Keep my case</button>
         <button id="btn-reveal-rest" class="btn btn-blue btn-big" type="button">Open the next case</button>
         <button id="btn-reveal-own" class="btn btn-gold btn-big" type="button">Open my case</button>
-        <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
-        <button id="btn-give-up" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-give-up" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -143,7 +142,7 @@
       <div class="controls">
         <button id="btn-next-contestant" class="btn btn-gold btn-big" type="button">Next contestant</button>
         <button id="btn-finish" class="btn btn-ghost" type="button">Finish the night</button>
-        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         <button id="btn-play-again" class="btn btn-blue btn-big hidden" type="button">Play again</button>
       </div>
     </section>
@@ -255,7 +254,7 @@
       <div class="controls">
         <button id="btn-deal" class="btn btn-gold btn-big" type="button">Deal</button>
         <button id="btn-no-deal" class="btn btn-red btn-big" type="button">No deal</button>
-        <button id="btn-offer-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-offer-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </div>
   </div>

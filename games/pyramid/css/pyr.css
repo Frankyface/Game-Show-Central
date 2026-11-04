@@ -39,9 +39,12 @@ body {
   border-bottom: 1px solid var(--hairline);
 }
 
+/* Full-bleed like every other game: the shared .gsc-toolbar spans the page, so
+   pull it out of the body padding (12px 20px). Geometry is in theme-components §4b. */
+body .topbar.gsc-toolbar { margin: -12px -20px 12px; }
+
 .topbar-title { margin: 0; font-family: var(--font-ui); font-size: 18px; font-weight: 600; color: var(--ink); }
 .topbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.topbar .btn { min-height: 44px; }
 
 .room-chip {
   font-size: 15px;

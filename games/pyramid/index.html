@@ -14,14 +14,14 @@
 </head>
 <body data-gsc-game="pyramid">
 
-  <header class="topbar">
-    <h1 id="pyr-title" class="topbar-title">Pyramid</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="pyr-title" class="topbar-title gsc-toolbar-title">Pyramid</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="pyr-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -152,8 +152,8 @@
       </div>
 
       <div class="controls">
-        <button id="btn-board-undo" class="btn btn-ghost" type="button">Undo</button>
-        <button id="btn-board-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-board-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-board-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -195,8 +195,8 @@
           <kbd class="gsc-kbd">X</kbd></button>
         <button id="btn-reveal-words" class="btn btn-ghost" type="button" aria-pressed="false">Show words to me</button>
         <button id="btn-study" class="btn btn-ghost" type="button">Study (10 s)</button>
-        <button id="btn-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-play-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-play-finish" class="btn btn-ghost" type="button">End game</button>
         <button id="btn-next" class="btn btn-gold btn-big" type="button">Next</button>
       </div>
     </section>
@@ -232,8 +232,8 @@
         <button id="btn-circle-illegal" class="btn btn-danger btn-big" type="button">Illegal clue
           <kbd class="gsc-kbd">X</kbd></button>
         <button id="btn-circle-reveal" class="btn btn-ghost" type="button" aria-pressed="false">Show subjects to me</button>
-        <button id="btn-circle-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-circle-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-circle-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-circle-finish" class="btn btn-ghost" type="button">End game</button>
         <button id="btn-circle-next" class="btn btn-gold btn-big" type="button">Next</button>
       </div>
     </section>
@@ -247,7 +247,7 @@
       <ol id="pyr-standings" class="standings"></ol>
       <div class="controls">
         <button id="btn-result-next" class="btn btn-gold btn-big" type="button">Show the standings</button>
-        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         <button id="btn-play-again" class="btn btn-blue btn-big hidden" type="button">Play again</button>
       </div>
     </section>

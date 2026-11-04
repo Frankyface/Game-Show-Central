@@ -137,7 +137,7 @@ function chaseWireResult() {
 function chaseWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.ChaseSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.ChaseSound.enabled ? "Sound" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.ChaseSound.enabled));
     // v3 toolbar (docs/21 rule 9): icon + text label; textContent above drops it.
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.ChaseSound.enabled ? "sound" : "sound-off");

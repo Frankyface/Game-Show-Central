@@ -525,7 +525,7 @@ function ovhIcon(node, name) {
 function ovhWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.OvhSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.OvhSound.enabled ? "Sound" : "Sound off";
     ovhIcon(sound, window.OvhSound.enabled ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(window.OvhSound.enabled));
   };

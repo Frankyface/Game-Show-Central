@@ -155,24 +155,28 @@ body * {
 }
 
 /* ============================================================
-   2. Toolbar — name left; Final · Sound · Editor · Game lobby right
+   2. Toolbar — name left; Sound · Editor · Game lobby right. Geometry
+      comes from the shared .gsc-toolbar rule (theme-components.css §4b).
    ============================================================ */
 
-.topbar {
-  padding: 0.6rem 1.25rem;
-  background: var(--j-stage);
-  border-bottom: 1px solid var(--hairline);
-}
+.topbar { background: var(--j-stage); }
 
 .topbar::after { content: none; }
 
-.topbar-title {
-  font-size: 18px;
-  font-weight: 600;
+/* Final Jeopardy is a board action, not chrome: gsc-extras.js moves the
+   upstream button into this row on the board screen. A secondary outline,
+   so the board-done banner's button stays the single primary. */
+.gsc-board-actions { display: flex; justify-content: flex-end; flex: 0 0 auto; }
+.gsc-board-actions:not(:has(> :not(.hidden))) { display: none; }
+#screen-board:has(#board-done-banner:not(.hidden)) .gsc-board-actions { display: none; }
+.gsc-board-actions #btn-final {
+  min-height: 44px;
+  font-size: 15px;
   color: var(--ink);
+  background-color: transparent;
+  border-color: var(--hairline-strong);
 }
-
-.topbar-actions { align-items: center; gap: 0.5rem; }
+.gsc-board-actions #btn-final:hover { background-color: rgba(255, 255, 255, 0.06); }
 
 /* Standalone buzzer-room chip: a plain outline control, not a gold pill. */
 .buzzer-chip {
@@ -267,7 +271,13 @@ body.gsc-embedded #buzzer-chip { display: none; }
 .buzzer-join-label { color: var(--ink-dim); }
 .buzzer-join-url { color: var(--ink); }
 .buzzer-player-row { border-color: var(--hairline); background: none; }
-.buzzer-kick { border-radius: 6px; min-height: 36px; }
+/* Status dot, not emoji: the word ("Connected"/"Away") stays for screen readers. */
+.buzzer-dot { display: inline-flex; flex: 0 0 auto; font-size: 0; line-height: 0; }
+.buzzer-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.buzzer-dot.is-away::before { background: transparent; box-shadow: inset 0 0 0 2px var(--red); }
+#player-head-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+#player-head-dot[aria-label="Reconnecting"] { background: transparent; box-shadow: inset 0 0 0 2px var(--red); }
+.buzzer-kick { border-radius: 6px; min-height: 36px; font-size: 15px; }
 .buzzer-broker { color: var(--ink-dim); }
 
 /* The shared library picker: a flat block inside the section, no rail. */

@@ -633,7 +633,7 @@ const WheelApp = (function () {
   /** Label + GSCIcons glyph for the sound toggle (docs/21 rule 5: no emoji). */
   function paintSound(on) {
     const btn = $("btn-sound");
-    btn.textContent = on ? "Sound" : "Muted";
+    btn.textContent = on ? "Sound" : "Sound off";
     if (window.GSCIcons) window.GSCIcons.prepend(btn, on ? "sound" : "sound-off");
   }
 

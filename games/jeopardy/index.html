@@ -28,13 +28,16 @@
 </head>
 <body>
 
-  <header class="topbar">
-    <h1 id="game-title" class="topbar-title">Jeopardy</h1>
-    <div class="topbar-actions">
+  <!-- GSC: the shared toolbar classes (.gsc-toolbar*, theme-components.css §4b)
+       and the one label set ("Editor"). gsc-extras.js keeps the bar title the
+       plain "Jeopardy" and moves #btn-final onto the board screen. -->
+  <header class="topbar gsc-toolbar">
+    <h1 id="game-title" class="topbar-title gsc-toolbar-title">Jeopardy</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <button id="buzzer-chip" class="buzzer-chip hidden" type="button" aria-haspopup="true"></button>
       <button id="btn-final" class="btn btn-gold hidden" type="button">Final Jeopardy</button>
-      <button id="btn-editor" class="btn btn-ghost" type="button">Question Editor</button>
-      <button id="btn-new-game" class="btn btn-ghost hidden" type="button">New Game</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-new-game" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">New Game</button>
     </div>
   </header>
 

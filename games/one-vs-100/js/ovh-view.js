@@ -424,6 +424,9 @@ const OvhView = (function () {
 
   function render(app) {
     const wanted = paintScreens(app);
+    // Game lobby is always in the bar; with no game in progress there is
+    // nothing to park, so it is disabled, not hidden (docs 19 §1, UI-12).
+    $("btn-game-lobby").disabled = !app.core;
     if (wanted === "setup") renderSetup(app);
     if (wanted === "play") renderPlay(app);
     if (wanted === "result") renderResult(app);

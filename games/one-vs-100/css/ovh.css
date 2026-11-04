@@ -122,6 +122,13 @@
   border-color: var(--accent);
 }
 .btn-cyan:hover { background-color: color-mix(in srgb, var(--accent) 88%, white); }
+/* Never two primaries side by side: while "Open the Mob window" is offered,
+   "Close the Mob" beside it is the secondary outline. */
+#btn-open-window:not(.hidden) ~ #btn-close-mob:not(.hidden) {
+  color: var(--ink);
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.22);
+}
 
 /* ============ Setup ============ */
 
@@ -252,7 +259,7 @@
 
 .helps { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
 .help-chip { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 15px; }
-.help-chip.is-on { border-color: var(--accent); color: var(--ink); }
+.help-chip.is-on { border-color: var(--hairline); color: var(--ink); }   /* flat: hairline, no accent ring */
 .help-chip.is-spent { color: var(--ink-mute); text-decoration: line-through; }
 .help-badge { display: none; }
 .help-state { color: var(--ink-mute); font-size: 14px; }

@@ -16,15 +16,15 @@
 </head>
 <body data-gsc-game="weakest-link">
 
-  <header class="topbar">
-    <h1 id="wl-title" class="topbar-title">Weakest Link</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="wl-title" class="topbar-title gsc-toolbar-title">Weakest Link</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="wl-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button"
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button"
               aria-haspopup="dialog">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -161,7 +161,7 @@
         <button id="btn-correct" class="btn btn-green btn-big" type="button">Correct <kbd>Space</kbd></button>
         <button id="btn-wrong" class="btn btn-red btn-big" type="button">Wrong / Pass <kbd>X</kbd></button>
         <span class="controls-split" aria-hidden="true"></span>
-        <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         <button id="btn-end-round" class="btn btn-ghost" type="button">End round</button>
       </div>
     </section>
@@ -209,7 +209,7 @@
         <button id="btn-reveal-all" class="btn btn-ghost" type="button">Reveal the rest</button>
         <span class="controls-split" aria-hidden="true"></span>
         <button id="btn-show-stats" class="btn btn-ghost" type="button">Show statistics</button>
-        <button id="btn-vote-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-vote-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </section>
 
@@ -244,7 +244,7 @@
           <button id="btn-final-correct" class="btn btn-green btn-big" type="button">Correct <kbd>Space</kbd></button>
           <button id="btn-final-wrong" class="btn btn-red btn-big" type="button">Wrong <kbd>X</kbd></button>
           <span class="controls-split" aria-hidden="true"></span>
-          <button id="btn-final-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-final-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         </div>
       </div>
     </section>

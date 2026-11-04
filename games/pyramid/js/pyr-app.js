@@ -609,7 +609,7 @@ function pyrWireResult() {
 function pyrWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.PyrSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.PyrSound.enabled ? "Sound" : "Sound off";
     // v3 toolbar: an icon beside the label, re-added because the label was reset.
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.PyrSound.enabled ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(window.PyrSound.enabled));

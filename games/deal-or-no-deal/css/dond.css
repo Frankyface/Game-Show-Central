@@ -162,8 +162,40 @@
 
 /* ============ Who is playing ============ */
 
-.seat-row { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; margin: 1.4rem 0; }
-.seat-btn { min-width: 12rem; }
+.seat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-width: 56rem;
+  margin: 1rem auto;
+}
+
+/* One cell per contestant, same size whether still to play or done, so up to
+   twelve fit in three rows inside the hub frame (1280x676). */
+.seat-cell {
+  min-height: 48px;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seat-done {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  color: var(--ink-dim);
+}
+
+.seat-done .seat-name { overflow: hidden; text-overflow: ellipsis; }
+.seat-won { color: var(--dond-money); font-variant-numeric: tabular-nums; }
 
 .standings { list-style: none; margin: 1rem auto 0; padding: 0; display: grid; gap: 0.4rem; max-width: 44rem; }
 .standings-small { max-width: 34rem; font-size: 1rem; }

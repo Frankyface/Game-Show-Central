@@ -670,7 +670,7 @@ function wlWireVoting() {
 function wlWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.WlSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.WlSound.enabled ? "Sound" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.WlSound.enabled));
     // v3 toolbar (docs/21 rule 9): icon + text label; textContent above drops it.
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.WlSound.enabled ? "sound" : "sound-off");

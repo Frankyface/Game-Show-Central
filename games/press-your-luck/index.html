@@ -14,14 +14,14 @@
 </head>
 <body data-gsc-game="press-your-luck">
 
-  <header class="topbar">
-    <h1 id="pyl-title" class="topbar-title">Press Your Luck</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="pyl-title" class="topbar-title gsc-toolbar-title">Press Your Luck</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="pyl-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -142,8 +142,8 @@
         </button>
         <button id="btn-next-question" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Next question</button>
         <button id="btn-to-board" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">To the Big Board</button>
-        <button id="btn-q-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
-        <button id="btn-q-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End the game</button>
+        <button id="btn-q-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-q-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End game</button>
       </div>
     </section>
 
@@ -178,8 +178,8 @@
         <ul id="pyl-totals" class="totals" aria-label="Totals"></ul>
         <p id="pyl-board-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
         <div class="minor-row">
-          <button id="btn-board-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
-          <button id="btn-board-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End the game</button>
+          <button id="btn-board-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" data-gsc-icon="undo">Undo</button>
+          <button id="btn-board-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End game</button>
         </div>
       </div>
     </section>
@@ -191,7 +191,7 @@
       <ol id="pyl-standings" class="standings"></ol>
       <div class="controls">
         <button id="btn-play-again" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Play again</button>
-        <button id="btn-result-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </section>
 
@@ -285,8 +285,8 @@
       <p id="pyl-round-sub" class="overlay-sub">&nbsp;</p>
       <div class="controls gsc-modal-actions">
         <button id="btn-next-round" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Next round</button>
-        <button id="btn-round-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
-        <button id="btn-round-end" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">End the game</button>
+        <button id="btn-round-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-round-end" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">End game</button>
       </div>
     </div>
   </div>

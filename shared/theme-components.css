@@ -144,11 +144,16 @@
 .gsc-btn-danger:hover { background-color: rgba(255, 107, 107, 0.08); }
 
 .gsc-btn-big { min-height: 48px; padding: 0.65em 1.4em; font-size: 1rem; }
-.gsc-btn-sm { min-height: 36px; padding: 0.4em 0.85em; font-size: 0.9rem; }
+.gsc-btn-sm { min-height: 44px; padding: 0.4em 0.9em; font-size: 15px; }
 .gsc-btn-tap { min-height: var(--tap); font-size: 1rem; }
 .gsc-btn-block { width: 100%; }
 
 .gsc-btn-icon { width: 44px; padding: 0; }
+
+/* A host action row (".controls", the footer under every play screen): one
+   height for every button in it, big or small (consistency pass, docs/21 rule 4). */
+.controls > .btn,
+.controls > .gsc-btn { min-height: 48px; }
 
 /* ============================================================
    4. Tags, badges, keys, status
@@ -160,7 +165,7 @@
   align-items: center;
   gap: 0.35em;
   padding: 0.2em 0.55em;
-  font-size: 0.85rem;
+  font-size: 14px;
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
@@ -175,25 +180,42 @@
 button.gsc-chip { cursor: pointer; font-family: var(--font-ui); }
 button.gsc-chip:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--ink); }
 
+/* A flat label: hairline outline, no fill, never a pill (consistency pass). */
 .gsc-badge {
   display: inline-block;
-  padding: 0.15em 0.5em;
+  padding: 0.15em 0.55em;
   font-family: var(--font-ui);
-  font-size: 0.9rem;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.3;
   letter-spacing: 0;
+  text-transform: none;
   font-variant-numeric: tabular-nums;
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
 }
+
+/* Connection status: a CSS dot + a word (or visually-hidden text). Colour is
+   never the only signal: connected is filled, away is a hollow ring. */
+.gsc-status-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--green);
+}
+.gsc-status-dot.is-away { background: transparent; box-shadow: inset 0 0 0 2px var(--red); }
 
 .gsc-kbd {
   display: inline-block;
   min-width: 1.8em;
   padding: 0.1em 0.4em;
   font-family: var(--font-ui);
-  font-size: 0.8rem;
+  font-size: 14px;
   font-weight: 600;
   text-align: center;
   color: var(--ink);
@@ -226,6 +248,87 @@ button.gsc-chip:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--in
 @media (prefers-reduced-motion: no-preference) {
   .gsc-pill-status.is-busy::before { animation: gsc-dot 1s ease-in-out infinite; }
 }
+
+/* ============================================================
+   4b. The host toolbar — ONE bar in every game (docs/21 rule 9,
+   docs/design-system.md §0 "The toolbar"). Markup:
+     <header class="topbar gsc-toolbar">
+       <h1 class="gsc-toolbar-title">Family Feud</h1>
+       <div class="gsc-toolbar-actions">
+         [room chip] <button class="btn btn-ghost gsc-toolbar-btn">Sound</button> …
+   The `body` prefix lifts these over each game's own `.topbar .btn`-style
+   rules (0,2,0) so every bar measures the same; a game's player-mode or
+   embedded rules (`body.x .topbar`, 0,2,1+) still win where they must.
+   ============================================================ */
+
+body .gsc-toolbar {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  height: 56px;
+  min-height: 56px;
+  margin: 0;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+body .gsc-toolbar .gsc-toolbar-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body .gsc-toolbar .gsc-toolbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0 auto;
+}
+
+body .gsc-toolbar .gsc-toolbar-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--ink);
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
+}
+
+body .gsc-toolbar .gsc-toolbar-btn:hover:not(:disabled) { background-color: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.4); }
+body .gsc-toolbar .gsc-toolbar-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+body .gsc-toolbar .gsc-toolbar-btn .gsc-icon { flex: 0 0 auto; width: 18px; height: 18px; }
 
 /* ============================================================
    5. Phase banner — "what is happening now"
@@ -294,7 +397,7 @@ button.gsc-chip:hover { border-color: rgba(255, 255, 255, 0.35); color: var(--in
   font-variant-numeric: tabular-nums;
 }
 
-.gsc-podium-note { font-size: 0.85rem; color: var(--ink-mute); }
+.gsc-podium-note { font-size: 14px; color: var(--ink-mute); }
 
 /* The active player: the accent border (and the class, for anything reading
    the DOM). No lift, no glow. */

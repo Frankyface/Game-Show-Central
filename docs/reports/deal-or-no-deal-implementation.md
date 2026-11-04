@@ -530,3 +530,31 @@ on setup.
 `tests/harness.html` → **83 / 83** on three consecutive headless runs on port
 8693 (`.scratch/dond-harness-run.mjs`).
 
+---
+
+## 13. Contestant picker fix (docs/reports/ui-v3-verification.md item 2, 2026-11-04)
+
+The seat screen showed every waiting name twice — once as a big button and again
+in a compact standings list under it, where "to play" was set in the display
+font at 16 px grey — and with seven players it overflowed the hub frame
+(844 / 672 px).
+
+Fixed in the picker only (`renderSeat` in `js/dond-view.js`, the seat section
+of `index.html`, the `.seat-*` rules in `css/dond.css`; the toolbar was not
+touched). The standings list under the buttons is gone. `#dond-seat-list` is
+now one 4-column grid with **one cell per contestant**: a 48 px primary button
+(`.seat-btn`, Inter 600, 16 px, still carrying `data-pid`) for everyone still
+to play, and a plain hairline cell with the name and the winnings in money gold
+(`.seat-done`) for everyone who has played. Long names truncate with an
+ellipsis instead of widening the grid.
+
+Measured headless at 1280×676 and 1280×720 with twelve players, two already
+played (`.scratch/dond-seat-check.mjs`): 12 cells (10 buttons + 2 done), every
+name exactly once, no Anton, no label under 15 px, no text pair under 4.5:1,
+the grid ends at 312 px, no vertical scroll.
+
+`node --test` 90 / 90; `tests/harness.html` 83 / 83 on three runs on 8693. (One
+earlier run reported 82 / 82: my headless runner read the results a beat before
+the harness's final 320 px phone check landed. The runner now waits for that
+check; it was never a harness failure.)
+

@@ -47,7 +47,6 @@
 }
 
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.topbar-actions .btn { min-height: 36px; }
 
 .room-chip {
   font-size: 0.95rem;

@@ -44,12 +44,13 @@ body.player-mode { height: auto; min-height: 100vh; overflow: visible; }
 
 /* Host controls are 44-48 px (rule 4). */
 .btn { min-height: 44px; }
-.btn-small { min-height: 44px; font-size: 0.95rem; padding: 0.35em 0.9em; }
+.btn-small { min-height: 44px; font-size: 15px; padding: 0.35em 0.9em; }
 .btn-big { min-height: 48px; }
 
-/* Match: a flat signal-green fill with dark ink (10:1). */
-.btn-green { color: #0a1205; background-color: var(--green); border-color: var(--green); }
-.btn-green:hover { background-color: color-mix(in srgb, var(--green) 88%, white); }
+/* Match: a green OUTLINE, beside the red No-match outline, so the footer has one
+   primary (Reveal, the accent fill) and outlines (consistency pass). */
+.btn-green { color: var(--green); background-color: transparent; border-color: color-mix(in srgb, var(--green) 65%, transparent); }
+.btn-green:hover { background-color: color-mix(in srgb, var(--green) 8%, transparent); }
 
 /* "Next", "Resume", "Play another game": a secondary outline. */
 .btn-blue { color: var(--ink); background-color: transparent; border-color: rgba(255, 255, 255, 0.35); }
@@ -411,7 +412,7 @@ body.player-mode { height: auto; min-height: 100vh; overflow: visible; }
 .card-form { display: flex; gap: 6px; }
 .card-form[hidden] { display: none; }
 .card-input { flex: 1; min-width: 0; min-height: 40px; font-size: 0.95rem; }
-.card-form .btn { min-height: 40px; }
+.card-form .btn { min-height: 44px; }
 .card-pick { width: 100%; }
 
 .play-rail {
@@ -557,7 +558,7 @@ body.player-mode { height: auto; min-height: 100vh; overflow: visible; }
 .merge-box { display: flex; gap: 4px; flex-wrap: wrap; }
 .board-row .merge-box { grid-column: 2 / -1; }
 .other-row .merge-box { grid-column: 1 / -1; }
-.merge-box .btn { min-height: 34px; font-size: 0.9rem; padding: 0.2em 0.7em; }
+.merge-box .btn { min-height: 34px; font-size: 15px; padding: 0.2em 0.7em; }
 
 .guesses { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 

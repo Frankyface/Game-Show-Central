@@ -14,14 +14,14 @@
 </head>
 <body data-gsc-game="one-vs-100">
 
-  <header class="topbar">
-    <h1 id="ovh-title" class="topbar-title">1 vs 100</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="ovh-title" class="topbar-title gsc-toolbar-title">1 vs 100</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="ovh-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -173,8 +173,8 @@
         <button id="btn-reveal" class="btn btn-gold btn-big" type="button">Reveal</button>
         <button id="btn-continue" class="btn btn-cyan btn-big" type="button">Play on</button>
         <button id="btn-walk" class="btn btn-gold btn-big" type="button">Walk away</button>
-        <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
-        <button id="btn-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -196,7 +196,7 @@
       </div>
       <div class="controls">
         <button id="btn-standings" class="btn btn-cyan btn-big" type="button">Standings</button>
-        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         <button id="btn-play-again" class="btn btn-gold btn-big hidden" type="button">Play again</button>
       </div>
     </section>

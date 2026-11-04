@@ -14,14 +14,14 @@
 </head>
 <body data-gsc-game="chain-reaction">
 
-  <header class="topbar">
-    <h1 id="cr-title" class="topbar-title">Chain Reaction</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="cr-title" class="topbar-title gsc-toolbar-title">Chain Reaction</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="cr-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-btn gsc-btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -140,8 +140,8 @@
             <div class="minor-row">
               <button id="btn-peek" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" aria-pressed="false">Peek</button>
               <button id="btn-pass" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Pass control</button>
-              <button id="btn-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
-              <button id="btn-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End the night</button>
+              <button id="btn-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" data-gsc-icon="undo">Undo</button>
+              <button id="btn-end" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">End game</button>
             </div>
             <p id="cr-peek-word" class="peek-word" role="status" aria-live="polite"></p>
           </div>
@@ -164,7 +164,7 @@
         <button id="btn-sudden-pass" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Other team buzzed</button>
         <button id="btn-sudden-correct" class="btn btn-gold btn-big gsc-btn gsc-btn-big" type="button">Correct</button>
         <button id="btn-sudden-wrong" class="btn btn-ghost btn-big gsc-btn gsc-btn-danger gsc-btn-big" type="button">Wrong</button>
-        <button id="btn-sudden-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+        <button id="btn-sudden-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </section>
 
@@ -194,7 +194,7 @@
             </div>
             <div class="minor-row">
               <button id="btn-speed-done" class="btn btn-blue gsc-btn gsc-btn-primary" type="button">Standings</button>
-              <button id="btn-speed-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button">Undo</button>
+              <button id="btn-speed-undo" class="btn btn-ghost btn-small gsc-btn gsc-btn-ghost gsc-btn-sm" type="button" data-gsc-icon="undo">Undo</button>
             </div>
           </div>
         </aside>
@@ -208,7 +208,7 @@
       <ol id="cr-standings" class="standings"></ol>
       <div class="controls">
         <button id="btn-play-again" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Play again</button>
-        <button id="btn-result-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </section>
 
@@ -312,8 +312,8 @@
         <button id="btn-next-chain" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Next chain</button>
         <button id="btn-sudden" class="btn btn-blue btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Sudden death</button>
         <button id="btn-to-speed" class="btn btn-gold btn-big gsc-btn gsc-btn-primary gsc-btn-big" type="button">Speed Chain</button>
-        <button id="btn-inter-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">Undo</button>
-        <button id="btn-inter-end" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">End the night</button>
+        <button id="btn-inter-undo" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-inter-end" class="btn btn-ghost gsc-btn gsc-btn-ghost" type="button">End game</button>
       </div>
     </div>
   </div>

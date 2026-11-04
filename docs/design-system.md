@@ -8,8 +8,8 @@ one-line usage example.
 
 | File | What it holds | Lines |
 | --- | --- | --- |
-| `shared/theme.css` | tokens, per-game accents, the stage, v1 utilities/`.btn`/`.field`, type utilities | 338 |
-| `shared/theme-components.css` | the `.gsc-*` component kit + the motion vocabulary | 700 |
+| `shared/theme.css` | tokens, per-game accents, the stage, v1 utilities/`.btn`/`.field`, type utilities | 367 |
+| `shared/theme-components.css` | the `.gsc-*` component kit (incl. the shared toolbar, §4b) + the motion vocabulary | 666 |
 
 The hub's own sheets, for reference: `css/hub.css` (host screens),
 `css/hub-art.css` (the CSS-drawn game art, one `--art` stack per registry id),
@@ -84,6 +84,7 @@ const svg = GSCIcons.make("sound");              // <svg class="gsc-icon gsc-ico
 GSCIcons.make("undo", { size: 16 });             // 12–32, clamped
 GSCIcons.make("lock", { label: "Locked" });      // only when no text label sits beside it
 GSCIcons.prepend(button, "sound-off");           // put it before the label; replaces a previous one
+GSCIcons.decorate();                             // every [data-gsc-icon="undo"] gets its icon (auto on load)
 GSCIcons.names();                                // the registry
 ```
 
@@ -95,6 +96,68 @@ A 24-unit grid, 1.5 px stroke, round caps/joins, no fill, `currentColor`,
 beside a text label, never instead of one** on host toolbars (rule 9). If
 your JS re-sets a button's `textContent`, call `GSCIcons.prepend` again
 afterwards. Tested in `tests/icons.test.mjs`.
+
+### One bar, one vocabulary (cross-game consistency pass)
+
+Fifteen games once had fifteen toolbars. Now there is one, and it lives in
+`shared/theme-components.css` §4b. Its rules carry a `body` prefix, which
+puts them above a game's own `.topbar .btn` rules. A game's
+`body.player-mode …` rules still win.
+
+```html
+<header class="topbar gsc-toolbar">
+  <h1 id="xx-title" class="topbar-title gsc-toolbar-title">Family Feud</h1>
+  <div class="topbar-actions gsc-toolbar-actions">
+    <span id="xx-room-chip" class="room-chip hidden"></span>   <!-- standalone only -->
+    <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+    <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+    <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+  </div>
+</header>
+```
+
+| Part | Measure |
+| --- | --- |
+| Bar (`.gsc-toolbar`) | 56 px tall (`box-sizing: border-box`), full page width, 16 px inline padding, 16 px gap, 1 px `--hairline` bottom rule. No fill of its own: the game's flat stage shows through. |
+| Game name (`.gsc-toolbar-title`) | Inter 600, 18 px, `--ink`, left edge 16 px from the viewport, one line with ellipsis |
+| Actions (`.gsc-toolbar-actions`) | pushed right (`margin-left: auto`), 8 px gap, no wrap. Last button 16 px from the right edge. |
+| Button (`.gsc-toolbar-btn`) | 44 px tall, 0 14 px padding, Inter 600, 15 px, sentence case. Hairline outline (22 % white), 6 px radius. Icon (18 px `GSCIcons`) and label with an 8 px gap. Disabled is shown at 45 % opacity, never hidden. |
+
+**What may sit in the bar:**
+- The game name.
+- The standalone room chip.
+- Sound, Editor, Game lobby, in that order.
+
+**What must not:**
+- A primary-styled button. Jeopardy's Final Jeopardy now lives on the board screen.
+- A subtitle or set name. Krillion's "Deep Dive · prompt 1 of 7" is already on each screen's own round line.
+- Any game control (Undo, End game, New game).
+
+**Labels: one vocabulary in every game.** The bar always shows the plain
+registry name (`js/hub-registry.js`). A loaded set's title may appear on the
+setup screen only.
+
+| Control | Label | Icon | State rule |
+| --- | --- | --- | --- |
+| Bar title | Registry name ("Family Feud", "Jeopardy", "Deal or No Deal", "Millionaire", …), never "— Game Night" or a set title | — | static |
+| Sound toggle | **Sound** when on, **Sound off** when muted | `sound` / `sound-off` | `aria-pressed` mirrors on/off |
+| Editor | **Editor** (not "Question editor", "Board editor", "Prompt editor") | `edit` | Always present. Deal or No Deal disables it mid-game, because a board swap would drop the game. |
+| Game lobby | **Game lobby** | `lobby` | always present; **disabled** while no game is in progress |
+| End the game (play screens) | **End game** (not "End the night" / "End the game"). Millionaire adds what it banks: "End game (banks $200)". | — | Weakest Link's **End round** is a different action, so it keeps its name. |
+| Undo (play screens) | **Undo**, optionally with its key hint | `undo` (markup: `data-gsc-icon="undo"`, drawn by `GSCIcons.decorate()`) | — |
+| Connection status (rosters, buzzer panel) | a CSS dot (`.gsc-status-dot`, filled = connected, hollow red ring = away) plus the word **Connected** / **Away** (visually hidden in rosters) | — | never an emoji |
+
+**Action rows and badges.**
+- Every host button is at least 44 px tall and 15 px. `.btn` and `.btn-small` are now 44 px, and `.gsc-btn-sm` is 44 px too.
+- In a `.controls` footer every button is 48 px, so a row never mixes sizes.
+- A disabled primary (`.btn-gold:disabled`, `.gsc-btn-primary:disabled`) is drawn as a disabled outline, so a row never shows two filled buttons.
+- `.gsc-badge` is a flat label: hairline outline, no fill, 15 px.
+- `.gsc-chip`, `.gsc-kbd` and `.gsc-podium-note` are 14 px, the floor for tags and labels.
+- Nothing is a pill.
+
+**Hub card accents.** The `accent` of each registry entry equals that game's
+`--accent` in `shared/theme.css`. `tests/registry-accent.test.mjs` fails if
+the two ever drift.
 
 ### Per-game checklist (tick every line; docs/21 §2)
 
@@ -150,6 +213,8 @@ Copy this list into your report and tick it.
 **Host toolbar (rule 9)**
 - [ ] One bar: game name (Inter 600, 18 px) on the left; on the right, in this
       order: **Sound**, **Editor**, **Game lobby** — icon + text label each.
+      Use the shared `.gsc-toolbar` classes and the label table above; no
+      per-game toolbar geometry.
 - [ ] Embedded (`body.gsc-embedded`): nothing else in the bar (the hub's shell
       bar already carries Lobby and the room chip).
 

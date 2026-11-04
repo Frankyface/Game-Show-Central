@@ -48,7 +48,6 @@
 }
 .topbar-title { font-family: var(--font-ui); font-size: 18px; font-weight: 600; margin: 0; color: var(--ink); }
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.topbar-actions .btn { min-height: 36px; }
 body.gsc-embedded #btn-exit { display: none !important; }
 
 .room-chip {

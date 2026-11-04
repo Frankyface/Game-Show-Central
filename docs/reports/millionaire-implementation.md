@@ -505,3 +505,25 @@ Verified standalone with `.scratch/wwm-m1-check.mjs`. A Phone a Friend window ha
   - Resume comes back with the time that was left and is otherwise identical to the game that was parked;
   - after a reload the shelf is still paused with the same `remainingMs`;
   - a reload mid-window resumes with a later deadline and the same time left.
+
+## 13. D9 — the hot-seat picker screen (ui-v3-verification item 7)
+
+This change touches only `#screen-fff`, which shows both the hand picker and Fastest Finger. The toolbar markup and CSS are untouched; another agent owns them.
+
+- **Prompt aligned.**
+  - The small line above the question ("Who is next in the hot seat?" / "Fastest Finger First") is now centred, like the headline under it.
+  - When the host is picking by hand, the "Pick the hot seat by hand" heading is hidden, because the prompt already says it.
+- **No empty "Arrivals" heading.**
+  - The question/arrivals grid (`#wwm-fff-grid`) is hidden entirely while picking by hand.
+  - During Fastest Finger, the "Arrivals" heading appears only once someone has answered.
+  - While the question is open with no answers, it shows one plain line: "No answers yet."
+- **Stray Undo removed.**
+  - `#btn-fff-undo` is gone from this screen, along with its wiring in `wwm-app.js` and its render line in `wwm-view.js`.
+  - Undo is still available in the hot seat and on the result screen.
+  - The controls row now hides itself when none of its buttons is showing.
+
+**Tests:** `node --test` is still **67/67** and `tests/harness.html` is still **79/79** on port 8672.
+
+**Visual check:** `.scratch/wwm-d9-shot.mjs` renders both states at 1280×720 with no scroll:
+- picking: a centred prompt plus the name buttons;
+- open Fastest Finger: the items, "No answers yet.", Reveal, and the hand-pick row.

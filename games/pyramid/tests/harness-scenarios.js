@@ -109,7 +109,7 @@ window.PyrHarnessScenarios = function (ctx) {
       click("btn-clock-start");
       click("btn-correct");
       check("Y-I6 the play toolbar carries an End the night that needs no word judged",
-        !!H("btn-play-finish") && H("btn-play-finish").textContent === "End the night"
+        !!H("btn-play-finish") && H("btn-play-finish").textContent === "End game"
         && H("btn-next").classList.contains("hidden"),
         "Next is still hidden mid-round, End the night is not");
       click("btn-play-finish");
@@ -119,7 +119,7 @@ window.PyrHarnessScenarios = function (ctx) {
         && HD().querySelectorAll("#pyr-standings li").length === 2,
         `${H("pyr-result-team").textContent} — ${H("pyr-result-amount").textContent}`);
       check("Y-I6 the Winner's Circle toolbar carries the same escape",
-        !!H("btn-circle-finish") && H("btn-circle-finish").textContent === "End the night");
+        !!H("btn-circle-finish") && H("btn-circle-finish").textContent === "End game");
     }
 
     /* ============================================================

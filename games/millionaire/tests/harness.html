@@ -454,7 +454,7 @@
       answerCorrectly();
       answerCorrectly();
       check("M-I4 End the night says what it will bank",
-        H("btn-give-up").textContent === "End the night (banks $200)",
+        H("btn-give-up").textContent === "End game (banks $200)",
         H("btn-give-up").textContent);
       click("btn-give-up");
       await waitFor(() => core().phase === "standings", "the night ends");

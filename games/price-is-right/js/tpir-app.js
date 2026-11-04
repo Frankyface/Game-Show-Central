@@ -593,7 +593,7 @@ function tpirWirePlay() {
 function tpirWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.TpirSound.enabled ? "Sound" : "Muted";
+    sound.textContent = window.TpirSound.enabled ? "Sound" : "Sound off";
     // docs/21 rule 5: an icon beside the label, never an emoji.
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.TpirSound.enabled ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(window.TpirSound.enabled));

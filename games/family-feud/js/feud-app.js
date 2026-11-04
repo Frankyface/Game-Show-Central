@@ -256,7 +256,7 @@ function render() {
   // 19 §1 + UI-12: the Game lobby control is always in the toolbar (same order
   // in every phase); on setup there is nothing to park, so it is disabled.
   $("btn-game-lobby").disabled = phase === "setup";
-  $("game-title").textContent = state.game?.title || "Family Feud";
+  $("game-title").textContent = "Family Feud"; // one bar in every game: the plain name
 
   if (phase === "setup") renderSetup();
   if (onBoard) renderBoard();

@@ -14,15 +14,15 @@
 </head>
 <body data-gsc-game="match-game">
 
-  <header class="topbar">
-    <h1 id="mg-title" class="topbar-title">Match Game</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="mg-title" class="topbar-title gsc-toolbar-title">Match Game</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="mg-room-chip" class="room-chip hidden"></span>
       <!-- docs/21 rule 9: Sound · Editor · Game lobby, icon + label (GSCIcons, js/mg-app.js). -->
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Prompt editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -161,8 +161,8 @@
         <button id="btn-no-match" class="btn btn-danger btn-big" type="button">No match
           <kbd class="gsc-kbd">X</kbd></button>
         <button id="btn-next-prompt" class="btn btn-ghost" type="button">Different prompt</button>
-        <button id="btn-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-finish" class="btn btn-ghost" type="button">End game</button>
         <button id="btn-next-contestant" class="btn btn-blue btn-big" type="button">Next
           <kbd class="gsc-kbd">N</kbd></button>
       </div>
@@ -177,8 +177,8 @@
       <div class="controls">
         <button id="btn-tiebreak" class="btn btn-gold btn-big" type="button">Play a tiebreak prompt</button>
         <button id="btn-next-round" class="btn btn-blue btn-big" type="button">Next round</button>
-        <button id="btn-scores-undo" class="btn btn-ghost" type="button">Undo</button>
-        <button id="btn-scores-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-scores-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-scores-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -199,7 +199,7 @@
         <div class="controls">
           <button id="btn-audience-open" class="btn btn-gold btn-big" type="button">Start the Audience Match</button>
           <button id="btn-skip-audience" class="btn btn-ghost" type="button">Straight to Head-to-Head</button>
-          <button id="btn-super-finish" class="btn btn-ghost" type="button">End the night</button>
+          <button id="btn-super-finish" class="btn btn-ghost" type="button">End game</button>
         </div>
       </div>
 
@@ -216,7 +216,7 @@
         </form>
         <div class="controls">
           <button id="btn-aud-close" class="btn btn-gold btn-big" type="button">Close the board</button>
-          <button id="btn-aud-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-aud-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         </div>
       </div>
 
@@ -242,7 +242,7 @@
           </div>
         </div>
         <div class="controls">
-          <button id="btn-board-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-board-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
           <button id="btn-board-skip" class="btn btn-ghost" type="button">Skip to Head-to-Head</button>
         </div>
       </div>
@@ -253,7 +253,7 @@
         <p id="mg-hth-base" class="result-sub">&nbsp;</p>
         <div id="mg-hth-cards" class="cards cards-pick"></div>
         <div class="controls">
-          <button id="btn-pick-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-pick-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         </div>
       </div>
 
@@ -286,7 +286,7 @@
           <button id="btn-hth-reveal" class="btn btn-gold btn-big" type="button">Turn both cards over</button>
           <button id="btn-hth-match" class="btn btn-green btn-big" type="button">Match</button>
           <button id="btn-hth-no" class="btn btn-danger btn-big" type="button">No match</button>
-          <button id="btn-hth-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-hth-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         </div>
       </div>
 
@@ -298,7 +298,7 @@
         <p id="mg-result-sub" class="result-sub">&nbsp;</p>
         <div class="controls">
           <button id="btn-super-standings" class="btn btn-gold btn-big" type="button">Show the standings</button>
-          <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+          <button id="btn-result-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         </div>
       </div>
     </section>
@@ -310,7 +310,7 @@
       <div class="controls">
         <button id="btn-next-game" class="btn btn-blue btn-big" type="button">Play another game</button>
         <button id="btn-new-game" class="btn btn-gold btn-big" type="button">New line-up</button>
-        <button id="btn-standings-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-standings-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </section>
 

@@ -57,6 +57,17 @@ const HubPlayer = (function () {
     return node;
   }
 
+  /** Connection status: a CSS dot (.gsc-status-dot) plus the word for screen
+      readers. Filled = connected, hollow ring = away. Mirrors hub-host.js. */
+  function statusDot(connected) {
+    const wrap = el("span", "roster-status");
+    const dot = el("span", connected ? "gsc-status-dot" : "gsc-status-dot is-away");
+    dot.setAttribute("aria-hidden", "true");
+    wrap.appendChild(dot);
+    wrap.appendChild(el("span", "visually-hidden", connected ? "Connected" : "Away"));
+    return wrap;
+  }
+
   function show(node, visible) {
     if (node) node.classList.toggle("hidden", !visible);
   }
@@ -330,7 +341,7 @@ const HubPlayer = (function () {
       li.appendChild(swatch);
       li.appendChild(el("span", "roster-avatar", p.avatar));
       li.appendChild(el("span", "roster-name", p.name + (p.pid === me.pid ? " (you)" : "")));
-      li.appendChild(el("span", "roster-dot", p.connected ? "🟢" : "🔴"));
+      li.appendChild(statusDot(p.connected));
       list.appendChild(li);
     }
     $("wait-status").textContent = lastStatus.connected ? "" : "Reconnecting…";

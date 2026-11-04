@@ -37,7 +37,6 @@ body[data-gsc-game="millionaire"] {
 }
 
 .topbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.topbar-actions .btn { min-height: 44px; font-size: 15px; }
 
 .room-chip {
   font-size: 15px;
@@ -109,7 +108,7 @@ body.gsc-embedded .topbar-actions .room-chip { display: none !important; }
   margin-top: 0.8rem;
 }
 
-.controls .btn { min-height: 44px; }
+.controls .btn { min-height: 48px; }   /* one height per action row (consistency pass) */
 
 /* .btn-blue: the v1 page's second primary. Flat accent, like .btn-gold. */
 .btn-blue {
@@ -575,3 +574,9 @@ body.player-mode .overlay { display: none; }
 #screen-editor .ed-row .btn, #screen-editor .ed-row-fff .btn { min-height: 36px; }
 body.player-mode #wwm-main { padding: 0; }
 #wwm-main .phone-actions .btn { min-height: var(--tap); }    /* phones: 56 px */
+
+/* D9: the Fastest Finger / hot-seat picker screen reads as one centred column. */
+#screen-fff .kicker { text-align: center; }
+#screen-fff .controls:not(:has(> .btn:not(.hidden))) { display: none; }
+#screen-fff .pick-block .setup-heading { margin-top: 0.4rem; }
+#wwm-fff-empty { margin: 0.4rem 0; }

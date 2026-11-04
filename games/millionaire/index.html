@@ -14,14 +14,14 @@
 </head>
 <body data-gsc-game="millionaire">
 
-  <header class="topbar">
-    <h1 id="wwm-title" class="topbar-title">Millionaire</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="wwm-title" class="topbar-title gsc-toolbar-title">Millionaire</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="wwm-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -92,10 +92,11 @@
       <p id="wwm-fff-kicker" class="kicker">Fastest Finger First</p>
       <h2 id="wwm-fff-q" class="fff-question">Open the question when everyone is ready.</h2>
 
-      <div class="fff-grid">
+      <div id="wwm-fff-grid" class="fff-grid">
         <ol id="wwm-fff-items" class="fff-items"></ol>
         <div class="fff-side">
-          <h3 class="setup-heading">Arrivals <span id="wwm-fff-count" class="count-badge"></span></h3>
+          <h3 id="wwm-fff-arrivals-head" class="setup-heading hidden">Arrivals <span id="wwm-fff-count" class="count-badge"></span></h3>
+          <p id="wwm-fff-empty" class="hint hidden">No answers yet.</p>
           <ol id="wwm-fff-arrivals" class="fff-arrivals" aria-live="polite"></ol>
           <p id="wwm-fff-notice" class="notice" role="status" aria-live="polite"></p>
         </div>
@@ -105,7 +106,6 @@
         <button id="btn-fff-open" class="btn btn-gold btn-big" type="button">Open the question</button>
         <button id="btn-fff-reveal" class="btn btn-blue btn-big" type="button">Reveal the order</button>
         <button id="btn-fff-seat" class="btn btn-gold btn-big" type="button">To the hot seat</button>
-        <button id="btn-fff-undo" class="btn btn-ghost" type="button">Undo</button>
       </div>
 
       <div class="pick-block">
@@ -146,8 +146,8 @@
         <button id="btn-reveal" class="btn btn-blue btn-big" type="button">Reveal</button>
         <button id="btn-next" class="btn btn-blue btn-big" type="button">Next question</button>
         <button id="btn-walk" class="btn btn-ghost" type="button">Walk away</button>
-        <button id="btn-undo" class="btn btn-ghost" type="button">Undo</button>
-        <button id="btn-give-up" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-give-up" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -160,7 +160,7 @@
       <div class="controls">
         <button id="btn-next-contestant" class="btn btn-gold btn-big" type="button">Next contestant</button>
         <button id="btn-finish" class="btn btn-ghost" type="button">Finish the night</button>
-        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         <button id="btn-play-again" class="btn btn-blue btn-big hidden" type="button">Play again</button>
       </div>
     </section>

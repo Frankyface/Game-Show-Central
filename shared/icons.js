@@ -160,5 +160,27 @@
     return svg;
   }
 
-  return { make, prepend, names, has, DEFAULT_SIZE };
+  /**
+   * Markup-only icons: every `[data-gsc-icon="name"]` under root that has no
+   * icon yet gets one in front of its text (e.g. every Undo button). Runs
+   * once on DOMContentLoaded in the browser; safe to call again.
+   * @returns {number} how many icons were added
+   */
+  function decorate(root) {
+    const base = root || (typeof document !== "undefined" ? document : null);
+    if (!base || !base.querySelectorAll) return 0;
+    let added = 0;
+    for (const el of base.querySelectorAll("[data-gsc-icon]")) {
+      if (el.querySelector(":scope > .gsc-icon")) continue;
+      if (prepend(el, el.getAttribute("data-gsc-icon"))) added++;
+    }
+    return added;
+  }
+
+  if (typeof document !== "undefined" && document.addEventListener) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => decorate());
+    else decorate();
+  }
+
+  return { make, prepend, decorate, names, has, DEFAULT_SIZE };
 });

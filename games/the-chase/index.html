@@ -15,14 +15,14 @@
 </head>
 <body data-gsc-game="the-chase">
 
-  <header class="topbar">
-    <h1 id="chase-title" class="topbar-title">The Chase</h1>
-    <div class="topbar-actions">
+  <header class="topbar gsc-toolbar">
+    <h1 id="chase-title" class="topbar-title gsc-toolbar-title">The Chase</h1>
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="chase-room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-exit" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">Back to lobby</button>
     </div>
   </header>
 
@@ -159,8 +159,8 @@
           <kbd class="gsc-kbd">W</kbd></button>
         <button id="btn-cash-pass" class="btn btn-blue btn-big" type="button">Pass
           <kbd class="gsc-kbd">P</kbd></button>
-        <button id="btn-cash-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-cash-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-cash-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-cash-finish" class="btn btn-ghost" type="button">End game</button>
         <button id="btn-cash-next" class="btn btn-gold btn-big" type="button">On to the offers
           <kbd class="gsc-kbd">N</kbd></button>
       </div>
@@ -196,8 +196,8 @@
       <p id="chase-offer-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
 
       <div class="controls">
-        <button id="btn-offer-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-offer-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-offer-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-offer-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -253,8 +253,8 @@
           <kbd class="gsc-kbd">N</kbd></button>
         <button id="btn-next-contestant" class="btn btn-gold btn-big" type="button">Next contestant
           <kbd class="gsc-kbd">N</kbd></button>
-        <button id="btn-board-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-board-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-board-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-board-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -314,8 +314,8 @@
           <kbd class="gsc-kbd">P</kbd></button>
         <button id="btn-final-next" class="btn btn-gold btn-big" type="button">Bring on the Chaser
           <kbd class="gsc-kbd">N</kbd></button>
-        <button id="btn-final-undo" class="btn btn-ghost" type="button">Undo <kbd class="gsc-kbd">U</kbd></button>
-        <button id="btn-final-finish" class="btn btn-ghost" type="button">End the night</button>
+        <button id="btn-final-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo <kbd class="gsc-kbd">U</kbd></button>
+        <button id="btn-final-finish" class="btn btn-ghost" type="button">End game</button>
       </div>
     </section>
 
@@ -329,7 +329,7 @@
       <div class="controls">
         <button id="btn-result-next" class="btn btn-gold btn-big" type="button">Show the standings</button>
         <button id="btn-next-game" class="btn btn-blue btn-big" type="button">Play another game</button>
-        <button id="btn-result-undo" class="btn btn-ghost" type="button">Undo</button>
+        <button id="btn-result-undo" class="btn btn-ghost" type="button" data-gsc-icon="undo">Undo</button>
         <button id="btn-new-team" class="btn btn-ghost" type="button">New team</button>
       </div>
     </section>

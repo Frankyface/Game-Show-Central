@@ -57,7 +57,7 @@ python -m http.server 8620                 # then open
 7. **The swap.** With two cases left the contestant may swap theirs for the last
    one. Then **Open case N** — that is the win.
 8. **Result.** "You leave with $X", then **Next contestant** or **Finish the
-   night** for the standings. **End the night** from the board also works. The
+   night** for the standings. **End game** from the board also works. The
    hub's night scoreboard is told every total.
 
 **Getting back to the start.** The toolbar's **Game lobby** button asks one

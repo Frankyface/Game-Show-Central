@@ -457,17 +457,11 @@ const KrView = (function () {
     editor: () => {},
   };
 
-  function subtitle(state) {
-    const c = state.core;
-    if (!c) return "";
-    if (c.phase === "result") return "Result";
-    return c.mode === "puffer" ? `Puffer Party · round ${c.round}` : `Deep Dive · prompt ${c.round} of ${c.game.settings.promptsPerGame}`;
-  }
-
+  // The bar carries the game name only (one bar in every game); where we are
+  // in the game is on each screen's own round line (#kr-prompt-round, #kr-pround).
   function render(state) {
     const screen = screenFor(state);
     SCREENS.forEach((name) => show($(`screen-${name}`), name === screen));
-    setText("kr-bar-sub", subtitle(state));
     const sound = $("btn-sound");
     const on = window.KrSound.enabled();
     sound.textContent = on ? "Sound" : "Sound off";

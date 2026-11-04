@@ -19,18 +19,18 @@
 </head>
 <body data-gsc-game="family-feud">
 
-  <header class="topbar">
+  <header class="topbar gsc-toolbar">
     <div class="topbar-brand">
-      <h1 id="game-title" class="topbar-title">Family Feud</h1>
+      <h1 id="game-title" class="topbar-title gsc-toolbar-title">Family Feud</h1>
     </div>
     <!-- Rule 9: Sound · Editor · Game lobby, in that order, icon + label
          (GSCIcons, js/feud-app.js). The room chip shows only standalone. -->
-    <div class="topbar-actions">
+    <div class="topbar-actions gsc-toolbar-actions">
       <span id="room-chip" class="room-chip hidden"></span>
-      <button id="btn-sound" class="btn btn-ghost btn-small" type="button" aria-pressed="true">Sound</button>
-      <button id="btn-editor" class="btn btn-ghost btn-small" type="button">Question editor</button>
-      <button id="btn-game-lobby" class="btn btn-ghost btn-small" type="button">Game lobby</button>
-      <button id="btn-new-game" class="btn btn-ghost btn-small hidden" type="button">New game</button>
+      <button id="btn-sound" class="btn btn-ghost gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="btn btn-ghost gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="btn btn-ghost gsc-toolbar-btn" type="button">Game lobby</button>
+      <button id="btn-new-game" class="btn btn-ghost gsc-toolbar-btn hidden" type="button">New game</button>
     </div>
   </header>
 
@@ -38,7 +38,7 @@
 
   <main>
     <!-- Undo is a game control: bottom-left of the stage, not in the toolbar. -->
-    <button id="btn-undo" class="btn btn-ghost btn-small host-undo hidden" type="button">Undo</button>
+    <button id="btn-undo" class="btn btn-ghost btn-small host-undo hidden" type="button" data-gsc-icon="undo">Undo</button>
 
     <!-- ===== Setup ===== -->
     <section id="screen-setup" class="screen screen-setup">

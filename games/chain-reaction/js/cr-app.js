@@ -593,7 +593,7 @@ function crWireResult() {
 function crWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.CrSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.CrSound.enabled ? "Sound" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.CrSound.enabled));
     // textContent wiped the icon, so it goes back on every repaint (v3 rule 9).
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.CrSound.enabled ? "sound" : "sound-off");

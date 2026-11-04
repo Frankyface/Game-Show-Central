@@ -68,7 +68,6 @@ body {
 .playbar:not(:has(> :not(.hidden))) { display: none; }
 .playbar-status { color: var(--ink-dim); font-size: 15px; font-weight: 500; }
 .playbar-status:first-child { margin-right: auto; }
-.playbar .btn-small { min-height: 36px; }
 
 .topbar-actions {
   margin-left: auto;

@@ -67,7 +67,7 @@ const GscExtras = (function () {
     if ($$("btn-game-lobby")) return;
     const original = $$("btn-new-game");
     if (!original || !original.parentNode) return;
-    const btn = el("button", "btn btn-ghost", "Game lobby");
+    const btn = el("button", "btn btn-ghost gsc-toolbar-btn", "Game lobby");
     btn.id = "btn-game-lobby";
     btn.type = "button";
     btn.setAttribute("aria-haspopup", "dialog");
@@ -229,7 +229,7 @@ const GscExtras = (function () {
     const editor = $$("btn-editor");
     const host = window.BuzzerHost;
     if (!editor || !editor.parentNode || !host || typeof host.toggleSound !== "function") return;
-    const btn = el("button", "btn btn-ghost", "Sound on");
+    const btn = el("button", "btn btn-ghost gsc-toolbar-btn", "Sound");
     btn.id = "btn-sound";
     btn.type = "button";
     btn.addEventListener("click", () => setSound(!soundOn));
@@ -251,15 +251,41 @@ const GscExtras = (function () {
   function renderSound() {
     const btn = $$("btn-sound");
     if (!btn) return;
-    btn.textContent = soundOn ? "Sound on" : "Sound off";
+    btn.textContent = soundOn ? "Sound" : "Sound off";
     btn.setAttribute("aria-pressed", soundOn ? "true" : "false");
     icon(btn, soundOn ? "sound" : "sound-off");
   }
 
-  /** Upstream's editor button keeps its text; it only gains the icon. */
+  /** Upstream's editor button (labelled "Editor" in index.html) gains the icon. */
   function decorateEditorButton() {
     const btn = $$("btn-editor");
     if (btn && !btn.querySelector(".gsc-icon")) icon(btn, "edit");
+  }
+
+  /* ---- One bar in every game (docs/reports/ui-consistency-implementation.md) ---- */
+
+  const BAR_NAME = "Jeopardy"; // the plain registry name, never the set's title
+
+  /** app.js writes the set title into #game-title on every render; the bar
+      shows the plain game name instead. The set title stays on the setup
+      hero (#setup-title), which app.js also fills. */
+  function syncBarTitle() {
+    const title = $$("game-title");
+    if (title && title.textContent !== BAR_NAME) title.textContent = BAR_NAME;
+  }
+
+  /** No primary button in the bar: upstream's own Final Jeopardy button (same
+      node, id and listener, so app.js still shows, hides and labels it) moves
+      into a row on the board screen, above the scores. */
+  function mountFinalOnBoard() {
+    const btn = $$("btn-final");
+    const board = $$("screen-board");
+    const scores = $$("scoreboard");
+    if (!btn || !board || !scores || board.contains(btn)) return;
+    const row = el("div", "gsc-board-actions");
+    row.id = "gsc-board-actions";
+    board.insertBefore(row, scores);
+    row.appendChild(btn);
   }
 
   /* ---- Resume, on the setup screen ---- */
@@ -421,7 +447,7 @@ const GscExtras = (function () {
      Boot
      ============================================================ */
 
-  function sync() { syncLobbyButton(); syncResumeButton(); }
+  function sync() { syncLobbyButton(); syncResumeButton(); syncBarTitle(); }
 
   /**
    * Keep our two controls in step with app.js's own renders. We are not allowed
@@ -456,6 +482,7 @@ const GscExtras = (function () {
     if (isPlayerMode()) return; // phones have no setup screen and no editor
     mountSoundButton();
     decorateEditorButton();
+    mountFinalOnBoard();
     mountLobbyButton();
     mountResumeButton();
     mountLibrary();

@@ -14,14 +14,13 @@
 </head>
 <body data-gsc-game="krillion">
 
-  <header class="kr-bar">
-    <h1 class="kr-bar-title">Krillion</h1>
-    <span id="kr-bar-sub" class="kr-bar-sub"></span>
-    <div class="kr-bar-actions">
+  <header class="kr-bar gsc-toolbar">
+    <h1 class="kr-bar-title gsc-toolbar-title">Krillion</h1>
+    <div class="kr-bar-actions gsc-toolbar-actions">
       <span id="kr-room-chip" class="kr-chip hidden"></span>
-      <button id="btn-sound" class="kr-btn kr-btn-line kr-bar-btn" type="button" aria-pressed="true">Sound</button>
-      <button id="btn-editor" class="kr-btn kr-btn-line kr-bar-btn" type="button">Editor</button>
-      <button id="btn-game-lobby" class="kr-btn kr-btn-line kr-bar-btn" type="button">Game lobby</button>
+      <button id="btn-sound" class="kr-btn kr-btn-line kr-bar-btn gsc-toolbar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="kr-btn kr-btn-line kr-bar-btn gsc-toolbar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="kr-btn kr-btn-line kr-bar-btn gsc-toolbar-btn" type="button">Game lobby</button>
     </div>
   </header>
 
@@ -105,8 +104,8 @@
       <div class="kr-actions">
         <button id="btn-open" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Start the clock</button>
         <button id="btn-swap" class="kr-btn kr-btn-line" type="button">Different prompt</button>
-        <button id="btn-intro-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
-        <button id="btn-intro-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+        <button id="btn-intro-undo" class="kr-btn kr-btn-line" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-intro-finish" class="kr-btn kr-btn-quiet" type="button">End game</button>
       </div>
     </section>
 
@@ -140,8 +139,8 @@
         <button id="btn-close" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Close the answers</button>
         <button id="btn-pause" class="kr-btn kr-btn-line" type="button">Pause the clock</button>
         <button id="btn-plist" class="kr-btn kr-btn-line" type="button" aria-pressed="false">Show the rated list</button>
-        <button id="btn-prompt-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
-        <button id="btn-prompt-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+        <button id="btn-prompt-undo" class="kr-btn kr-btn-line" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-prompt-finish" class="kr-btn kr-btn-quiet" type="button">End game</button>
       </div>
     </section>
 
@@ -167,8 +166,8 @@
       <div class="kr-actions">
         <button id="btn-reveal" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Reveal the next answer</button>
         <button id="btn-list" class="kr-btn kr-btn-line" type="button" aria-pressed="false">Show the rated list</button>
-        <button id="btn-reveal-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
-        <button id="btn-reveal-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+        <button id="btn-reveal-undo" class="kr-btn kr-btn-line" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-reveal-finish" class="kr-btn kr-btn-quiet" type="button">End game</button>
       </div>
     </section>
 
@@ -182,8 +181,8 @@
       <div id="kr-depth-reef" class="kr-reef kr-reef-full" aria-label="Depth board" aria-live="polite"></div>
       <div class="kr-actions">
         <button id="btn-next-prompt" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Next prompt</button>
-        <button id="btn-depth-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
-        <button id="btn-depth-finish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+        <button id="btn-depth-undo" class="kr-btn kr-btn-line" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-depth-finish" class="kr-btn kr-btn-quiet" type="button">End game</button>
       </div>
     </section>
 
@@ -218,8 +217,8 @@
         <button id="btn-pnext" class="kr-btn kr-btn-primary kr-btn-lg" type="button">Next round</button>
         <button id="btn-pop" class="kr-btn kr-btn-danger" type="button">Pop</button>
         <button id="btn-ppause" class="kr-btn kr-btn-line" type="button">Pause the clock</button>
-        <button id="btn-pundo" class="kr-btn kr-btn-line" type="button">Undo</button>
-        <button id="btn-pfinish" class="kr-btn kr-btn-quiet" type="button">End the game</button>
+        <button id="btn-pundo" class="kr-btn kr-btn-line" type="button" data-gsc-icon="undo">Undo</button>
+        <button id="btn-pfinish" class="kr-btn kr-btn-quiet" type="button">End game</button>
       </div>
     </section>
 
@@ -231,7 +230,7 @@
       <ol id="kr-standings" class="kr-standings" aria-live="polite"></ol>
       <div class="kr-actions">
         <button id="btn-new-game" class="kr-btn kr-btn-primary kr-btn-lg" type="button">New game</button>
-        <button id="btn-result-undo" class="kr-btn kr-btn-line" type="button">Undo</button>
+        <button id="btn-result-undo" class="kr-btn kr-btn-line" type="button" data-gsc-icon="undo">Undo</button>
       </div>
     </section>
 

@@ -520,6 +520,9 @@ const ChaseView = (function () {
     const which = screenFor(app);
     SCREENS.forEach((name) => show($(`screen-${name}`), name === which));
     renderLobbyModal(app);
+    // Game lobby is always in the bar; with no game in progress there is
+    // nothing to park, so it is disabled, not hidden (docs 19 §1, UI-12).
+    $("btn-game-lobby").disabled = !app.core;
     // A screen we are leaving is never repainted, so a question would sit in
     // its (hidden) panel for the rest of the night. Empty them here.
     if (which !== "cash") { setText("chase-cash-q", ""); setText("chase-cash-a", ""); }

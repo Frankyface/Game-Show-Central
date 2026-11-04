@@ -114,14 +114,24 @@ const DondView = (function () {
     const row = $("dond-seat-list");
     row.replaceChildren();
     if (!state) return;
-    core().waitingContestants(state).forEach((c) => {
-      const btn = el("button", "btn btn-gold btn-big seat-btn", c.name);
+    // ONE grid, one cell per contestant, so every name appears exactly once:
+    // a button for everyone still to play, a plain cell with the winnings for
+    // everyone who has (UI verification item 2 — the old screen listed the
+    // waiting names twice, once as buttons and again in a standings list).
+    state.contestants.forEach((c) => {
+      if (c.out) {
+        const done = el("div", "seat-cell seat-done");
+        done.appendChild(el("span", "seat-name", c.name));
+        done.appendChild(el("span", "seat-won", core().formatMoney(state, c.won)));
+        row.appendChild(done);
+        return;
+      }
+      const btn = el("button", "btn btn-gold seat-cell seat-btn", c.name);
       btn.type = "button";
       btn.dataset.pid = c.pid;
       btn.addEventListener("click", () => window.DondApp.dispatch({ type: "seat", pid: c.pid }));
       row.appendChild(btn);
     });
-    renderStandings("dond-seat-standings", state, true);
   }
 
   /* ============ The cases ============ */
@@ -414,11 +424,14 @@ const DondView = (function () {
 
   function renderChrome(app) {
     const state = app.core;
-    // The raw file's title is capped the way normalizeBoard caps it, so an
-    // over-long title in a hand-written board cannot reach the DOM (tester fix).
-    setText("dond-title", core().cleanText(app.game && app.game.title, 80) || "Deal or No Deal");
+    // One bar in every game: the plain game name, never the board's title.
+    setText("dond-title", "Deal or No Deal");
     document.body.classList.toggle("is-playing", !!state && phaseScreen(state) === "play");
-    show($("btn-editor"), !state || state.phase === "setup" || app.editorOpen);
+    // Editor stays in the bar in every phase (same bar all game). A board swap
+    // mid-game would drop the game, so it is usable on setup and standings only.
+    const editor = $("btn-editor");
+    editor.disabled = !!state && state.phase !== "setup" && state.phase !== "standings" && !app.editorOpen;
+    editor.title = editor.disabled ? "Finish or park the game to edit the board" : "";
     // The control sits in the toolbar in every phase; it only has something to
     // offer once a game is actually running (docs 19 §1).
     $("btn-game-lobby").disabled = !state || app.editorOpen;

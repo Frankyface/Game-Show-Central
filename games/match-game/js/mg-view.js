@@ -398,7 +398,7 @@ const MgView = (function () {
   /* ============ Topbar, errors and the whole render ============ */
 
   function renderTopbar(app) {
-    setText("mg-title", app.game ? app.game.title : "Match Game");
+    setText("mg-title", "Match Game"); // one bar in every game: the plain name
     const sound = $("btn-sound");
     const on = window.MgSound.enabled();
     sound.textContent = on ? "Sound" : "Sound off";

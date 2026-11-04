@@ -473,7 +473,6 @@ function wwmWireFff() {
     const state = wwmApp.core;
     if (state && state.fff.winner) wwmDispatch({ type: "seat", pid: state.fff.winner });
   });
-  wwmWireButton("btn-fff-undo", () => wwmDispatch({ type: "undo" }));
 }
 
 function wwmWireHotseat() {
@@ -507,7 +506,7 @@ function wwmWireResult() {
 function wwmWireChrome() {
   const sound = $("btn-sound");
   const paint = () => {
-    sound.textContent = window.WwmSound.enabled ? "Sound on" : "Sound off";
+    sound.textContent = window.WwmSound.enabled ? "Sound" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.WwmSound.enabled));
     if (window.GSCIcons) window.GSCIcons.prepend(sound, window.WwmSound.enabled ? "sound" : "sound-off");
   };
