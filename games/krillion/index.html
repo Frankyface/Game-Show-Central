@@ -19,9 +19,9 @@
     <span id="kr-bar-sub" class="kr-bar-sub"></span>
     <div class="kr-bar-actions">
       <span id="kr-room-chip" class="kr-chip hidden"></span>
-      <button id="btn-sound" class="kr-btn kr-btn-line kr-btn-sm" type="button" aria-pressed="true">Sound on</button>
-      <button id="btn-editor" class="kr-btn kr-btn-line kr-btn-sm" type="button">Editor</button>
-      <button id="btn-game-lobby" class="kr-btn kr-btn-line kr-btn-sm" type="button">Game lobby</button>
+      <button id="btn-sound" class="kr-btn kr-btn-line kr-bar-btn" type="button" aria-pressed="true">Sound</button>
+      <button id="btn-editor" class="kr-btn kr-btn-line kr-bar-btn" type="button">Editor</button>
+      <button id="btn-game-lobby" class="kr-btn kr-btn-line kr-bar-btn" type="button">Game lobby</button>
     </div>
   </header>
 
@@ -154,7 +154,7 @@
       </div>
       <div class="kr-reveal-body">
         <section id="kr-queue-box" class="kr-queue hidden" aria-label="Judge's review">
-          <h3 class="kr-label">Not on the list &mdash; your ruling</h3>
+          <h3 class="kr-label">Not on the list &mdash; your ruling <span id="kr-queue-count" class="kr-count"></span></h3>
           <ul id="kr-queue" class="kr-queue-list"></ul>
         </section>
         <ol id="kr-groups" class="kr-groups" aria-label="Answers"></ol>
@@ -330,6 +330,7 @@
   <script src="../../shared/room-player.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="../../shared/library.js"></script>
+  <script src="../../shared/icons.js"></script>
   <script src="js/kr-content.js"></script>
   <script src="js/kr-select.js"></script>
   <script src="js/kr-core.js"></script>

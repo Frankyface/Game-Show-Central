@@ -184,7 +184,7 @@
     const tier = event.tier === null ? null : event.tier;
     if (tier !== null && !isTier(tier, state.game.settings.tiers)) return state;
     const group = typeof event.group === "string" ? event.group : "";
-    if (!reviewQueue(state).some((g) => g.id === group)) return state;
+    if (!reviewQueue(state).some((g) => g.id === group && !g.remembered)) return state;
     return withDive(state, { rulings: Object.assign({}, state.dive.rulings, { [group]: tier }) });
   }
 

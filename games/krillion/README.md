@@ -44,7 +44,7 @@ prompts; deepest diver wins, ties stay ties.
 this round before the clock pops. On-list answers pass at once; the host rules off-list ones live
 (a tier passes the puffer, Not valid keeps it with the clock running). Every pass shortens the clock
 (12 s down to 3 s). A pop costs the holder a heart (start with 3, at most 4) and starts a new prompt
-with the next player. Meter points by tier; 100 meter points buy a heart. Out at 0 hearts; the last
+with the next player. Meter points by tier (Prawn 0 up to One in a Krillion 4); 10 meter points buy a heart, up to the maximum. Out at 0 hearts; the last
 one floating wins. An optional round cap ends the game on hearts.
 
 ## Hosting
@@ -72,7 +72,7 @@ and **Pop culture** (40 prompts each). Load your own with **Load prompts (.json)
   "settings": { "mode": "deepDive", "promptSeconds": 30, "promptsPerGame": 7,
     "tiers": [ { "id": "prawn", "name": "Prawn", "points": 10 }, "…" ],
     "puffer": { "hearts": 3, "maxHearts": 4, "startSeconds": 12, "floorSeconds": 3,
-                "stepSeconds": 1, "meterForHeart": 100, "roundCap": 0 } },
+                "stepSeconds": 1, "meterForHeart": 10, "roundCap": 0 } },
   "prompts": [ { "text": "Name a chemical element", "category": "Science",
     "answers": [ { "text": "Tungsten", "tier": "deepcut", "aliases": ["Wolfram"] } ] } ]
 }
@@ -124,8 +124,5 @@ tests/harness.html       loopback harness with five phones (KR-I1 … KR-I6)
 
 ## Known issues
 
-- With the spec's default of 100 meter points per heart and 0–4 meter points per answer, a heart
-  takes about 25+ valid answers, so it rarely triggers in a normal Puffer Party. Lower
-  `meterForHeart` (setup screen or JSON) for a livelier game.
 - Undoing an **Add to this question** removes it from the game in progress, but the answer stays in
   the session's prompt file (and the editor's import list) until you reload the prompts.

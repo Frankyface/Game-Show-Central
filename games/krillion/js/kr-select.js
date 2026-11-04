@@ -110,7 +110,10 @@
       }
       const m = matchFor(state, dive.index, text);
       if (m) {
-        addToGroup(byId, `#${m.index}`, { first: order, onList: true, noAnswer: false,
+        // A match past the file's own list is an answer the judge remembered this session.
+        const own = promptOf(state, dive.index);
+        const learned = !!own && m.index >= own.answers.length;
+        addToGroup(byId, `#${m.index}`, { first: order, onList: true, noAnswer: false, learned,
           tier: m.tier, canonical: m.entry.text }, player, text);
         return;
       }
@@ -119,7 +122,7 @@
       addToGroup(byId, key, { first: order, onList: false, noAnswer: false, tier }, player, text);
     });
     return [...byId.values()].map((g) => ({
-      id: g.id, onList: g.onList, noAnswer: g.noAnswer, tier: g.tier, pending: g.tier === undefined,
+      id: g.id, onList: g.onList, noAnswer: g.noAnswer, learned: !!g.learned, tier: g.tier, pending: g.tier === undefined,
       label: g.noAnswer ? "No answer" : (g.canonical || bestLabel(g.texts)),
       variants: [...g.texts.keys()], pids: g.pids, names: g.names, count: g.pids.length,
       first: g.first, points: pointsFor(state, g.tier),
@@ -137,11 +140,15 @@
       || (b.count - a.count) || (a.first - b.first));
   }
 
-  /** Off-list answers waiting for (or holding) the judge's ruling. */
+  /**
+   * Off-list answers waiting for (or holding) the judge's ruling. An answer the
+   * judge has just added to the question stays in the queue, marked
+   * `remembered` and no longer re-rulable, so the host keeps sight of it.
+   */
   function reviewQueue(state) {
-    return groups(state).filter((g) => !g.onList && !g.noAnswer).map((g) => ({
+    return groups(state).filter((g) => (!g.onList || g.learned) && !g.noAnswer).map((g) => ({
       id: g.id, label: g.label, variants: g.variants, pids: g.pids, names: g.names,
-      count: g.count, tier: g.tier, ruled: g.tier !== undefined, first: g.first,
+      count: g.count, tier: g.tier, ruled: g.tier !== undefined, first: g.first, remembered: g.learned,
     })).sort((a, b) => a.first - b.first);
   }
 

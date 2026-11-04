@@ -1,4 +1,4 @@
-{"title":"Krillion harness","settings":{"mode":"deepDive","promptSeconds":30,"promptsPerGame":2,"puffer":{"hearts":2,"maxHearts":3,"startSeconds":20,"floorSeconds":3,"stepSeconds":2,"meterForHeart":100}},
+{"title":"Krillion harness","settings":{"mode":"deepDive","promptSeconds":30,"promptsPerGame":2,"puffer":{"hearts":2,"maxHearts":3,"startSeconds":20,"floorSeconds":3,"stepSeconds":2,"meterForHeart":10}},
  "prompts": [
   {"text":"Name a fruit","category":"Food","answers":[{"text":"Apple","tier":"prawn"},{"text":"Banana","tier":"prawn"},{"text":"Mango","tier":"schooler"},{"text":"Kiwi","tier":"rare","aliases":["Kiwifruit"]},{"text":"Lychee","tier":"deepcut","aliases":["Litchi"]},{"text":"Rambutan","tier":"krillion"}]},
   {"text":"Harness prompt 1","category":"Harness","answers":[{"text":"Alpha1","tier":"prawn"},{"text":"Bravo1","tier":"prawn"},{"text":"Delta1","tier":"rare"},{"text":"Echo1","tier":"deepcut"},{"text":"Zulu1","tier":"krillion"}]},

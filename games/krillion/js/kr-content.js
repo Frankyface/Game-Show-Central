@@ -65,7 +65,7 @@
     tiers: TIERS,
     puffer: Object.freeze({
       hearts: 3, maxHearts: 4, startSeconds: 12, floorSeconds: 3, stepSeconds: 1,
-      meterForHeart: 100, roundCap: 0,
+      meterForHeart: 10, roundCap: 0,
     }),
   });
 

@@ -86,3 +86,17 @@ judge's review) · 2026-11-03 · Node 24.16 · Windows 11 · Claude desktop brow
 - Phones in standalone `?room=` mode showed the host setup screen beside the phone card (the host
   app does not boot on phones, so nothing hid it). Fixed in `kr-phone.css`; the harness now asserts
   a phone shows only the phone card.
+
+## Fixes after verification (2026-11-04)
+
+The tester's verdict was fix-then-ship (`docs/reports/krillion-verification.md`). I kept their K-1 fix (remembered answers survive a reload) and their six rating corrections. I made the `meterForHeart` change by editing the JSON in place rather than regenerating it, so those corrections are untouched.
+
+| # | Fix |
+|---|---|
+| K-2 (major) | The judge's review is now one row per off-list answer: the answer and each player's exact text, then the tier buttons, Not valid, and Add to this question. The queue has a bounded inner scroll, and its heading shows a "n to rule" / "all ruled" count. While the queue is open, the screen hides the answer cards, the reef strip and the rated list. They come back when the reveal starts. New harness checks use 5 off-list answers at 1280×676: no page scroll, rows ≤ 60 px, cards and reef hidden, the count follows the rulings, and the reef returns after the first reveal with still no scroll. I also checked 7 off-list answers at 1280×676 by eye: no page scroll. |
+| K-3 | Toolbar: `shared/icons.js` is loaded and the buttons read Sound · Editor · Game lobby, each with a `GSCIcons` icon and a text label, 44 px tall (bar 64 px). The Sound label is rewritten on every render ("Sound" / "Sound off"), then its `sound` / `sound-off` icon is put back. Game lobby is present but disabled on setup. New harness checks cover icon + label + 44–48 px, the icon surviving a Sound toggle, and the disabled lobby button. |
+| K-4 | When `?game=URL` fails but a non-default (or judge-extended) game is kept, the message now says "Keeping the prompts you already had." instead of falling back to the shipped prompts. |
+| K-5 | An answer added with Add to this question stays in the queue until the reveal starts. It is marked `remembered`, its tier shows as pressed and can't be changed, and the button reads "On this question now". `reviewQueue` reports `remembered`, and `review` refuses a remembered group. Covered by a unit test and a harness check. |
+| Decision | `meterForHeart` default is **10**: in `DEFAULT_SETTINGS`, `prompts.json`, `js/data.js` (still a byte-for-byte mirror), both library sets, the harness fixture, the README and the unit test that pinned 100. I removed the old README known issue about hearts never coming back. |
+
+Results: `cd games/krillion && node --test` passes **44/44** (including `tests/kr-adversarial.test.mjs`). The repo-root `node --test` passes 1422/1422. `tests/harness.html` on 127.0.0.1:8721 passes **65/65**. Static gates are still clean: no inner-HTML, string evaluation or console logging, and the largest file is `kr-app.js` at 613 lines.

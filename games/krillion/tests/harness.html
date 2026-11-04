@@ -289,6 +289,12 @@
       const remember = HD().querySelector("#kr-queue .kr-remember");
       check("KR-I1 a ruling offers “Add to this question”", remember && remember.textContent === "Add to this question");
       remember.click();
+      const kept = HD().querySelector("#kr-queue .kr-queue-item");
+      check("KR-I1 K-5 the remembered answer stays in the queue as “On this question now” until the reveal",
+        kept && kept.classList.contains("is-remembered")
+        && kept.querySelector(".kr-remember").textContent === "On this question now"
+        && kept.querySelector('[data-tier="rare"]').getAttribute("aria-pressed") === "true"
+        && H("btn-reveal").disabled === false, kept && kept.textContent);
       check("KR-I1 Add to this question remembers the answer and its tier in the session content",
         core().learned.length === 1 && HW().KrApp.state().game.prompts[0].answers.some((a) => a.text === "Zqdurian"
           && a.tier === "rare"), JSON.stringify(core().learned));
@@ -353,6 +359,36 @@
       check("KR-I6 the prompt screen fits 1280×720 with no vertical scroll",
         HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 1,
         `${HD().documentElement.scrollHeight} / ${HD().documentElement.clientHeight}`);
+    }
+
+    /* ============================================================
+       K-2 — five off-list answers at 1280×676: judging never scrolls the page
+       ============================================================ */
+
+    async function scenarioBusyQueue() {
+      hostFrame.style.height = "676px";
+      await sleep(100);
+      PLAYERS.forEach((p, i) => phoneSays(p.pid, `Zqofflist${i + 1}`));
+      await waitFor(() => core().phase === "reveal", "the busy round closing");
+      const rows = [...HD().querySelectorAll("#kr-queue .kr-queue-item")];
+      const d = HD().documentElement;
+      check("K-2 five off-list answers at 1280×676: the judge's review does not scroll the page",
+        rows.length === 5 && d.scrollHeight <= d.clientHeight + 1, `${rows.length} rows · ${d.scrollHeight} / ${d.clientHeight}`);
+      check("K-2 each queue item is one row (player · text · tiers · Not valid), with a “to rule” count",
+        rows.every((r) => r.getBoundingClientRect().height <= 60) && H("kr-queue-count").textContent === "5 to rule"
+        && rows[0].textContent.indexOf("Ann: “Zqofflist1”") >= 0, `${Math.round(rows[0].getBoundingClientRect().height)} px · ${H("kr-queue-count").textContent}`);
+      const hidden = (sel) => HW().getComputedStyle(HD().querySelector(sel)).display === "none";
+      check("K-2 the answer cards and the reef strip are hidden while the queue is open",
+        hidden("#kr-groups") && hidden("#kr-reef"));
+      rows.forEach((r) => r.querySelector('[data-tier="invalid"]').click());
+      check("K-2 the count follows the rulings and the reveal unlocks",
+        H("kr-queue-count").textContent === "all ruled" && H("btn-reveal").disabled === false, H("kr-queue-count").textContent);
+      click("btn-reveal");
+      check("K-2 once the reveal starts the queue closes and the reef returns, still without page scroll",
+        H("kr-queue-box").classList.contains("hidden") && !hidden("#kr-reef") && d.scrollHeight <= d.clientHeight + 1,
+        `${d.scrollHeight} / ${d.clientHeight}`);
+      hostFrame.style.height = "720px";
+      await sleep(100);
     }
 
     /* ============================================================
@@ -489,6 +525,15 @@
         .map((b) => b.id);
       check("KR-I6 the toolbar reads Sound · Editor · Game lobby, in that order",
         bar.join(",") === "btn-sound,btn-editor,btn-game-lobby", bar.join(","));
+      click("btn-sound");
+      click("btn-sound");
+      const tools = bar.map((id) => H(id));
+      check("K-3 every toolbar button has a shared icon and a text label, 44–48 px tall (Sound keeps its icon after a toggle)",
+        tools.every((b) => b.querySelector(":scope > svg.gsc-icon") && b.textContent.trim().length > 0
+          && b.getBoundingClientRect().height >= 44 && b.getBoundingClientRect().height <= 48),
+        tools.map((b) => `${b.id}:${Math.round(b.getBoundingClientRect().height)}:${!!b.querySelector("svg")}`).join(" "));
+      check("K-3 the Game lobby button is present but disabled on the setup screen",
+        !H("screen-setup").classList.contains("hidden") && H("btn-game-lobby").disabled === true);
       const emoji = /\p{Extended_Pictographic}/u;
       check("KR-I6 UI-10 no emoji anywhere in the host screen's text", !emoji.test(hostText()));
       check("KR-I6 V-store the run is namespaced and leaves the real save untouched",
@@ -526,6 +571,7 @@
         await scenarioJudge();
         await scenarioReload();
         await scenarioPhoneGates();
+        await scenarioBusyQueue();
         await scenarioPuffer();
         await scenarioEditorLibrary();
         await scenarioGates();

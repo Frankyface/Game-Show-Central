@@ -253,7 +253,9 @@ async function krLoadContent() {
       await krFetchGame(url, `Prompts from ${url}`, "url");
       return;
     } catch (err) {
-      krError(`Couldn’t load ${url}: ${err.message}. Falling back to the shipped prompts.`);
+      const keeping = krApp.game && (krApp.sourceKind !== "default" || krApp.learnedLog.length);
+      krError(`Couldn’t load ${url}: ${err.message}. `
+        + (keeping ? "Keeping the prompts you already had." : "Falling back to the shipped prompts."));
     }
   }
   if (krApp.game && (krApp.sourceKind !== "default" || krApp.learnedLog.length)) return;   // keep remembered answers across a reload
@@ -567,6 +569,10 @@ function krBoot() {
     const node = $(id);
     if (node) node.addEventListener("click", fn);
   });
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   krWireSetup();
   krWireForms();
   krWireKeys();

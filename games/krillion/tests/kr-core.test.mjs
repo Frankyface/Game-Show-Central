@@ -163,7 +163,7 @@ test("KR-U3 every tier scores its listed points; points are configurable", () =>
   const custom = K.createState(fixtureGame({ tiers }), { players: PLAYERS });
   assert.equal(K.pointsFor(custom, "deepcut"), 4);
   assert.equal(K.pointsFor(custom, null), 0);
-  assert.equal(K.normalizeSettings({}).puffer.meterForHeart, 100, "spec default: 100 meter points = +1 heart");
+  assert.equal(K.normalizeSettings({}).puffer.meterForHeart, 10, "spec default: 10 meter points = +1 heart");
 });
 
 test("KR-U3 the host's per-prompt tally counts players in each tier", () => {
@@ -219,6 +219,12 @@ test("KR-U4 review rejects unknown groups and bad tiers; remember adds to the se
   assert.deepEqual(s.learned, [{ index: s.dive.index, prompt: "Name a fruit", text: "Durian", tier: "rare" }]);
   assert.equal(K.matchFor(s, s.dive.index, "durians").tier, "rare");
   assert.equal(K.reduce(s, { type: "remember", group: "durian" }), s, "never twice");
+  const kept = K.reviewQueue(s);
+  assert.equal(kept.length, 1, "a remembered answer stays in the queue until the reveal");
+  assert.equal(kept[0].remembered, true);
+  assert.equal(kept[0].tier, "rare");
+  assert.equal(K.pendingReviews(s), 0);
+  assert.equal(K.reduce(s, { type: "review", group: kept[0].id, tier: "krillion" }), s, "and can't be re-ruled");
   const file = K.applyLearned(fixtureGame(), s.learned);
   assert.equal(file.prompts[0].answers.at(-1).text, "Durian");
   K.validateGame(file);

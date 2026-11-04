@@ -282,29 +282,43 @@ const KrView = (function () {
 
   /* ============ Reveal ============ */
 
+  /**
+   * The judge's review. One row per off-list answer — the answer and each
+   * player's exact text, the tier buttons, Not valid, Add to this question —
+   * in a bounded list that scrolls inside itself, so judging never scrolls
+   * the shared screen (K-2). Returns whether the queue is showing.
+   */
   function renderQueue(state, c) {
     const queue = core().reviewQueue(c);
-    const box = $("kr-queue-box");
-    show(box, queue.length > 0 && c.dive.revealed === 0);
+    const open = queue.length > 0 && c.dive.revealed === 0;
+    show($("kr-queue-box"), open);
     const list = $("kr-queue");
     list.replaceChildren();
-    if (c.dive.revealed > 0) return;
-    queue.forEach((g) => {
-      const li = el("li", `kr-queue-item${g.ruled ? " is-ruled" : ""}`);
-      li.dataset.group = g.id;
-      const head = el("div", "kr-queue-head");
-      head.appendChild(el("span", "kr-queue-answer", g.label));
-      // Each player's exact text, so the judge rules on what was actually typed.
-      head.appendChild(el("span", "kr-queue-who",
-        g.pids.map((pid, i) => `${g.names[i]}: “${c.dive.answers[pid]}”`).join(" · ")));
-      li.appendChild(head);
-      const buttons = el("div", "kr-tier-buttons");
-      tierButtons(buttons, core().tiersOf(c), g.tier,
-        (tier) => app().dispatch({ type: "review", group: g.id, tier }));
-      li.appendChild(buttons);
-      if (g.tier) li.appendChild(rememberButton(c, g.id, g.label));
-      list.appendChild(li);
-    });
+    if (!open) return false;
+    const pending = queue.filter((g) => !g.ruled).length;
+    setText("kr-queue-count", pending ? `${pending} to rule` : "all ruled");
+    queue.forEach((g) => list.appendChild(queueRow(c, g)));
+    return true;
+  }
+
+  function queueRow(c, g) {
+    const li = el("li", `kr-queue-item${g.ruled ? " is-ruled" : ""}${g.remembered ? " is-remembered" : ""}`);
+    li.dataset.group = g.id;
+    const text = el("div", "kr-queue-text");
+    text.appendChild(el("span", "kr-queue-answer", g.label));
+    // Each player's exact text, so the judge rules on what was actually typed.
+    text.appendChild(el("span", "kr-queue-who",
+      g.pids.map((pid, i) => `${g.names[i]}: “${c.dive.answers[pid]}”`).join(" · ")));
+    li.appendChild(text);
+    const buttons = el("div", "kr-tier-buttons");
+    tierButtons(buttons, core().tiersOf(c), g.tier,
+      (tier) => app().dispatch({ type: "review", group: g.id, tier }));
+    // A remembered answer is part of the question now: shown, no longer re-rulable.
+    if (g.remembered) [...buttons.children].forEach((b) => { b.disabled = true; });
+    li.appendChild(buttons);
+    if (g.tier) li.appendChild(rememberButton(c, g.id, g.label));
+    else li.appendChild(el("span", "kr-queue-spacer"));
+    return li;
   }
 
   function rememberButton(c, group, label) {
@@ -371,7 +385,10 @@ const KrView = (function () {
     const order = core().revealOrder(c);
     const pending = core().pendingReviews(c);
     setText("kr-reveal-state", revealState(c, pending, order.length));
-    renderQueue(state, c);
+    // While the judge is ruling, the queue takes the whole stage: the answer
+    // cards and the reef come back once the reveal walk starts.
+    const judging = renderQueue(state, c);
+    $("screen-reveal").classList.toggle("is-judging", judging);
     const groups = $("kr-groups");
     groups.replaceChildren();
     // Only the card that has just come up animates, and only on the render that revealed it.
@@ -453,7 +470,9 @@ const KrView = (function () {
     setText("kr-bar-sub", subtitle(state));
     const sound = $("btn-sound");
     const on = window.KrSound.enabled();
-    sound.textContent = on ? "Sound on" : "Sound off";
+    sound.textContent = on ? "Sound" : "Sound off";
+    // The label rewrite wipes the icon, so it goes back on every render (docs/21 rule 9).
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, on ? "sound" : "sound-off");
     sound.setAttribute("aria-pressed", String(on));
     show($("kr-lobby-modal"), !!state.lobbyOpen);
     $("btn-game-lobby").disabled = !state.core && !state.resumable;
