@@ -129,14 +129,23 @@ function pylSetSquare(index, patch) {
   pylTouchDraft();
 }
 
-function pylSquareCard(square, index) {
-  const card = el("div", "ed-square");
-  const pos = window.PylView.tilePosition(index);
-  card.style.gridRow = String(pos.row);
-  card.style.gridColumn = String(pos.col);
-  const type = pylSquareType(square);
-  if (type === "whammy") card.classList.add("is-whammy");
+/**
+ * Write one field into the LIVE square (never the render-time copy, so two
+ * edits in a row both stick), save, and refresh this square's own problem
+ * line plus the file-level verdict without rebuilding the grid (which would
+ * steal focus from the field being typed in).
+ */
+function pylEditSquare(index, patch, problemNode) {
+  const board = pylDraft.boards[pylEdBoard];
+  if (!board) return;
+  board[index] = Object.assign({}, board[index], patch);
+  pylSaveDraft();
+  if (problemNode) problemNode.textContent = window.PylCore.squareProblem(board[index]);
+  pylPaintProblems();
+}
 
+function pylTypeSelect(square, index) {
+  const type = pylSquareType(square);
   const select = el("select", "ed-type");
   select.setAttribute("aria-label", `Square ${index + 1} type`);
   PYL_SQUARE_TYPES.forEach((opt) => {
@@ -145,43 +154,49 @@ function pylSquareCard(square, index) {
     if (opt.value === type) option.selected = true;
     select.appendChild(option);
   });
-  select.addEventListener("change", (e) => pylSetSquare(index, pylRetypeSquare(square, e.target.value)));
-  card.appendChild(select);
+  select.addEventListener("change", (e) =>
+    pylSetSquare(index, pylRetypeSquare(pylDraft.boards[pylEdBoard][index], e.target.value)));
+  return select;
+}
 
-  if (type === "prize") {
-    const name = el("input", "ed-prize");
-    name.type = "text";
-    name.maxLength = window.PylCore.PRIZE_MAX || 40;
-    name.value = square.prize || "";
-    name.setAttribute("aria-label", `Square ${index + 1} prize name`);
-    name.addEventListener("input", (e) => {
-      pylDraft.boards[pylEdBoard][index] = Object.assign({}, pylDraft.boards[pylEdBoard][index], { prize: e.target.value });
-      pylSaveDraft();
-      pylPaintProblems();
-    });
-    card.appendChild(name);
-  }
+function pylPrizeField(square, index, problem) {
+  const name = el("input", "ed-prize");
+  name.type = "text";
+  name.maxLength = window.PylCore.PRIZE_MAX || 40;
+  name.value = square.prize || "";
+  name.setAttribute("aria-label", `Square ${index + 1} prize name`);
+  name.addEventListener("input", (e) => pylEditSquare(index, { prize: e.target.value }, problem));
+  return name;
+}
 
-  if (type !== "whammy") {
-    const amount = el("input", "ed-amount");
-    amount.type = "number";
-    amount.min = "1";
-    amount.step = "1";
-    amount.inputMode = "numeric";
-    amount.value = pylSquareAmount(square);
-    amount.setAttribute("aria-label", `Square ${index + 1} amount`);
-    amount.addEventListener("input", (e) => {
-      const n = Math.round(Number(e.target.value));
-      const next = Object.assign({}, pylDraft.boards[pylEdBoard][index]); // the live square, not the render-time copy
-      if (type === "prize") next.value = n; else next.cash = n;
-      pylDraft.boards[pylEdBoard][index] = next;
-      pylSaveDraft();
-      pylPaintProblems();
-    });
-    card.appendChild(amount);
-  }
+function pylAmountField(square, index, type, problem) {
+  const amount = el("input", "ed-amount");
+  amount.type = "number";
+  amount.min = "1";
+  amount.step = "1";
+  amount.inputMode = "numeric";
+  amount.value = pylSquareAmount(square);
+  amount.setAttribute("aria-label", `Square ${index + 1} amount`);
+  amount.addEventListener("input", (e) => {
+    const n = Math.round(Number(e.target.value));
+    pylEditSquare(index, type === "prize" ? { value: n } : { cash: n }, problem);
+  });
+  return amount;
+}
 
+/** One square of the board grid: type, then a prize name and/or an amount, then its problem line. */
+function pylSquareCard(square, index) {
+  const card = el("div", "ed-square");
+  const pos = window.PylView.tilePosition(index);
+  card.style.gridRow = String(pos.row);
+  card.style.gridColumn = String(pos.col);
+  const type = pylSquareType(square);
+  if (type === "whammy") card.classList.add("is-whammy");
   const problem = el("p", "ed-problem", window.PylCore.squareProblem(square));
+  problem.setAttribute("aria-live", "polite");
+  card.appendChild(pylTypeSelect(square, index));
+  if (type === "prize") card.appendChild(pylPrizeField(square, index, problem));
+  if (type !== "whammy") card.appendChild(pylAmountField(square, index, type, problem));
   card.appendChild(problem);
   return card;
 }
@@ -393,6 +408,11 @@ function pylEditorLibrary() {
     name: window.PylCore.cleanText(pylDraft.title, 60) || "My set",
     description: `${pylDraft.boards.length} board(s), ${pylDraft.questions.length} questions.`,
     by: "you",
+    counts: {
+      boards: pylDraft.boards.length,
+      squares: pylDraft.boards.reduce((sum, board) => sum + board.length, 0),
+      questions: pylDraft.questions.length,
+    },
   };
   setText("pyl-editor-share-path", `games/press-your-luck/sets/${file}`);
   const line = $("pyl-editor-share-line");

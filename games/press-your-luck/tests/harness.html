@@ -152,11 +152,11 @@
     const ASSETS = [
       "../js/pyl-content.js", "../js/pyl-select.js", "../js/pyl-core.js", "../js/data.js",
       "../js/pyl-sound.js", "../js/pyl-board.js", "../js/pyl-view.js", "../js/pyl-app.js",
-      "../js/pyl-editor.js", "../js/pyl-room.js", "../js/pyl-phone.js",
+      "../js/pyl-editor.js", "../js/pyl-room.js", "../js/pyl-phone.js", "../js/pyl-boot-check.js",
       "../css/pyl.css", "../css/pyl-phone.css",
       "../board.json", "../sets/index.json", "../sets/kids-night.json", "../sets/movies-and-tv.json",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
-      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
+      "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js", "../../../shared/icons.js",
       "../../../shared/theme.css", "../../../shared/theme-components.css",
       "fixtures/harness-game.json",
     ];
@@ -509,7 +509,9 @@
         && core().control === before.control,
         `totals ${core().totals.join(",")} · control ${core().control}`);
       await waitFor(() => HW().PylApp.state().players.length === 3, "the roster after a reload", 8000);
-      await waitFor(() => phoneView("p1").screen === "board", "the phones after a reload", 8000);
+      // Wait for all three: each phone is re-served on its own message.
+      await waitFor(() => ["p1", "p2", "p3"].every((pid) => phoneView(pid).screen === "board"),
+        "the phones after a reload", 8000).catch(() => null);
       check("L-I5 the phones are re-served without rejoining",
         ["p1", "p2", "p3"].every((pid) => phoneView(pid).screen === "board"));
 
@@ -686,6 +688,31 @@
     const noScroll = () => HD().documentElement.scrollHeight <= HD().documentElement.clientHeight + 2;
     const scrollDetail = () => `${HD().documentElement.scrollHeight} vs ${HD().documentElement.clientHeight}`;
 
+    /** Design system v3 (docs/21): UI-10 no emoji, UI-11 no glass/glow/gradient under text, UI-12 toolbar. */
+    async function scenarioV3() {
+      const order = [...HD().querySelectorAll(".topbar-actions button")]
+        .filter((b) => b.id !== "btn-exit").map((b) => `${b.textContent.trim()}${b.querySelector("svg") ? "+icon" : ""}`);
+      check("L-I6 UI-12 the toolbar reads Sound · Editor · Game lobby, each with an icon",
+        /^Sound (on|off)\+icon,Editor\+icon,Game lobby\+icon$/.test(order.join(",")), order.join(", "));
+      check("L-I6 Game lobby is disabled on setup (nothing to park)",
+        core() === null ? H("btn-game-lobby").disabled === true : true, `core ${core() ? "live" : "null"}`);
+      const EMO = /\p{Extended_Pictographic}/u;
+      const bad = { emoji: [], glow: [] };
+      for (const el of HD().querySelectorAll("body *")) {
+        const cs = HW().getComputedStyle(el);
+        if (cs.backdropFilter && cs.backdropFilter !== "none") bad.glow.push(`backdrop ${el.className}`);
+        if (cs.textShadow && cs.textShadow !== "none") bad.glow.push(`text-shadow ${el.className}`);
+        const own = [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim()).map((n) => n.textContent).join("");
+        if (!own || el.closest("script, style")) continue;
+        if (EMO.test(own)) bad.emoji.push(own.trim().slice(0, 20));
+        for (let n = el; n && n !== HD().documentElement; n = n.parentElement) {
+          if (HW().getComputedStyle(n).backgroundImage.indexOf("gradient") >= 0) { bad.glow.push(`gradient under ${el.className}`); break; }
+        }
+      }
+      check("L-I6 UI-10 no emoji in host-screen text", bad.emoji.length === 0, bad.emoji.join(" | "));
+      check("L-I6 UI-11 no backdrop-filter, text-shadow or gradient under text", bad.glow.length === 0, bad.glow.slice(0, 5).join(" | "));
+    }
+
     /** Every `animation:` and `@keyframes` must be inside a no-preference block. */
     function motionIsGuarded(css) {
       if (!css) return false;
@@ -714,6 +741,7 @@
         await scenarioReloadAndLobby();
         await scenarioLibraryAndEditor();
         await scenarioGates();
+        await scenarioV3();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);
         check("harness run completed", false, uncaught);

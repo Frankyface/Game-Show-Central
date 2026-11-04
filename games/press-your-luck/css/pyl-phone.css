@@ -1,10 +1,14 @@
 /* ============================================================
-   Press Your Luck — phone controller
-   320-430 px portrait, one thumb. Every control is at least the
-   shared --tap (56px); the BUZZ and STOP buttons are far bigger
-   than that because they are races. Nothing here is shown on the
-   host screen (`.screen-phone` only leaves `hidden` in player
-   mode), and no colour carries meaning on its own.
+   Press Your Luck — phone controller (design system v3)
+   320-430 px portrait, one thumb. Flat surfaces, Inter, every
+   control at least the shared --tap (56px); BUZZ and STOP are far
+   bigger because they are races. The phone's one Anton hero is
+   this player's own money. No colour carries meaning alone.
+
+   Every fill is scoped under .phone-actions and repeated for
+   :hover, so the shared .gsc-btn hover wash can never replace it
+   under a resting thumb or mouse. Contrast: white on the BUZZ red
+   #cc1029 5.7:1; --accent-ink on the accent (STOP) 5.3:1.
    ============================================================ */
 
 .screen-phone {
@@ -22,100 +26,73 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.9rem 0.8rem 1.1rem;
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
 }
-.phone-card.is-mine { border-color: var(--pyl-cyan); }
-.phone-card.is-armed { border-color: var(--pyl-yellow); }
+.phone-card.is-mine, .phone-card.is-armed { border-color: var(--accent); }
 
-.phone-kicker {
-  margin: 0;
-  font-size: 0.75rem;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: var(--pyl-cyan);
-}
-.phone-headline {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  line-height: 1.15;
-  letter-spacing: var(--track-display);
-}
-.phone-sub { margin: 0; color: var(--ink-dim); font-size: 0.92rem; }
-.phone-status { margin: 0; color: var(--ink-mute); font-size: 0.82rem; min-height: 1.1em; }
+.phone-kicker { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink-dim); }
+.phone-headline { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.25; }
+.phone-sub { margin: 0; color: var(--ink-dim); font-size: 16px; }
+.phone-status { margin: 0; color: var(--ink-dim); font-size: 15px; min-height: 1.2em; }
 .phone-last {
-  margin: 0.3rem 0 0; padding: 0.5rem 0.6rem;
-  border-radius: var(--radius); background: var(--well);
-  color: var(--ink-dim); font-size: 0.9rem;
+  margin: 0.2rem 0 0; padding: 0.6rem 0 0; border-top: 1px solid var(--hairline);
+  color: var(--ink-dim); font-size: 16px;
 }
 
 .phone-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.2rem; }
 
 /* ============ The two race buttons ============ */
 
-.btn-buzz, .btn-stop-phone {
+.phone-actions .btn-buzz,
+.phone-actions .btn-stop-phone {
   width: 100%;
-  min-height: 12rem;
-  border-radius: var(--radius-xl);
-  border: 4px solid #fff;
-  font-family: var(--font-display);
-  font-size: 3.2rem;
-  letter-spacing: 0.14em;
+  min-height: 11rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: 0;
   cursor: pointer;
 }
-/* Scoped under .phone-actions (and repeated for :hover) so the shared .gsc-btn
-   hover wash can never replace the fill under a resting thumb or mouse. */
 .phone-actions .btn-buzz,
-.phone-actions .btn-buzz:hover {
-  background: linear-gradient(180deg, #ff5c5c, #cc1029);
-  color: #fff;
-}
+.phone-actions .btn-buzz:hover { background: #cc1029; border: 1px solid #cc1029; color: #ffffff; }
 .phone-actions .btn-buzz:disabled,
 .phone-actions .btn-buzz:disabled:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--ink-mute);
-  border-color: var(--panel-line);
-  cursor: default;
+  background: transparent; border: 1px dashed var(--ink-faint); color: var(--ink-mute); cursor: not-allowed; opacity: 1;
 }
 .phone-actions .btn-stop-phone,
-.phone-actions .btn-stop-phone:hover {
-  background: linear-gradient(180deg, var(--pyl-pink-lit), var(--pyl-pink-deep));
-  color: var(--pyl-pink-ink);
-}
-.btn-buzz:focus-visible, .btn-stop-phone:focus-visible {
-  outline: 4px solid var(--pyl-cyan);
-  outline-offset: 3px;
-}
+.phone-actions .btn-stop-phone:hover { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink); }
+.phone-actions .btn-buzz:focus-visible,
+.phone-actions .btn-stop-phone:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
 /* ============ Picks ============ */
 
 .phone-picks { display: flex; flex-direction: column; gap: 0.5rem; }
-.btn-pick {
+.phone-actions .btn-pick {
   width: 100%;
   min-height: var(--tap);
   padding: 0.8rem 0.9rem;
+  justify-content: flex-start;
   text-align: left;
-  border-radius: var(--radius-lg);
-  border: 2px solid var(--panel-line);
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline);
+  background: transparent;
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: 17px;
   cursor: pointer;
 }
 .phone-actions .btn-pick.is-on,
-.phone-actions .btn-pick.is-on:hover {
-  background: var(--pyl-cyan);
-  color: var(--pyl-cyan-ink);
-  border-color: #fff;
-  font-weight: 700;
+.phone-actions .btn-pick.is-on:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.phone-actions .btn-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ============ Passing: below the standing card, well away from STOP ============ */
+
+.phone-pass {
+  display: flex; flex-direction: column; gap: 0.45rem;
+  margin-top: 0.4rem; padding-top: 0.7rem; border-top: 1px solid var(--hairline);
 }
-.btn-pick:focus-visible { outline: 3px solid var(--pyl-yellow); outline-offset: 2px; }
-
-/* ============ Passing ============ */
-
-.phone-pass { display: flex; flex-direction: column; gap: 0.4rem; }
 .btn-wide { width: 100%; min-height: var(--tap); }
 
 /* ============ This phone's standing ============ */
@@ -125,31 +102,22 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.1rem 0.6rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--radius);
-  background: var(--well);
+  align-items: center;
+  padding: 0.7rem 0 0;
+  border-top: 1px solid var(--hairline);
 }
-.phone-mine .k { margin: 0; font-weight: 600; }
+.phone-mine .k { margin: 0; font-size: 17px; font-weight: 600; }
 .phone-mine .v {
   margin: 0; text-align: right;
-  font-family: var(--font-display); font-size: 1.5rem; color: var(--pyl-yellow);
+  font-family: var(--font-display); font-size: 32px; line-height: 1; color: var(--gold-text);
+  font-variant-numeric: tabular-nums;
 }
-.phone-mine .w { margin: 0; grid-column: 1 / -1; font-size: 0.78rem; color: var(--ink-mute); }
+.phone-mine .w { margin: 0; grid-column: 1 / -1; font-size: 15px; color: var(--ink-dim); }
 
-.phone-standings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.phone-standings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .phone-standings li {
   display: flex; justify-content: space-between; gap: 0.6rem;
-  padding: 0.55rem 0.7rem; border-radius: var(--radius); background: var(--well);
+  padding: 0.55rem 0; border-bottom: 1px solid var(--hairline); font-size: 16px;
 }
-.phone-standings li.is-winner { background: rgba(255, 225, 77, 0.16); }
-
-/* ============ Motion (design-system rule: all of it lives in here) ============ */
-
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes pyl-phone-ready {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 92, 92, 0.55); }
-    50% { box-shadow: 0 0 0 12px rgba(255, 92, 92, 0); }
-  }
-  .btn-buzz:not(:disabled) { animation: pyl-phone-ready 1.5s ease-in-out infinite; }
-  .btn-stop-phone { animation: pyl-phone-ready 1.5s ease-in-out infinite; }
-}
+.phone-standings li span:last-child { color: var(--gold-text); font-weight: 600; }
+.phone-standings li.is-winner span:first-child { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 4px; }

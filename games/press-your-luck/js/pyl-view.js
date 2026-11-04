@@ -501,6 +501,9 @@ const PylView = (function () {
     show($("screen-editor"), app.editorOpen);
     show($("pyl-lobby-modal"), app.lobbyOpen);
     show($("btn-resume"), !!app.resumable && !state);
+    // Nothing to park on setup, and mid-spin a park would skip the landing card (D5).
+    const lobby = $("btn-game-lobby");
+    if (lobby) lobby.disabled = !state || !!app.spin;
 
     if (!state || screen === "setup") {
       renderSetup(app);

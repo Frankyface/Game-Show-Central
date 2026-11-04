@@ -3,12 +3,22 @@
     "file": "kids-night.json",
     "name": "Kids' night",
     "description": "Twenty-four gentle questions and two friendly boards — small cash, silly prizes, three and four Whammies.",
-    "by": "Game Show Central"
+    "by": "Game Show Central",
+    "counts": {
+      "boards": 2,
+      "squares": 36,
+      "questions": 24
+    }
   },
   {
     "file": "movies-and-tv.json",
     "name": "Movies & TV",
     "description": "Twenty-four questions from the big screen and the small one, with a popcorn machine and a $5,000 square in round two.",
-    "by": "Game Show Central"
+    "by": "Game Show Central",
+    "counts": {
+      "boards": 2,
+      "squares": 36,
+      "questions": 24
+    }
   }
 ]

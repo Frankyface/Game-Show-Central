@@ -540,7 +540,7 @@ function pylWireOverlays() {
   pylWireButton("btn-round-end", () => pylDispatch({ type: "finish" }));
   pylWireButton("btn-play-again", () => pylSet({ core: null, resumable: null, spin: null }));
   pylWireButton("btn-result-undo", () => pylDispatch({ type: "undo" }));
-  pylWireButton("btn-game-lobby", () => { if (pylApp.core) pylSet({ lobbyOpen: true }); });
+  pylWireButton("btn-game-lobby", () => { if (pylApp.core && !pylApp.spin) pylSet({ lobbyOpen: true }); });
   pylWireButton("btn-lobby-keep", pylLobbyKeep);
   pylWireButton("btn-lobby-restart", pylLobbyRestart);
   pylWireButton("btn-lobby-cancel", () => pylSet({ lobbyOpen: false }));
@@ -551,11 +551,15 @@ function pylWireChrome() {
   const paint = () => {
     sound.textContent = window.PylSound.enabled ? "Sound on" : "Sound off";
     sound.setAttribute("aria-pressed", String(window.PylSound.enabled));
+    // textContent wiped the icon, so it goes back on every repaint (v3 rule 9).
+    if (window.GSCIcons) window.GSCIcons.prepend(sound, window.PylSound.enabled ? "sound" : "sound-off");
   };
+  if (window.GSCIcons) {
+    window.GSCIcons.prepend($("btn-editor"), "edit");
+    window.GSCIcons.prepend($("btn-game-lobby"), "lobby");
+  }
   sound.addEventListener("click", () => { window.PylSound.toggle(); paint(); });
   paint();
-  const lobby = $("btn-game-lobby");
-  if (lobby) lobby.disabled = false;
   document.addEventListener("keydown", pylOnKey);
   window.addEventListener("beforeunload", pylSave);
   document.addEventListener("visibilitychange", () => { if (document.hidden) pylSave(); });
@@ -563,11 +567,11 @@ function pylWireChrome() {
 
 /* ============ Splash ============ */
 
-const PYL_SPLASH_MS = 1200;
+const PYL_SPLASH_MS = 600;   // docs/21 §2.8: a plain 600 ms title card
 let pylSplashTimer = null;
 
 /**
- * The 1.2 s title card the hub shows on a game switch, mirrored here so a
+ * The 600 ms plain title card the hub shows on a game switch, mirrored here so a
  * standalone open carries it too (copied from js/hub-host.js showSplash()).
  * Decorative only: `.gsc-splash` is `pointer-events: none`, and the whole
  * thing is skipped under prefers-reduced-motion and when embedded.
@@ -578,7 +582,7 @@ function pylShowSplash() {
   if (globalThis.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (document.body.classList.contains("gsc-embedded")) return;
   setText("gsc-splash-title", "Press Your Luck");
-  setText("gsc-splash-sub", "Big money, big money — no Whammies!");
+  setText("gsc-splash-sub", "");
   node.dataset.gscGame = "press-your-luck";
   node.classList.remove("hidden");
   if (pylSplashTimer) clearTimeout(pylSplashTimer);

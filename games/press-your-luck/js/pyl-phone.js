@@ -18,6 +18,7 @@
   let view = { screen: "wait" };
   let connected = true;
   let armedAt = 0;          // when this phone last saw the buzzers open
+  let passTo = null;        // the seat a pass is waiting to be confirmed for (D8)
 
   /* ============ Small builders ============ */
 
@@ -110,17 +111,11 @@
           setText("pyl-phone-status", "Stopped!");
         }));
       }
-      if (v.canPass && Array.isArray(v.passTargets)) {
-        const row = el("div", "phone-pass");
-        row.appendChild(el("p", "phone-sub", "…or pass your spins to"));
-        v.passTargets.forEach((target) => {
-          row.appendChild(actionButton(target.name, "btn-ghost gsc-btn gsc-btn-ghost btn-wide",
-            () => me.send({ t: "pass", to: target.to })));
-        });
-        actions.appendChild(row);
-      }
       if (v.last) actions.appendChild(el("p", "phone-last", v.last));
       buildMine(actions, v);
+      // Passing sits below the standing card, well away from STOP, and takes
+      // two taps: a pass hands over every spin at once (D8).
+      if (v.canPass && Array.isArray(v.passTargets)) buildPass(actions, v);
       return {
         kicker: v.mine ? `${v.spins} spin${v.spins === 1 ? "" : "s"} left` : (v.name || "Watching"),
         headline: v.mine ? (v.canStop ? "Your turn on the board" : "Your turn is over") : `${v.control} is on the board`,
@@ -139,6 +134,30 @@
       };
     },
   };
+
+  function buildPass(actions, v) {
+    const row = el("div", "phone-pass");
+    const target = v.passTargets.find((t) => t.to === passTo);
+    if (!target) {
+      passTo = null;
+      row.appendChild(el("p", "phone-sub", "Or pass your spins to"));
+      v.passTargets.forEach((t) => {
+        row.appendChild(actionButton(`Pass to ${t.name}`, "btn-ghost gsc-btn gsc-btn-ghost btn-wide",
+          () => { passTo = t.to; render(); }));
+      });
+    } else {
+      row.appendChild(el("p", "phone-sub",
+        `Pass all ${v.spins} spin${v.spins === 1 ? "" : "s"} to ${target.name}? They have to use them.`));
+      row.appendChild(actionButton(`Yes, pass to ${target.name}`, "btn-gold btn-confirm gsc-btn gsc-btn-primary btn-wide", () => {
+        passTo = null;
+        me.send({ t: "pass", to: target.to });
+        setText("pyl-phone-status", `Passed to ${target.name}.`);
+      }));
+      row.appendChild(actionButton("Cancel", "btn-ghost gsc-btn gsc-btn-ghost btn-wide",
+        () => { passTo = null; render(); }));
+    }
+    actions.appendChild(row);
+  }
 
   function winnerLine(v) {
     const winners = (v.standings || []).filter((row) => row.winner);
@@ -175,6 +194,7 @@
       setText("pyl-phone-status", "");
     }
     if (view.screen === "pick" || view.screen === "wait") setText("pyl-phone-status", "");
+    if (!view.canPass) passTo = null;
     render();
   }
 

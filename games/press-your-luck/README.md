@@ -43,6 +43,10 @@ python -m http.server 8620          # from the repo root
    - **"+ one spin"** hands a spin straight back.
    - A **Whammy** drops their total to zero, counts one Whammy, and **ends
      their turn** — the spins they still have stay with them for later.
+     *House rule:* "a Whammy ends the turn but keeps the spins" is this
+     build's rule, not a documented rule of the TV show. Spins left over from
+     a Whammy on *passed* spins also stay passed (on the show they are said
+     to become the player's own); here they still cannot be passed on.
    - Four Whammies and a player is **out**: their total stays at zero and
      any spins they were holding are void.
 3. **Whose turn.** The player with the **fewest spins** goes first; ties break
@@ -91,7 +95,7 @@ Everything in bold is configurable per file (see the settings table).
 | Next player | `N` | Brings the next spinner up once a turn has ended. |
 | Pass … to | — | Passes the controller's own spins. |
 | Undo | `U` | Steps back through the whole game, exactly. |
-| ⟲ Game lobby | — | **Keep this game** (setup with a **Resume** button) or **Start over**. |
+| Game lobby | — | **Keep this game** (setup with a **Resume** button) or **Start over**. |
 | Sound | — | WebAudio cues, shared with the rest of the hub (`gsc-sound`). |
 
 Hotkeys are ignored while you are typing in a field or while the editor or a
@@ -202,7 +206,7 @@ honest about it:
 
 ## The editor
 
-**Board editor** in the toolbar. The board tab lays the eighteen squares out
+**Editor** in the toolbar. The board tab lays the eighteen squares out
 in the same rectangle the host screen paints; each one is a type (Cash / Cash
 + one spin / Prize / Whammy), an amount and — for a prize — a name, with the
 problem with *that* square printed underneath as you type. The middle of the
@@ -237,6 +241,7 @@ js/pyl-app.js           host state, persistence, hotkeys, the spin choreography
 js/pyl-editor.js        the board and question editor
 js/pyl-room.js          host glue on GSC.host
 js/pyl-phone.js         phone glue on GSC.player
+js/pyl-boot-check.js    says so in plain English if a script failed to load
 css/pyl.css             host screens
 css/pyl-phone.css       phone screens
 tests/pyl-core.test.mjs node:test suite (L-U1 … L-U10)
