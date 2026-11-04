@@ -269,3 +269,6 @@ body {
 }
 
 .offer-step { color: var(--ink-dim); font-size: 1rem; }
+
+/* UI-12 (docs/21 rule 9): embedded, the hub shell bar carries Lobby; nothing extra in this bar. */
+body.gsc-embedded #btn-exit { display: none !important; }

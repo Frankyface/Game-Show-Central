@@ -544,3 +544,6 @@ body.player-mode #ovh-lobby-modal { display: none !important; }
      reveal knocked out (`is-just-out`), never on the whole grid. */
   .mob-tile.is-just-out { animation: gsc-flip var(--dur-slow) var(--ease-out) both; }
 }
+
+/* UI-12 (docs/21 rule 9): embedded, the hub shell bar carries Lobby; nothing extra in this bar. */
+body.gsc-embedded #btn-exit { display: none !important; }

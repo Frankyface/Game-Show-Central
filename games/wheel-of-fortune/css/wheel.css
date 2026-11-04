@@ -312,9 +312,9 @@
 /* ============ Podiums (.gsc-podium) ============ */
 
 .podiums { display: flex; flex-direction: column; gap: 0.45rem; }
-.podiums:has(> :nth-child(5)) { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-.podiums:has(> :nth-child(5)) .podium { padding: 0.4rem 0.5rem; }
-.podiums:has(> :nth-child(5)) .podium-round { font-size: 1.5rem; }
+.podiums:has(> :nth-child(4)) { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.podiums:has(> :nth-child(4)) .podium { padding: 0.4rem 0.5rem; }
+.podiums:has(> :nth-child(4)) .podium-round { font-size: 1.5rem; }
 
 .podium {
   --podium-accent: var(--accent);

@@ -668,3 +668,6 @@ body.gsc-embedded #mg-room-chip { display: none !important; }
   .board-row { animation: mg-arrive var(--dur) var(--ease-out) both; }
   .spinner.is-spinning { animation: mg-rattle 160ms linear infinite; }
 }
+
+/* UI-12 (docs/21 rule 9): embedded, the hub shell bar carries Lobby; nothing extra in this bar. */
+body.gsc-embedded #btn-exit { display: none !important; }

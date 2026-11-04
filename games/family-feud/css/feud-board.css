@@ -12,7 +12,7 @@
    ============================================================ */
 
 :root {
-  --slot-h: clamp(44px, 8.2vh, 68px);
+  --slot-h: clamp(44px, 7.2vh, 68px); /* UI v3 tester: 8.2vh overflowed 720 by 4 px and the 672 px hub frame by 27 px */
   --slot-gap: 8px;
 }
 
