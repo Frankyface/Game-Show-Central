@@ -256,7 +256,7 @@ async function krLoadContent() {
       krError(`Couldn’t load ${url}: ${err.message}. Falling back to the shipped prompts.`);
     }
   }
-  if (krApp.game && krApp.sourceKind !== "default") return;
+  if (krApp.game && (krApp.sourceKind !== "default" || krApp.learnedLog.length)) return;   // keep remembered answers across a reload
   try {
     await krFetchGame("prompts.json", "The shipped prompts", "default");
   } catch (err) {

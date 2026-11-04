@@ -2,7 +2,7 @@
    Krillion — host rendering (setup + Deep Dive + result)
    Reads the app state, writes the DOM. Dispatches nothing
    itself: every button calls back into window.KrApp. Every
-   string reaches the page through textContent — never innerHTML.
+   string reaches the page through textContent — never as markup.
    Puffer Party's screen lives in kr-party.js.
 
    THE RULE THIS FILE ENFORCES: while a prompt is open the host

@@ -59,7 +59,7 @@ the room's answers".
 - **Pop**: the holder loses a **heart** (start 3, max 4); the round ends and
   a new prompt starts with the next player.
 - Each valid answer earns meter points by tier (Prawn 0, Schooler 1, Rare 2,
-  Deep Cut 3, One in a Krillion 4); **100 meter points = +1 heart**. Out at 0
+  Deep Cut 3, One in a Krillion 4); **10 meter points = +1 heart** (default; the real game needs far more, but with 0–4 points per answer that would mean hearts never return in a short party round). Out at 0
   hearts (spectator). **Last one floating wins.** Optional round cap.
 
 Configurable: prompt seconds, prompts per game, tier points, hearts, puffer
@@ -77,7 +77,7 @@ puzzle, "Noillirk" reverse mode.
                { "id": "rare", "name": "Rare", "points": 60 },
                { "id": "deepcut", "name": "Deep Cut", "points": 85 },
                { "id": "krillion", "name": "One in a Krillion", "points": 100 } ],
-    "puffer": { "hearts": 3, "maxHearts": 4, "startSeconds": 12, "floorSeconds": 3, "meterForHeart": 100 } },
+    "puffer": { "hearts": 3, "maxHearts": 4, "startSeconds": 12, "floorSeconds": 3, "meterForHeart": 10 } },
   "prompts": [
     { "text": "Name a chemical element", "category": "Science",
       "answers": [
