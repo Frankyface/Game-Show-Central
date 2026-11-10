@@ -133,6 +133,10 @@
       "../js/pwd-lobby.js", "../js/pwd-library.js", "../css/pwd-editor.css",
       "../sets/index.json", "../sets/kids-night.json", "../sets/hard-mode.json",
       "../tests/harness-x.html", "../../../shared/library.js",
+      // the host phone (docs/22): gated here too, so no new file is ungated
+      "../js/pwd-host-view.js", "../js/pwd-private.js", "../js/pwd-hostphone.js",
+      "../js/pwd-hostphone-page.js", "../css/pwd-hostphone.css", "../tests/pwd-host-view.test.mjs",
+      "../tests/harness-hostphone.html", "../tests/fixtures/hostphone-game.json",
     ];
 
     async function refreshAssets() {
@@ -630,7 +634,7 @@
           return new Set(w).size === w.length;
         }), "both lists are internally unique");
 
-      const css = texts["../css/pwd-editor.css"].replace(new RegExp("/\\*[\\s\\S]*?\\*/", "g"), "");
+      const css = (texts["../css/pwd-editor.css"] + texts["../css/pwd-hostphone.css"]).replace(new RegExp("/\\*[\\s\\S]*?\\*/", "g"), "");
       const outside = css.split("@media (prefers-reduced-motion: no-preference)")[0]
         .match(/@keyframes|animation:/g) || [];
       check("X-5 the new stylesheet adds no unguarded animation", outside.length === 0,

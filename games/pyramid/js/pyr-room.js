@@ -46,12 +46,14 @@
     delete lastSent[pid];
     countPhones();
     if (connected) pushViews(window.PyrApp.core());
+    if (window.PyrHostPhone) window.PyrHostPhone.refresh();   // a giver phone came or went (docs/22 §5.4)
   }
 
   function onPlayerLeave(pid) {
     delete lastSent[pid];
     if (!window.PyrApp.core()) window.PyrApp.removePlayer(pid);
     countPhones();
+    if (window.PyrHostPhone) window.PyrHostPhone.refresh();   // a giver phone came or went (docs/22 §5.4)
   }
 
   function countPhones() {
@@ -176,7 +178,10 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        onHostPhones: (list) => { if (window.PyrHostPhone) window.PyrHostPhone.onHostPhones(list); },
+      });
     } catch (err) {
       window.PyrApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -197,6 +202,8 @@
       exit.addEventListener("click", () => room.exit());
     }
     window.PyrRoom = { room, pushViews, onMessage, phoneCount: () => (room.players ? room.players().length : 0) };
+    // The host phone (docs/22): host view, answers-private mode, seat reconciliation.
+    if (window.PyrHostPhone) window.PyrHostPhone.attach(room);
   }
 
   if (document.readyState === "loading") {

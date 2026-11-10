@@ -94,6 +94,17 @@ Cut; save One in a Krillion for answers that are correct and genuinely obscure.
 **Download for the library**, which downloads the file and prints the manifest entry to paste into
 `sets/index.json` (static hosting can't write files, so you commit both).
 
+## Host phone
+
+In the hub, the host can make any phone the **host phone** (from the lobby roster). That phone becomes
+a private second screen. During a Deep Dive it shows the prompt's rated list grouped by tier, every
+answer as it arrives with the tier it matched (or "pending"), and the judge's queue. During Puffer
+Party it shows the holder, any answer waiting for a ruling, and the used answers.
+
+While a host phone is assigned, the laptop never draws the rated list. It shows "Answers are on your
+host phone" instead, or, if that phone is disconnected, one **Show answer on this screen** button for
+the current prompt. The judge's review and the reveal are unchanged.
+
 ## Phones
 
 Phones show the prompt, a field and a countdown; "Sent ✓ — you can change it" until the clock ends;

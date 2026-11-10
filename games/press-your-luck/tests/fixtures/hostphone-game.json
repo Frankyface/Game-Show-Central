@@ -1,0 +1,347 @@
+{
+  "title": "Host phone harness board",
+  "settings": {
+    "currency": "$",
+    "questionsPerRound": 2,
+    "buzzSpins": 3,
+    "pickSpins": 1,
+    "whammyLimit": 4,
+    "rounds": 2,
+    "rotate": false
+  },
+  "boards": [
+    [
+      {
+        "cash": 100
+      },
+      {
+        "cash": 200,
+        "spin": true
+      },
+      {
+        "whammy": true
+      },
+      {
+        "prize": "Harness trip",
+        "value": 1000
+      },
+      {
+        "cash": 400
+      },
+      {
+        "cash": 500
+      },
+      {
+        "cash": 600
+      },
+      {
+        "cash": 700
+      },
+      {
+        "cash": 800
+      },
+      {
+        "whammy": true
+      },
+      {
+        "cash": 900
+      },
+      {
+        "cash": 1000
+      },
+      {
+        "cash": 1100
+      },
+      {
+        "cash": 1200
+      },
+      {
+        "cash": 1300
+      },
+      {
+        "cash": 1400
+      },
+      {
+        "whammy": true
+      },
+      {
+        "cash": 1500
+      }
+    ],
+    [
+      {
+        "cash": 2000
+      },
+      {
+        "cash": 2500,
+        "spin": true
+      },
+      {
+        "whammy": true
+      },
+      {
+        "cash": 3000
+      },
+      {
+        "cash": 3500
+      },
+      {
+        "cash": 4000
+      },
+      {
+        "cash": 4500
+      },
+      {
+        "cash": 5000
+      },
+      {
+        "cash": 5500
+      },
+      {
+        "whammy": true
+      },
+      {
+        "cash": 6000
+      },
+      {
+        "cash": 6500
+      },
+      {
+        "cash": 7000
+      },
+      {
+        "cash": 7500
+      },
+      {
+        "cash": 8000
+      },
+      {
+        "cash": 8500
+      },
+      {
+        "whammy": true
+      },
+      {
+        "cash": 9000
+      }
+    ]
+  ],
+  "questions": [
+    {
+      "q": "Host phone question 01?",
+      "options": [
+        "ANS-01-right",
+        "OPT-01-y",
+        "OPT-01-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 02?",
+      "options": [
+        "OPT-02-x",
+        "ANS-02-right",
+        "OPT-02-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 03?",
+      "options": [
+        "OPT-03-x",
+        "OPT-03-y",
+        "ANS-03-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 04?",
+      "options": [
+        "ANS-04-right",
+        "OPT-04-y",
+        "OPT-04-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 05?",
+      "options": [
+        "OPT-05-x",
+        "ANS-05-right",
+        "OPT-05-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 06?",
+      "options": [
+        "OPT-06-x",
+        "OPT-06-y",
+        "ANS-06-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 07?",
+      "options": [
+        "ANS-07-right",
+        "OPT-07-y",
+        "OPT-07-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 08?",
+      "options": [
+        "OPT-08-x",
+        "ANS-08-right",
+        "OPT-08-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 09?",
+      "options": [
+        "OPT-09-x",
+        "OPT-09-y",
+        "ANS-09-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 10?",
+      "options": [
+        "ANS-10-right",
+        "OPT-10-y",
+        "OPT-10-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 11?",
+      "options": [
+        "OPT-11-x",
+        "ANS-11-right",
+        "OPT-11-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 12?",
+      "options": [
+        "OPT-12-x",
+        "OPT-12-y",
+        "ANS-12-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 13?",
+      "options": [
+        "ANS-13-right",
+        "OPT-13-y",
+        "OPT-13-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 14?",
+      "options": [
+        "OPT-14-x",
+        "ANS-14-right",
+        "OPT-14-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 15?",
+      "options": [
+        "OPT-15-x",
+        "OPT-15-y",
+        "ANS-15-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 16?",
+      "options": [
+        "ANS-16-right",
+        "OPT-16-y",
+        "OPT-16-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 17?",
+      "options": [
+        "OPT-17-x",
+        "ANS-17-right",
+        "OPT-17-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 18?",
+      "options": [
+        "OPT-18-x",
+        "OPT-18-y",
+        "ANS-18-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 19?",
+      "options": [
+        "ANS-19-right",
+        "OPT-19-y",
+        "OPT-19-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 20?",
+      "options": [
+        "OPT-20-x",
+        "ANS-20-right",
+        "OPT-20-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 21?",
+      "options": [
+        "OPT-21-x",
+        "OPT-21-y",
+        "ANS-21-right"
+      ],
+      "answer": 2
+    },
+    {
+      "q": "Host phone question 22?",
+      "options": [
+        "ANS-22-right",
+        "OPT-22-y",
+        "OPT-22-z"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Host phone question 23?",
+      "options": [
+        "OPT-23-x",
+        "ANS-23-right",
+        "OPT-23-z"
+      ],
+      "answer": 1
+    },
+    {
+      "q": "Host phone question 24?",
+      "options": [
+        "OPT-24-x",
+        "OPT-24-y",
+        "ANS-24-right"
+      ],
+      "answer": 2
+    }
+  ]
+}

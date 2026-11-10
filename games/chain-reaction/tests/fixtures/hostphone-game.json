@@ -1,0 +1,99 @@
+{
+  "title": "Host phone harness (prefixed words)",
+  "settings": {
+    "currency": "$",
+    "values": [
+      100,
+      100
+    ],
+    "speedSeconds": 60,
+    "speedPerWord": 100,
+    "speedAllClear": 1000,
+    "speedAllClearLabel": "$1,000",
+    "revealOnWrong": false
+  },
+  "chains": [
+    [
+      "XQSPACE",
+      "XQSHIP",
+      "XQSHAPE",
+      "XQUP",
+      "XQTOWN",
+      "XQHALL",
+      "XQWAY",
+      "XQOUT"
+    ],
+    [
+      "XQKEY",
+      "XQBOARD",
+      "XQGAME",
+      "XQNIGHT",
+      "XQLIFE",
+      "XQGUARD",
+      "XQDOG",
+      "XQHOUSE"
+    ],
+    [
+      "XQSNOW",
+      "XQBALL",
+      "XQPARK",
+      "XQBENCH",
+      "XQMARK",
+      "XQDOWN",
+      "XQTOWN",
+      "XQHOUSE"
+    ],
+    [
+      "XQCAR",
+      "XQPOOL",
+      "XQTABLE",
+      "XQTOP",
+      "XQHAT",
+      "XQBOX",
+      "XQOFFICE",
+      "XQPARTY"
+    ],
+    [
+      "XQGOLD",
+      "XQMINE",
+      "XQFIELD",
+      "XQDAY",
+      "XQDREAM",
+      "XQTEAM",
+      "XQWORK",
+      "XQOUT"
+    ],
+    [
+      "XQSUN",
+      "XQSET",
+      "XQSAIL",
+      "XQBOAT",
+      "XQHOUSE",
+      "XQPLANT",
+      "XQFOOD",
+      "XQPOISONING"
+    ]
+  ],
+  "speedChains": [
+    [
+      "XQCHAIN",
+      "XQREACTION",
+      "XQTIME",
+      "XQOUT",
+      "XQSIDE",
+      "XQSTEP",
+      "XQFATHER",
+      "XQLAND"
+    ],
+    [
+      "XQHIGH",
+      "XQSCHOOL",
+      "XQBUS",
+      "XQSTOP",
+      "XQLIGHT",
+      "XQWEIGHT",
+      "XQROOM",
+      "XQMATE"
+    ]
+  ]
+}

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password host-phone harness (HP-I1–HP-I7)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Password — host-phone harness (docs/22 §5.5)</h1>
+  <p class="lede">This page is the hub for one embedded host and five embedded phones: four contestants and one
+    phone in <code>role=host</code>. It speaks the bridge protocol including <code>host-view</code> and
+    <code>host-phones</code>. Every password in the fixture starts with <code>Hpwqz</code>, a string that occurs
+    nowhere else, so “is the password on the shared screen” is a plain substring search over text, form values,
+    placeholders, options, titles, alt text, aria-labels, data attributes and the shell title.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    /* ============ Result plumbing ============ */
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__PWD_HP_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function waitFor(fn, label, timeout) {
+      const start = Date.now();
+      for (;;) {
+        let v = null;
+        try { v = fn(); } catch (err) { v = null; }
+        if (v) return v;
+        if (Date.now() - start > (timeout || 6000)) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub, with a host phone (docs/22 §4) ============ */
+
+    const ALL = [
+      { pid: "p1", name: "Ada", color: "#7aa2ff", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    let players = ALL.map((p) => Object.assign({}, p));
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+    const hostViewsTo = new Map();     // pid -> host views delivered
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    const isHostPid = (pid) => hostPhones.some((h) => h.pid === pid);
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "PWHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (!heldView) return;
+      hostPhones.filter((h) => h.connected !== false && phoneFrames.has(h.pid)).forEach((h) => {
+        hostViewsTo.set(h.pid, (hostViewsTo.get(h.pid) || 0) + 1);
+        post(phoneFrames.get(h.pid), { t: "host-view", m: heldView });
+      });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        const to = d.pid === "*" ? players.map((p) => p.pid) : [d.pid];
+        to.filter((pid) => !isHostPid(pid)).forEach((pid) => post(phoneFrames.get(pid), { t: "msg", m: d.m }));
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const h = hostPhones.find((x) => x.pid === pid);
+        const me = h ? { pid, name: h.name, role: "host" } : ALL.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "PWHP" } });
+        if (h) deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        // The hub drops every game payload from a host phone (docs/22 F3).
+        if (isHostPid(pid)) { shellLog.push({ t: "dropped-from-host-phone", pid, m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+      if (list.some((h) => h.connected !== false)) deliverHostView();
+    }
+
+    function setPlayerConnected(pid, connected) {
+      players = players.map((p) => (p.pid === pid ? Object.assign({}, p, { connected }) : p));
+      post(hostFrame, { t: "player-status", pid, connected });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-game.json";
+    const KEYS = ["gsc-pwd-state-v1-hpharness", "gsc-pwd-draft-v1-hpharness"];
+    const REAL_BEFORE = ["gsc-pwd-state-v1", "gsc-pwd-draft-v1"].map((k) => localStorage.getItem(k));
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().PwdApp.core();
+    const click = (id) => H(id).click();
+    const shown = (id) => !!H(id) && !H(id).classList.contains("hidden") && H(id).getClientRects().length > 0;
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostPhoneText = () => PW("h1").PwdHostPhonePage.text();
+    const hpAnswer = () => {
+      const n = PW("h1").document.querySelector("#pwd-host-card .host-answer");
+      return n ? n.textContent : "";
+    };
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().PwdApp && HW().PwdApp.state().game, "host boot");
+      await waitFor(() => HW().PwdHostPhone, "host-phone glue");
+      await sleep(120);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "p4", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.PwdPhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title (docs/22 §5.5). */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    async function startGame() {
+      await waitFor(() => HW().PwdApp.state().setup.players.length === 4, "the roster seats four");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "word", "a password in play");
+      await sleep(80);
+    }
+
+    /* ============ HP-I1 — the view reaches the host phone, and only it ============ */
+
+    async function scenarioView() {
+      await bootHost();
+      await bootPhones();
+      check("HP-I1 a host phone is never a contestant: the roster is the four players",
+        HW().PwdApp.state().setup.players.map((p) => p.pid).join(",") === "p1,p2,p3,p4"
+        && HW().PwdApp.state().answersPrivate === true,
+        HW().PwdApp.state().setup.players.map((p) => p.name).join(","));
+      await startGame();
+      const word = core().round.word;
+      await waitFor(() => hpAnswer() === word, "the host phone shows the password");
+      check("HP-I1 the host-role frame receives the view through onHostView: the password, large",
+        hpAnswer() === word && PW("h1").PwdHostPhonePage.view().t === "host"
+        && PW("h1").PwdHostPhonePage.view().item === "Password 1",
+        `${hpAnswer()} · ${PW("h1").PwdHostPhonePage.view().item}`);
+      check("HP-I1 the host phone also carries the ladder, whose clue it is and the next password",
+        /Worth 10 · 0 of 10 clues · Team A to clue/.test(hostPhoneText())
+        && hostPhoneText().indexOf(core().order[core().cursor]) > 0,
+        hostPhoneText().slice(0, 140));
+      check("HP-I1 contestant frames never receive a host view",
+        [...hostViewsTo.keys()].join(",") === "h1"
+        && ["p1", "p2", "p3", "p4"].every((pid) => !PW(pid).PwdPhone.view() || PW(pid).PwdPhone.view().t !== "host"),
+        `host views went to ${[...hostViewsTo.keys()].join(",")}`);
+      check("HP-I1 the receivers' phones still never see the password",
+        ["p2", "p4"].every((pid) => PW(pid).document.body.textContent.indexOf(word) < 0));
+
+      const seq = HW().PwdHostPhone.seq();
+      HW().PwdApp.render();
+      HW().PwdApp.setPhoneCount(42);
+      await sleep(60);
+      check("HP-I1 seq does not move when nothing private changed", HW().PwdHostPhone.seq() === seq, `seq ${seq}`);
+      click("btn-clue");
+      await waitFor(() => heldView && heldView.clues === 1, "the clue reaches the host phone");
+      check("HP-I1 seq bumps when the content changes, and the phone follows the ladder",
+        HW().PwdHostPhone.seq() === seq + 1 && heldView.seq === seq + 1
+        && /1 of 10 clues/.test(hostPhoneText()),
+        `seq ${HW().PwdHostPhone.seq()}`);
+    }
+
+    /* ============ HP-I2 — connected: nothing on the shared screen ============ */
+
+    function scenarioConnected() {
+      const word = core().round.word;
+      const next = core().order[core().cursor];
+      check("HP-I2 connected: the password is absent from the host document and setTitle",
+        leaks(word).length === 0, leaks(word).join(", ") || "absent");
+      check("HP-I2 the next password is absent too", leaks(next).length === 0, leaks(next).join(", ") || "absent");
+      check("HP-I2 the line reads “Answer is on your host phone”",
+        H("pwd-play-notice").textContent === "Answer is on your host phone", H("pwd-play-notice").textContent);
+      check("HP-I2 “Show password to me” and study are not rendered, and no fallback button exists",
+        !shown("btn-reveal") && !shown("btn-study") && !H("btn-hp-fallback")
+        && HD().querySelectorAll("#pwd-word-panel *").length === 0);
+      HW().PwdApp.set({ reveal: true, studyUntil: Date.now() + 5000 });
+      check("HP-I2 a remembered reveal or study switch is ignored", leaks(word).length === 0,
+        leaks(word).join(", ") || "still absent");
+      HW().PwdApp.set({ reveal: false, studyUntil: null });
+    }
+
+    /* ============ HP-I3 — away: one fallback, current item only ============ */
+
+    async function scenarioAway() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      await waitFor(() => H("pwd-play-notice").textContent === "Host phone disconnected", "the away line");
+      const word = core().round.word;
+      check("HP-I3 away: “Host phone disconnected” and exactly one “Show answer on this screen”",
+        HD().querySelectorAll("#btn-hp-fallback").length === 1
+        && H("btn-hp-fallback").textContent === "Show answer on this screen" && leaks(word).length === 0,
+        leaks(word).join(", ") || "password absent");
+      click("btn-hp-fallback");
+      check("HP-I3 the fallback reveals the current password, in the panel only",
+        leaks(word).length === 1 && /pwd-word-panel|word-now/.test(leaks(word)[0]), leaks(word).join(", "));
+      click("btn-correct");
+      click("btn-next-word");
+      await waitFor(() => core().round.clues === 0, "the next password");
+      const fresh = core().round.word;
+      check("HP-I3 it clears on the next item: the new password is absent and the button is back",
+        leaks(fresh).length === 0 && !!H("btn-hp-fallback"), leaks(fresh).join(", ") || "absent");
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      await waitFor(() => H("pwd-play-notice").textContent === "Answer is on your host phone", "connected again");
+      check("HP-I3 reconnected: back to the host-phone line and the current password",
+        !H("btn-hp-fallback") && hpAnswer() === fresh, hpAnswer());
+    }
+
+    /* ============ HP-I4 — the phone-less giver keeps the panel (review F6) ============ */
+
+    async function scenarioPhonelessGiver() {
+      const word = core().round.word;
+      const giver = HW().PwdCore.giverPids(core())[0];
+      setPlayerConnected(giver, false);
+      await waitFor(() => shown("btn-reveal"), "the giver panel returns");
+      check("HP-I4 a current giver with no connected phone gets the panel back, behind its click",
+        shown("btn-reveal") && shown("btn-study") && leaks(word).length === 0,
+        `${giver} offline · ${leaks(word).join(", ") || "password still absent until clicked"}`);
+      click("btn-reveal");
+      check("HP-I4 clicking it shows the password with its shared-screen warning",
+        leaks(word).length > 0
+        && HD().querySelector("#pwd-word-panel .word-warn").textContent.indexOf("Shared screen") === 0);
+      click("btn-reveal");
+      setPlayerConnected(giver, true);
+      await waitFor(() => !shown("btn-reveal"), "the panel goes again");
+      check("HP-I4 when that giver's phone is back, the panel is not rendered again",
+        !shown("btn-reveal") && leaks(word).length === 0
+        && H("pwd-play-notice").textContent === "Answer is on your host phone");
+    }
+
+    /* ============ HP-I5 — the Lightning Round ============ */
+
+    async function scenarioLightning() {
+      let guard = 0;
+      while (core().phase === "word" && guard < 12) {
+        if (core().round.finished) click("btn-next-word");
+        click("btn-clue");
+        click("btn-correct");
+        guard += 1;
+        await sleep(5);
+      }
+      await waitFor(() => core().phase === "gameOver", "the game is won");
+      const upcoming = heldView.words.map((w) => w.text);
+      check("HP-I5 game over: the host phone lists the Lightning words; the shared screen has none",
+        upcoming.length === 3 && upcoming.every((w) => leaks(w).length === 0)
+        && upcoming.every((w) => hostPhoneText().indexOf(w) >= 0), upcoming.join(", "));
+      click("btn-to-lightning");
+      await waitFor(() => core().phase === "lightning", "the Lightning Round");
+      const words = core().lightning.words.map((w) => w.text);
+      check("HP-I5 the dealt words are exactly the ones the host phone listed", words.join() === upcoming.join());
+      check("HP-I5 no Lightning word on the shared screen; “Show words to me” not rendered",
+        words.every((w) => leaks(w).length === 0) && !shown("btn-l-reveal")
+        && HD().querySelectorAll(".l-slot-word").length === 0
+        && H("pwd-l-notice").textContent === "Answer is on your host phone");
+      click("btn-l-start");
+      click("btn-l-got");
+      await waitFor(() => heldView.words[0].status === "got", "the mark reaches the host phone");
+      check("HP-I5 the host phone tracks status and marks the current word",
+        PW("h1").document.querySelectorAll(".host-word.is-got").length === 1
+        && PW("h1").document.querySelector(".host-word.is-current .host-word-text").textContent === words[1]
+        && hpAnswer() === words[1]);
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      await waitFor(() => H("btn-hp-fallback-l"), "the Lightning fallback");
+      click("btn-hp-fallback-l");
+      check("HP-I5 away: the fallback shows the current word only",
+        leaks(words[1]).length === 1 && leaks(words[2]).length === 0, leaks(words[1]).join(", "));
+      click("btn-l-got");
+      check("HP-I5 and it clears on the next word", leaks(words[2]).length === 0 && !!H("btn-hp-fallback-l"));
+      click("btn-l-got");
+      await waitFor(() => core().lightning.finished, "the round closes");
+      check("HP-I5 the public reveal at the end is unchanged: every word on the slots",
+        words.every((w) => leaks(w).some((x) => /l-slot-word/.test(x))));
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      await waitFor(() => /Nothing secret right now/.test(hostPhoneText()), "nothing secret");
+      check("HP-I5 with the round over, the host phone says “Nothing secret right now”",
+        /Nothing secret right now/.test(hostPhoneText()) && /Lightning Round over/.test(hostPhoneText()));
+    }
+
+    /* ============ HP-I6 — the host-phone page itself ============ */
+
+    async function scenarioPage() {
+      const d = PW("h1").document;
+      const win = PW("h1");
+      check("HP-I6 the contestant card is not drawn on a host phone",
+        d.getElementById("pwd-phone-card").getClientRects().length === 0 && !!d.getElementById("pwd-host-card"));
+      const texts = [...d.querySelectorAll("#pwd-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(win.getComputedStyle(n).fontSize) < 16);
+      check("HP-I6 320 px: no sideways scroll, text ≥ 16 px, no buttons",
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth + 1 && small.length === 0
+        && d.querySelectorAll("#pwd-host-card button").length === 0,
+        small.map((n) => `${n.className}:${win.getComputedStyle(n).fontSize}`).join(" ") || "ok");
+      win.PwdHostPhonePage.show({ t: "host", seq: 999, item: "Password 9", secret: true, stage: "live",
+        phaseLabel: "Game 1 · password 9", answer: "Hpwqzzz", value: 7, clues: 4, maxClues: 10, turnName: "Team A",
+        givers: ["Ada", "Cleo"], next: "Hpwqzzy" });
+      const ans = d.querySelector(".host-answer");
+      check("HP-I6 the password is ≥ 28 px and sits beside its item",
+        parseFloat(win.getComputedStyle(ans).fontSize) >= 28 && /Password 9/.test(win.PwdHostPhonePage.text()),
+        win.getComputedStyle(ans).fontSize);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => /Reconnecting — this may be out of date/.test(win.PwdHostPhonePage.text()), "stale");
+      check("HP-I6 transport down: dimmed with “Reconnecting — this may be out of date”",
+        d.getElementById("pwd-host-card").classList.contains("is-stale"));
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => !/Reconnecting/.test(win.PwdHostPhonePage.text()), "fresh");
+      win.PwdHostPhonePage.show({ t: "host", item: "Lightning Round", tooBig: true });
+      check("HP-I6 tooBig renders as a plain sentence",
+        /Too much to show — use the button on the laptop/.test(win.PwdHostPhonePage.text()));
+      check("HP-I6 the host phone sent nothing at all",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone"),
+        shellLog.filter((m) => m.t === "dropped-from-host-phone").length + " payloads");
+      deliverHostView();
+    }
+
+    /* ============ HP-I7 — seat reconciliation, and no host phone at all ============ */
+
+    async function scenarioReconcile() {
+      HW().PwdApp.set({ core: null, resumable: null });
+      await startGame();
+      click("btn-clue");
+      const seats = core().teams.map((t) => t.members.map((m) => m.pid).join("+")).join(" / ");
+      // Dev's phone is made the host phone in the lobby, then the game frame remounts.
+      players = ALL.filter((p) => p.pid !== "p4").map((p) => Object.assign({}, p));
+      hostPhones = [{ pid: "p4", name: "Dev", connected: true }];
+      await bootHost(false);
+      await waitFor(() => /is now the host phone/.test(H("pwd-error").textContent), "the one notice");
+      check("HP-I7 the saved setup drops the seat that left the roster",
+        HW().PwdApp.state().setup.players.every((p) => p.pid !== "p4")
+        && HW().PwdApp.state().setup.seats.flat().indexOf("p4") < 0,
+        HW().PwdApp.state().setup.players.map((p) => p.pid).join(","));
+      check("HP-I7 the game in progress keeps Dev's seat, scores standing, with one notice",
+        core().teams.map((t) => t.members.map((m) => m.pid).join("+")).join(" / ") === seats
+        && core().round.clues === 1
+        && H("pwd-error").textContent === "Dev is now the host phone — play their turns from this screen, or start a new game.",
+        H("pwd-error").textContent);
+      click("btn-correct");
+      click("btn-next-word");
+      await waitFor(() => core().round.clues === 0, "Dev gives now");
+      check("HP-I7 Dev is phone-less now, so as a giver his panel is available on this screen",
+        HW().PwdCore.giverPids(core()).indexOf("p4") >= 0 && shown("btn-reveal"),
+        HW().PwdCore.giverPids(core()).join(","));
+
+      players = ALL.map((p) => Object.assign({}, p));
+      hostPhones = [];
+      await bootHost(false);
+      const word = core().round.word;
+      check("HP-I7 no host phone: behaviour is identical — the reveal is offered and works",
+        HW().PwdApp.state().answersPrivate === false && shown("btn-reveal") && shown("btn-study")
+        && H("pwd-play-notice").textContent === "The password is on both givers’ phones. Nothing secret is on this screen.",
+        H("pwd-play-notice").textContent);
+      click("btn-reveal");
+      check("HP-I7 …and “Show password to me” still puts it on screen", leaks(word).length > 0);
+      click("btn-reveal");
+      check("HP-I7 the run never touched the real save",
+        ["gsc-pwd-state-v1", "gsc-pwd-draft-v1"].every((k, i) => localStorage.getItem(k) === REAL_BEFORE[i]));
+    }
+
+    /* ============ Run ============ */
+
+    (async function run() {
+      try {
+        await scenarioView();
+        scenarioConnected();
+        await scenarioAway();
+        await scenarioPhonelessGiver();
+        await scenarioLightning();
+        await scenarioPage();
+        await scenarioReconcile();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+    })();
+  })();
+  </script>
+</body>
+</html>

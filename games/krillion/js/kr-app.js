@@ -596,6 +596,7 @@ window.KrApp = {
   core: () => krApp.core,
   set: krSet,
   error: krError,
+  note: krNote,          // an error line that survives the content load
   dispatch: krDispatch,
   subscribe: (fn) => { krListeners.push(fn); },
   useGame: krUseGame,

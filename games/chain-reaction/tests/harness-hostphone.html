@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chain Reaction host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 600px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Chain Reaction — host phone harness (docs/22 §5.5, §5.6, §5.7)</h1>
+  <p class="lede">This page is the hub for one host frame, two contestant phones and one <b>host phone</b> (role=host). It speaks the bridge protocol including <code>host-phones</code> and <code>host-view</code>. Every word in the fixture carries the prefix <code>XQ</code>, so a search for a hidden word can never be satisfied by ordinary copy. The load-bearing checks: with a host phone assigned — connected or not — no hidden word is anywhere in the host document (text, value, placeholder, option, title, alt, aria-label, data-*) or the shell title; Peek is gone; the host phone always has the whole chain; the per-item fallback shows the word in play only and clears on the next item.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script src="harness-kit.js"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    const kit = window.CRHarnessKit.create({
+      list: document.getElementById("results"),
+      summary: document.getElementById("summary"),
+      name: "__CR_HP_HARNESS__",
+    });
+    const { check, render, sleep, waitFor } = kit;
+
+    /* ============ The hub, with a host phone (docs/22 §4) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#3a7bd5", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#c1121f", avatar: "🐼", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    const hostViewLog = [];
+    let heldView = null;
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "CRHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (heldView && phoneFrames.has("h1")) post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; hostViewLog.push(d.m); deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") players.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        shellLog.push({ t: "sent", pid: d.pid, m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE) : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "CRHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-game.json";
+    const KEYS = ["gsc-cr-state-v1-hpharness", "gsc-cr-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().CrApp.core();
+    const dispatch = (e) => HW().CrApp.dispatch(e);
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostText = () => PW("h1").CrHostScreen.text();
+    const hidden = () => HW().CrHostView.hiddenWords(core());
+    const answer = () => HW().CrHostView.currentAnswer(core());
+    const visible = (n) => !!n && !n.closest(".hidden") && n.getClientRects().length > 0;
+    const notes = () => [...HD().querySelectorAll(".hp-note")].filter(visible);
+    const noteText = () => notes().map((n) => n.querySelector(".hp-note-text").textContent).join(" | ");
+    const fallback = () => [...HD().querySelectorAll(".hp-show")].filter(visible);
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().CrApp && HW().CrApp.state().game, "host boot");
+      await sleep(60);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.CrPhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title (docs/22 §5.5). */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.documentElement, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      if (doc.documentElement.textContent.indexOf(s) >= 0 && !where.length) where.push("joined text");
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+        if (node.tagName === "OPTION" && node.textContent.indexOf(s) >= 0) where.push("option");
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    const anyLeak = (words) => words.map((w) => [w, leaks(w)]).filter(([, l]) => l.length);
+
+    /** docs/22 §5.3: 320 px with no sideways scroll, text ≥ 16 px, the answer ≥ 28 px, no buttons. */
+    function hostPhoneLayout(tag) {
+      const w = PW("h1");
+      const d = w.document;
+      const texts = [...d.querySelectorAll("#cr-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(w.getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${w.getComputedStyle(n).fontSize}`);
+      const big = d.querySelector(".host-answer");
+      const px = big ? parseFloat(w.getComputedStyle(big).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answer ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0 && px >= 28
+        && d.querySelectorAll("#cr-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, answer ${px}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    /* ============ Scenarios ============ */
+
+    async function scenarioSetup() {
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => PW("h1").CrHostScreen.view(), "the first host view");
+      check("HP-1 the host-role frame receives the view through onHostView: nothing secret in setup",
+        PW("h1").CrHostScreen.view().secret === false && /Nothing secret right now/.test(hostText())
+        && PW("h1").CrHostScreen.isActive(), hostText().slice(0, 80));
+      check("HP-1 the host phone shows the host card, never the contestant card",
+        PW("h1").document.getElementById("cr-phone-card").classList.contains("hidden")
+        && !PW("h1").document.getElementById("cr-host-card").classList.contains("hidden"));
+      check("HP-1 answers private: the laptop's Peek is gone",
+        HW().CrHostPhone.isPrivate() === true && H("btn-peek").classList.contains("hidden")
+        && H("cr-peek-word").classList.contains("hidden"));
+    }
+
+    async function scenarioConnected() {
+      await waitFor(() => HW().CrApp.state().players.length === 2, "the roster");
+      const rows = [...HD().querySelectorAll("#cr-roster .roster-row")];
+      rows[0].querySelector(".team-pick.team-0").click();
+      rows[1].querySelector(".team-pick.team-1").click();
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "chain", "the chain");
+      click("btn-reveal-top");
+      const word = answer();
+      await waitFor(() => PW("h1").CrHostScreen.view().current && PW("h1").CrHostScreen.view().current.word === word, "the word in play");
+      const v = PW("h1").CrHostScreen.view();
+      check("HP-2 the host phone holds the word in play and the whole chain, top to bottom",
+        hostText().indexOf(word) >= 0 && v.words.map((w) => w.word).join() === core().chain.words.join()
+        && PW("h1").document.querySelectorAll("#cr-host-card .host-row").length === 8
+        && PW("h1").document.querySelectorAll("#cr-host-card .host-row.is-target").length === 1,
+        `${word}; ${v.words.map((w) => w.word).join(" ")}`);
+      check("HP-2 each word shows its letters as tiles, the room's ones filled",
+        PW("h1").document.querySelector("#cr-host-card .host-row.is-target .host-tile.is-lit").textContent === word[0]
+        && PW("h1").document.querySelectorAll("#cr-host-card .host-row.is-target .host-tile.is-lit").length === 1);
+      hostPhoneLayout("HP-2");
+      check("HP-2 contestant frames never receive a host view, and no send carries one",
+        ["p1", "p2"].every((pid) => !PW(pid).CrHostScreen.view() && hidden().every((w) => PW(pid).document.body.textContent.indexOf(w) < 0))
+        && !shellLog.some((m) => m.t === "sent" && (m.m.t === "host" || JSON.stringify(m.m).indexOf(word) >= 0)),
+        `${shellLog.filter((m) => m.t === "sent").length} sends checked`);
+      check("HP-3 CONNECTED: no hidden word is anywhere in the host document or the shell title",
+        anyLeak(hidden()).length === 0, JSON.stringify(anyLeak(hidden())) || `looked for ${hidden().join(" ")}`);
+      check("HP-3 instead the laptop reads “Answer is on your host phone”, with no fallback button",
+        noteText() === "Answer is on your host phone" && fallback().length === 0, noteText());
+      HW().CrApp.set({ peek: true });      // a remembered peek must be ignored
+      await sleep(60);
+      check("HP-3 a remembered Peek is held off: still no word on the laptop",
+        HW().CrApp.state().peek === false && anyLeak(hidden()).length === 0);
+      const seq = hostViewLog[hostViewLog.length - 1].seq;
+      dispatch({ type: "guess", text: "nope" });
+      await sleep(60);
+      check("HP-3 seq moves only when the view's content changes (typing a guess does not)",
+        hostViewLog[hostViewLog.length - 1].seq === seq, `seq ${seq}`);
+      check("HP-3 the host phone sends nothing", !shellLog.some((m) => m.t === "dropped-from-host-phone"));
+    }
+
+    async function scenarioDisconnected() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => noteText() === "Host phone disconnected", "the away notice");
+      const word = answer();
+      check("HP-4 DISCONNECTED: answers stay private and no hidden word is on the laptop",
+        HW().CrHostPhone.isPrivate() && anyLeak(hidden()).length === 0, JSON.stringify(anyLeak(hidden())));
+      check("HP-4 the laptop shows “Host phone disconnected” and one fallback button",
+        fallback().length === 1 && fallback()[0].textContent === "Show answer on this screen", noteText());
+      await waitFor(() => /Reconnecting — this may be out of date/.test(hostText()), "the stale host phone");
+      check("HP-4 the host phone dims and says it may be out of date",
+        PW("h1").document.getElementById("cr-host-card").classList.contains("is-stale"));
+      fallback()[0].click();
+      await waitFor(() => HD().documentElement.textContent.indexOf(word) >= 0, "the fallback reveal");
+      const others = hidden().filter((w) => w !== word);
+      check("HP-5 the fallback shows the word in play — and only that word",
+        [...HD().querySelectorAll(".hp-reveal")].some((n) => visible(n) && n.textContent === `The word is ${word}`)
+        && anyLeak(others).length === 0 && fallback().length === 0, word);
+      click("btn-wrong");
+      await sleep(80);
+      check("HP-5 …and clears on the next item: after the judgement the word is gone again",
+        leaks(word).length === 0 && anyLeak(hidden()).length === 0, `“${word}” ${JSON.stringify(leaks(word))}`);
+      click("btn-reveal-bottom");
+      await sleep(80);
+      check("HP-5 the new word in play is hidden too, and the fallback button is back",
+        leaks(answer()).length === 0 && fallback().length === 1, answer());
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => noteText() === "Answer is on your host phone", "back online");
+      check("HP-5 when the host phone comes back the notice returns and the phone is current",
+        PW("h1").CrHostScreen.view().current.word === answer() && !/Reconnecting/.test(hostText()));
+    }
+
+    async function scenarioPhoneStates() {
+      const f = phoneFrames.get("h1");
+      post(f, { t: "host-view", m: { t: "host", item: "x", tooBig: true } });
+      await waitFor(() => /Too much to show — use the button on the laptop/.test(hostText()), "tooBig");
+      check("HP-6 a refused oversize view reads “Too much to show”", true);
+      deliverHostView();
+      await waitFor(() => PW("h1").CrHostScreen.view().secret === true, "the view again");
+    }
+
+    async function scenarioSpeedChain() {
+      for (let i = 0; i < 2; i += 1) {
+        let g = 0;
+        while (core().phase === "chain" && g < 200) {
+          g += 1;
+          dispatch({ type: "reveal", direction: g % 2 ? "top" : "bottom" });
+          if (core().target !== null) dispatch({ type: "judge", correct: true });
+        }
+        if (core().phase === "chainDone" && HW().CrCore.chainsLeft(core()) > 0) dispatch({ type: "nextChain" });
+      }
+      dispatch({ type: "toSpeed", team: 0 });
+      click("btn-speed-start");
+      await waitFor(() => core().phase === "speed" && core().speed.started, "the Speed Chain");
+      const word = answer();
+      await waitFor(() => PW("h1").CrHostScreen.view().phase === "speed", "the speed host view");
+      check("HP-7 the Speed Chain: the host phone has all eight words and the one to call",
+        PW("h1").CrHostScreen.view().current.word === word && core().speed.words.every((w) => hostText().indexOf(w) >= 0),
+        word);
+      check("HP-7 …and none of the hidden Speed Chain words is on the laptop",
+        anyLeak(hidden()).length === 0 && noteText() === "Answer is on your host phone",
+        JSON.stringify(anyLeak(hidden())));
+      hostPhoneLayout("HP-7");
+    }
+
+    async function scenarioReconcile() {
+      // Ben is now a host phone, so not a player in this room; Zed was never here.
+      const app = HW().CrApp;
+      app.set({ setup: Object.assign({}, app.state().setup, { assign: Object.assign({}, app.state().setup.assign, { p9: 1 }) }) });
+      players = PLAYERS.filter((p) => p.pid !== "p2");
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "speed", "the restored game");
+      await sleep(120);
+      const assign = HW().CrApp.state().setup.assign;
+      check("HP-8 seat reconciliation: phones no longer in the room leave the setup teams",
+        !("p9" in assign) && !("p2" in assign) && assign.p1 === 0, JSON.stringify(assign));
+      check("HP-8 the running game keeps the seat (scores stand) and says so once",
+        core().teams[1].pids.indexOf("p2") >= 0 && /no longer a player in this room/.test(H("cr-error").textContent),
+        H("cr-error").textContent);
+      players = PLAYERS.slice();
+    }
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      await bootHost();
+      await waitFor(() => HW().CrApp.state().players.length === 2, "the roster");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "chain", "the chain");
+      click("btn-reveal-top");
+      await sleep(60);
+      click("btn-peek");
+      await sleep(60);
+      check("HP-9 with no host phone assigned Peek works exactly as before",
+        HW().CrHostPhone.isPrivate() === false && !H("btn-peek").classList.contains("hidden")
+        && H("cr-peek-word").textContent === `The word is ${answer()}` && HD().querySelectorAll(".hp-note").length === 0,
+        H("cr-peek-word").textContent);
+    }
+
+    (async function run() {
+      try {
+        await fetch("../js/cr-host-view.js", { cache: "reload" });
+        await fetch("../js/cr-hostphone.js", { cache: "reload" });
+        await fetch("../js/cr-host-screen.js", { cache: "reload" });
+        await scenarioSetup();
+        await scenarioConnected();
+        await scenarioDisconnected();
+        await scenarioPhoneStates();
+        await scenarioSpeedChain();
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        const why = err && err.message ? err.message : String(err);
+        kit.setUncaught(why);
+        check("harness run completed", false, why);
+      }
+      await loadFrame(hostFrame, "about:blank");
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      render();
+      window.__CR_HP_DONE__ = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

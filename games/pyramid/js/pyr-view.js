@@ -286,7 +286,17 @@ const PyrView = (function () {
   }
 
   /** Is a word allowed on the host screen right now? */
+  /**
+   * Answers-private mode with a host phone (docs/22 §5.4, js/pyr-hostphone.js):
+   * while the current giver can read their own phone, no word or subject is
+   * built on the shared screen at all and the remembered reveal is ignored.
+   */
+  function wordsLocked() {
+    return !!(window.PyrHostPhone && window.PyrHostPhone.lockWords());
+  }
+
   function revealActive(app) {
+    if (wordsLocked()) return false;
     if (app.reveal) return true;
     return Number.isFinite(app.studyUntil) && Date.now() < app.studyUntil;
   }
@@ -355,7 +365,9 @@ const PyrView = (function () {
 
   const CIRCLE_ROWS = [[5], [3, 4], [0, 1, 2]];
 
-  function renderCircle(app) {
+  function renderCircle(appIn) {
+    // A locked host-phone game draws the circle as if "Show subjects" were off.
+    const app = wordsLocked() ? Object.assign({}, appIn, { circleReveal: false }) : appIn;
     const state = app.core;
     const c = state.circle;
     if (!c) return;

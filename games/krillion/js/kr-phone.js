@@ -89,6 +89,8 @@
 
   function render() {
     if (!$("kr-phone-card")) return;
+    // A host phone shows the host screen (kr-hostscreen.js) and never this card.
+    if (window.KrHostScreen && window.KrHostScreen.isActive()) return;
     const key = `${view.screen}|${view.prompt || ""}`;
     if (key !== lastKey) { lastKey = key; $("kr-phone-text").value = ""; }
     const writable = has(WRITABLE, view.screen) && !view.waiting;
@@ -126,7 +128,12 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (window.KrHostScreen) window.KrHostScreen.onStatus(up);
     render();
+  }
+
+  function onHostView(v) {
+    if (window.KrHostScreen) window.KrHostScreen.onHostView(v);
   }
 
   async function boot() {
@@ -140,11 +147,17 @@
       send($("kr-phone-text").value);
     });
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("kr-phone-prompt", "Could not join");
       setText("kr-phone-sub", err.message);
       return;
+    }
+    // The role comes from init, never from the URL (that is a layout hint).
+    // A host phone sends nothing at all (docs/22 §5.7).
+    if (window.KrHostScreen) {
+      if (me.role === "host") { window.KrHostScreen.start(); return; }
+      window.KrHostScreen.stop();
     }
     me.send({ t: "ready" });
     render();

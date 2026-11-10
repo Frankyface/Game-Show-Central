@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match Game host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1280px; height: 720px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Match Game — host phone harness (docs/22 §5.5)</h1>
+  <p class="lede">This page is the hub for one host frame, three panel phones, one audience phone and one <b>host phone</b> (role=host), speaking the bridge protocol including <code>host-phones</code> and <code>host-view</code>. Every private string in the fixture and in what the phones type carries a prefix (<code>ZQH-</code> hints, <code>ZQP-</code> panel answers, <code>ZQA-</code> audience answers, <code>ZQT-</code> Head-to-Head cards), so a leak is a substring search. The load-bearing checks: with a host phone assigned — connected or not — none of them is in the host document (text, value, placeholder, option, title, alt, aria-label, data-*) or the shell title before its public reveal; the host phone always has them; the fallback shows the current item only.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok
+        ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__MG_HP_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 5000;
+      const start = Date.now();
+      for (;;) {
+        let value = null;
+        try { value = fn(); } catch (err) { value = null; }
+        if (value) return value;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub, as far as the frames can tell ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Brett", color: "#ff8c1a", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Fannie", color: "#e6b800", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Charles", color: "#6b8e23", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dot", color: "#8cb0ff", avatar: "🦉", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+    const hostViewsTo = new Map();
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "MGHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (!heldView || !phoneFrames.has("h1")) return;
+      hostViewsTo.set("h1", (hostViewsTo.get("h1") || 0) + 1);
+      post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") PLAYERS.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE) : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "MGHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-game.json";
+    const KEYS = ["gsc-mg-state-v1-hpharness", "gsc-mg-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().MgApp.core();
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostPhoneText = () => PW("h1").MgHostPhone.text();
+    const lastView = () => PW("h1").MgHostPhone.view() || {};
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        // Unload first, then clear: never clear while a page can still save.
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().MgApp && HW().MgApp.state().game
+        && HW().MgApp.state().sourceKind === "url", "host boot");
+      await sleep(60);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "p4", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.MgPhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title. */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    async function phoneSays(pid, text) {
+      PW(pid).MgPhone.type(text);
+      PW(pid).MgPhone.button().click();
+    }
+
+    function submit(formId, fieldId, value) {
+      H(fieldId).value = value;
+      H(formId).dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+
+    function select(node, value) {
+      node.value = value;
+      node.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function typeInto(id, value) {
+      H(id).value = value;
+      H(id).dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    /** docs/22 §5.3: 320 px, no sideways scroll, text ≥ 16 px, answers ≥ 28 px, no buttons. */
+    function hostPhoneLayout(tag) {
+      const W = PW("h1");
+      const d = W.document;
+      const texts = [...d.querySelectorAll("#mg-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(W.getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${W.getComputedStyle(n).fontSize}`);
+      const answers = [...d.querySelectorAll(".host-answer, .host-seat-answer, .host-row-text")];
+      const tiny = answers.filter((n) => parseFloat(W.getComputedStyle(n).fontSize) < 28);
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answers ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0
+        && answers.length > 0 && tiny.length === 0 && d.querySelectorAll("#mg-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, ${answers.length} answers${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    /* ============ HP-1 / HP-2 — the prompt: hint and panel answers ============ */
+
+    async function scenarioPrompt() {
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().MgApp.state().setup.players.length === 4, "the roster");
+      check("HP-1 the host-role frame gets the view through onHostView; setup is not secret",
+        /Nothing secret right now/.test(hostPhoneText()) && lastView().t === "host"
+        && HW().MgApp.state().answersPrivate === true && HW().MgApp.state().hostPhoneLive === true,
+        hostPhoneText().slice(0, 80));
+      check("HP-1 the host phone is not a contestant: no seat, no player card, no game sends",
+        !HW().MgApp.state().setup.players.some((p) => p.pid === "h1")
+        && PW("h1").document.body.classList.contains("host-phone")
+        && !hostViewsTo.has("p1") && ["p1", "p2", "p3", "p4"].every((pid) => !PW(pid).MgHostPhone.view()));
+
+      select(H("mg-c1-pid"), ""); select(H("mg-c2-pid"), "");
+      typeInto("mg-c1-name", "Marcy"); typeInto("mg-c2-name", "Otis");
+      ["p1", "p2", "p3"].forEach((pid, slot) => select(HD().querySelectorAll("#mg-panel-seats .seat-pid")[slot], pid));
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "prompt", "the first prompt");
+      const hint = core().current.hint;
+      await waitFor(() => lastView().phase === "prompt", "the prompt on the host phone");
+      check("HP-2 the host phone has the prompt and its hint",
+        hostPhoneText().indexOf(core().current.text) >= 0 && hostPhoneText().indexOf(hint) >= 0, hint);
+      check("HP-2 THE HINT IS NOWHERE IN THE HOST DOCUMENT; the laptop says it is on the host phone",
+        leaks("ZQH-").length === 0 && /Answer is on your host phone/.test(H("mg-prompt-hint").textContent)
+        && !H("mg-prompt-hint").querySelector("button"), leaks("ZQH-").join(", ") || H("mg-prompt-hint").textContent);
+
+      await phoneSays("p1", "ZQP-alpha");
+      await phoneSays("p2", "ZQP-bravo");
+      await waitFor(() => /ZQP-bravo/.test(hostPhoneText()), "panel answers on the host phone");
+      check("HP-2 panel answers reach the host phone as they arrive, before any reveal",
+        /ZQP-alpha/.test(hostPhoneText()) && /ZQP-bravo/.test(hostPhoneText()) && lastView().answered === 2,
+        `${lastView().answered} in`);
+      check("HP-2 NO PANEL ANSWER IS IN THE HOST DOCUMENT before its card is flipped; typing is masked",
+        leaks("ZQP-").length === 0 && H("mg-hide-typing").checked && H("mg-hide-typing").disabled
+        && [...HD().querySelectorAll("#mg-cards .card-input")].every((i) => i.type === "password"),
+        leaks("ZQP-").join(", "));
+      // Panelists see the hint as a writing aid (their own phoneView, unchanged);
+      // the host view itself — the panel's answers — reaches no contestant frame.
+      check("HP-2 contestant frames never receive the host view",
+        ["p1", "p2", "p3", "p4"].every((pid) => !PW(pid).MgHostPhone.view()
+          && !PW(pid).document.getElementById("mg-host-card"))
+        && PW("p1").document.body.textContent.indexOf("ZQP-bravo") < 0
+        && PW("p4").document.body.textContent.indexOf(hint) < 0);
+      hostPhoneLayout("HP-2");
+
+      submit("mg-guess-form", "mg-guess-text", "ZQG-guess");
+      await waitFor(() => /ZQG-guess/.test(hostPhoneText()), "the contestant's answer on the host phone");
+      click("btn-reveal");
+      await waitFor(() => lastView().panel && lastView().panel[0].revealed, "the flip on the host phone");
+      check("HP-2 the public reveal shows card 1 on the laptop and nothing else",
+        leaks("ZQP-alpha").length > 0 && leaks("ZQP-bravo").length === 0, leaks("ZQP-bravo").join(", "));
+      check("HP-2 the host phone marks the flipped card as on screen",
+        lastView().panel[0].revealed === true && lastView().panel[1].revealed === false);
+    }
+
+    /* ============ HP-3 — disconnected: the one per-item fallback ============ */
+
+    async function scenarioDisconnected() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      await waitFor(() => HW().MgApp.state().hostPhoneLive === false, "the host phone goes away");
+      // A fresh item: undo back to before the reveal, then swap the prompt.
+      click("btn-undo"); click("btn-undo");
+      click("btn-next-prompt");
+      const hint = core().current.hint;
+      const btn = H("mg-prompt-hint").querySelector("button");
+      check("HP-3 still private while the host phone is away: “Host phone disconnected” and one fallback button",
+        HW().MgApp.state().answersPrivate === true && leaks("ZQH-").length === 0
+        && /Host phone disconnected/.test(H("mg-prompt-hint").textContent)
+        && HD().querySelectorAll(".hp-fallback").length === 1 && btn && btn.textContent === "Show answer on this screen",
+        H("mg-prompt-hint").textContent);
+      hostFrame.style.height = "676px";
+      await sleep(120);
+      const de = HD().documentElement;
+      check("HP-3 with the stand-in and its button, the prompt screen still fits 1280×676 with no scroll",
+        de.scrollHeight <= de.clientHeight + 1, `${de.scrollHeight}/${de.clientHeight}`);
+      hostFrame.style.height = "";
+      btn.click();
+      check("HP-3 the fallback shows the current hint on this screen",
+        H("mg-prompt-hint").textContent === `Hint: ${hint}`, H("mg-prompt-hint").textContent);
+      click("btn-next-prompt");
+      check("HP-3 …and is forgotten on the next item",
+        leaks("ZQH-").length === 0 && HD().querySelectorAll(".hp-fallback").length === 1,
+        leaks("ZQH-").join(", "));
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      await waitFor(() => HW().MgApp.state().hostPhoneLive === true, "the host phone comes back");
+      check("HP-3 back to “Answer is on your host phone” when it reconnects",
+        /Answer is on your host phone/.test(H("mg-prompt-hint").textContent) && !HD().querySelector(".hp-fallback"));
+
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => /Reconnecting/.test(hostPhoneText()), "the stale banner");
+      check("HP-3 a host phone that loses the room dims and says it may be out of date",
+        PW("h1").document.getElementById("mg-host-card").classList.contains("is-stale")
+        && /Reconnecting — this may be out of date/.test(hostPhoneText()));
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => !/Reconnecting/.test(hostPhoneText()), "back up");
+    }
+
+    /* ============ HP-4 — the Audience Match board ============ */
+
+    async function playTurnOut() {
+      for (let slot = 0; slot < 3; slot += 1) {
+        const pid = ["p1", "p2", "p3"][slot];
+        if (!Object.prototype.hasOwnProperty.call(core().current.answers, slot)) await phoneSays(pid, `ZQP-x${slot}`);
+      }
+      await waitFor(() => Object.keys(core().current.answers).length === 3, "three answers");
+      if (!core().current.guessLocked) submit("mg-guess-form", "mg-guess-text", "plain guess");
+      while (!core().current.done) { click("btn-reveal"); click(core().current.seat === 0 ? "btn-match" : "btn-no-match"); }
+      click("btn-next-contestant");
+    }
+
+    async function scenarioBoard() {
+      await playTurnOut();
+      await waitFor(() => core().current && core().current.seat === 1 && PW("p1").MgPhone.view().screen === "panel"
+        && !PW("p1").MgPhone.view().sent, "Otis's prompt on the phones");
+      await playTurnOut();
+      click("btn-next-round");
+      await waitFor(() => core().phase === "superChoice", "the Super Match");
+      click("btn-audience-open");
+      await waitFor(() => PW("p4").MgPhone.view().screen === "audience", "the audience phone");
+      await phoneSays("p4", "ZQA-gloves");
+      submit("mg-aud-host-form", "mg-aud-host-text", "ZQA-gloves");
+      submit("mg-aud-host-form", "mg-aud-host-text", "ZQA-maps");
+      await waitFor(() => core().audience.submissions.length === 3, "three audience answers");
+      await waitFor(() => /ZQA-maps/.test(hostPhoneText()), "the live board on the host phone");
+      check("HP-4 the host phone shows the live top three while the room answers",
+        lastView().phase === "audience" && lastView().board.length === 2 && lastView().board[0].text === "ZQA-gloves");
+      click("btn-aud-close");
+      check("HP-4 THE TOP THREE'S WORDING IS NOT IN THE HOST DOCUMENT before a guess hits it",
+        leaks("ZQA-").length === 0 && /Answer is on your host phone/.test(H("mg-board-private").textContent)
+        && [...HD().querySelectorAll("#mg-board .board-answer")].every((n) => n.textContent === "Hidden"),
+        leaks("ZQA-").join(", "));
+      check("HP-4 merge buttons name the hidden rows by rank (labels and titles)",
+        [...HD().querySelectorAll("#mg-board .merge-btn")].every((b) => /#\d/.test(b.textContent) && /#\d/.test(b.title)));
+      H("mg-pick-text").value = "glove box gloves";
+      [...HD().querySelectorAll("#mg-pick-buttons button")].find((b) => b.textContent === "Matched #1").click();
+      check("HP-4 a hit is the public reveal; it is not undone by private mode",
+        core().phase === "hthPick" && core().contestants[0].money === 500);
+    }
+
+    /* ============ HP-5 — Head-to-Head from a phone panelist ============ */
+
+    async function scenarioHeadToHead() {
+      const card = [...HD().querySelectorAll("#mg-hth-cards .card-seat")]
+        .find((c) => c.querySelector(".card-name").textContent === "Fannie");
+      card.querySelector(".card-pick").click();
+      await waitFor(() => PW("p2").MgPhone.view().screen === "hth", "Fannie's Head-to-Head screen");
+      await phoneSays("p2", "ZQT-panel");
+      submit("mg-hth-form", "mg-hth-text", "ZQT-cont");
+      await waitFor(() => /ZQT-panel/.test(hostPhoneText()) && /ZQT-cont/.test(hostPhoneText()), "both cards on the host phone");
+      check("HP-5 the host phone has both Head-to-Head cards before they are turned over",
+        lastView().phase === "hthPrompt" && lastView().panelText === "ZQT-panel" && lastView().contestantText === "ZQT-cont");
+      check("HP-5 NEITHER CARD IS IN THE HOST DOCUMENT before the reveal; the type-in is masked",
+        leaks("ZQT-").length === 0 && H("mg-hth-text").type === "password", leaks("ZQT-").join(", "));
+      hostPhoneLayout("HP-5");
+      click("btn-hth-reveal");
+      check("HP-5 turning both cards over is the public reveal",
+        leaks("ZQT-panel").length > 0 && leaks("ZQT-cont").length > 0);
+      check("HP-5 the host phone sent nothing all game",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone"), JSON.stringify(shellLog.filter((m) => m.t !== "title")).slice(0, 80));
+      await waitFor(() => lastView().revealed === true, "the reveal on the host phone");
+      await sleep(150);
+      post(phoneFrames.get("h1"), { t: "host-view", m: { t: "host", item: "A very long view", tooBig: true } });
+      await waitFor(() => /Too much to show/.test(hostPhoneText()), "the tooBig card");
+      check("HP-5 a tooBig view says so in plain words", /Too much to show — use the button on the laptop/.test(hostPhoneText()));
+      deliverHostView();
+    }
+
+    /* ============ HP-6 — seat reconciliation on boot ============ */
+
+    async function scenarioReconcile() {
+      // The game was saved mid-prompt with Charles (p3) on seat 3; he is now a host phone.
+      click("btn-hth-match");
+      click("btn-game-lobby"); click("btn-lobby-restart");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "prompt", "a fresh prompt");
+      players = PLAYERS.filter((p) => p.pid !== "p3");
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "prompt", "the restored prompt");
+      const st = HW().MgApp.state();
+      check("HP-6 a saved phone seat whose pid is not in the room is removed from setup",
+        !st.setup.players.some((p) => p.pid === "p3") && !st.setup.panel.some((p) => p.pid === "p3"),
+        st.setup.panel.map((p) => p.pid || "-").join(","));
+      const forms = [...HD().querySelectorAll("#mg-cards .card-form")];
+      check("HP-6 the running game keeps that seat, phone-less (the host types it), with one notice",
+        core().panel[2].pid === "p3" && st.phoneless.indexOf("p3") >= 0 && forms[2] && !forms[2].hidden
+        && forms[0].hidden && /Charles has no phone in this room/.test(H("mg-error").textContent),
+        H("mg-error").textContent);
+      players = PLAYERS.slice();
+    }
+
+    /* ============ HP-7 — no host phone: exactly as before ============ */
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      await bootHost();
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "prompt", "a prompt");
+      check("HP-7 with no host phone assigned the laptop shows the hint exactly as before",
+        HW().MgApp.state().answersPrivate === false && H("mg-prompt-hint").textContent === `Hint: ${core().current.hint}`
+        && !/on your host phone|Host phone disconnected|Show answer on this screen/.test(HD().body.textContent) && H("mg-hide-typing").disabled === false,
+        `${HW().MgApp.state().answersPrivate} · ${H("mg-prompt-hint").textContent} · `
+        + `${(HD().body.textContent.match(/on your host phone|Host phone disconnected/) || [""])[0]} · ${H("mg-hide-typing").disabled}`);
+    }
+
+    (async function run() {
+      try {
+        await scenarioPrompt();
+        await scenarioDisconnected();
+        await scenarioBoard();
+        await scenarioHeadToHead();
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      await loadFrame(hostFrame, "about:blank");
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      render();
+      window.__MG_HP_DONE__ = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

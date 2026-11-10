@@ -210,7 +210,11 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        // docs/22: host phones are never players; this only re-paints the notice.
+        onHostPhones: (list) => { if (window.PylHostScreen) window.PylHostScreen.onHostPhones(list); },
+      });
     } catch (err) {
       window.PylApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -222,6 +226,8 @@
       room.onStatus(() => { window.PylApp.bindRoom(room.code); paintRoom(); });
     }
     window.PylApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
+    // The host phone (docs/22 §5.2, §5.4, §5.6): host view, answers-private, seat reconciliation.
+    if (window.PylHostScreen) window.PylHostScreen.attach(room);
     wireRoomButton();
     syncPlayers();
     pushViews(window.PylApp.core());

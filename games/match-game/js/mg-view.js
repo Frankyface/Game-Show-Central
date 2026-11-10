@@ -284,21 +284,25 @@ const MgView = (function () {
     setText("mg-play-sub", roundLabel(state));
     setText("mg-play-score", core().scoreLine(state));
     setText("mg-prompt-text", cur.text);
-    setText("mg-prompt-hint", cur.hint ? `Hint: ${cur.hint}` : "");
+    window.MgHostScreen.renderHint($("mg-prompt-hint"), app, state);
     const count = core().answeredCount(state);
     setText("mg-answered", `${count.done} / ${count.total}`);
 
-    renderCards($("mg-cards"), core().hostCards(state), {
+    // A seat whose phone is not in this room is typed by the host (docs/22 §5.6).
+    const cards = core().hostCards(state).map((c) => (
+      c.pid && window.MgHostScreen.phoneless(app, c.pid) ? Object.assign({}, c, { pid: "" }) : c));
+    renderCards($("mg-cards"), cards, {
       sig: `${state.round}-${state.tiebreak}-${cur.seat}-${cur.index}`,
       typeable: true,
       frozen: cur.revealed > 0,
-      hideTyping: app.hideTyping,
+      hideTyping: app.hideTyping || app.answersPrivate,
     });
 
     show($("mg-guess-form"), !cur.guessLocked);
     setText("mg-guess-shown", cur.guessLocked ? `They said: “${cur.guess}”` : "");
     setText("mg-play-state", playState(state, cur, count));
-    $("mg-hide-typing").checked = !!app.hideTyping;
+    $("mg-hide-typing").checked = !!(app.hideTyping || app.answersPrivate);
+    $("mg-hide-typing").disabled = !!app.answersPrivate;
     paintPromptControls(state, cur);
   }
 

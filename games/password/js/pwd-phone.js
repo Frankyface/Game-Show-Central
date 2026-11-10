@@ -198,7 +198,18 @@
 
   /* ============ Transport ============ */
 
+  /** A host phone (docs/22): the contestant renderer never draws over its card. */
+  function isHostPhone() {
+    if (me) return me.role === "host";
+    return new URLSearchParams(location.search).get("role") === "host";   // layout hint until init
+  }
+
+  function onHostView(v) {
+    if (window.PwdHostPhonePage) window.PwdHostPhonePage.show(v);
+  }
+
   function onMessage(raw) {
+    if (isHostPhone()) return;
     if (!raw || typeof raw !== "object" || raw.t !== "view") return;
     view = raw;
     render();
@@ -206,6 +217,7 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (isHostPhone()) { if (window.PwdHostPhonePage) window.PwdHostPhonePage.status(connected); return; }
     render();
   }
 
@@ -215,10 +227,17 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("pwd-phone-word", "Could not join");
       setText("pwd-phone-sub", err.message);
+      return;
+    }
+    if (me.role === "host") {
+      // Read-only: a host phone sends nothing at all (docs/22 §5.7).
+      window.PwdHostPhonePage.start();
+      window.PwdHostPhonePage.status(connected);
+      window.PwdPhone = { me, role: "host", view: () => view, hostText: () => window.PwdHostPhonePage.text() };
       return;
     }
     me.send({ t: "ready" });

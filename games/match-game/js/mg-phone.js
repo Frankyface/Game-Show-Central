@@ -119,6 +119,8 @@
   /* ============ Transport ============ */
 
   function onMessage(raw) {
+    // A host phone never draws the contestant card (docs/22 §5.3).
+    if (me && me.role === "host") return;
     if (!raw || typeof raw !== "object" || raw.t !== "view") return;
     view = raw;
     render();
@@ -126,7 +128,12 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (me && me.role === "host") { window.MgHostPhone.status(connected); return; }
     render();
+  }
+
+  function onHostView(v) {
+    if (window.MgHostPhone) window.MgHostPhone.show(v);
   }
 
   async function boot() {
@@ -141,10 +148,16 @@
       send($("mg-phone-text").value);
     });
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("mg-phone-prompt", "Could not join");
       setText("mg-phone-sub", err.message);
+      return;
+    }
+    if (me.role === "host") {
+      // The host's private second screen: it renders the view and SENDS NOTHING.
+      window.MgHostPhone.start();
+      window.MgPhone = { me, role: "host", view: () => view };
       return;
     }
     me.send({ t: "ready" });

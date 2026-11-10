@@ -168,6 +168,9 @@
   /* ============ Rendering ============ */
 
   function render() {
+    // On the host phone the host screen owns the page; repainting this card
+    // would also strip its .hidden class (docs/22 §5.3, js/pyr-host-screen.js).
+    if (hostScreenActive()) return;
     const card = $("pyr-phone-card");
     if (!card) return;
     const meta = $("pyr-phone-meta");
@@ -197,7 +200,17 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (window.PyrHostScreen) window.PyrHostScreen.onStatus(up);
     render();
+  }
+
+  /** A host view: only ever delivered to a host-role phone (the SDK filters). */
+  function onHostView(v) {
+    if (window.PyrHostScreen) window.PyrHostScreen.onHostView(v);
+  }
+
+  function hostScreenActive() {
+    return !!(window.PyrHostScreen && window.PyrHostScreen.isActive());
   }
 
   async function boot() {
@@ -206,13 +219,18 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("pyr-phone-word", "Could not join");
       setText("pyr-phone-sub", err.message);
       return;
     }
-    me.send({ t: "ready" });
+    if (window.PyrHostScreen) {
+      if (me.role === "host") window.PyrHostScreen.start();
+      else window.PyrHostScreen.stop();
+    }
+    // A host phone sends nothing at all (docs/22 §5.7), not even "ready".
+    if (me.role !== "host") me.send({ t: "ready" });
     setText("pyr-phone-status", "Connected. Waiting for the host…");
     render();
     window.PyrPhone = {

@@ -18,6 +18,7 @@
   let room = null;
   let lastSent = {};      // pid -> serialised view, so we only send on change
   let embedded = false;
+  let booting = true;       // the initial roster replay at boot
 
   const core = () => window.MgCore;
 
@@ -34,7 +35,9 @@
       const seated = app.core.panel.some((p) => p.pid === player.pid)
         || app.core.contestants.some((c) => c.pid === player.pid);
       if (!seated) {
-        window.MgApp.error(`${player.name} joined — they can play the Audience Match.`);
+        // Not during the boot roll-call: those players were already here, and the
+        // seat-reconciliation notice must not be overwritten (docs/22 §5.6).
+        if (!booting) window.MgApp.error(`${player.name} joined — they can play the Audience Match.`);
       }
     } else {
       window.MgApp.addPlayer(player.name, player.pid, false);
@@ -81,6 +84,28 @@
     if (!core().phoneMaySend(state, pid, msg.t)) return;
     if (!Object.prototype.hasOwnProperty.call(EVENTS, msg.t)) return;
     window.MgApp.dispatch(EVENTS[msg.t](pid, msg));
+  }
+
+  /* ============ The host phone (docs/22 §5.2) ============ */
+
+  let hostSeq = 0;
+  let lastHostJson = "";
+
+  /**
+   * Hand the hub the host's private view on every change. `seq` moves only
+   * when the content changes; the SDK and the hub de-duplicate and resend, so
+   * there is no cache or resend logic here, and never a room.send.
+   */
+  function pushHostView(state) {
+    if (!room || typeof room.setHostView !== "function") return;
+    const view = core().hostView(state);
+    const json = JSON.stringify(view);
+    if (json !== lastHostJson) { lastHostJson = json; hostSeq += 1; }
+    room.setHostView(Object.assign({ t: "host", item: view.item || "", seq: hostSeq }, view));
+  }
+
+  function onHostPhones(list) {
+    window.MgHostScreen.setHostPhones(list, room && room.answersPrivate ? room.answersPrivate() : false);
   }
 
   /* ============ Outbound: one masked view per phone ============ */
@@ -195,7 +220,7 @@
     embedded = GSC.mode === "embed-host";
     if (embedded) document.body.classList.add("gsc-embedded");
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage, onHostPhones });
     } catch (err) {
       window.MgApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -206,9 +231,19 @@
     if (room.onStatus) {
       room.onStatus(() => { window.MgApp.bindRoom(room.code); paintRoom(); });
     }
-    window.MgApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
+    // docs/22 §5.6 then §5.2: seats reconciled against this room (embedded only —
+    // a standalone room has no roster at boot), then the private view on every change.
+    if (embedded) window.MgHostScreen.reconcileSeats((room.players ? room.players() : []).map((p) => p.pid));
+    if (room.hostPhones) {
+      window.MgHostScreen.setHostPhones(room.hostPhones(), room.answersPrivate ? room.answersPrivate() : false);
+    }
+    window.MgApp.subscribe((state) => {
+      pushViews(state); pushHostView(state); reportProgress(state); paintRoom();
+    });
+    pushHostView(window.MgApp.core());
     wireRoomButton();
     (room.players ? room.players() : []).forEach(onPlayerJoin);
+    booting = false;
     paintRoom();
     // The hub shows its own title card on a game switch, so the game only
     // shows one when it is standing alone (docs/09, the double-splash fix).

@@ -351,9 +351,12 @@ const KrView = (function () {
   /** The host-only rated list, built only while it is switched on. */
   function renderList(state, c, boxId, listId, btnId) {
     const box = $(boxId || "kr-list-box");
+    const btn = $(btnId || "btn-list");
+    // In answers-private mode (kr-hostphone.js) the panel and its toggle are
+    // not in the document at all, and the remembered switch is ignored.
+    if (!box || !btn) return;
     const on = !!state.showList;
     show(box, on);
-    const btn = $(btnId || "btn-list");
     btn.setAttribute("aria-pressed", String(on));
     btn.textContent = on ? "Hide the rated list" : "Show the rated list";
     const list = $(listId || "kr-list");

@@ -188,3 +188,64 @@ The full game played through the UI ran in this order:
 7. The Head-to-Head, with both cards typed by the host.
 8. Spin, reveal, the result, then standings.
 9. The Game lobby dialog.
+
+---
+
+# Round 3 — the host phone (docs/22, 2026-11-10)
+
+Built to `docs/22-host-phone-spec.md` §5 (the seven-item contract) and the Match Game row of §6, review F11, and
+the SDK as built (`docs/reports/host-phone-shell-implementation.md` §1). I followed the shape of The Chase. All new
+code is in new files. The edits to existing files are hooks only.
+
+## The seven items
+
+| # | Item | As built |
+|---|---|---|
+| 1 | Pure `hostView(state)` | `js/mg-hostview.js` (UMD, `MgHostView`, re-exported by `MgCore`). It is pure and deterministic, and never larger than ~2 KB: at most six panel rows and three board rows, with every answer already capped at 40 characters by the core. See the phase table below. The host plays no role in this game that must not know these things, since the host already types the answers for panelists without phones, so nothing is withheld. |
+| 2 | Room glue | `js/mg-room.js`: `room.setHostView({t:"host", item, seq, ...hostView(state)})` runs in the subscriber on every change and once at boot. `seq` moves only when the view's JSON changes. There is no cache, no resend logic and no `room.send` for host data. `onHostPhones` re-reads `room.answersPrivate()`. Contestant `phoneView` is unchanged. |
+| 3 | Phone page in `role=host` | `js/mg-hostphone.js` + `css/mg-hostphone.css`, routed from `mg-phone.js` on `me.role === "host"`. It shows a v3 card with a "Host" tag, the item large, the hint and the panel's answers in the accent at 28 px, and the contestant's answer. The Super Match shows the top three with counts and money; the Head-to-Head shows both cards and the stake. In phases with no secret it says "Nothing secret right now" plus the phase. The contestant renderer is blocked for a host phone, so a stray `msg` or a status change cannot redraw over it. |
+| 4 | Answers-private mode | `js/mg-hostscreen.js`, wired into `mg-view.js` and `mg-super.js`. While a host phone is assigned (connected or not), the laptop changes in four places, listed below. In place of private text it shows "Answer is on your host phone"; while the phone is away it shows "Host phone disconnected" and **one** "Show answer on this screen" button. The button is keyed to the current item (prompt or board) and is forgotten on the next one. Public reveals are unchanged: a card flip, a hit on the board, and the Head-to-Head reveal. |
+| 5 | Tests | Unit: `tests/mg-hostview.test.mjs`, 8 tests. Harness: `tests/harness-hostphone.html`, 29 checks, with a prefixed fixture (`tests/fixtures/hostphone-game.json`). See below. |
+| 6 | Seat reconciliation on boot | Embedded only, because a standalone room has no roster at boot. `MgHostScreen.reconcileSeats(room.players())` runs right after `GSC.host()`. It drops phone players and phone pids from the setup seats when they are not in the room. A running or kept game keeps the seat, plays it phone-less (the host's type-in field and the Head-to-Head "What ⟨panelist⟩ wrote" field are shown for it), and shows one notice: "‹name› has no phone in this room — type their answers on this screen, or start a new game." The boot replay of the roster no longer posts "‹name› joined" messages, which would have overwritten that notice. |
+| 7 | Host-phone page behaviour | It shows `item` beside the answers. It dims and says "Reconnecting — this may be out of date" when `onStatus(false)` arrives. It renders `tooBig` as "Too much to show — use the button on the laptop." It sends nothing: it does not even send the contestant `ready`. It has no buttons. |
+
+What the host phone shows, by phase:
+
+| Phase | Host phone shows |
+|---|---|
+| `prompt` | The prompt, its hint, every panel answer as it arrives (revealed or judged marks, and "already matched" under the round-two rule), and the contestant's answer once it is locked. |
+| `audience` | The live top three (wording, count, money) while the room answers. |
+| `audienceBoard` | The top three before they are revealed, with "on screen" once a guess hits a row. |
+| `hthPrompt` | Both cards, the stake (`$500 × 20`), and the panelist's name. |
+| Every other phase | `secret:false` |
+
+What changes on the laptop in answers-private mode:
+
+1. The prompt's hint is not rendered.
+2. The Audience Match top three show rank, count and money, but read "Hidden" instead of the wording until a guess hits the row.
+3. The merge buttons name hidden rows by rank (`→ #1`) in both their labels and their `title`s.
+4. Every host type-in (panel cards, both Head-to-Head fields) is masked, and "hide as I type" is forced on and disabled. This removes the "peek".
+
+## Fixes made along the way
+
+- **Seat names follow the phone.** A seat whose name had been filled in from a phone's player took on the new phone's name when the host re-pointed it. Before this fix, re-seating Brett's phone onto a seat that had been auto-filled for Charles left it labelled "Charles". Names the host typed stay as typed.
+
+## Verification
+
+| Check | Result |
+|---|---|
+| `cd games/match-game && node --test` | **106 / 106** (98 before plus 8 host-view tests). Root `node --test`: **1546 / 1546**. |
+| `tests/harness-hostphone.html` on 127.0.0.1:8714 (Node static server `.scratch/hp-mg-serve.mjs`; headless Chrome via `.scratch/hp-mg-run.mjs`) | **29 / 29, three runs.** It covers HP-1 to HP-7, listed below. |
+| `tests/harness.html` | **64 / 64**, three runs, unchanged by the feature. |
+| v3 audit (`.scratch/mg-v3-check.mjs`) at 1280×720 and 676 | Every play screen fits with no vertical scroll. There is no emoji, glow or gradient under text, and motion stays inside the reduced-motion guard. One sample reads 1.20:1 on **Reveal the next card**. This was taken in the 120 ms between the button becoming enabled and the shared theme's `.btn` background-color transition finishing. At rest the text is 7.5:1 (`#2a1403` on `#ff8c1a`), and the transition belongs to `shared/theme.css`, not this game. |
+| Static gates | No innerHTML, eval, document.write or console.log. The largest files are `mg-core.test.mjs` (760) and `mg-app.js` (756), both under 800. |
+
+The harness checks (prefixes: `ZQH-` hints, `ZQP-` panel answers, `ZQA-` audience answers, `ZQT-` Head-to-Head cards, `ZQG-` the contestant's answer):
+
+- **HP-1:** the host-role frame receives the view via `onHostView`; contestant frames never do. The host phone is never seated.
+- **HP-2:** with the host phone connected, no `ZQH-` or `ZQP-` string appears anywhere in the host document before the matching card flips. The search covers text, `value`, `placeholder`, `<option>`, `title`, `alt`, `aria-label` and `data-*`, plus `setTitle`. The host phone has every answer as it arrives, and its layout passes at 320 px: no sideways scroll, text ≥ 16 px, answers ≥ 28 px, no buttons. A flip is public and shows that card only.
+- **HP-3:** with the host phone disconnected the screen stays private and shows one fallback button. The prompt screen with the button still fits 1280×676. The button shows the current hint, and the hint is gone on the next item. On reconnect the screen returns to "Answer is on your host phone". The stale banner shows on the phone.
+- **HP-4:** the board's wording is absent until a hit, and merge labels and titles use ranks.
+- **HP-5:** both Head-to-Head cards reach the host phone and are absent from the laptop until the reveal. The host phone sent nothing. `tooBig` shows its plain-words message.
+- **HP-6:** seat reconciliation, with a former panelist now acting as the host phone.
+- **HP-7:** with no host phone, the hint is shown exactly as before and the type-in is not forced.

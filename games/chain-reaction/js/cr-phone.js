@@ -266,6 +266,8 @@
   function render() {
     const card = $("cr-phone-card");
     if (!card) return;
+    // A host phone shows the host screen (cr-host-screen.js) and never this card.
+    if (window.CrHostScreen && window.CrHostScreen.isActive()) return;
     const box = $("cr-phone-column");
     const actions = $("cr-phone-actions");
     box.replaceChildren();
@@ -291,7 +293,13 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (window.CrHostScreen) window.CrHostScreen.onStatus(up);
     render();
+  }
+
+  /** docs/22 §4.4: only ever fires on a host phone. */
+  function onHostView(hostView) {
+    if (window.CrHostScreen) window.CrHostScreen.onHostView(hostView);
   }
 
   async function boot() {
@@ -300,7 +308,11 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
+      if (window.CrHostScreen) {
+        if (me.role === "host") window.CrHostScreen.start();
+        else window.CrHostScreen.stop();
+      }
     } catch (err) {
       setText("cr-phone-headline", "Could not join");
       setText("cr-phone-sub", err.message);

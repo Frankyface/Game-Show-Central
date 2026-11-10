@@ -209,3 +209,61 @@ hardened: phone views after the second question, and all three phones after a ho
 **Deliberate exceptions, for the UI tester**
 - The words on the squares come from the core's `squareLabel`, not CSS: "WHAMMY" and "+ ONE SPIN" are capitals in the source text. The brief keeps "a text WHAMMY" on the board.
 - The phone's race buttons say **BUZZ** and **STOP**, the show's call words, set as text in JS. No CSS uppercase is involved.
+
+
+---
+
+## Round 3 (2026-11-10): the host phone (docs/22 §5, §6 Press Your Luck row)
+
+**Gates:** `node --test` gives **82 / 82** (73 before plus 9 new host-view tests). `tests/harness.html` gives **66 / 66**. The new `tests/harness-hostphone.html` gives
+**24 / 24**. Both harnesses ran headless on port 8713, served by the Node static server
+`.scratch/pyl-serve.mjs`, through `.scratch/hp-pyl-run.mjs`. There is no `innerHTML` and no `console.log`, and every file is under 800 lines.
+
+### New files (the existing code changed only at its hook points)
+
+| File | Lines | What |
+| --- | --- | --- |
+| `js/pyl-host-view.js` | 131 | PURE `PylHostView`: `hostView(state)`, `itemKey(state)`, `currentAnswer(state)` |
+| `js/pyl-host-screen.js` | 165 | Shared-screen side: `room.setHostView` on every change, answers-private note and fallback, seat reconciliation |
+| `js/pyl-hostphone.js` | 117 | The host-phone page (`role=host`): read-only card that sends nothing |
+| `css/pyl-host.css` | 58 | v3 styles for the host card and the laptop note |
+| `tests/pyl-hostview.test.mjs` | 163 | HV-1 … HV-9 |
+| `tests/harness-hostphone.html` | 412 | HP-1 … HP-8 (the shell is the hub, with host phones) |
+| `tests/fixtures/hostphone-game.json` | — | Every right option starts `ANS-`, every wrong one `OPT-` |
+
+Hook points in existing files:
+- `index.html`: one stylesheet and three script tags.
+- `pyl-room.js`: an `onHostPhones` handler and `PylHostScreen.attach(room)`.
+- `pyl-phone.js`: `onHostView`. When `me.role === "host"` it starts the host card and returns before the contestant renderer ever runs; `onMessage` and `onStatus` route away from the player card.
+
+### The seven-item contract
+
+1. **`hostView(state)`** (pure, deterministic, about 1 KB):
+   - Question round, every sub-phase (armed, buzzed, picks open, revealed): `item` (the question), `options`, `correct` (index), `letter`, `answer`, `who` ("Ben buzzed in"), `revealed`, and `next`. `next` is the round's next question with its answer, or round two's first question after the round's last.
+   - Big Board: **only** `who` / `spins` / `passed`, with `secret:false`. No squares, faces, landing, answer or next question; the test checks the key set exactly.
+   - Setup, between rounds and result: "nothing secret".
+   - The host never plays a role in this game, so nothing has to be withheld from the host.
+2. **Room glue.** `room.setHostView({t:"host", item, seq, ...hostView})` runs on every app render. `item` is the stable `itemKey` (`q:<round>:<qIndex>`, `board:<round>`, …). **`seq` bumps only when the view's JSON changes**, which HP-3 checks: arming the buzzers leaves `seq` unchanged, and a buzz moves it. There is no cache, no resend, and no `room.send` for host data. Contestant `phoneView` is unchanged (HV-9).
+3. **Host-phone page.** It shows a small "Host" tag with the game name, the question at 22 px, the answer in the accent at 30 px ("B — Mercury"), the three options with the right one marked "Correct", who buzzed, and "Next question" with its answer. On the board it shows "Nothing secret right now" plus whose turn and the spins. HP-2 measures it at 320 px: no sideways scroll, all text ≥ 16 px, answer 30 px, no buttons.
+4. **Answers-private mode.** The shared screen already never marks the right option before **Reveal the picks**: the options stay covered ("· · ·") until the buzz-in is judged, and nothing tags the correct one until the reveal. The game has no host peek, so there was nothing to remove. In private mode, while a question is unrevealed, the laptop shows **"Answer is on your host phone"**. While no host phone is connected it shows **"Host phone disconnected"** and one **Show answer on this screen** button, which reveals "Answer: B — Mercury" for the current question only. The answer text exists in the DOM only while the fallback is open, and the note disappears after the public reveal.
+5. **Tests.**
+   - Unit HV-1 … HV-9: the right answer in each question phase; nothing on setup, board, round over or result; never a square; purity; size; `phoneView` unchanged.
+   - Harness HP-1 … HP-8:
+     - The host-role frame gets the view through `onHostView` and does not draw the contestant card. Contestant frames never get a view.
+     - Connected and disconnected, the `ANS-` answer is absent from the host document's text, `value`, `placeholder`, `<option>`, `title`, `alt`, `aria-label`, `data-*` and from `setTitle`.
+     - The fallback shows it and it clears on the next item. The host phone dims with "Reconnecting — this may be out of date" and sends nothing.
+     - With no host phone: no note, no fallback, not private, the normal covered options.
+6. **Seat reconciliation** (embedded only, once, after the save is restored). Phone seats in `setup.assign` whose pid is not in `room.players()` are dropped. A running or parked game keeps such a seat phone-less and shows one notice: "Cleo is no longer a player in this room (now the host phone, or gone) — play their turns from this screen, or start a new game." (HP-7.)
+7. **Host-phone page states:**
+   - It shows `item` beside the answer.
+   - While the transport is down it dims and shows the stale line.
+   - A `tooBig` view renders as "Too much to show — use the button on the laptop."
+   - It sends nothing.
+
+**One judgement call for the tester.** After the buzz-in is judged, the three options go up on the
+shared screen; that is a public part of the format (the other players pick from them). So
+after that point the answer string is on the laptop **as one of three unmarked options**. HP-3 asserts it is
+nowhere outside `#pyl-options`, and that nothing in the list is marked (`.is-answer`, "correct" tag) before the reveal.
+Before the options go up, the answer string is absent everywhere.
+
+**Changes by others that I kept.** The toolbar's sound label now reads "Sound" / "Sound off" (an 11-04 edit by another agent). My UI-12 harness regex was widened to accept it.

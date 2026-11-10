@@ -72,26 +72,30 @@ const MgSuper = (function () {
     setText("mg-board-prompt", state.audience.text);
     const rows = core().groupedAnswers(state);
     const board = core().topThree(state);
-    renderTopThree($("mg-board"), state, board);
-    renderOthers($("mg-others"), board, rows);
+    // docs/22 §5.4: with a host phone assigned, the top three's wording stays
+    // off this screen until a guess hits a row (or the per-item fallback).
+    window.MgHostScreen.renderBoardNote($("mg-board-private"), app, state, board);
+    const label = (target) => window.MgHostScreen.targetLabel(app, state, target, board);
+    renderTopThree($("mg-board"), state, board, label);
+    renderOthers($("mg-others"), board, rows, label);
     renderGuesses($("mg-guesses"), state, board);
     renderPickButtons($("mg-pick-buttons"), state, board);
     setText("mg-pick-state", pickState(state, board));
     $("btn-board-undo").disabled = !state.history.length;
   }
 
-  function renderTopThree(list, state, board) {
+  function renderTopThree(list, state, board, label) {
     list.replaceChildren();
     const done = state.audience.guesses.length > 0;
     board.forEach((row) => {
       const li = el("li", "board-row");
       li.appendChild(el("span", "board-rank", `#${row.rank + 1}`));
-      li.appendChild(el("span", "board-answer", row.text));
+      li.appendChild(el("span", `board-answer${label(row) ? " is-private" : ""}`, label(row) ? "Hidden" : row.text));
       li.appendChild(el("span", "board-count", row.count === 1 ? "1 said it" : `${row.count} said it`));
       li.appendChild(el("span", "board-value", core().moneyText(state, row.value)));
       // Two rows of the board can be the same answer said two ways ("map" and
       // "maps"), so a board row can be merged into another board row too.
-      if (!done && board.length > 1) li.appendChild(mergeBox(row, board));
+      if (!done && board.length > 1) li.appendChild(mergeBox(row, board, label));
       list.appendChild(li);
     });
     if (!board.length) list.appendChild(el("li", "hint", "Nobody answered — skip to the Head-to-Head."));
@@ -104,14 +108,16 @@ const MgSuper = (function () {
    * first: the three on the board, then the loudest of the rest, so two
    * off-board answers ("a torch" and "flashlight") can be joined as well.
    */
-  function mergeBox(row, targets) {
+  function mergeBox(row, targets, label) {
     const box = el("span", "merge-box");
+    const name = (t) => label(t) || shortLabel(t.text);
+    const full = (t) => label(t) || `“${t.text}”`;
     targets.filter((t) => t.key !== row.key).slice(0, MERGE_TARGETS).forEach((target) => {
-      // A short label keeps a long answer from squeezing the row (MG-D5);
-      // the full wording is in the title.
-      const btn = el("button", "btn btn-ghost btn-small merge-btn", `→ ${shortLabel(target.text)}`);
+      // A short label keeps a long answer from squeezing the row (MG-D5); the
+      // full wording is in the title. A private row is named by rank only.
+      const btn = el("button", "btn btn-ghost btn-small merge-btn", `→ ${name(target)}`);
       btn.type = "button";
-      btn.title = `Count “${row.text}” as “${target.text}”`;
+      btn.title = `Count ${full(row)} as ${full(target)}`;
       btn.addEventListener("click", () => window.MgApp.merge(row.key, target.key));
       box.appendChild(btn);
     });
@@ -123,7 +129,7 @@ const MgSuper = (function () {
   }
 
   /** Everything off the board, each with a "merge into" control per top-three row. */
-  function renderOthers(list, board, rows) {
+  function renderOthers(list, board, rows, label) {
     list.replaceChildren();
     const rest = rows.slice(3);
     if (!rest.length) {
@@ -134,7 +140,7 @@ const MgSuper = (function () {
       const li = el("li", "other-row");
       li.appendChild(el("span", "other-answer", row.text));
       li.appendChild(el("span", "other-count", `×${row.count}`));
-      li.appendChild(mergeBox(row, board.concat(rest)));
+      li.appendChild(mergeBox(row, board.concat(rest), label));
       list.appendChild(li);
     });
   }
@@ -218,9 +224,13 @@ const MgSuper = (function () {
     show($("mg-hth-form"), !hth.contestantText);
     // No phone on that seat: the host types the panelist's card too (MG-D1).
     const seat = state.panel[hth.slot];
-    show($("mg-hth-panel-form"), !hth.panelText && !seat.pid);
+    const phoneless = window.MgHostScreen.phoneless(app, seat.pid);
+    show($("mg-hth-panel-form"), !hth.panelText && phoneless);
     setText("mg-hth-panel-label", `What ${seat.name} wrote`);
-    $("mg-hth-panel-text").type = app.hideTyping ? "password" : "text";
+    // Typing is masked whenever a host phone is assigned (docs/22 §5.4).
+    const masked = app.hideTyping || app.answersPrivate;
+    $("mg-hth-panel-text").type = masked ? "password" : "text";
+    $("mg-hth-text").type = masked ? "password" : "text";
     setText("mg-hth-state", hthState(state, hth));
     $("btn-hth-reveal").disabled = hth.revealed || !hth.panelText || !hth.contestantText;
     $("btn-hth-match").disabled = !hth.revealed;

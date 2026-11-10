@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/pyr.css">
   <link rel="stylesheet" href="css/pyr-phone.css">
+  <link rel="stylesheet" href="css/pyr-hostphone.css">
 </head>
 <body data-gsc-game="pyramid">
 
@@ -174,7 +175,7 @@
           <p id="pyr-play-state" class="clock-state">Press Start when the giver is ready.</p>
         </div>
 
-        <div class="play-word-col">
+        <div id="pyr-play-word-col" class="play-word-col">
           <p id="pyr-play-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
           <!-- Position + outcome of each word. Deliberately carries no text: it is
                a progress strip, safe on a shared screen at any point in the round. -->
@@ -217,7 +218,7 @@
           <p id="pyr-circle-count" class="count-big" aria-live="polite">0 / 6</p>
           <p id="pyr-circle-state" class="clock-state">Press Start when the giver is ready.</p>
         </div>
-        <div class="circle-board-col">
+        <div id="pyr-circle-board-col" class="circle-board-col">
           <div id="pyr-circle-boxes" class="circle-pyramid" aria-label="The Winner&rsquo;s Circle"></div>
           <p id="pyr-circle-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
           <div id="pyr-circle-panel" class="word-panel"></div>
@@ -343,6 +344,9 @@
         <div id="pyr-phone-actions" class="phone-actions"></div>
         <p id="pyr-phone-status" class="phone-status" role="status" aria-live="polite"></p>
       </div>
+      <!-- The host phone (docs/22 §5.3): shown instead of the card above when
+           this phone is the private second screen of the host. -->
+      <div id="pyr-host-card" class="host-card hidden" aria-live="polite"></div>
     </section>
 
   </main>
@@ -384,6 +388,7 @@
   <script src="../../shared/icons.js"></script>
   <script src="js/pyr-content.js"></script>
   <script src="js/pyr-core.js"></script>
+  <script src="js/pyr-host-view.js"></script>
   <script src="js/data.js"></script>
   <script src="js/pyr-sound.js"></script>
   <script src="js/pyr-clock.js"></script>
@@ -391,7 +396,9 @@
   <script src="js/pyr-app.js"></script>
   <script src="js/pyr-lobby.js"></script>
   <script src="js/pyr-editor.js"></script>
+  <script src="js/pyr-hostphone.js"></script>
   <script src="js/pyr-room.js"></script>
+  <script src="js/pyr-host-screen.js"></script>
   <script src="js/pyr-phone.js"></script>
 </body>
 </html>

@@ -564,3 +564,105 @@ Files changed: `shared/theme.css` (the password block only), `css/pwd.css`
 line), `js/pwd-lobby.js`, `sets/*.json`, `tests/harness-x.html`, `README.md`,
 this report. Backups of the pre-pass sheets and helpers are in
 `.scratch/password-v3/`. No git.
+
+---
+
+## 13. The host phone (docs/22 §5, §6 Password row; review F6, F11) — 2026-11-10
+
+A host may assign a phone in `role=host`. It shows the host the password and
+the ladder position, the next password, and in the Lightning Round all of its
+words with their status. While one is assigned, the shared screen never shows
+a password before its public reveal. With no host phone everything behaves as
+before; the harness checks that.
+
+### The seven-item contract, and where each piece lives
+
+All new code is in new files. Existing files got only small hooks, listed below.
+
+| # | Contract item | Where |
+| --- | --- | --- |
+| 1 | pure `hostView(state)` | **`js/pwd-host-view.js`** (UMD → `PwdHostView`; also attaches `PwdCore.hostView` in the browser) |
+| 2 | room glue: `setHostView({t:"host", item, seq, …})` on every change, `seq` bumps only on content change | **`js/pwd-hostphone.js`** (`PwdHostPhone`) |
+| 3, 7 | the `role=host` phone page: v3, stale/Reconnecting, `tooBig`, sends nothing, the contestant card never drawn over it | **`js/pwd-hostphone-page.js`** + **`css/pwd-hostphone.css`** |
+| 4 | answers-private mode on the shared screen, with the F6 giver-panel exception | **`js/pwd-private.js`** (`PwdPrivate`), asked by `pwd-view.js` |
+| 5 | tests | **`tests/pwd-host-view.test.mjs`** (10 unit tests) and **`tests/harness-hostphone.html`** (39 checks) with **`tests/fixtures/hostphone-game.json`** |
+| 6 | seat reconciliation on boot (embedded only) | `PwdHostPhone.attach` |
+
+**Hooks in existing files:**
+
+- `pwd-room.js`: pass `onHostPhones`, call `PwdHostPhone.attach(room, embedded)`, and refresh the roster in `countPhones` (3 hooks).
+- `pwd-view.js`: a `hiddenNow(app)` guard in the reveal, notice, panel and control paths, for words and Lightning.
+- `pwd-phone.js`: branch on `me.role === "host"`: pass `onHostView`, never run the contestant renderer, send no `ready`.
+- `pwd-editor.js`: a closed editor empties its textarea, so no word list sits in a form value while a game is played.
+- `index.html`: the new scripts and stylesheet.
+
+### What the host phone shows
+
+| Phase | View |
+| --- | --- |
+| word in play | the password, worth now, clues of the most, whose clue, both givers, **the next password** |
+| word over | the next password only (the spent one is public: the shared screen prints it) |
+| game over | the Lightning words in the order they will be dealt |
+| Lightning Round | the current word large; every word with *to come / got it / passed*, the current one marked; money so far |
+| Lightning over, result, standings, setup | "Nothing secret right now" + the phase |
+
+No role the host plays in Password must be kept from the password: in
+host-as-giver mode the host *is* the giver. Views are under 4 KB, and lists are
+capped at ten.
+
+### The shared screen in answers-private mode
+
+`PwdPrivate.hidden(app)` is true while a host phone is assigned **and** every
+current giver has a connected phone. In a word, the current givers are both
+teams' givers; in the Lightning Round, it is the Lightning giver. While it is
+true:
+
+- "Show password to me", study and "Show words to me" are not rendered.
+- The remembered `reveal` and `studyUntil` switches are ignored, and the panel
+  nodes are never created.
+- The notice reads **"Answer is on your host phone"**, or **"Host phone
+  disconnected"** when it is away. While away there is one **Show answer on
+  this screen** button.
+- The fallback is keyed to the item, so it clears on the next password or the
+  next Lightning word.
+- Public reveals are unchanged: the finished word, and the slots at the end of
+  the Lightning Round.
+
+**F6:** when any current giver has no connected phone, the giver panel and
+study come back exactly as before, behind their own click and warning. That
+covers a typed player, a dropped phone, or a seat whose phone became the host
+phone.
+
+**F11 (seat reconciliation):** after `init`, and after the saved setup has
+settled, phone seats whose pid is not in `room.players()` are removed from the
+setup. A running or parked game keeps such a seat (scores stand). That seat
+counts as phone-less, so its giver panel stays available, and one notice is
+shown: "Dev is now the host phone — play their turns from this screen, or start
+a new game." This runs embedded only; standalone already purges on a new room
+code.
+
+### Verification (Node static server on 127.0.0.1:8701, `.scratch/hp-pw-serve.js`)
+
+| Check | Result |
+| --- | --- |
+| `cd games/password && node --test` | **124/124** (114 + HP-U1…HP-U10) |
+| `node --test` (repo root) | **1546/1546** |
+| `tests/harness-hostphone.html` | **39/39**, run twice |
+| `tests/harness.html` / `tests/harness-x.html` | **75/75** / **54/54** (harness-x now also gates the eight new files) |
+| files < 800, banned patterns, `console.log` | largest 797; clean |
+
+The harness checks:
+
+- The view reaches the host-role frame through `onHostView`, and contestant
+  frames never get one.
+- `seq` holds on a re-render and bumps on a clue.
+- With the host phone connected, and again with it disconnected, no fixture
+  password (all prefixed `Hpwqz`) appears in host text, `value`, `placeholder`,
+  `<option>`, `title`, `alt`, `aria-label`, `data-*` or `setTitle`.
+- The fallback shows the current item only and clears on the next one, for a
+  word and for a Lightning word.
+- The F6 exception turns on and off with the giver's phone.
+- The phone page meets 320 px / ≥ 16 px / answer ≥ 28 px, shows the stale line
+  and `tooBig`, and sends nothing.
+- F11 reconciliation works as described above.
+- No host phone gives identical behaviour.

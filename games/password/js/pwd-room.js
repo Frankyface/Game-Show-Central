@@ -59,6 +59,7 @@
   function countPhones() {
     if (!room || !room.players) return;
     window.PwdApp.setPhoneCount(room.players().filter((p) => !p.manual && p.connected !== false).length);
+    if (window.PwdHostPhone) window.PwdHostPhone.roster();   // who has a phone now (docs/22 §5.4)
   }
 
   /* ============ Inbound: intents only, each re-checked ============ */
@@ -178,7 +179,10 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        onHostPhones: () => { if (window.PwdHostPhone) window.PwdHostPhone.onHostPhones(); },
+      });
     } catch (err) {
       window.PwdApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -190,6 +194,8 @@
       room.onStatus(() => { window.PwdApp.bindRoom(room.code); paintRoom(); });
     }
     window.PwdApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
+    // docs/22 §5.2/§5.6: host view on every change; seats reconciled (embedded).
+    if (window.PwdHostPhone) window.PwdHostPhone.attach(room, embedded).catch((err) => console.warn(err));
     wireRoomButton();
     (room.players ? room.players() : []).forEach(onPlayerJoin);
     paintRoom();

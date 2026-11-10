@@ -264,6 +264,17 @@ three embedded phones at 320 px and speaks the bridge protocol itself. It
 namespaces its storage with `?store=harness`, so a test run never touches a
 real host's saved game.
 
+## Host phone (hub only)
+
+When the host makes a phone the **host phone** in the hub lobby, that phone shows the current
+question with the **right option marked** and the next question, and on the Big Board just whose
+turn it is and the spins. The laptop then never marks the answer before **Reveal the picks**. It reads
+"Answer is on your host phone", or "Host phone disconnected" with one **Show answer on this screen**
+button for the current question. A phone that became the host phone is taken out of the saved seats;
+a game in progress keeps that seat and plays it from the laptop. With no host phone, nothing changes.
+Files: `js/pyl-host-view.js` (pure), `js/pyl-host-screen.js`, `js/pyl-hostphone.js`, `css/pyl-host.css`;
+tests `tests/pyl-hostview.test.mjs` and `tests/harness-hostphone.html`.
+
 ## Storage
 
 | Key | What |

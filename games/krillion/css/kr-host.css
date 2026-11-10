@@ -1,0 +1,53 @@
+/* ============================================================
+   Krillion — host phone (docs/22 §5.3/§5.7, design system v3)
+   The phone: a small "Host" header, the prompt large, the answers
+   coming in, the judge's queue, the rated list in the accent
+   (answers >= 28 px). Text >= 16 px, no horizontal scroll at
+   320 px, no buttons. Plus the shared-screen note for
+   answers-private mode (§5.4).
+   ============================================================ */
+
+/* ---- The phone ---- */
+
+.kr-host-card {
+  display: flex; flex-direction: column; gap: 12px;
+  width: 100%; max-width: 430px; margin: 0 auto;
+  overflow-wrap: anywhere;
+}
+.kr-host-card.is-stale { opacity: 0.55; }
+
+/* Colour is never the only signal: the word "Host" names the screen. */
+.kr-host-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--kr-accent);
+}
+.kr-host-tag {
+  padding: 2px 8px; border-radius: var(--kr-radius-sm);
+  background: var(--kr-accent); color: var(--kr-accent-ink);
+  font-size: 16px; font-weight: 600;
+}
+.kr-host-game { font-size: 16px; font-weight: 600; }
+.kr-host-stale { margin: 0; font-size: 16px; font-weight: 600; color: var(--kr-coral); }
+.kr-host-phase, .kr-host-cat, .kr-host-meta { margin: 0; font-size: 16px; color: var(--kr-dim); }
+.kr-host-empty { margin: 4px 0 0; font-size: 20px; font-weight: 600; }
+.kr-host-prompt { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.25; }
+
+.kr-host-section { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--kr-line); }
+.kr-host-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--kr-dim); }
+.kr-host-row { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: 17px; }
+.kr-host-left { min-width: 0; }
+.kr-host-right { flex: 0 0 auto; font-weight: 600; color: var(--kr-accent); text-align: right; }
+.kr-host-row.is-pending .kr-host-right, .kr-host-row.is-pending .kr-host-left { color: var(--kr-coral); }
+.kr-host-more { margin: 0; font-size: 16px; color: var(--kr-mute); }
+.kr-host-tier { padding: 4px 0; }
+.kr-host-tier-name { margin: 0; font-size: 16px; font-weight: 600; color: var(--kr-dim); }
+.kr-host-answers { margin: 2px 0 0; font-size: 28px; font-weight: 600; line-height: 1.2; color: var(--kr-accent); }
+
+body.host-phone .kr-phone-card { display: none; }
+
+/* ---- The shared screen, answers-private mode ---- */
+
+.kr-hp-note { display: inline-flex; align-items: center; gap: 10px; }
+.kr-hp-note-text { color: var(--kr-dim); font-size: 15px; }
+/* The fallback list stays visible beside the judge's queue too. */
+#screen-reveal.is-judging .kr-hp-list:not(.hidden) { display: block; flex: 0 0 300px; }

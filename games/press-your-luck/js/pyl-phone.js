@@ -186,6 +186,7 @@
 
   function onMessage(raw) {
     if (!raw || typeof raw !== "object" || raw.t !== "view") return;
+    if (me && me.role === "host") return;   // a host phone never draws the player card
     const wasArmed = view.screen === "buzz" && view.armed;
     view = raw;
     // A fresh arming clears whatever this phone was last told.
@@ -200,7 +201,13 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (me && me.role === "host") { window.PylHostPhone.status(connected); return; }
     render();
+  }
+
+  /** docs/22: only a host phone ever receives one; it is rendered, never answered. */
+  function onHostView(v) {
+    if (window.PylHostPhone) window.PylHostPhone.show(v);
   }
 
   async function boot() {
@@ -209,10 +216,17 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("pyl-phone-headline", "Could not join");
       setText("pyl-phone-sub", err.message);
+      return;
+    }
+    if (me.role === "host") {
+      // The host's private second screen: it renders and sends nothing (docs/22 §5.7),
+      // and the contestant renderer below never runs, so it cannot draw over it.
+      window.PylHostPhone.start();
+      window.PylPhone = { me, role: "host", view: () => view };
       return;
     }
     setText("pyl-phone-status", "Connected. Waiting for the host…");

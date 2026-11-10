@@ -58,6 +58,24 @@ from any phase, with two ways out:
 Neither touches the undo history: the parked game is a whole saved state, so
 Resume is exact. It works embedded in the hub and standalone.
 
+### The host phone (docs/22)
+
+In the hub lobby the host can make any phone the **host phone**. That phone
+stops being a contestant and becomes a private second screen: the whole chain
+top to bottom with every letter of every word (the ones the room can see are
+filled in), the two frontier words marked, the word being guessed called out
+large; in the Speed Chain all eight words with what has been banked or passed;
+in sudden death the tiebreak word. It has no buttons and sends nothing.
+
+While a host phone is assigned — connected or not — the laptop is **answers
+private**: Peek disappears (the board itself never draws a hidden letter). The
+rail reads "Answer is on your host phone"; if the host phone drops it reads
+"Host phone disconnected" with one **Show answer on this screen** button that
+shows the word in play only and clears at the next judgement or the next word.
+A phone that was on a team and is now the host phone is taken off the setup
+teams; a game in progress keeps its seat and its team plays from the laptop.
+With no host phone everything below works exactly as before.
+
 ### Peek — read this once
 
 The host screen **is** the shared screen, so it shows exactly what the players
@@ -194,6 +212,8 @@ played. The Speed Chain uses `speedChains[(number of chains − 1) % length]`.
 | `tests/cr-regression.test.mjs` | 7 tests pinning the clock and tiebreak fixes (CR-2, CR-6) |
 | `sets/index.json` + `sets/*.json` | the in-repo set library (docs/19 §2) |
 | `tests/harness.html` | the loopback harness (C-I1 … C-I6, X-1 … X-4) |
+| `js/cr-host-view.js`, `js/cr-hostphone.js`, `js/cr-host-screen.js`, `css/cr-host.css` | the host phone: pure view, shared-screen glue, phone screen |
+| `tests/cr-host-view.test.mjs`, `tests/harness-hostphone.html` | its unit suite and loopback harness (HP-1 … HP-9) |
 | `tests/harness-kit.js` | the harness's PASS/FAIL list and bridge shell, split out for the 800-line limit |
 
 State lives in one serialisable object under `gsc-cr-state-v1`, scoped to the
@@ -222,7 +242,7 @@ Link made. `CrCore` re-exports all of it, so the API in the spec is unchanged.
 ## Testing
 
 ```bash
-cd games/chain-reaction && node --test        # 130 unit tests
+cd games/chain-reaction && node --test        # 141 unit tests
 python -m http.server 8620                    # from the repo root, then:
 #   http://localhost:8620/games/chain-reaction/tests/harness.html
 #   http://localhost:8620/games/chain-reaction/            (host, standalone)

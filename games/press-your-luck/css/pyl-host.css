@@ -1,0 +1,58 @@
+/* ============================================================
+   Press Your Luck — host phone (docs/22 §5.3) and the shared
+   screen's answers-private note (§5.4). Design system v3: flat,
+   one surface, Inter; the answer in the game's accent. Text
+   ≥ 16 px, the answer ≥ 28 px, no buttons on the phone.
+   ============================================================ */
+
+/* ============ The shared screen's note (laptop) ============ */
+
+.hp-note {
+  display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+  margin: 0.2rem 0 0.6rem; padding: 0.5rem 0.8rem;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.hp-note-text { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink-dim); }
+.hp-reveal { margin: 0; font-size: 18px; font-weight: 600; color: var(--ink); }
+
+/* ============ The host phone ============ */
+
+body.host-phone #pyl-phone-card { display: none; }
+
+.host-card {
+  display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.9rem 0.85rem 1.2rem;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.host-card.is-stale { opacity: 0.55; }
+
+.host-head {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding-bottom: 0.55rem; border-bottom: 1px solid var(--hairline);
+}
+.host-tag {
+  font-size: 16px; font-weight: 600; color: var(--accent-ink); background: var(--accent);
+  border-radius: var(--radius-sm); padding: 0.1rem 0.55rem;
+}
+.host-game { font-size: 16px; font-weight: 600; color: var(--ink); }
+.host-stale { margin: 0; font-size: 16px; font-weight: 600; color: var(--amber); }
+
+.host-phase { margin: 0; font-size: 16px; color: var(--ink-dim); }
+.host-item { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
+.host-label { margin: 0.3rem 0 0; font-size: 16px; font-weight: 500; color: var(--ink-dim); }
+.host-answer { margin: 0; font-size: 30px; font-weight: 600; line-height: 1.15; color: var(--accent); overflow-wrap: anywhere; }
+.host-note { margin: 0; font-size: 16px; color: var(--ink-dim); }
+
+.host-options { list-style: none; margin: 0.2rem 0 0; padding: 0; display: flex; flex-direction: column; }
+.host-option {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--hairline); font-size: 17px;
+}
+.host-opt-letter { font-weight: 600; color: var(--ink-dim); min-width: 1.1rem; }
+.host-opt-text { flex: 1 1 auto; overflow-wrap: anywhere; }
+.host-option.is-right .host-opt-text, .host-option.is-right .host-opt-letter { color: var(--accent); font-weight: 600; }
+.host-opt-tag { font-size: 16px; font-weight: 600; color: var(--accent); }
+
+.host-next { margin-top: 0.5rem; padding-top: 0.6rem; border-top: 1px solid var(--hairline); }
+.host-next-q { margin: 0.15rem 0 0; font-size: 17px; color: var(--ink); overflow-wrap: anywhere; }
+.host-next-a { margin: 0.1rem 0 0; font-size: 17px; font-weight: 600; color: var(--accent); overflow-wrap: anywhere; }

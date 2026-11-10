@@ -209,7 +209,11 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        // docs/22: host phones are never players; cr-hostphone.js owns them.
+        onHostPhones: (list) => { if (window.CrHostPhone) window.CrHostPhone.onHostPhones(list); },
+      });
     } catch (err) {
       window.CrApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -230,6 +234,7 @@
       show(exit, embedded);
       exit.addEventListener("click", () => room.exit());
     }
+    if (window.CrHostPhone) window.CrHostPhone.attach(room);
     window.CrRoom = {
       room, pushViews, onMessage,
       phoneCount: () => (room.players ? room.players().length : 0),

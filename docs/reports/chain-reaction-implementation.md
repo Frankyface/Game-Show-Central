@@ -663,3 +663,85 @@ nothing in play does.
 - [x] One plain sentence on setup; error messages unchanged.
 - [x] JS limited to class names, icons, toolbar order, splash, and the four emoji-free labels.
 - [x] Unit tests and harness green before and after; 720 / 676 / 320 fit; contrast; files < 800.
+
+---
+
+# The host phone (docs/22 §5, §6 Chain Reaction row)
+
+All seven items of the per-game contract, in new files plus three small hooks.
+Helpers are in `.scratch/` (`hp-chain-wire.py` applies the hooks,
+`hp-chain-serve.mjs` is the Node static server used on port 8702).
+
+## What was built
+
+| Contract item | Where | Notes |
+| --- | --- | --- |
+| 1 pure `hostView(state)` | `js/cr-host-view.js` (UMD → `CrHostView`) | The **whole chain**, top to bottom: every word, a per-letter `lit` mask of what the room can see, `status` (given / hidden / solved / spelled out), the owner, `frontier` (top / bottom / both), the word being guessed as `current` (word, end, letters shown), the chain value and who is in control. Speed Chain: all eight words with got / pass / open and the word to call. Sudden death: the tiebreak word and its two neighbours. Setup, the chain-complete interstitial, the result and a finished Speed Chain: `secret:false`. Also `itemKey`, `currentAnswer` and `hiddenWords` for the glue and the tests. |
+| 2 room glue | `js/cr-hostphone.js` (`CrHostPhone.attach`, from `cr-room.js`) | `room.setHostView({t:"host", item, seq, ...hostView})` on every render. `seq` bumps only when the view's JSON changes (typing a guess does not move it). No cache, no resend, never `room.send`. |
+| 3 / 7 host-phone page | `js/cr-host-screen.js`, `css/cr-host.css`, `#cr-host-card` | v3 and flat: "Host" tag + "Chain Reaction"; the word in play at 32 px in the accent; then "The chain" stacked like the show as letter tiles — the room's letters filled white, the rest outlined in the accent — with "Guessing now" / "Next from the top" under the frontier rows. Stale → dimmed + "Reconnecting — this may be out of date"; `tooBig` → "Too much to show — use the button on the laptop". Sends nothing, no buttons. The contestant renderer returns early while the host screen is active, so it can never draw over it. |
+| 4 answers private | `js/cr-hostphone.js` | The board already never draws a hidden letter; the one host-only answer line was **Peek**, which is hidden and held off (a remembered `peek:true` is reset). In its place on the chain, Speed Chain and sudden-death rails: "Answer is on your host phone", or "Host phone disconnected" with **one** "Show answer on this screen" that shows the word in play ("The word is …") and clears when the item changes (a judgement, the other end, the next Speed Chain word). |
+| 5 tests | `tests/cr-host-view.test.mjs` (11), `tests/harness-hostphone.html` (26) | See below. |
+| 6 seat reconciliation | `js/cr-hostphone.js` | Embedded only, once, after the save is restored: phones in `setup.assign` that are not in `room.players()` leave the teams; a running or parked game keeps the seat (scores stand, the team plays from the laptop) and shows one notice. |
+
+Hooks in existing files: `index.html` (stylesheet, `#cr-host-card`, three
+scripts), `cr-room.js` (`onHostPhones` handler and `attach(room)`),
+`cr-phone.js` (`onHostView`, `me.role` → start/stop the host screen, early
+return in `render`). **No host phone → identical behaviour**: the glue only
+calls `setHostView` (a no-op standalone; held by the hub but never shown to a
+contestant) and touches the page only while `answersPrivate()` is true —
+pinned by HP-9 and by the unchanged main harness.
+
+The one judgement call: §6's "Show answer on this screen" for Chain Reaction
+reveals **the word in play**, not the whole chain — the host only ever needs
+the word being judged, and revealing the chain would spoil every word still to
+come. Item = `chain:<n>:<target>` / `speed:<index>` / `sudden:open`.
+
+Known limit, as in every game: the **editor** shows every word by design; a
+host who opens it with the room watching shows the chains. The harness checks
+the board, the rails, the overlays and the shell title.
+
+## Verification (port 8702, Node static server)
+
+| Suite | Result |
+| --- | --- |
+| `cd games/chain-reaction && node --test` | **141 / 141** (130 + 11 host-view) |
+| root `node --test` | **1546 / 1546** |
+| `tests/harness.html` | **81 / 81**, unchanged |
+| `tests/harness-hostphone.html` | **26 / 26**, two runs |
+
+The host-phone harness is the hub for one host frame, two contestant phones
+and one `role=host` phone, speaking `host-phones` / `host-view`. The fixture
+`tests/fixtures/hostphone-game.json` prefixes **every word with `XQ`**, so a
+search for a hidden word can never be satisfied by ordinary copy ("UP" in
+"Setup"). Checks:
+
+- **HP-1** the host phone gets its view through `onHostView` ("Nothing secret
+  right now" in setup), shows the host card and never the contestant card;
+  Peek is gone on the laptop.
+- **HP-2** after a reveal the host phone holds the word in play and all eight
+  words in order, as tiles with the room's letter filled; 320 px, text ≥ 16 px,
+  answer ≥ 28 px, no buttons, no sideways scroll; contestant frames never get a
+  host view or any hidden word, and no `send` carries one.
+- **HP-3 connected:** none of the six hidden words is anywhere in the host
+  document — text, `value`, `placeholder`, `<option>`, `title`, `alt`,
+  `aria-label`, `data-*` — or the shell title; the rail reads "Answer is on
+  your host phone" with no fallback; a remembered Peek is held off; `seq` does
+  not move when a guess is typed; the host phone sends nothing.
+- **HP-4 / HP-5 disconnected:** still private and still clean; one fallback
+  button; the host phone dims; the fallback shows the word in play and **no
+  other** hidden word; after **Wrong** (the word is still unsolved) it is gone
+  from the document again; the next word is hidden and the button is back;
+  reconnecting restores the note and the phone is current.
+- **HP-6** `tooBig` reads "Too much to show — use the button on the laptop".
+- **HP-7** the Speed Chain: the host phone has all eight words and the one to
+  call, the laptop holds none of the hidden ones, layout as HP-2.
+- **HP-8** seat reconciliation on a reload: a stale `p9` and the now-host-phone
+  `p2` leave the setup teams; the running Speed Chain keeps `p2`'s seat and the
+  notice appears once.
+- **HP-9** with no host phone assigned, Peek shows "The word is XQSHIP" exactly
+  as before and no note is created (the positive control for the leak search).
+
+Gates: every new file under 200 lines (harness 386); zero `innerHTML` /
+`eval` / `console.log` in the component; the host-phone page is v3 (flat
+surface, hairlines, Inter, accent only on the tag, the answer and the active
+outlines).

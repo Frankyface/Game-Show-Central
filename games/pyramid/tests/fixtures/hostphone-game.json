@@ -1,0 +1,190 @@
+{
+  "title": "Host phone harness",
+  "settings": {
+    "currency": "$",
+    "categorySeconds": 30,
+    "circleSeconds": 60,
+    "tiebreakSeconds": 15,
+    "wordsPerCategory": 4,
+    "categoriesPerTeam": 1,
+    "swapRoles": true,
+    "circleValues": [
+      200,
+      300,
+      400,
+      500,
+      800,
+      1000
+    ],
+    "grandPrize": 10000,
+    "grandPrizeLabel": "$10,000"
+  },
+  "categories": [
+    {
+      "title": "Hostset One",
+      "hint": "Plain theme 1",
+      "words": [
+        "QZWLantern",
+        "QZWPebble",
+        "QZWKettle",
+        "QZWWalrus"
+      ]
+    },
+    {
+      "title": "Hostset Two",
+      "hint": "Plain theme 2",
+      "words": [
+        "QZWSaddle",
+        "QZWRibbon",
+        "QZWCactus",
+        "QZWAnchor"
+      ]
+    },
+    {
+      "title": "Hostset Three",
+      "hint": "Plain theme 3",
+      "words": [
+        "QZWThimble",
+        "QZWPickle",
+        "QZWTuba",
+        "QZWIgloo"
+      ]
+    },
+    {
+      "title": "Hostset Four",
+      "hint": "Plain theme 4",
+      "words": [
+        "QZWVelvet",
+        "QZWMuffin",
+        "QZWComet",
+        "QZWGravel"
+      ]
+    },
+    {
+      "title": "Hostset Five",
+      "hint": "Plain theme 5",
+      "words": [
+        "QZWParsnip",
+        "QZWLadle",
+        "QZWBramble",
+        "QZWFiddle"
+      ]
+    },
+    {
+      "title": "Hostset Six",
+      "hint": "Plain theme 6",
+      "words": [
+        "QZWNugget",
+        "QZWHarbor",
+        "QZWPuffin",
+        "QZWQuilt"
+      ]
+    },
+    {
+      "title": "Hostset Seven",
+      "hint": "Plain theme 7",
+      "words": [
+        "QZWSprocket",
+        "QZWTinsel",
+        "QZWWombat",
+        "QZWYodel"
+      ]
+    },
+    {
+      "title": "Hostset Eight",
+      "hint": "Plain theme 8",
+      "words": [
+        "QZWZither",
+        "QZWBiscuit",
+        "QZWCrayon",
+        "QZWDoorknob"
+      ]
+    },
+    {
+      "title": "Hostset Nine",
+      "hint": "Plain theme 9",
+      "words": [
+        "QZWEggcup",
+        "QZWFunnel",
+        "QZWGoblet",
+        "QZWHammock"
+      ]
+    },
+    {
+      "title": "Hostset Ten",
+      "hint": "Plain theme 10",
+      "words": [
+        "QZWInkwell",
+        "QZWJigsaw",
+        "QZWKazoo",
+        "QZWLobster"
+      ]
+    },
+    {
+      "title": "Hostset Eleven",
+      "hint": "Plain theme 11",
+      "words": [
+        "QZWMarble",
+        "QZWNoodle",
+        "QZWOyster",
+        "QZWPretzel"
+      ]
+    },
+    {
+      "title": "Hostset Twelve",
+      "hint": "Plain theme 12",
+      "words": [
+        "QZWRhubarb",
+        "QZWSnorkel",
+        "QZWTrumpet",
+        "QZWUmbrella"
+      ]
+    }
+  ],
+  "circles": [
+    {
+      "boxes": [
+        {
+          "category": "QZCFerns"
+        },
+        {
+          "category": "QZCKites"
+        },
+        {
+          "category": "QZCClocks"
+        },
+        {
+          "category": "QZCBoots"
+        },
+        {
+          "category": "QZCOwls"
+        },
+        {
+          "category": "QZCDrums"
+        }
+      ]
+    },
+    {
+      "boxes": [
+        {
+          "category": "QZCLamps"
+        },
+        {
+          "category": "QZCSocks"
+        },
+        {
+          "category": "QZCBells"
+        },
+        {
+          "category": "QZCMaps"
+        },
+        {
+          "category": "QZCPears"
+        },
+        {
+          "category": "QZCRopes"
+        }
+      ]
+    }
+  ]
+}

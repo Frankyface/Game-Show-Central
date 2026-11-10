@@ -217,8 +217,12 @@ const PwdView = (function () {
     box.appendChild(list);
   }
 
+  /** True while a host phone carries the password (pwd-private.js, docs/22 §5.4). */
+  const hiddenNow = (app) => !!(window.PwdPrivate && window.PwdPrivate.hidden(app));
+
   /** Is the password allowed on the host screen right now? */
   function revealActive(app) {
+    if (hiddenNow(app)) return false;   // the remembered reveal switches are ignored
     if (app.reveal) return true;
     return Number.isFinite(app.studyUntil) && Date.now() < app.studyUntil;
   }
@@ -231,6 +235,7 @@ const PwdView = (function () {
         + `${r.clues === 1 ? "clue" : "clues"} given.`;
       return;
     }
+    if (hiddenNow(app)) { node.textContent = window.PwdPrivate.note(app); return; }
     if (revealActive(app)) {
       node.textContent = "The password is on this screen — everyone watching the share can read it.";
       return;
@@ -248,6 +253,7 @@ const PwdView = (function () {
     const panel = $("pwd-word-panel");
     panel.replaceChildren();
     panel.classList.toggle("is-open", false);
+    if (!r.finished && hiddenNow(app)) { window.PwdPrivate.fillPanel(panel, app, r.word, "btn-hp-fallback"); return; }
     if (r.finished || !revealActive(app)) return;
     panel.classList.add("is-open");
     panel.appendChild(el("p", "word-warn", "Shared screen — the receivers must not be looking."));
@@ -269,6 +275,8 @@ const PwdView = (function () {
     $("btn-reveal").setAttribute("aria-pressed", String(!!app.reveal));
     $("btn-reveal").textContent = app.reveal ? "Hide the password" : "Show password to me";
     $("btn-study").disabled = !live;
+    show($("btn-reveal"), !hiddenNow(app));   // not rendered while the host phone has it
+    show($("btn-study"), !hiddenNow(app));
     const first = $("btn-first");
     show(first, live && r.clues === 0);
     first.textContent = `${state.teams[1 - r.turn].name} open instead`;
@@ -339,7 +347,7 @@ const PwdView = (function () {
       slot.appendChild(el("span", "l-slot-value", core().formatMoney(app.core, value)));
       // The word itself only lands here once the round is over, or when the
       // host has asked to see it: a slot is a scoreboard, not a prompt.
-      if (l.finished || app.lightningReveal) slot.appendChild(el("span", "l-slot-word", w.text));
+      if (l.finished || (app.lightningReveal && !hiddenNow(app))) slot.appendChild(el("span", "l-slot-word", w.text));
       slot.appendChild(el("span", "l-slot-note",
         current ? "on this one now" : (SLOT_WORDS[w.status] || "to come")));
       box.appendChild(slot);
@@ -348,7 +356,7 @@ const PwdView = (function () {
 
   function renderLightningNotice(app, l) {
     const node = $("pwd-l-notice");
-    node.classList.toggle("notice-warn", !!app.lightningReveal && !l.finished);
+    node.classList.toggle("notice-warn", !!app.lightningReveal && !l.finished && !hiddenNow(app));
     if (l.finished) {
       const out = app.core.outcome;
       node.textContent = out && out.allFive
@@ -356,6 +364,7 @@ const PwdView = (function () {
         : "Time. The team keep everything they took.";
       return;
     }
+    if (hiddenNow(app)) { node.textContent = window.PwdPrivate.note(app); return; }
     node.textContent = app.lightningReveal
       ? "The words are on this screen — the receiver must not be looking."
       : (app.setup.mode === "host"
@@ -367,6 +376,10 @@ const PwdView = (function () {
     const panel = $("pwd-l-panel");
     panel.replaceChildren();
     panel.classList.toggle("is-open", !!app.lightningReveal && !l.finished);
+    if (!l.finished && hiddenNow(app)) {
+      window.PwdPrivate.fillPanel(panel, app, core().lightningWord(app.core), "btn-hp-fallback-l");
+      return;
+    }
     if (!app.lightningReveal || l.finished) return;
     panel.appendChild(el("p", "word-warn", "Shared screen — the receiver must not be looking."));
     panel.appendChild(el("p", "word-now", core().lightningWord(app.core) || ""));
@@ -380,6 +393,7 @@ const PwdView = (function () {
     const judging = live && l.started && (l.clock.running || l.expired);
     ["btn-l-got", "btn-l-pass"].forEach((id) => { $(id).disabled = !judging; });
     $("btn-l-reveal").disabled = !live;
+    show($("btn-l-reveal"), !hiddenNow(app));
     $("btn-l-reveal").setAttribute("aria-pressed", String(!!app.lightningReveal));
     $("btn-l-reveal").textContent = app.lightningReveal ? "Hide the words" : "Show words to me";
     $("btn-l-undo").disabled = !app.core.history.length;

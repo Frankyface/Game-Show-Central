@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyramid host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Pyramid — host phone harness (docs/22 §5.5, review F6 / F11)</h1>
+  <p class="lede">This page is the hub for one host frame, four contestant phones and one <b>host phone</b>
+    (role=host), speaking the bridge protocol including <code>host-phones</code> and <code>host-view</code>.
+    The fixture's words all start <code>QZW</code> and its Winner's Circle subjects <code>QZC</code>, so the leak
+    scan cannot match ordinary page text. The load-bearing checks: with a host phone assigned — connected or
+    not — and the giver holding a phone, no word is anywhere in the host document (text, value, placeholder,
+    option, title, alt, aria-label, data-*) or the shell title until the per-item fallback is pressed; the
+    host phone always has it; and a giver with no phone keeps the "Show words to me" panel (review F6).</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__PYR_HP_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function waitFor(fn, label, timeout) {
+      const start = Date.now();
+      for (;;) {
+        let v = null;
+        try { v = fn(); } catch (err) { v = null; }
+        if (v) return v;
+        if (Date.now() - start > (timeout || 6000)) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub, with host phones (docs/22 §4) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#2ec4b6", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "PYHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (heldView && phoneFrames.has("h1")) post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") PLAYERS.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE) : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "PYHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    function setGiverPhone(pid, connected) {
+      players = players.map((p) => (p.pid === pid ? Object.assign({}, p, { connected }) : p));
+      post(hostFrame, { t: "player-status", pid, connected });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-game.json";
+    const KEYS = ["gsc-pyr-state-v1-hpharness", "gsc-pyr-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().PyrApp.core();
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostPhoneText = () => PW("h1").PyrHostScreen.text();
+    const hostView = () => PW("h1").PyrHostScreen.view();
+    const visible = (id) => !!H(id) && !H(id).classList.contains("hidden") && H(id).getClientRects().length > 0;
+    const freeCards = () => [...HD().querySelectorAll("#pyr-board .pyr-card")].filter((c) => !c.disabled);
+    const roundWords = () => core().round.words.map((w) => w.text);
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().PyrApp && HW().PyrApp.state().game, "host boot");
+      await sleep(60);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "p4", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.PyrPhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title (docs/22 §5.5, F13). */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => (m.t === "title" && String(m.text).indexOf(s) >= 0)
+        || (m.t === "scores" && JSON.stringify(m.scores).indexOf(s) >= 0))) where.push("setTitle/reportScores");
+      return where;
+    }
+
+    const leaksAny = (list) => list.reduce((all, w) => all.concat(leaks(w).map((x) => `${w}: ${x}`)), []);
+
+    /** docs/22 §5.3: 320 px, no sideways scroll, text ≥ 16 px, the answer ≥ 28 px, no buttons. */
+    function hostPhoneLayout(tag) {
+      const d = PW("h1").document;
+      const texts = [...d.querySelectorAll("#pyr-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(PW("h1").getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${PW("h1").getComputedStyle(n).fontSize}`);
+      const answer = d.querySelector(".host-answer");
+      const answerPx = answer ? parseFloat(PW("h1").getComputedStyle(answer).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answer ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0
+        && answerPx >= 28 && d.querySelectorAll("#pyr-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, answer ${answerPx}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    /* ============ Scenarios ============ */
+
+    async function scenarioConnected() {
+      players = PLAYERS.slice();
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => HW().PyrApp.state().setup.players.length === 4, "the roster");
+      await waitFor(() => hostView(), "the first host view");
+      check("HP-1 the host-role frame gets its view through onHostView: nothing secret in setup",
+        hostView().secret === false && /Nothing secret right now/.test(hostPhoneText())
+        && PW("h1").document.getElementById("pyr-phone-card").classList.contains("hidden"),
+        hostPhoneText().slice(0, 80));
+      check("HP-1 the host page knows a host phone is assigned (answers private)",
+        HW().PyrHostPhone.isPrivate() === true);
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "board", "the board");
+      freeCards()[0].click();
+      await waitFor(() => core().phase === "play", "a category");
+      click("btn-clock-start");
+      const word = HW().PyrCore.currentWord(core());
+      await waitFor(() => hostView().round && hostView().round.current === word, "the host phone's word");
+      check("HP-2 the host phone shows the current word, the theme and every word of the category",
+        hostPhoneText().indexOf(word) >= 0 && hostPhoneText().indexOf(core().round.hint) >= 0
+        && roundWords().every((w) => hostPhoneText().indexOf(w) >= 0)
+        && PW("h1").document.querySelector(".host-answer").textContent === word,
+        hostPhoneText().slice(0, 140));
+      hostPhoneLayout("HP-2");
+      check("HP-2 contestant frames never receive a host view; only the giver's phone has the word",
+        ["p1", "p2", "p3", "p4"].every((pid) => !PW(pid).PyrHostScreen.view())
+        && ["p2", "p3", "p4"].every((pid) => roundWords().every((w) => PW(pid).document.body.textContent.indexOf(w) < 0))
+        && PW("p1").PyrPhone.wordText() === word,
+        `giver phone reads ${PW("p1").PyrPhone.wordText()}`);
+      check("HP-3 CONNECTED, giver phoned: no word of the category is anywhere in the host document or the shell bar",
+        leaksAny(roundWords()).length === 0, leaksAny(roundWords()).join(", ") || "clean");
+      check("HP-3 instead the laptop reads “Words are on your host phone”, and the reveal controls are gone",
+        visible("pyr-hp-play") && /Words are on your host phone/.test(H("pyr-hp-play").textContent)
+        && !visible("btn-reveal-words") && !visible("btn-study") && !visible("btn-hp-play-show"),
+        H("pyr-hp-play").textContent);
+
+      // The remembered "Show words to me" switch is ignored, not obeyed (F5).
+      HW().PyrApp.set({ reveal: true });
+      check("HP-3 a remembered “Show words to me” is ignored: still no word on the laptop",
+        leaksAny(roundWords()).length === 0 && HD().querySelectorAll("#pyr-word-panel *").length === 0,
+        leaksAny(roundWords()).join(", ") || "clean");
+      HW().PyrApp.set({ reveal: false });
+      check("HP-3 the host phone sends nothing (no payload reached the game)",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone"));
+    }
+
+    async function scenarioDisconnected() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => /Host phone disconnected/.test(H("pyr-hp-play").textContent), "the away notice");
+      const word = HW().PyrCore.currentWord(core());
+      check("HP-4 DISCONNECTED: answers stay private and no word is on the laptop",
+        HW().PyrHostPhone.isPrivate() === true && leaksAny(roundWords()).length === 0,
+        leaksAny(roundWords()).join(", ") || "clean");
+      check("HP-4 the laptop shows “Host phone disconnected” and exactly one fallback button",
+        HD().querySelectorAll("#pyr-hp-play button:not(.hidden)").length === 1
+        && H("btn-hp-play-show").textContent === "Show answer on this screen");
+      await waitFor(() => /Reconnecting/.test(hostPhoneText()), "the stale host phone");
+      check("HP-4 the host phone dims and says it may be out of date",
+        PW("h1").document.getElementById("pyr-host-card").classList.contains("is-stale"),
+        hostPhoneText().slice(0, 60));
+
+      click("btn-hp-play-show");
+      await waitFor(() => leaks(word).length > 0, "the fallback reveal");
+      const others = roundWords().filter((w) => w !== word);
+      check("HP-5 the fallback reveals the CURRENT word only",
+        H("pyr-hp-play").querySelector(".hp-reveal").textContent === word && leaksAny(others).length === 0,
+        `${word} shown; others: ${leaksAny(others).join(", ") || "hidden"}`);
+      click("btn-correct");
+      await waitFor(() => HW().PyrCore.currentWord(core()) !== word, "the next word");
+      const next = HW().PyrCore.currentWord(core());
+      check("HP-5 …and clears on the next word: the new one is hidden and the button is back",
+        leaks(next).length === 0 && visible("btn-hp-play-show"),
+        leaks(next).join(", ") || `${next} hidden`);
+
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => /Words are on your host phone/.test(H("pyr-hp-play").textContent), "back online");
+      check("HP-5 when the host phone comes back the notice returns and the phone is current",
+        hostView().round.current === next && !/Reconnecting/.test(hostPhoneText()));
+    }
+
+    async function scenarioPhonelessGiver() {
+      const word = HW().PyrCore.currentWord(core());
+      setGiverPhone("p1", false);
+      await waitFor(() => visible("btn-reveal-words"), "the giver panel comes back");
+      check("HP-6 F6: the giver has no connected phone, so “Show words to me” and Study are offered again",
+        visible("btn-reveal-words") && visible("btn-study") && !visible("pyr-hp-play")
+        && leaksAny(roundWords()).length === 0,
+        leaksAny(roundWords()).join(", ") || "offered, nothing shown yet");
+      click("btn-reveal-words");
+      check("HP-6 …behind its click and its shared-screen warning, exactly as before",
+        leaks(word).length > 0 && /Shared screen/.test(HD().querySelector("#pyr-word-panel .word-warn").textContent),
+        HD().querySelector("#pyr-word-panel .word-warn").textContent);
+      setGiverPhone("p1", true);
+      await waitFor(() => !visible("btn-reveal-words"), "the giver phone is back");
+      check("HP-6 the giver's phone returns: the panel is taken down and the words leave the laptop",
+        leaksAny(roundWords()).length === 0 && HD().querySelectorAll("#pyr-word-panel *").length === 0
+        && visible("pyr-hp-play"),
+        leaksAny(roundWords()).join(", ") || "clean");
+      HW().PyrApp.set({ reveal: false });
+    }
+
+    async function scenarioCircle() {
+      // Close this category and play the other team's, then go up.
+      let guard = 0;
+      while (core().phase !== "mainResult" && guard < 40) {
+        guard += 1;
+        if (core().phase === "board") { freeCards()[0].click(); await sleep(20); continue; }
+        if (!core().round.started) click("btn-clock-start");
+        while (core().round && !core().round.finished) click("btn-correct");
+        click("btn-next");
+        await sleep(20);
+      }
+      click(HW().PyrCore.leader(core()) === 1 ? "btn-to-circle-b" : "btn-to-circle-a");
+      await waitFor(() => core().phase === "circle", "the Winner's Circle");
+      const subjects = core().circle.boxes.map((b) => b.category);
+      await waitFor(() => hostView().circle, "the circle host view");
+      check("HP-7 the host phone lists the six subjects, the current one large",
+        subjects.every((s) => hostPhoneText().indexOf(s) >= 0)
+        && PW("h1").document.querySelector(".host-answer").textContent === subjects[0],
+        hostPhoneText().slice(0, 140));
+      hostPhoneLayout("HP-7");
+      check("HP-7 no subject is anywhere on the laptop, and “Show subjects to me” is gone",
+        leaksAny(subjects).length === 0 && !visible("btn-circle-reveal")
+        && /The subject is on your host phone/.test(H("pyr-hp-circle").textContent),
+        leaksAny(subjects).join(", ") || "clean");
+      HW().PyrApp.set({ circleReveal: true });
+      check("HP-7 a remembered “Show subjects to me” is ignored too",
+        leaksAny(subjects).length === 0, leaksAny(subjects).join(", ") || "clean");
+      HW().PyrApp.set({ circleReveal: false });
+    }
+
+    async function scenarioReconcile() {
+      // Dev is now a host phone (not in the room), and the save holds a stale phone row.
+      players = PLAYERS.filter((p) => p.pid !== "p4");
+      const setup = HW().PyrApp.state().setup;
+      HW().PyrApp.set({ setup: Object.assign({}, setup, {
+        players: setup.players.concat([{ pid: "p9", name: "Gone", manual: false }]),
+      }) });
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "circle", "the restored game");
+      check("HP-8 F11: saved phone seats whose pid is not in the room leave the setup list",
+        !HW().PyrApp.state().setup.players.some((p) => p.pid === "p9" || p.pid === "p4"),
+        HW().PyrApp.state().setup.players.map((p) => p.name).join(","));
+      check("HP-8 the running game keeps that player's seat, phone-less, with one notice",
+        core().teams.some((t) => t.members.some((m) => m.pid === "p4"))
+        && /Dev is no longer a player in this room/.test(H("pyr-error").textContent),
+        H("pyr-error").textContent);
+      players = PLAYERS.slice();
+    }
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      await bootHost();
+      await waitFor(() => HW().PyrApp.state().setup.players.length === 4, "the roster");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "board", "the board");
+      freeCards()[0].click();
+      await waitFor(() => core().phase === "play", "a category");
+      click("btn-clock-start");
+      const word = HW().PyrCore.currentWord(core());
+      check("HP-9 with no host phone the laptop is exactly as before: the controls are there, no note",
+        HW().PyrHostPhone.isPrivate() === false && visible("btn-reveal-words") && visible("btn-study")
+        && !H("pyr-hp-play") && !/host phone/i.test(HD().body.textContent));
+      click("btn-reveal-words");
+      check("HP-9 …and “Show words to me” shows the word, as it always has",
+        HD().querySelector("#pyr-word-panel .word-now").textContent === word);
+    }
+
+    (async function run() {
+      try {
+        await scenarioConnected();
+        await scenarioDisconnected();
+        await scenarioPhonelessGiver();
+        await scenarioCircle();
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      await loadFrame(hostFrame, "about:blank");
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      render();
+      window.__PYR_HP_DONE__ = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

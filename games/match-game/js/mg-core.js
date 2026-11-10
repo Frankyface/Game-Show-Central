@@ -22,10 +22,11 @@
   const node = typeof module === "object" && module.exports;
   const content = node ? require("./mg-content.js") : root.MgContent;
   const select = node ? require("./mg-select.js") : root.MgSelect;
-  const api = factory(content, select);
+  const hostViews = node ? require("./mg-hostview.js") : (root.MgHostView || {});
+  const api = factory(content, select, hostViews);
   if (node) module.exports = api;
   root.MgCore = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (Content, Select) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (Content, Select, HostViews) {
   "use strict";
 
   const {
@@ -510,7 +511,7 @@
     return patch(next, { history: state.history.concat([snapshot(state)]).slice(-MAX_HISTORY) });
   }
 
-  return Object.assign({}, Content, Select, {
+  return Object.assign({}, Content, Select, HostViews, {
     createState, reduce, snapshot,
     seatFor, currentSeat, playableSlots, slotOf,
     PHASES, MAX_HISTORY, MAX_GUESSES, MAX_SUBMISSIONS,

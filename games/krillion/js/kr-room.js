@@ -172,7 +172,10 @@
     embedded = GSC.mode === "embed-host";
     if (embedded) document.body.classList.add("gsc-embedded");
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        // docs/22: host phones are never players; kr-hostphone.js owns them.
+        onHostPhones: (list) => { if (window.KrHostPhone) window.KrHostPhone.onHostPhones(list); },
+      });
     } catch (err) {
       window.KrApp.error(`Phones are unavailable: ${err.message}. You can still run the game.`);
       return;
@@ -180,6 +183,8 @@
     // Bind the (possibly resumed) game to THIS room before any phone joins.
     window.KrApp.bindRoom(room.code);
     if (room.onStatus) room.onStatus(() => { window.KrApp.bindRoom(room.code); paintRoom(); });
+    // Seat reconciliation and the host view, before any phone is (re)seated.
+    if (window.KrHostPhone) window.KrHostPhone.attach(room);
     window.KrApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
     wireRoomButton();
     (room.players ? room.players() : []).forEach(onPlayerJoin);

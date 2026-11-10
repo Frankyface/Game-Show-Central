@@ -1,0 +1,184 @@
+{
+  "title": "Match Game host-phone fixture",
+  "settings": {
+    "currency": "$",
+    "panelSize": 3,
+    "rounds": 1,
+    "pointsPerMatch": 1,
+    "audienceValues": [
+      500,
+      250,
+      100
+    ],
+    "multipliers": [
+      10,
+      20,
+      30
+    ],
+    "secondRoundRule": false
+  },
+  "prompts": [
+    {
+      "text": "Host phone prompt 1 ends in a ___.",
+      "hint": "ZQH-hint 1"
+    },
+    {
+      "text": "Host phone prompt 2 ends in a ___.",
+      "hint": "ZQH-hint 2"
+    },
+    {
+      "text": "Host phone prompt 3 ends in a ___.",
+      "hint": "ZQH-hint 3"
+    },
+    {
+      "text": "Host phone prompt 4 ends in a ___.",
+      "hint": "ZQH-hint 4"
+    },
+    {
+      "text": "Host phone prompt 5 ends in a ___.",
+      "hint": "ZQH-hint 5"
+    },
+    {
+      "text": "Host phone prompt 6 ends in a ___.",
+      "hint": "ZQH-hint 6"
+    },
+    {
+      "text": "Host phone prompt 7 ends in a ___.",
+      "hint": "ZQH-hint 7"
+    },
+    {
+      "text": "Host phone prompt 8 ends in a ___.",
+      "hint": "ZQH-hint 8"
+    },
+    {
+      "text": "Host phone prompt 9 ends in a ___.",
+      "hint": "ZQH-hint 9"
+    },
+    {
+      "text": "Host phone prompt 10 ends in a ___.",
+      "hint": "ZQH-hint 10"
+    },
+    {
+      "text": "Host phone prompt 11 ends in a ___.",
+      "hint": "ZQH-hint 11"
+    },
+    {
+      "text": "Host phone prompt 12 ends in a ___.",
+      "hint": "ZQH-hint 12"
+    },
+    {
+      "text": "Host phone prompt 13 ends in a ___.",
+      "hint": "ZQH-hint 13"
+    },
+    {
+      "text": "Host phone prompt 14 ends in a ___.",
+      "hint": "ZQH-hint 14"
+    },
+    {
+      "text": "Host phone prompt 15 ends in a ___.",
+      "hint": "ZQH-hint 15"
+    },
+    {
+      "text": "Host phone prompt 16 ends in a ___.",
+      "hint": "ZQH-hint 16"
+    },
+    {
+      "text": "Host phone prompt 17 ends in a ___.",
+      "hint": "ZQH-hint 17"
+    },
+    {
+      "text": "Host phone prompt 18 ends in a ___.",
+      "hint": "ZQH-hint 18"
+    },
+    {
+      "text": "Host phone prompt 19 ends in a ___.",
+      "hint": "ZQH-hint 19"
+    },
+    {
+      "text": "Host phone prompt 20 ends in a ___.",
+      "hint": "ZQH-hint 20"
+    },
+    {
+      "text": "Host phone prompt 21 ends in a ___.",
+      "hint": "ZQH-hint 21"
+    },
+    {
+      "text": "Host phone prompt 22 ends in a ___.",
+      "hint": "ZQH-hint 22"
+    },
+    {
+      "text": "Host phone prompt 23 ends in a ___.",
+      "hint": "ZQH-hint 23"
+    },
+    {
+      "text": "Host phone prompt 24 ends in a ___.",
+      "hint": "ZQH-hint 24"
+    },
+    {
+      "text": "Host phone prompt 25 ends in a ___.",
+      "hint": "ZQH-hint 25"
+    },
+    {
+      "text": "Host phone prompt 26 ends in a ___.",
+      "hint": "ZQH-hint 26"
+    },
+    {
+      "text": "Host phone prompt 27 ends in a ___.",
+      "hint": "ZQH-hint 27"
+    },
+    {
+      "text": "Host phone prompt 28 ends in a ___.",
+      "hint": "ZQH-hint 28"
+    },
+    {
+      "text": "Host phone prompt 29 ends in a ___.",
+      "hint": "ZQH-hint 29"
+    },
+    {
+      "text": "Host phone prompt 30 ends in a ___.",
+      "hint": "ZQH-hint 30"
+    }
+  ],
+  "audiencePrompts": [
+    {
+      "text": "Host phone audience prompt 1",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 2",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 3",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 4",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 5",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 6",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 7",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 8",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 9",
+      "hint": ""
+    },
+    {
+      "text": "Host phone audience prompt 10",
+      "hint": ""
+    }
+  ]
+}

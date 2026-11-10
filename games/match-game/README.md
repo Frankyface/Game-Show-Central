@@ -154,12 +154,44 @@ Anton only for the prompt (and the game name on setup, the amount won on the
 result), gold only on money, inline SVG icons on the toolbar
 (Sound · Prompt editor · Game lobby).
 
+## Host phone (docs/22)
+
+From the hub lobby, the host can make any phone the **host phone**. That phone becomes a private second screen. It shows:
+
+- the prompt and its hint;
+- every panel answer as it arrives, before its card flips;
+- the contestant's answer once locked;
+- the Audience Match top three before they are revealed;
+- both Head-to-Head cards before they are turned over.
+
+The host phone is read-only and sends nothing.
+
+While a host phone is assigned, connected or not, the shared screen keeps those answers private:
+
+- The hint is not shown.
+- The board rows read "Hidden" until a guess hits them, and the merge buttons name rows by rank.
+- Every host type-in is masked.
+
+In their place the laptop says "Answer is on your host phone". If the phone is away, it says "Host phone disconnected" and shows one **Show answer on this screen** button. That button reveals the current item only and is forgotten on the next item.
+
+On boot inside the hub, phone seats whose phone is not in the room are cleared from setup. A game in progress keeps such a seat and the host types for it.
+
+With no host phone, nothing changes.
+
+Code:
+
+- `js/mg-hostview.js`: the pure view.
+- `js/mg-hostscreen.js`: the laptop side.
+- `js/mg-hostphone.js` and `css/mg-hostphone.css`: the phone page.
+- `tests/mg-hostview.test.mjs`, `tests/harness-hostphone.html`: the tests.
+
 ## Testing
 
 ```bash
-cd games/match-game && node --test        # 98 tests: M-U1…M-U10, adversarial, fuzz, tester suite
+cd games/match-game && node --test        # 106 tests: M-U1…M-U10, adversarial, fuzz, tester suite, host view
 python -m http.server 8714 --bind 127.0.0.1
-# open http://127.0.0.1:8714/games/match-game/tests/harness.html   (MG-I1…MG-I6, 64 checks)
+# open http://127.0.0.1:8714/games/match-game/tests/harness.html            (MG-I1…MG-I6, 64 checks)
+# open http://127.0.0.1:8714/games/match-game/tests/harness-hostphone.html  (host phone, 29 checks)
 ```
 
 ## Known issues

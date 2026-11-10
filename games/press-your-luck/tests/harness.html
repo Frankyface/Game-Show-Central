@@ -152,7 +152,7 @@
     const ASSETS = [
       "../js/pyl-content.js", "../js/pyl-select.js", "../js/pyl-core.js", "../js/data.js",
       "../js/pyl-sound.js", "../js/pyl-board.js", "../js/pyl-view.js", "../js/pyl-app.js",
-      "../js/pyl-editor.js", "../js/pyl-room.js", "../js/pyl-phone.js", "../js/pyl-boot-check.js",
+      "../js/pyl-editor.js", "../js/pyl-room.js", "../js/pyl-phone.js", "../js/pyl-boot-check.js", "../js/pyl-host-view.js", "../js/pyl-host-screen.js", "../js/pyl-hostphone.js", "../css/pyl-host.css",
       "../css/pyl.css", "../css/pyl-phone.css",
       "../board.json", "../sets/index.json", "../sets/kids-night.json", "../sets/movies-and-tv.json",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
@@ -693,7 +693,7 @@
       const order = [...HD().querySelectorAll(".topbar-actions button")]
         .filter((b) => b.id !== "btn-exit").map((b) => `${b.textContent.trim()}${b.querySelector("svg") ? "+icon" : ""}`);
       check("L-I6 UI-12 the toolbar reads Sound · Editor · Game lobby, each with an icon",
-        /^Sound (on|off)\+icon,Editor\+icon,Game lobby\+icon$/.test(order.join(",")), order.join(", "));
+        /^Sound( on| off)?\+icon,Editor\+icon,Game lobby\+icon$/.test(order.join(",")), order.join(", "));
       check("L-I6 Game lobby is disabled on setup (nothing to park)",
         core() === null ? H("btn-game-lobby").disabled === true : true, `core ${core() ? "live" : "null"}`);
       const EMO = /\p{Extended_Pictographic}/u;

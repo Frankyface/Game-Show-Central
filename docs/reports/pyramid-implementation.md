@@ -510,3 +510,81 @@ outlined. Largest file is now `js/pyr-app.js` at 769.
   clears any parked game (`resumable: null`) so it cannot resurface under the
   new one. Harness asserts the control is visible and disabled while parked.
 - `node --test` 95/95; harness **97/97** on port 8692 (95 + the two checks above).
+
+---
+
+## 12. The host phone (docs/22, review F6 / F11)
+
+Built against the SDK in `docs/reports/host-phone-shell-implementation.md` §1,
+in the shape of the Weakest Link worked example. New code is in new files; the
+existing files gained only small, commented hooks.
+
+| File | What it is |
+| --- | --- |
+| `js/pyr-host-view.js` (new, PURE, UMD → `PyrHostView`) | `hostView(state)`: in a category the title, the plain theme (`hint`), giver/guesser/team, **all the words with their status, the current one marked**, counts and the buzzer flag; in the Winner's Circle the **six subjects** with value and status, the current one marked, the money so far. Setup, the board, the end of the main game, a **finished** round (its words are now public on the shared screen), result and standings: `secret:false`. Also `itemKey(state)` (changes with the word or the box, never contains it) and `currentAnswer(state)` (the one word or subject the fallback may reveal). A few hundred bytes. |
+| `js/pyr-hostphone.js` (new) | Shared-screen side: `room.setHostView({t:"host", item, seq, …})` on every change — `seq` is a counter that bumps only when `[item, view]` changes; answers-private mode; the fallback; seat reconciliation. |
+| `js/pyr-host-screen.js` + `css/pyr-hostphone.css` (new) | Phone side in `role=host`: "Host · Pyramid", the item label, the current word in the accent at 32 px, the theme, then every word (or subject) with how it went; stale → dimmed + "Reconnecting — this may be out of date"; `tooBig` → "Too much to show — use the button on the laptop"; no buttons; sends nothing. |
+| hooks | `pyr-view.js`: `revealActive()` and `renderCircle()` ask `PyrHostPhone.lockWords()` first. `pyr-room.js`: `onHostPhones`, `attach(room)`, and a `refresh()` on player status/leave (a giver's phone coming or going changes the lock with no state change). `pyr-phone.js`: `onHostView`, start/stop the host screen by `me.role`, `render()` stands down while it is active (it would otherwise also strip the host card's `.hidden` from the contestant card), and a host phone does not send `ready`. `index.html`: the host card, ids on the two word columns, the three scripts and the sheet. |
+
+**Answers-private mode, the Pyramid rule (§5.4 + F6).** The secret is the
+giver's words. While a host phone is assigned and **the current giver has a
+connected phone**, nothing builds a word or subject on the shared screen: the
+remembered "Show words to me" / "Show subjects to me" switches are ignored (not
+cleared), the reveal and Study buttons are hidden, and the column reads "Words
+are on your host phone" (circle: "The subject is on your host phone") — or,
+with no host phone connected, "Host phone disconnected" and one **Show answer
+on this screen**, which shows the current word (or subject) only and clears on
+the next one. While the current giver has **no** connected phone — typed in,
+dropped, or orphaned by reconciliation — the panel is offered exactly as before,
+behind its click and its shared-screen warning. The word list after a round
+and the subjects after the circle are public reveals and are unchanged.
+
+**Seat reconciliation (§5.6, F11), embedded only.** Once the save is restored,
+phone rows in the setup list whose pid is not in `room.players()` are dropped
+(and their seats cleared). A running or parked game that seats such a pid keeps
+the seat, plays it phone-less (no phone view is ever addressed to it, and the
+giver panel stays available for it) and shows one notice: "‹name› is no longer
+a player in this room (now the host phone, or gone) — play their turns from
+this screen, or start a new game."
+
+**Not in the content format.** The spec asks for Winner's Circle subjects "with
+their hint lists". Pyramid's circle boxes carry only a `category` — there are
+no example lists to show — so the host phone shows each subject with its value
+and status. Adding an optional `examples` array would be a content-contract
+change (validator, editor, shipped sets) and is left for a decision.
+
+**No host phone → identical behaviour.** `answersPrivate()` is false, no note
+is built, no control is hidden, and `lockWords()` is false, so `pyr-view.js`
+takes exactly the path it always did (asserted in HP-9 below, and by the
+unchanged 97-check main harness).
+
+**Tests**
+
+- `tests/pyr-host-view.test.mjs` — 9 cases: nothing secret in setup/board/end
+  of the main game/result/standings; the right words, statuses and current word
+  through correct/pass/illegal; the item key moves with the word and never
+  carries it; a finished round is no longer secret; the circle's six subjects,
+  values, statuses and money; the tiebreak; purity on a deep-frozen state and
+  size; `phoneView` unchanged (no host-view field reaches any pid, including
+  `__proto__`). `node --test` **104/104** (95 + 9); repo root 1546/1546.
+- `tests/harness-hostphone.html` — **26/26**, on a fixture
+  (`tests/fixtures/hostphone-game.json`) whose words all start `QZW` and whose
+  subjects start `QZC`, so the leak scan cannot match ordinary page text. The
+  scan covers text, `value`, `placeholder`, `title`, `alt`, `aria-label`,
+  `data-*`, and the shell's `setTitle`/`reportScores` frames.
+  HP-1 the host-role frame gets its view through `onHostView` ("Nothing secret
+  right now" in setup) · HP-2 current word, theme and all words on the host
+  phone; 320 px layout (no scroll, text ≥ 16, answer ≥ 28, no buttons);
+  contestant frames never get a host view · HP-3 **connected**: no word anywhere
+  on the laptop; the note replaces the controls; a forced remembered reveal is
+  ignored; the host phone sent nothing · HP-4 **disconnected**: still clean,
+  "Host phone disconnected" + exactly one fallback; the phone dims · HP-5 the
+  fallback shows the current word only and clears on the next; reconnect
+  restores the note · HP-6 **F6**: the giver's phone drops → "Show words to me"
+  and Study return and work behind the warning; the phone returns → the panel
+  is taken down · HP-7 the Winner's Circle: six subjects on the phone, none on
+  the laptop, the remembered "Show subjects" ignored · HP-8 **F11**: stale phone
+  rows leave setup; the running game keeps Dev's seat with the notice · HP-9 no
+  host phone: controls present, no note, "Show words to me" shows the word.
+- Main harness **97/97** (unchanged count; the new files are now in its static
+  gates). Served by `.scratch/hp-pyr-serve.mjs` on 127.0.0.1:8692.

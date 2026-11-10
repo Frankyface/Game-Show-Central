@@ -234,6 +234,7 @@ function pwdOpenEditor() {
 }
 
 function pwdCloseEditor() {
+  if ($("pwd-ed-words")) $("pwd-ed-words").value = "";   // reopening re-renders it from the draft
   window.PwdApp.set({ editorOpen: false });
 }
 

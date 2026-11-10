@@ -100,3 +100,41 @@ The tester's verdict was fix-then-ship (`docs/reports/krillion-verification.md`)
 | Decision | `meterForHeart` default is **10**: in `DEFAULT_SETTINGS`, `prompts.json`, `js/data.js` (still a byte-for-byte mirror), both library sets, the harness fixture, the README and the unit test that pinned 100. I removed the old README known issue about hearts never coming back. |
 
 Results: `cd games/krillion && node --test` passes **44/44** (including `tests/kr-adversarial.test.mjs`). The repo-root `node --test` passes 1422/1422. `tests/harness.html` on 127.0.0.1:8721 passes **65/65**. Static gates are still clean: no inner-HTML, string evaluation or console logging, and the largest file is `kr-app.js` at 613 lines.
+
+## Host phone (docs/22 §5, Krillion row) — 2026-11-10
+
+I built this to the seven-item contract in docs/22 §5, followed F11 for seat reconciliation, and coded against the SDK as described in `host-phone-shell-implementation.md` §1. The structure copies Weakest Link. All new code is in new files: `js/kr-host-view.js`, `js/kr-hostphone.js`, `js/kr-hostscreen.js`, `css/kr-host.css`, `tests/kr-host-view.test.mjs`, `tests/harness-hostphone.js` and `tests/fixtures/hostphone-game.json`. The existing files only got hooks: script and link tags, the host card `<div>`, `onHostPhones` / `attach(room)` in `kr-room.js`, `onHostView` / role routing in `kr-phone.js`, `KrApp.note`, a null guard in `renderList`, and the harness shell routing.
+
+1. **Selector — `KrHostView.hostView(state)` (pure).**
+   - **Deep Dive (intro, prompt, reveal):** shows the prompt, the rated list grouped by tier (the judge's remembered answers included), each submitted answer as it arrives with its matched tier (or "pending" / the ruling for off-list answers), "n / m answered", and a preview of the judge's queue.
+   - **Puffer Party:** shows the prompt, the rated list, the holder, the pending answer and the used answers.
+   - **Setup, depth board and result:** `secret:false`.
+   - **Size limits:** lists are cut to 30 words per tier and 16 rows, each with a "more" count. The largest shipped prompt with 16 players stays under 8 KB.
+   - **Fallback item key:** `itemKey(state)` changes only when a new prompt comes up.
+2. **Room glue.** On every render the glue sends `room.setHostView({t:"host", item, seq, ...hostView})`. `seq` is a counter that goes up only when the view's JSON changes; pausing the clock, for example, sends the same `seq`. There is no cache, no resend and no `room.send` for host data, and `phoneView` is unchanged.
+3. **Phone page in `role=host`.**
+   - **What it shows:** a "Host · Krillion" header, the prompt, "Answers in" (name: text → tier, with pending answers in coral), the judge's queue, and the rated list with answers at 28 px in the accent.
+   - **Size:** all text is at least 16 px, with no sideways scroll at 320 px.
+   - **Behaviour:** no buttons, and it sends nothing (it skips the contestant `ready`). The contestant renderer returns early while the host screen is active.
+4. **Answers-private mode.**
+   - **What's removed:** both "Show the rated list" toggles and both rated-list panels are taken out of the document. The remembered `showList` switch is ignored but not cleared.
+   - **What replaces them:** "Answers are on your host phone". While no host phone is connected it reads "Host phone disconnected" with one **Show answer on this screen** button. That button shows the current prompt's rated list only, and it clears on the next prompt.
+   - **What's unchanged:** the judge's review, the public reveal and Puffer Party's shared screen. The Puffer screen never had a list panel.
+5. **Tests.**
+   - **Unit:** `kr-host-view.test.mjs` adds HV-1…HV-8 (8 tests). They cover nothing secret on setup, depth and result; the list grouped by tier; answers with tier or pending; queue rulings and remembered answers; Puffer; truncation and the 16 KB budget across all 100 shipped prompts; `itemKey` and purity; and `phoneView` unchanged.
+   - **Harness:** `harness-hostphone.js` adds HP-1…HP-6 (13 checks). The fixture's rated answers all start with `Hpq`, so any `Hpq` on the shared screen before the reveal is a leak. The leak check covers text, `value`, `placeholder`, `title`, `alt`, `aria-label`, `data-*` and `setTitle`, with the host phone both connected and disconnected. The fallback shows the list, and it is gone on the next prompt.
+6. **Seat reconciliation** (embedded only, once, at room attach, before phones are re-seated). Phone seats in the saved setup that are not in `room.players()` are dropped. A running or kept game keeps such a seat (the host types for it) and shows one notice that survives the content load: "‹name› is no longer a player in this room (now the host phone, or gone) — type their answers from this screen, or start a new game."
+7. **Stale and tooBig states.** The phone dims with "Reconnecting — this may be out of date", and a refused view reads "Too much to show — use the button on the laptop".
+
+**Results:**
+- `cd games/krillion && node --test` passes **52/52**: 44 existing plus 8 new.
+- The repo-root `node --test` passes **1546/1546**.
+- `tests/harness.html` on 127.0.0.1:8721 (Node static server `.scratch/hp-kr-serve.mjs`) passes **78/78**: 65 existing plus 13 host-phone checks.
+
+With no host phone assigned the original 65 harness checks pass unchanged.
+
+**Harness change:** the frames now have `flex: none`. The browser pane is shared with other agents and was 268 px wide, which shrank the 1280 px host iframe and broke the no-scroll checks. That was a harness artefact, not a game bug.
+
+**Gates:** no banned sinks, no `console.log`, and the largest file is `kr-app.js` at 614 lines.
+
+Scratch helpers are `.scratch/hp-kr-fixture.mjs` (writes the prefixed-answer fixture) and `.scratch/hp-kr-serve.mjs`.

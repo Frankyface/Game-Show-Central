@@ -1,0 +1,74 @@
+/* ============================================================
+   Password — the host phone (docs/22 §5.3, design system v3)
+   Readable at arm's length on a 320 px phone: flat, one surface,
+   Inter, text >= 16 px, the password >= 28 px in the accent.
+   No buttons: the host phone only ever reads.
+   ============================================================ */
+
+body.host-phone #pwd-phone-card { display: none !important; }
+
+.host-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 0.9rem 0.85rem 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+/* Transport down: everything dims; the stale line says why in words. */
+.host-card.is-stale > :not(.host-stale):not(.host-head) { opacity: 0.55; }
+
+.host-head { display: flex; align-items: baseline; gap: 0.5rem; }
+.host-tag { font-size: 1rem; font-weight: 600; color: var(--accent); }
+.host-game { font-size: 1rem; font-weight: 600; color: var(--ink); }
+
+.host-stale {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--amber);
+  border: 1px solid rgba(255, 179, 71, 0.55);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+}
+
+.host-phase { margin: 0; font-size: 1rem; color: var(--ink-dim); }
+.host-item { margin: 0.2rem 0 0; font-size: 1.15rem; font-weight: 600; color: var(--ink); }
+.host-label { margin: 0.4rem 0 0; font-size: 1rem; font-weight: 500; color: var(--ink-mute); }
+
+/* The answer: the one thing the host looks down for. */
+.host-answer {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 12vw, 3.4rem);
+  line-height: 1.05;
+  color: var(--accent);
+}
+
+.host-meta { margin: 0; font-size: 1rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.host-note { margin: 0.2rem 0 0; font-size: 1rem; color: var(--ink-dim); }
+
+.host-next { margin-top: 0.4rem; border-top: 1px solid var(--hairline); padding-top: 0.4rem; }
+.host-next-a { margin: 0; font-size: 1.6rem; font-weight: 600; color: var(--ink); }
+
+.host-words { list-style: none; margin: 0.4rem 0 0; padding: 0; border-top: 1px solid var(--hairline); }
+
+.host-word {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--hairline);
+  padding: 0.4rem 0;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.host-word-text { font-weight: 600; }
+.host-word-note { font-size: 1rem; color: var(--ink-mute); white-space: nowrap; }
+.host-word.is-current .host-word-text, .host-word.is-current .host-word-note { color: var(--accent); }
+.host-word.is-got .host-word-text { text-decoration: line-through; color: var(--ink-dim); }

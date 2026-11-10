@@ -18,9 +18,10 @@
     .tag { font-weight: 700; margin-right: 0.5rem; }
     .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
     .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
-    #host { width: 1280px; height: 720px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    /* flex: none — the frames keep their size however narrow the harness window is. */
+    #host { flex: none; width: 1280px; height: 720px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
     .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-    .phones iframe { width: 320px; height: 600px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+    .phones iframe { flex: none; width: 320px; height: 600px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
   </style>
 </head>
 <body>
@@ -37,6 +38,7 @@
     <div class="phones" id="phones"></div>
   </div>
 
+  <script src="harness-hostphone.js"></script>
   <script>
   (function () {
     "use strict";
@@ -104,7 +106,12 @@
       { pid: "p4", name: "Di", color: "#e6b800", avatar: "🦀", connected: true, manual: false },
       { pid: "p5", name: "Ed", color: "#c1121f", avatar: "🐢", connected: true, manual: false },
     ];
+    // `hostPhones` / `answersPrivate` are set only by the host-phone scenario
+    // (harness-hostphone.js); every other scenario runs with no host phone.
     const ROOM = { code: "KRHA", players: PLAYERS };
+    const hostPhoneFrames = new Map(); // pid -> iframe, role "host"
+    const hostViewLog = [];            // every host-view the game frame sent up
+    const sendLog = [];                // every {t:"send"} the game frame sent up
 
     const hostFrame = document.getElementById("host");
     const phoneFrames = new Map();
@@ -123,11 +130,21 @@
       for (const [pid, frame] of phoneFrames) {
         if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
       }
+      for (const [pid, frame] of hostPhoneFrames) {
+        if (event.source === frame.contentWindow) { fromHostPhone(pid, d); return; }
+      }
     });
 
     function fromHost(d) {
       if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "host-view") {
+        // The hub delivers host views to host phones only (docs/22 §4.2).
+        hostViewLog.push(d.m);
+        hostPhoneFrames.forEach((f) => post(f, { t: "host-view", m: d.m }));
+        return;
+      }
       if (d.t === "send") {
+        sendLog.push(d);
         if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
         else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
         return;
@@ -144,17 +161,31 @@
       if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
     }
 
+    /** A host phone gets init with role "host" and the latest host view; it sends nothing. */
+    function fromHostPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = (ROOM.hostPhones || []).find((p) => p.pid === pid) || { pid, name: "Host" };
+        post(hostPhoneFrames.get(pid), { t: "init", mode: "embed-player",
+          me: { pid, name: me.name, color: "#2ee6c5", avatar: "", role: "host" }, room: { code: ROOM.code } });
+        if (hostViewLog.length) post(hostPhoneFrames.get(pid), { t: "host-view", m: hostViewLog[hostViewLog.length - 1] });
+        return;
+      }
+      if (d.t === "send") shellLog.push({ t: "host-phone-sent", pid, m: d.m }); // must never happen
+    }
+
     /* ============ Loading (stale-bundle guard) ============ */
 
     const JS = ["kr-content.js", "kr-select.js", "kr-core.js", "data.js", "kr-sound.js", "kr-clock.js",
-      "kr-view.js", "kr-party.js", "kr-app.js", "kr-editor.js", "kr-room.js", "kr-phone.js"];
-    const CSS = ["kr.css", "kr-phone.css"];
+      "kr-view.js", "kr-party.js", "kr-app.js", "kr-editor.js", "kr-host-view.js", "kr-hostphone.js",
+      "kr-room.js", "kr-hostscreen.js", "kr-phone.js"];
+    const CSS = ["kr.css", "kr-phone.css", "kr-host.css"];
     const ASSETS = JS.map((f) => `../js/${f}`).concat(CSS.map((f) => `../css/${f}`)).concat([
       "../../../shared/theme.css", "../../../shared/theme-components.css", "../../../shared/library.js",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
       "../sets/index.json", "../sets/kids-night.json", "../sets/pop-culture.json",
-      "fixtures/harness-game.json", "../prompts.json",
+      "fixtures/harness-game.json", "fixtures/hostphone-game.json", "harness-hostphone.js",
+      "../../../shared/icons.js", "../prompts.json",
     ]);
 
     // ?store=harness keeps this run out of the real host's save on the same origin.
@@ -180,10 +211,10 @@
     const click = (id) => H(id).click();
     const hostText = () => HD().body.textContent;
 
-    async function bootHost(clear) {
+    async function bootHost(clear, src) {
       // Clear BEFORE the frame loads a page, never while one is unloading.
       if (clear !== false) KEYS.forEach((k) => localStorage.removeItem(k));
-      await loadFrame(hostFrame, HOST_SRC);
+      await loadFrame(hostFrame, src || HOST_SRC);
       await waitFor(() => HW().KrApp && HW().KrApp.state().game && HW().KrApp.state().sourceKind === "url",
         "host boot with the fixture");
     }
@@ -575,6 +606,10 @@
         await scenarioPuffer();
         await scenarioEditorLibrary();
         await scenarioGates();
+        await window.KRHostPhone({
+          check, click, waitFor, sleep, H, HD, HW, core, bootHost, post, loadFrame, phoneSays,
+          ROOM, PLAYERS, PW, phoneFrames, hostPhoneFrames, hostViewLog, sendLog, shellLog, hostFrame,
+        }).run();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);
         check("harness run completed", false, uncaught);

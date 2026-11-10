@@ -1,0 +1,99 @@
+/* ============================================================
+   Chain Reaction — host phone (docs/22 §5.3/§5.7, design system v3)
+   The phone screen: a small "Host" header, the word in play large in
+   the accent (>= 28 px), then the whole chain stacked like the show.
+   Text >= 16 px, no horizontal scroll at 320 px, no buttons.
+   Plus the shared-screen notes for answers-private mode (§5.4).
+   ============================================================ */
+
+/* ---- The phone ---- */
+
+.host-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem 0.8rem 1.6rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+.host-card.is-stale { opacity: 0.55; }
+
+/* Colour is never the only signal: the word "Host" names the screen. */
+.host-head {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--accent);
+}
+.host-tag {
+  padding: 0.1em 0.5em;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+.host-game { font-size: 16px; font-weight: 600; color: var(--ink); }
+
+.host-stale { margin: 0; font-size: 16px; font-weight: 600; color: var(--amber); }
+.host-phase { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink-dim); }
+.host-empty { margin: 0.4rem 0 0; font-size: 20px; font-weight: 600; color: var(--ink); }
+
+.host-current { padding: 0.2rem 0 0.4rem; }
+.host-label { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink-dim); }
+.host-answer { margin: 0.1rem 0 0; font-size: 32px; font-weight: 600; line-height: 1.1; color: var(--accent); }
+.host-neighbour { margin: 0; font-size: 18px; font-weight: 600; color: var(--ink-dim); }
+.host-next-title { margin: 0.4rem 0 0; font-size: 16px; font-weight: 600; color: var(--ink-dim); }
+
+/* The chain, stacked: one tile size for the column, the longest word decides
+   (--cr-cols from cr-host-screen.js) — the same geometry as the contestant
+   phone, so a 12-letter word fits at 320 px. */
+.host-chain {
+  --hp-gap: 2px;
+  --hp-tile: min(28px, calc((100% - (var(--cr-cols, 8) - 1) * var(--hp-gap)) / var(--cr-cols, 8)));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+.host-row { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.host-tiles {
+  display: grid;
+  grid-template-columns: repeat(var(--len, 5), 1fr);
+  gap: var(--hp-gap);
+  width: calc(var(--len, 5) * var(--hp-tile) + (var(--len, 5) - 1) * var(--hp-gap));
+  border-radius: 4px;
+}
+/* The host sees every letter: the room's ones are filled white, the rest are
+   outlined in the accent so "what the room still has to find" reads at a glance. */
+.host-tile {
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 3px;
+  color: var(--ink);
+  background: var(--cr-tile-blank);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.host-tile.is-lit { color: var(--cr-tile-ink); background: var(--cr-tile-face); border-color: var(--cr-tile-rule); }
+.host-row.is-frontier .host-tiles { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.host-row.is-target .host-tiles { outline: 2px solid var(--accent); outline-offset: 2px; }
+.host-row-note { margin: 0.1rem 0 0; font-size: 16px; color: var(--ink-dim); }
+.host-row.is-target .host-row-note { color: var(--ink); font-weight: 600; }
+
+/* A host phone shows no contestant chrome: the Host header names the game. */
+body.host-phone .topbar { display: none; }
+
+/* ---- The shared screen in answers-private mode ---- */
+
+.hp-note { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0.3rem 0 0; }
+.hp-note-text { margin: 0; font-size: 15px; color: var(--ink-dim); }
+.hp-reveal { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink); }

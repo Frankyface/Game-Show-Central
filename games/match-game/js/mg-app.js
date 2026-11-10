@@ -58,6 +58,11 @@ function mgFreshApp() {
     lobbyOpen: false,
     hideTyping: false,
     spinning: false,
+    // docs/22: never saved — they come from the room on every boot.
+    answersPrivate: false,    // a host phone is assigned (connected or not)
+    hostPhoneLive: false,     // …and one is connected right now
+    fallbackKey: null,        // the one item the host chose to show on this screen
+    phoneless: [],            // seated pids with no phone in this room
   };
 }
 
@@ -295,10 +300,20 @@ function mgNameOf(pid) {
   return found ? found.name : "";
 }
 
+/**
+ * A seat's name follows its phone: a name that was filled in from the old
+ * phone's player is replaced by the new one's; a name the host typed stays.
+ */
+function mgSeatName(row, pid) {
+  const auto = !row.name || (row.pid && row.name === mgNameOf(row.pid));
+  return auto && pid ? mgNameOf(pid) || row.name : row.name;
+}
+
 function mgSetPanelPid(slot, pid) {
+  const before = mgApp.setup.panel[slot] || { name: "", pid: "" };
   const setup = mgClaimPid(mgApp.setup, pid, { kind: "panel", index: slot });
   const panel = setup.panel.map((p, i) => (i === slot
-    ? { name: p.name || mgNameOf(pid), pid } : p));
+    ? { name: mgSeatName(before, pid), pid } : p));
   mgSetSetup(Object.assign({}, setup, { panel }));
 }
 
@@ -308,9 +323,10 @@ function mgSetPanelName(slot, name) {
 }
 
 function mgSetContestantPid(index, pid) {
+  const before = mgApp.setup.contestants[index] || { name: "", pid: "" };
   const setup = mgClaimPid(mgApp.setup, pid, { kind: "contestant", index });
   const contestants = setup.contestants.map((c, i) => (i === index
-    ? { name: c.name || mgNameOf(pid), pid } : c));
+    ? { name: mgSeatName(before, pid), pid } : c));
   mgSetSetup(Object.assign({}, setup, { contestants }));
 }
 
