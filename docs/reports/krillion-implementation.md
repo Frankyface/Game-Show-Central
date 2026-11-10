@@ -138,3 +138,15 @@ With no host phone assigned the original 65 harness checks pass unchanged.
 **Gates:** no banned sinks, no `console.log`, and the largest file is `kr-app.js` at 614 lines.
 
 Scratch helpers are `.scratch/hp-kr-fixture.mjs` (writes the prefixed-answer fixture) and `.scratch/hp-kr-serve.mjs`.
+
+### L5 (host-phone verification) — 2026-11-10
+
+Before the clock starts, a Deep Dive prompt's rated list is already secret, but the intro screen had no host-phone note and no fallback. `kr-hostphone.js` now gives the intro the same treatment as the prompt and reveal screens: "Answers are on your host phone", or, with the host phone away, "Host phone disconnected" plus **Show answer on this screen**. The intro has nothing to take out of the page; it only gets the note and the fallback list. The intro and the open prompt share one item key, so a fallback opened before the clock stays open when the clock starts and the button does not come back.
+
+Four new harness checks (L5) cover:
+- the connected note on the intro;
+- the disconnected note and button on the intro, with the list absent;
+- the intro fallback showing the list;
+- Start the clock keeping the list shown with no re-armed button.
+
+Results: unit tests 52/52; harness on 127.0.0.1:8721 82/82.

@@ -249,3 +249,11 @@ The harness checks (prefixes: `ZQH-` hints, `ZQP-` panel answers, `ZQA-` audienc
 - **HP-5:** both Head-to-Head cards reach the host phone and are absent from the laptop until the reveal. The host phone sent nothing. `tooBig` shows its plain-words message.
 - **HP-6:** seat reconciliation, with a former panelist now acting as the host phone.
 - **HP-7:** with no host phone, the hint is shown exactly as before and the type-in is not forced.
+
+**Round 3a — M1 (`docs/reports/host-phone-verification.md`), fixed 2026-11-10.**
+
+- **The defect:** when a seat loses its phone (seat reconciliation on boot, a new room, or another seat taking that phone), it used to keep the departed player's name. The next phone to join then took the seat under that old name. In the hub, contestant seat 1 still read "Hana" (now the host phone) while bound to Dex's phone.
+- **The fix:** the new `mgUnseat` in `js/mg-app.js` clears the seat's name along with its phone whenever that name came from the phone's player. `MgHostScreen.reconcileSeats`, `mgBindRoom` and `mgClaimPid` all use it. A name the host typed stays. The next phone to join then fills the seat with its own name.
+- **Running games:** a game in progress still keeps the seat phone-less, as the spec says.
+- **Test:** harness check HP-6b reproduces it. Contestant 1 is Brett on Brett's phone; Brett becomes the host phone and Dex joins. No seat reads "Brett" afterwards, and every phone-bound seat carries its own phone's name.
+- **Results:** `harness-hostphone.html` passed 31/31 on three runs; `harness.html` passed 64/64; unit tests 106/106; the root suite is green.

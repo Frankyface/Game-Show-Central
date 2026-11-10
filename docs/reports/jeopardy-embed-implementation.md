@@ -765,3 +765,71 @@ Served by a Node static server (`.scratch/hp-jeo-serve.mjs`, 127.0.0.1:8631).
 Helpers: `.scratch/hp-jeo-embed.py`, `.scratch/hp-jeo-harness.py`,
 `.scratch/hp-jeo-harness-block.js`, `.scratch/hp-jeo-embed-run.mjs`,
 `.scratch/hp-jeo-phone320.mjs`, `.scratch/hp-jeo-serve.mjs`. No git.
+
+### 12a. Fix M2 — a contestant made the host phone stayed on the scoreboard
+
+From `docs/reports/host-phone-verification.md` M2: after Hana was made the host
+phone, Jeopardy's setup still listed "Cole ✕, Hana ✕" and her saved row kept
+crediting her on the night scoreboard. `gsc-embed.js` only ever **added** rows
+(manual seats); nothing removed them. This is docs/22 §5 item 6, which §12
+above wrongly marked "not applicable".
+
+**Fix — `reconcileRoster()` in `js/gsc-embed.js`, no upstream edit:**
+
+- **When it runs:** at boot (right after the buzzer room opens), on `onHostPhones`,
+  `onPlayerJoin`, `onPlayerLeave`, and after every state change. It has a
+  re-entrancy guard and converges in one pass.
+- **Which rows it touches:** only hub-owned rows — upstream's join ids (`bz…`)
+  and manual seats (`gsc-<pid>`). Players the host typed into Jeopardy's own
+  setup list are never touched.
+- **What counts as stale:**
+  - a manual row whose pid is no longer in `room.players()`;
+  - a join row whose remembered pid is now a host phone;
+  - a join row whose name matches no contestant in `room.players()`. After a
+    ⌂ Lobby round trip the frame is new and a host phone never joins, so the
+    name is the only link left — this is the exact M2 repro.
+- **Outside a game:** stale rows go through upstream's own `removePlayer(id)`
+  (setState + render + save).
+- **During a game:** a game counts as running if it is on the board or Final,
+  or parked with used tiles or non-zero scores. A stale row **with points** is
+  kept as a phone-less row so the score isn't silently dropped. One dismissable
+  `role="status"` notice names who and why. That row reports `pid: null` to the
+  night scoreboard, so the host-phone person is never credited. A stale row
+  still on $0 is removed. If the person rejoins as a contestant, the row stops
+  being an orphan.
+- The buzzer room was already right: the virtual peer closes the leaver's
+  connection, so they cannot buzz.
+
+**Harness:** the J-2 static gate moved to `tests/gsc-static-gate.js` (same
+checks) to keep `gsc-embed-harness.html` under 800 lines (787). The new **M2**
+check runs this script:
+1. Sam scores 400.
+2. Sam leaves the contestants and is added to the host phones — the same
+   messages the hub sends.
+3. Mid-game the check expects: Sam's row kept at 400, the notice shown, Sam on
+   the orphan list, a null night-scoreboard pid, and Sam absent from the buzzer
+   room.
+4. Start over, then the check expects Sam removed via `removePlayer` and Rita
+   untouched.
+
+The run's evidence line: `mid: Sam=400 … nightPid=null inBuzzerRoom=false · after Start over: [Rita]`.
+Its `notice=` field is read after Start over, when the notice has already
+cleared; the mid-game assertion requires it.
+
+**Coverage gap:** the cold-boot path is not separately scripted. That is a
+fresh frame whose saved state still has the host-phone person's row (the exact
+M2 repro). It runs the same `reconcileRoster()` at boot with the name rule
+above, but a harness case for it would need a remount with pre-seeded storage.
+
+**Regression (port 8631, Node static server):**
+| Check | Result |
+| --- | --- |
+| `node --test` | **56/56** |
+| `gsc-embed-harness` | **29/29** |
+| `harness.html` | **70/70** |
+| `photo-harness.html` | **26/26** |
+| v3 UI audit | clean; board fits 1280×720 / 676 |
+
+Files: `js/gsc-embed.js` 620 lines, `css/gsc-embed.css` 182 lines (notice
+style), new `tests/gsc-static-gate.js`. Helpers: `.scratch/hp-jeo-m2.py`,
+`.scratch/hp-jeo-m2-harness.py`. No git.

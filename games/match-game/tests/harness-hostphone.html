@@ -454,6 +454,35 @@
       players = PLAYERS.slice();
     }
 
+    /* ============ HP-6b — a former contestant is now the host phone (M1) ============ */
+
+    async function scenarioFormerContestant() {
+      // In setup (no game), Brett's phone holds contestant seat 1 — then Brett becomes
+      // the host phone and a new phone, Dex, joins the room.
+      click("btn-game-lobby"); click("btn-lobby-restart");
+      const seat0 = HD().querySelectorAll("#mg-panel-seats .seat-name")[0];
+      seat0.value = "Nan"; seat0.dispatchEvent(new Event("input", { bubbles: true }));
+      select(HD().querySelectorAll("#mg-panel-seats .seat-pid")[0], "");
+      typeInto("mg-c1-name", "");
+      select(H("mg-c1-pid"), "p1");
+      check("HP-6b setup: contestant 1 is Brett on Brett's phone",
+        HW().MgApp.state().setup.contestants[0].pid === "p1" && H("mg-c1-name").value === "Brett",
+        JSON.stringify(HW().MgApp.state().setup.contestants[0]));
+      players = PLAYERS.filter((p) => p.pid !== "p1")
+        .concat([{ pid: "p5", name: "Dex", color: "#9dc44a", avatar: "🐢", connected: true, manual: false }]);
+      await bootHost(false);
+      await waitFor(() => HW().MgApp.state().setup.players.some((p) => p.pid === "p5"), "Dex joins");
+      const st = HW().MgApp.state().setup;
+      const seats = st.contestants.concat(st.panel);
+      const owner = players.find((p) => p.pid === st.contestants[0].pid);
+      check("HP-6b M1 no seat keeps the host phone's name: seat 1 takes the name of the phone now on it",
+        owner && st.contestants[0].name === owner.name && H("mg-c1-name").value === owner.name
+        && !seats.some((r) => r.name === "Brett") && !seats.some((r) => r.pid === "p1")
+        && seats.every((r) => !r.pid || r.name === players.find((p) => p.pid === r.pid).name || r.name === "Otis"),
+        seats.map((r) => `${r.name || "—"}:${r.pid || "-"}`).join(", "));
+      players = PLAYERS.slice();
+    }
+
     /* ============ HP-7 — no host phone: exactly as before ============ */
 
     async function scenarioNoHostPhone() {
@@ -475,6 +504,7 @@
         await scenarioBoard();
         await scenarioHeadToHead();
         await scenarioReconcile();
+        await scenarioFormerContestant();
         await scenarioNoHostPhone();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

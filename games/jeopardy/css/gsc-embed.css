@@ -162,3 +162,20 @@ body.gsc-host-phone .gsc-host-card {
 /* The answer, in Jeopardy's light accent: 7.3:1 on the surface. */
 .gsc-hc-answer { margin: 0; font-size: 30px; font-weight: 600; line-height: 1.2; color: #8fa0ff; }
 .gsc-hc-quiet { margin: 0.2rem 0 0; font-size: 20px; font-weight: 600; color: var(--ink, #eceef3); }
+
+/* ============ Roster notice (verification M2) ============ */
+
+.gsc-roster-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin: 0.6rem 1.25rem 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 16px;
+  color: var(--ink, #eceef3);
+  background-color: var(--surface, #151820);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius, 8px);
+}
+.gsc-roster-note span { flex: 1 1 16rem; }

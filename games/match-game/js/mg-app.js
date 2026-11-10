@@ -286,12 +286,26 @@ function mgSetSettings(patch) {
 }
 
 /** Nobody may hold two seats: taking a phone frees it everywhere else. */
+/**
+ * A seat that loses its phone. A name that came from that phone's player goes
+ * with it, so a seat never shows one person's name bound to another device
+ * (host-phone verification M1); a name the host typed stays.
+ * @param {{name:string,pid:string}} row @param {object[]} [players] roster to name from
+ */
+function mgUnseat(row, players) {
+  if (!row.pid) return row;
+  const list = players || mgApp.setup.players;
+  const owner = list.find((p) => p.pid === row.pid);
+  const auto = !owner || row.name === owner.name;
+  return { name: auto ? "" : row.name, pid: "" };
+}
+
 function mgClaimPid(setup, pid, where) {
   if (!pid) return setup;
   const contestants = setup.contestants.map((c, i) => (
-    c.pid === pid && !(where.kind === "contestant" && where.index === i) ? Object.assign({}, c, { pid: "" }) : c));
+    c.pid === pid && !(where.kind === "contestant" && where.index === i) ? mgUnseat(c, setup.players) : c));
   const panel = setup.panel.map((p, i) => (
-    p.pid === pid && !(where.kind === "panel" && where.index === i) ? Object.assign({}, p, { pid: "" }) : p));
+    p.pid === pid && !(where.kind === "panel" && where.index === i) ? mgUnseat(p, setup.players) : p));
   return Object.assign({}, setup, { contestants, panel });
 }
 
@@ -677,7 +691,7 @@ function mgSeatsPhones(state) {
  */
 function mgBindRoom(code) {
   if (typeof code !== "string" || !code || mgApp.roomCode === code) return;
-  const unseat = (row) => (row.pid ? Object.assign({}, row, { pid: "" }) : row);
+  const unseat = (row) => mgUnseat(row, mgApp.setup.players);
   const setup = Object.assign({}, mgApp.setup, {
     players: mgApp.setup.players.filter((p) => p.manual),
     contestants: mgApp.setup.contestants.map(unseat),
@@ -744,6 +758,7 @@ window.MgApp = {
   setPanelPid: mgSetPanelPid,
   setContestantName: mgSetContestantName,
   setContestantPid: mgSetContestantPid,
+  unseat: mgUnseat,
   typePanelAnswer: mgTypePanelAnswer,
   audiencePick: mgAudiencePick,
   merge: (from, into) => mgDispatch({ type: "mergeAnswers", from, into }),

@@ -666,3 +666,21 @@ The harness checks:
   and `tooBig`, and sends nothing.
 - F11 reconciliation works as described above.
 - No host phone gives identical behaviour.
+
+### Fix after verification — L1 (host-phone harness timing)
+
+`docs/reports/host-phone-verification.md` L1: the HP-I5 check failed 3/3 runs
+for the tester (38/39). The game was fine. The check read the host phone's text
+before the new view had been drawn there: the host had sent the view, but it
+reaches the phone frame through a separate `postMessage`.
+
+Two reads had this problem; both now wait for the view:
+
+| Check | Now waits for |
+| --- | --- |
+| game over (the Lightning words) | the held view is the game-over view, the phone holds the **same `seq`**, and every word is in the phone's text |
+| the status check | the phone has drawn one *got it* row and shows the next word |
+
+Each wait gives up after the harness's usual 6 s. `tests/harness-hostphone.html`
+passed 39/39 on three consecutive runs on 127.0.0.1:8701 (Node static server).
+No game code changed.

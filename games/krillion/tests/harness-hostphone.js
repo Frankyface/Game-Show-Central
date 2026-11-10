@@ -126,13 +126,27 @@ window.KRHostPhone = function (ctx) {
     HD().querySelector('#kr-queue [data-tier="invalid"]').click();
     while (core().phase === "reveal") click("btn-reveal");
     click("btn-next-prompt");
-    click("btn-open");
-    await waitFor(() => core().phase === "prompt" && !!showBtn(), "the next prompt");
+    await waitFor(() => core().phase === "intro" && !!showBtn(), "the next prompt, before its clock");
     const unanswered = first.filter((w) => !["Hpqapple", "Hpqmango"].includes(w));
     check("HP-4 the shown list is gone on the next prompt, and the new prompt's list stays hidden",
       !fallback() && unanswered.every((w) => leaks(HD(), w).length === 0)
       && listWords().every((w) => leaks(HD(), w).length === 0) && !!showBtn(),
       `gone: ${unanswered.join(",")}; hidden: ${listWords().join(",")}`);
+    // L5: before the clock starts the list is already secret, so the intro has
+    // the same note and fallback, and an opened fallback survives Start the clock.
+    check("L5 before the clock: “Host phone disconnected” and the fallback button on the intro",
+      note() && note().textContent === "Host phone disconnected" && H("screen-intro").contains(showBtn())
+      // (the previous prompt's revealed answers are public; only this prompt's list must be absent)
+      && listWords().every((w) => leaks(HD(), w).length === 0), note() && note().textContent);
+    const second = listWords();
+    showBtn().click();
+    await waitFor(() => fallback(), "the intro fallback");
+    check("L5 the intro fallback shows this prompt's rated list",
+      H("screen-intro").contains(fallback()) && second.every((w) => fallback().textContent.includes(w)) && !showBtn());
+    click("btn-open");
+    await waitFor(() => core().phase === "prompt", "the clock");
+    check("L5 starting the clock is the same item: the list stays shown and the button does not re-arm",
+      !!fallback() && H("screen-prompt").contains(fallback()) && !showBtn(), HW().KrHostView.itemKey(core()));
     sendHostPhones(true);
     await waitFor(() => note() && note().textContent === "Answers are on your host phone", "reconnected note");
   }
@@ -180,6 +194,9 @@ window.KRHostPhone = function (ctx) {
       click("btn-start");
       await waitFor(() => core() && core().phase === "intro" && /Name a fruit/.test(phoneText()), "intro on the host phone");
       HW().KrApp.set({ showList: true });            // a remembered switch that must be ignored
+      check("L5 before the clock, host phone connected: the intro says “Answers are on your host phone”",
+        note() && H("screen-intro").contains(note()) && note().textContent === "Answers are on your host phone"
+        && !showBtn() && leaks(HD(), PREFIX).length === 0, note() && note().textContent);
       await connectedChecks();
       await disconnectedChecks();
       await phoneStates();

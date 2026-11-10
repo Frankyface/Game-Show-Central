@@ -46,7 +46,8 @@ window.WheelHarnessHP = function (ctx) {
   for (const key of ["host", "p1", "h1"]) {
     const f = document.createElement("iframe");
     f.title = `host-phone ${key}`;
-    f.style.cssText = key === "host" ? "width:1100px;height:720px" : "width:360px;height:640px";
+    // Phones at the 320 px floor (docs/22 §5.3: no horizontal scroll at 320).
+    f.style.cssText = key === "host" ? "width:1100px;height:720px" : "width:320px;height:640px";
     box.appendChild(f);
     frames[key] = { el: f, ready: false };
   }
@@ -157,10 +158,35 @@ window.WheelHarnessHP = function (ctx) {
         && D("h1").body.classList.contains("host-role"),
       `card answer: "${(card.querySelector(".hc-answer") || {}).textContent}"`);
     check("HP-1 the host card lays the solution out like the board and lists what is hidden",
-      card.querySelectorAll(".hc-board-row").length === 4
+      card.querySelectorAll(".hc-board-row").length
+          === W("host").WheelCore.layoutPuzzle(answer).filter((r) => r.some(Boolean)).length
+        && card.querySelectorAll(".hc-tile").length === answer.replace(/ /g, "").length
         && card.querySelectorAll(".hc-tile.hc-hidden").length > 0
         && /Still hidden:/.test(card.textContent) && /Up next/.test(card.textContent),
       `${card.querySelectorAll(".hc-tile.hc-hidden").length} tiles still face-down`);
+    // L3: every host-phone letter >= 16 px (the tiles too), answer >= 28 px,
+    // and no horizontal scroll at 320 px — on the longest puzzle in the set.
+    const fontPx = (n) => parseFloat(W("h1").getComputedStyle(n).fontSize);
+    const textNodes = [...card.querySelectorAll("*")].filter((n) =>
+      [...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()));
+    const smallest = Math.min(...textNodes.map(fontPx));
+    // Worst case too: a 14-letter word, the widest the board allows.
+    const probe = D("h1").createElement("div");
+    probe.className = "p-host";
+    D("h1").getElementById("player").appendChild(probe);
+    const wide = W("host").WheelCore.layoutPuzzle("PHOTOSYNTHESIS IS GREEN")
+      .map((r) => r.map((c) => (c ? { ch: c.ch, shown: false } : null)));
+    W("h1").WheelHostCard.render(probe, { secret: true, roundLabel: "Round", roundNumber: 1,
+      roundCount: 1, category: "Thing", rows: wide, solution: "PHOTOSYNTHESIS IS GREEN", hidden: [] }, true);
+    const wideFits = D("h1").documentElement.scrollWidth <= W("h1").innerWidth
+      && probe.querySelector(".hc-board").scrollWidth <= probe.querySelector(".hc-board").clientWidth;
+    probe.remove();
+    const tiles = [...card.querySelectorAll(".hc-tile")];
+    check("HP-1 host-phone text >= 16 px including every board tile, answer >= 28 px, no scroll at 320 px",
+      W("h1").innerWidth === 320 && smallest >= 16 && tiles.length > 0 && tiles.every((t) => fontPx(t) >= 16)
+        && fontPx(card.querySelector(".hc-answer")) >= 28
+        && D("h1").documentElement.scrollWidth <= W("h1").innerWidth && wideFits,
+      `14-letter word fits=${wideFits}, smallest ${smallest}px, tiles ${Math.min(...tiles.map(fontPx))}px, answer ${fontPx(card.querySelector(".hc-answer"))}px, scrollWidth ${D("h1").documentElement.scrollWidth}`);
     check("HP-1 a contestant frame never receives a host view",
       W("p1").WheelPhone.getHostView() === null && shell.hostViewsToP1 === 0
         && !D("p1").body.textContent.includes(answer),

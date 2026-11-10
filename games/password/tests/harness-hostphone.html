@@ -368,6 +368,11 @@
         await sleep(5);
       }
       await waitFor(() => core().phase === "gameOver", "the game is won");
+      // The view crosses to the phone frame by postMessage: wait until the phone
+      // has DRAWN the game-over view (its words), not just until the host sent it.
+      await waitFor(() => heldView && heldView.stage === "lightning-next"
+        && PW("h1").PwdHostPhonePage.view() && PW("h1").PwdHostPhonePage.view().seq === heldView.seq
+        && heldView.words.every((w) => hostPhoneText().indexOf(w.text) >= 0), "the host phone draws the Lightning words");
       const upcoming = heldView.words.map((w) => w.text);
       check("HP-I5 game over: the host phone lists the Lightning words; the shared screen has none",
         upcoming.length === 3 && upcoming.every((w) => leaks(w).length === 0)
@@ -382,7 +387,9 @@
         && H("pwd-l-notice").textContent === "Answer is on your host phone");
       click("btn-l-start");
       click("btn-l-got");
-      await waitFor(() => heldView.words[0].status === "got", "the mark reaches the host phone");
+      await waitFor(() => heldView.words[0].status === "got"
+        && PW("h1").document.querySelectorAll(".host-word.is-got").length === 1
+        && hpAnswer() === words[1], "the mark is drawn on the host phone");
       check("HP-I5 the host phone tracks status and marks the current word",
         PW("h1").document.querySelectorAll(".host-word.is-got").length === 1
         && PW("h1").document.querySelector(".host-word.is-current .host-word-text").textContent === words[1]

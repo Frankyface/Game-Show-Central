@@ -588,3 +588,7 @@ New: `js/wheel-select.js` (134), `js/wheel-hostphone.js` (158), `js/wheel-hostca
 (v3 styles for the status line, notice and host card), `sets/index.json`
 (descriptions), `tests/harness.html` (assets, gate list, the HP run). Helpers:
 `.scratch/hp-wheel-serve.mjs`, `.scratch/hp-wheel-patch1..3.py`. Static gates clean.
+
+### 11.5 L3 — host-phone tile size
+
+The host-phone mini-board letters were 12.8 px. `.hc-tile` is now 19×25 px with 16 px letters; `wheel-hostcard.js` drops the board's padding blanks and renders each board row as word groups that **wrap by word** (never inside one), so the widest legal word (14 tiles, 279 px) fits a 320 px phone with no horizontal scroll. The harness host-phone frame now runs at **320 px**, and a new HP-1 check asserts every text element on the card — every board tile included — is ≥ 16 px, the answer ≥ 28 px, no horizontal scroll, and that a 14-letter-word puzzle also fits (result: smallest 16 px, answer 29.6 px, scrollWidth 320). `node --test` 78/78; `tests/harness.html` **111/111** on 8643.

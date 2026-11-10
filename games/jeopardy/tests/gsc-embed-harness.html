@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeopardy embed harness (E1–E6, X-1–X-3, J-1, J-2, HP-1–HP-7)</title>
+  <title>Jeopardy embed harness (E1–E6, X-1–X-3, J-1, J-2, HP-1–HP-7, M2)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #04062b; color: #f4f5ff; margin: 0; padding: 2rem; }
     h1 { font-size: 1.2rem; }
@@ -51,6 +51,7 @@
   <!-- The shell side of the bridge, exactly as index.html uses it. -->
   <script src="../../../shared/room-protocol.js"></script>
   <script src="../../../shared/bridge.js"></script>
+  <script src="gsc-static-gate.js"></script>
 
   <script>
     (function () {
@@ -556,45 +557,45 @@
 
         await staticGate();
         await runHostPhone();
+        await runRosterM2();
       }
 
-      /* ============ J-2: static gate over the gsc-* files ============ */
-
-      // The patterns are built from fragments so this harness never trips the
-      // hub-wide gate that scans tests/ for the same strings.
-      const GATED = [
-        "../js/gsc-embed.js", "../js/gsc-extras.js", "../js/gsc-hostview.js",
-        "../css/gsc-embed.css", "../css/gsc-extras.css", "../css/gsc-look.css",
-      ];
-      const BANNED = [
-        ["inner", "HTML"], ["insertAdjacent", "HTML"], ["outer", "HTML\\s*="],
-        ["document\\.", "write"], ["\\bev", "al\\("], ["new\\s+Fun", "ction"],
-        ["console\\.", "log"],
-      ].map((parts) => new RegExp(parts.join("")));
-
-      /** Strip block and line comments: prose may name a banned API. */
-      function codeOnly(text) {
-        return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
-      }
-
+      /* ---- J-2: static gate (tests/gsc-static-gate.js) ---- */
       async function staticGate() {
-        const problems = [];
-        const sizes = [];
-        for (const path of GATED) {
-          let text = "";
-          try {
-            const res = await fetch(path, { cache: "no-store" });
-            if (!res.ok) { problems.push(`${path} HTTP ${res.status}`); continue; }
-            text = await res.text();
-          } catch (err) { problems.push(`${path} unreadable`); continue; }
-          const lines = text.split("\n").length;
-          sizes.push(`${path.split("/").pop()}=${lines}`);
-          if (lines >= 800) problems.push(`${path} has ${lines} lines`);
-          const code = codeOnly(text);
-          for (const re of BANNED) if (re.test(code)) problems.push(`${path} matches ${re.source}`);
-        }
+        const { problems, sizes } = await window.GscStaticGate.run();
         check("J-2 static gate: gsc-* files are < 800 lines with no banned APIs",
           problems.length === 0, problems.length ? problems.join("; ") : sizes.join(" "));
+      }
+
+      /* ---- M2: a contestant made the host phone leaves the scoreboard ---- */
+      // Sam scores, then (like the hub) leaves the contestants and becomes a
+      // host phone. Mid-game the scored row stays phone-less with one notice and
+      // a null pid on the night scoreboard; after Start over it is removed by
+      // upstream's own removePlayer. Rita is untouched throughout.
+      async function runRosterM2() {
+        const w = hostWin();
+        const g = (id) => hostDoc().getElementById(id);
+        if (hostState().phase !== "board") { w.startGame(); await waitFor(() => hostState().phase === "board", 4000); }
+        const sam = hostState().players.find((p) => p.name === "Sam");
+        w.applyScore(sam.id, 400);
+        hostBridge.postPlayerLeave("p2");
+        hostBridge.postHostPhones([{ pid: "h1", name: "Host", connected: true }, { pid: "p2", name: "Sam", connected: true }]);
+        await waitFor(() => g("gsc-roster-note"), 4000);
+        await sleep(300); // let the night-scoreboard report land
+        const mid = hostState();
+        const samRow = mid.players.find((p) => p.name === "Sam");
+        const report = (lastScores || []).find((r) => r.name === "Sam");
+        const midOk = !!samRow && samRow.score === 400 && !!g("gsc-roster-note") &&
+          w.GscEmbed._orphanIds().indexOf(samRow.id) !== -1 && report && report.pid === null &&
+          !Object.values(w.BuzzerHost._roomState().players).some((p) => p.name === "Sam");
+        w.GscExtras._startOver();
+        await waitFor(() => hostState().phase === "setup", 4000);
+        await waitFor(() => !hostState().players.some((p) => p.name === "Sam"), 4000);
+        const after = hostState().players.map((p) => p.name);
+        check("M2 a contestant made the host phone: kept phone-less mid-game, removed on setup",
+          midOk && after.indexOf("Sam") === -1 && after.indexOf("Rita") !== -1 && !g("gsc-roster-note"),
+          `mid: Sam=${samRow ? samRow.score : "gone"} notice=${!!g("gsc-roster-note")} nightPid=${report ? report.pid : "-"} ` +
+          `inBuzzerRoom=${Object.values(w.BuzzerHost._roomState().players).some((p) => p.name === "Sam")} \u00b7 after Start over: [${after.join(", ")}]`);
       }
 
 

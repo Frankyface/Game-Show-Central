@@ -150,9 +150,10 @@ const GscEmbed = (function () {
 
   function bootHost() {
     SDK.host({
-      onPlayerJoin: () => syncManualPlayers(),
-      onPlayerLeave: () => reportScores(),
+      onPlayerJoin: () => { syncManualPlayers(); reconcileRoster(); },
+      onPlayerLeave: () => { reconcileRoster(); reportScores(); },
       onPlayerStatus: () => reportScores(),
+      onHostPhones: () => { reconcileRoster(); reportScores(); },
       // Phone payloads reach Jeopardy through the virtual peer, not here.
       onMessage: () => {},
     })
@@ -179,6 +180,7 @@ const GscEmbed = (function () {
     bootedHost = true;
     h.openRoom(ROOM_CODE || undefined);
     syncManualPlayers();
+    reconcileRoster();
     renderManagedNote();
     pushHostView();
     reportScores();
@@ -247,7 +249,10 @@ const GscEmbed = (function () {
     const s = appState();
     if (!s || !Array.isArray(s.players)) return;
     refreshPidMap();
-    const scores = s.players.map((p) => ({ pid: pidFor(p.id, p.name), name: p.name, score: p.score }));
+    // A kept orphan (M2) is nobody's lobby seat any more: never credit a pid.
+    const scores = s.players.map((p) => ({
+      pid: orphanIds.has(p.id) ? null : pidFor(p.id, p.name), name: p.name, score: p.score,
+    }));
     const key = JSON.stringify(scores);
     if (key === lastReport) return; // every setState lands here; only real changes go out
     lastReport = key;
@@ -354,8 +359,109 @@ const GscEmbed = (function () {
   /** app.js setState() → keep the hub's night scoreboard in step. */
   function onStateChanged() {
     if (!IS_HOST) return;
+    reconcileRoster();
     reportScores();
     pushHostView();
+  }
+
+  /* ============ Roster reconciliation (docs/22 §5.6, verification M2) ============ */
+
+  const orphanIds = new Set(); // rows kept phone-less because their game is running
+  let reconciling = false;
+  let noticeKey = "";
+
+  /** Rows the hub created: joins (`bz…`, upstream's join ids) and manual seats. */
+  function hubOwned(id) {
+    return typeof id === "string" && (id.indexOf("bz") === 0 || id.indexOf(MANUAL_ID_PREFIX) === 0);
+  }
+
+  /** Is anything worth keeping on the board? (Same rule gsc-extras.js uses for Resume.) */
+  function gameInProgress(s) {
+    if (s.phase !== "setup") return true;
+    if (s.active || s.final || s.finalPlayed) return true;
+    if (s.used && Object.keys(s.used).length > 0) return true;
+    return (s.players || []).some((p) => p.score !== 0);
+  }
+
+  /**
+   * A hub-owned row is stale when its person is no longer a contestant in the
+   * lobby: they were made the host phone, or left/were removed. Matching is by
+   * the row's remembered pid first, then by name — after a ⌂ Lobby round trip
+   * the frame is new and a host phone never joins, so the name is all there is.
+   * Players the host typed into Jeopardy's own setup list are never touched.
+   */
+  function staleRows(s) {
+    const contestants = room.players();
+    const pids = new Set(contestants.map((p) => p.pid));
+    const names = new Set(contestants.map((p) => String(p.name).toLowerCase()));
+    const hostPids = new Set(typeof room.hostPhones === "function" ? room.hostPhones().map((h) => h.pid) : []);
+    refreshPidMap();
+    return s.players.filter((row) => {
+      if (!hubOwned(row.id)) return false;
+      if (row.id.indexOf(MANUAL_ID_PREFIX) === 0) return !pids.has(row.id.slice(MANUAL_ID_PREFIX.length));
+      const pid = pidByPlayerId.get(row.id);
+      if (pid && hostPids.has(pid)) return true;
+      return !names.has(String(row.name).toLowerCase());
+    });
+  }
+
+  /**
+   * Bring the scoreboard in line with the lobby. Outside a game, stale rows go
+   * through upstream's own removePlayer(). During a game, a stale row with
+   * points stays as a phone-less row (its score is not silently dropped) and
+   * one notice says so; a stale row still on $0 is removed. Re-entrant calls
+   * from the setState this triggers are ignored.
+   */
+  function reconcileRoster() {
+    if (!room || reconciling || typeof removePlayer !== "function") return;
+    const s = appState();
+    if (!s || !Array.isArray(s.players)) return;
+    reconciling = true;
+    try {
+      const running = gameInProgress(s);
+      const stale = staleRows(s);
+      const staleIds = new Set(stale.map((r) => r.id));
+      for (const id of Array.from(orphanIds)) if (!staleIds.has(id)) orphanIds.delete(id); // back in the lobby
+      const kept = [];
+      for (const row of stale) {
+        if (running && row.score !== 0) { orphanIds.add(row.id); kept.push(row.name); continue; }
+        orphanIds.delete(row.id);
+        removePlayer(row.id); // upstream's own path: setState + render + save
+      }
+      showRosterNotice(kept);
+    } finally {
+      reconciling = false;
+    }
+  }
+
+  /** One plain notice per distinct set of kept rows; dismissable. */
+  function showRosterNotice(names) {
+    let note = document.getElementById("gsc-roster-note");
+    if (!names.length) { if (note) note.remove(); noticeKey = ""; return; }
+    const key = names.join("|");
+    if (key === noticeKey) return;
+    noticeKey = key;
+    if (!note) {
+      note = document.createElement("div");
+      note.id = "gsc-roster-note";
+      note.className = "gsc-roster-note";
+      note.setAttribute("role", "status");
+      const anchor = document.getElementById("save-warning");
+      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(note, anchor.nextSibling);
+      else document.body.insertBefore(note, document.body.firstChild);
+    }
+    note.replaceChildren();
+    const who = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+    const text = document.createElement("span");
+    text.textContent = `${who} ${names.length === 1 ? "is" : "are"} no longer a contestant in the lobby ` +
+      "(made the host phone, or removed). Their score stays on the board; they can't buzz in.";
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "btn btn-ghost btn-small";
+    dismiss.textContent = "Dismiss";
+    dismiss.addEventListener("click", () => note.remove());
+    note.appendChild(text);
+    note.appendChild(dismiss);
   }
 
   /* ============ Host phone: the host side (docs/22 §5.2) ============ */
@@ -504,6 +610,8 @@ const GscEmbed = (function () {
     _syncManualPlayers: syncManualPlayers,
     _revealJoinCardIfStuck: revealJoinCardIfStuck,
     _renderHostView: (v) => renderHostView(v),
+    _reconcileRoster: () => reconcileRoster(),
+    _orphanIds: () => Array.from(orphanIds),
     _hostSeq: () => hostSeq,
   };
 })();

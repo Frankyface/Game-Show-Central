@@ -565,3 +565,14 @@ now returns early while the host screen is active.
 
 Static gates: every file under 800 lines (largest `wl-core.js` 797); no
 `innerHTML`, `eval` or `console.log` in the new files.
+
+### 13.1 Defect L4 (host-phone verification) — fixed
+
+The editor's paste placeholder (`#wl-ed-paste` in `index.html`) was a real
+shipped question and answer ("In which ocean is Madagascar? / The Indian
+Ocean"). That failed the spec's attribute scan and would show a real answer if
+the host opened the editor. It is now an obviously made-up example: "Example:
+What colour is the sky on Planet Zorb? / Plaid / Made-up category". It appears
+in none of `questions.json`, `js/data.js` or `sets/`.
+
+`node --test` 108/108; `tests/harness.html` 86/86 on port 8644.

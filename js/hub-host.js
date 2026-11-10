@@ -55,7 +55,7 @@ const HubHost = (function () {
   let popoverOpen = false;
   let soundOn = true;
   // docs/22: the latest host view from the mounted frame, and the last
-  // host-phone notice ("‹name› rejoined from another device …").
+  // host-phone notice ("‹name› host phone entry was taken by another device …").
   const hostView = HubHostPhone.createViewHolder();
   let hostNotice = "";
   let hostNoticeTimer = null;
@@ -227,13 +227,17 @@ const HubHost = (function () {
       else if (eff.broadcastLobby) broadcastLobby();
       else if (eff.close) { if (host) host.dropConnection(eff.close, true); }
       else if (eff.frame) sendToFrame(eff.frame);
-      else if (eff.notice === "host-demoted") showHostNotice(eff.pid);
+      else if (eff.notice === "host-demoted") showHostNotice(eff.pid, eff.was);
     }
   }
 
-  function showHostNotice(pid) {
+  function showHostNotice(pid, was) {
     const p = lobby.players[pid];
-    hostNotice = `${p ? p.name : "A player"} rejoined from another device — host phone role removed.`;
+    const holder = was || (p ? p.name : "");
+    const now = p && p.name !== holder ? ` (now "${p.name}")` : "";
+    hostNotice = holder
+      ? `${holder}'s host phone entry was taken by another device${now} — host phone role removed.`
+      : "A host phone entry was taken by another device — host phone role removed.";
     if (hostNoticeTimer) clearTimeout(hostNoticeTimer);
     hostNoticeTimer = setTimeout(() => { hostNotice = ""; hostNoticeTimer = null; render(); }, 30000);
   }

@@ -636,7 +636,7 @@
       const notice = $id(hostFrame, "shell-broker").textContent;
       const players = hg.FakeGame.room().players().map((p) => p.pid);
       check("HP-I7", "A phone joining with the host pid and no key is seated as a player, gets no host view, the laptop is told",
-            !!demoted && role === "player" && views === 0 && notice.includes("rejoined from another device") &&
+            !!demoted && role === "player" && views === 0 && notice.includes("taken by another device") &&
             players.includes("p1") && hg.FakeGame.room().answersPrivate() === false,
             `role=${role} views=${views} notice="${notice}" players=${players.join(",")}`);
     }

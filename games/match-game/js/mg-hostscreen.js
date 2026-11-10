@@ -125,7 +125,10 @@ const MgHostScreen = (function () {
   function reconcileSeats(present) {
     const here = new Set(present);
     const a = app();
-    const keep = (row) => (!row.pid || here.has(row.pid) ? row : Object.assign({}, row, { pid: "" }));
+    // A seat whose phone is gone loses the phone AND the name that came with it
+    // (verification M1): a former contestant who is now the host phone must not
+    // stay named on a seat that the next phone to join will take.
+    const keep = (row) => (!row.pid || here.has(row.pid) ? row : window.MgApp.unseat(row, a.setup.players));
     const setup = Object.assign({}, a.setup, {
       players: a.setup.players.filter((p) => p.manual || here.has(p.pid)),
       contestants: a.setup.contestants.map(keep),

@@ -149,3 +149,27 @@ per-game prefix; `python -m http.server` drops requests under three concurrent b
   `games/jeopardy/tests/harness.html`, `games/jeopardy/tests/photo-harness.html`.
 - Reports: `shell-*`, `family-feud-*`, `wheel-of-fortune-*`, `weakest-link-*`,
   `jeopardy-embed-*` (implementation + verification each).
+
+## Phase 6 — host phone (2026-11-10)
+
+Spec `docs/22-host-phone-spec.md` (Fable review: `host-phone-spec-review.md`).
+Shell (3b0b91f) then all 15 games in three waves (355ed63 + waves 2 and 3).
+Independent verification through the real hub and PeerJS room:
+`host-phone-verification.md` — verdict **fix, then ship**; the core promise
+held in every game (shared screen answer-free before reveal with the host
+phone connected and away; 0 of 486 contestant messages carried host data).
+
+| # | Defect | Resolution |
+|---|---|---|
+| M1 | Match Game kept the host phone's name on a reconciled seat bound to another phone | fixed — `mgUnseat` clears phone-derived names (HP-6b) |
+| M2 | Jeopardy kept a former contestant turned host phone on its roster | fixed — `reconcileRoster()` in `gsc-embed.js`; mid-game rows with points stay, unbuzzable, no night credit |
+| L1 | Password HP-I5 harness race | fixed — waits on seq + content |
+| L2 | Jeopardy has no private fallback while the host phone is away | accepted — spec §6 leaves Jeopardy's shared screen unchanged; Reveal is public as before |
+| L3 | Wheel host-card tiles 12.8 px | fixed — 16 px, word-wrapped rows |
+| L4 | Weakest Link editor placeholder held a shipped Q/A | fixed — made-up example |
+| L5 | Krillion intro had no note/fallback | fixed |
+| L6 | Demotion notice named the newcomer | fixed — effect carries `was`, notice names the holder |
+
+Known, accepted: opening a game's editor mid-game shows its content on the
+shared screen (Wheel disables the Editor during play; the others clear
+answer fields on close). Root suite 1578; 29 browser harnesses green.

@@ -27,9 +27,17 @@
   const $id = (id) => document.getElementById(id);
 
   /** The host-only rated-list panels and the toggles that open them. */
+  /**
+   * Where the note and the fallback list go. `toggle` / `box` are parked (taken
+   * out) while private; the pre-clock intro has nothing to park, but the list is
+   * already secret there, so it gets the same note and fallback (review L5). The
+   * intro and the open prompt share one item key, so a fallback opened before the
+   * clock stays open (and the button does not re-arm) when the clock starts.
+   */
   const SPOTS = [
-    { screen: "screen-prompt", toggle: "btn-plist", box: "kr-plist-box" },
-    { screen: "screen-reveal", toggle: "btn-list", box: "kr-list-box" },
+    { noteBefore: "btn-intro-undo", listAfter: "kr-intro-text" },
+    { toggle: "btn-plist", box: "kr-plist-box" },
+    { toggle: "btn-list", box: "kr-list-box" },
   ];
   const NOTE_CONNECTED = "Answers are on your host phone";
   const NOTE_AWAY = "Host phone disconnected";
@@ -58,8 +66,8 @@
   /** Take the panels and toggles out; put a note (and a fallback list box) in their place. */
   function park() {
     SPOTS.forEach((spot) => {
-      const toggle = $id(spot.toggle);
-      const box = $id(spot.box);
+      const toggle = $id(spot.toggle || spot.noteBefore);
+      const box = $id(spot.box || spot.listAfter);
       if (!toggle || !box) return;
       const wrap = el("div", "kr-hp-note");
       const text = el("span", "kr-hp-note-text");
@@ -75,11 +83,13 @@
       toggle.parentNode.insertBefore(wrap, toggle);
       const list = el("aside", "kr-list kr-hp-list hidden");
       list.setAttribute("aria-label", "The rated answer list");
-      box.parentNode.insertBefore(list, box);
-      [toggle, box].forEach((node) => {
-        parked.push({ node, parent: node.parentNode, next: node.nextSibling });
-        node.remove();
-      });
+      box.parentNode.insertBefore(list, spot.listAfter ? box.nextSibling : box);
+      if (spot.box) {
+        [toggle, box].forEach((node) => {
+          parked.push({ node, parent: node.parentNode, next: node.nextSibling });
+          node.remove();
+        });
+      }
       notes.push({ wrap, text, btn, list });
     });
   }

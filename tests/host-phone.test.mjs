@@ -350,3 +350,12 @@ test("HP-U11 standalone room objects carry hostPhones / answersPrivate / setHost
   assert.equal(room.answersPrivate(), false);
   assert.doesNotThrow(() => room.setHostView({ t: "host", item: "x" }));
 });
+
+test("HP-U3 demotion notice names the device that held the role, not the newcomer", () => {
+  let s = withHost();
+  s = RP.lobbyReduce(s, { type: "leave", peerId: "peerB" }).state;
+  const out = RP.lobbyReduce(s, join("intruder", "Zed", { pid: "p2" }));
+  const n = out.effects.find((e) => e.notice === "host-demoted");
+  assert.equal(n.was, "Bo");
+  assert.equal(out.state.players.p2.name, "Zed");
+});

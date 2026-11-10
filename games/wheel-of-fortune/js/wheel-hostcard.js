@@ -22,15 +22,37 @@ const WheelHostCard = (function () {
 
   const money = (n) => (window.WheelCore ? window.WheelCore.formatMoney(n) : `$${n}`);
 
-  /** The solution on a miniature board: every letter, hidden ones marked. */
+  /** The board's words in reading order: runs of tiles between blanks. */
+  function wordsOf(row) {
+    const words = [];
+    let cur = [];
+    for (const cell of row) {
+      if (cell) { cur.push(cell); continue; }
+      if (cur.length) words.push(cur);
+      cur = [];
+    }
+    if (cur.length) words.push(cur);
+    return words;
+  }
+
+  /**
+   * The solution laid out like the board: one line per board row, every
+   * letter shown, tiles still face-down on the shared screen marked. The
+   * padding blanks are dropped and a row WRAPS BY WORD when it is wider than
+   * the phone, so the letters can stay >= 16 px at 320 px (L3) without a
+   * horizontal scroll. A word is never split.
+   */
   function board(rows) {
     const wrap = el("div", "hc-board");
     wrap.setAttribute("aria-hidden", "true"); // the answer line below carries it as text
     for (const row of rows || []) {
+      const words = wordsOf(row);
+      if (!words.length) continue;
       const line = el("div", "hc-board-row");
-      for (const cell of row) {
-        if (!cell) { line.appendChild(el("span", "hc-tile hc-blank")); continue; }
-        line.appendChild(el("span", cell.shown ? "hc-tile" : "hc-tile hc-hidden", cell.ch));
+      for (const word of words) {
+        const group = el("span", "hc-word");
+        for (const cell of word) group.appendChild(el("span", cell.shown ? "hc-tile" : "hc-tile hc-hidden", cell.ch));
+        line.appendChild(group);
       }
       wrap.appendChild(line);
     }

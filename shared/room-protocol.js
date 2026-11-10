@@ -514,7 +514,8 @@
       effects.push({ frame: { t: "host-phones" } });
     } else if (wasHost) {
       // Demoted: the game never knew this pid, so it arrives as a new player.
-      effects.push({ notice: "host-demoted", pid });
+      // `was` names the device that held the role, not the newcomer.
+      effects.push({ notice: "host-demoted", pid, was: prev.name });
       effects.push({ frame: { t: "host-phones" } });
       effects.push({ frame: { t: "player-join", player: playerCopy(player) } });
     } else {
