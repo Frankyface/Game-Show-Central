@@ -1,0 +1,90 @@
+/* ============================================================
+   Millionaire — host phone (docs/22 §5.3) and the shared screen's
+   answers-private note (§5.4). Design system v3: flat, one surface,
+   Inter, readable at arm's length. Text >= 16 px, the answer >= 28 px
+   in a lightened accent, no horizontal scroll at 320 px, no buttons.
+   ============================================================ */
+
+/* ---------- the host phone ---------- */
+
+body.host-phone .topbar { display: none; }
+
+.host-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 0.85rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  overflow-wrap: break-word;
+}
+
+.host-card.is-stale { opacity: 0.6; }
+
+.host-head { display: flex; align-items: baseline; gap: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--hairline); }
+.host-tag {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.05em 0.5em;
+}
+.host-game { font-size: 16px; font-weight: 600; color: var(--ink); }
+
+.host-stale { margin: 0; font-size: 16px; font-weight: 600; color: var(--amber); }
+.host-phase, .host-who, .host-cat { margin: 0; font-size: 16px; color: var(--ink-dim); }
+.host-empty { margin: 0; font-size: 18px; color: var(--ink); }
+
+.host-question { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+
+/* The answer: the accent, lightened so it clears 4.5:1 on the surface. */
+.host-answer {
+  margin: 0.1rem 0;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--accent) 45%, white);
+}
+
+.host-options { list-style: none; margin: 0; padding: 0; }
+
+.host-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0.1rem;
+  font-size: 17px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.host-opt-letter { min-width: 1.3em; font-weight: 600; color: var(--ink-dim); }
+.host-opt-text { flex: 1; color: var(--ink); }
+.host-opt-tag { font-size: 16px; font-weight: 600; color: var(--ink-dim); }
+.host-option.is-right .host-opt-text,
+.host-option.is-right .host-opt-letter,
+.host-option.is-right .host-opt-tag { color: color-mix(in srgb, var(--accent) 45%, white); font-weight: 600; }
+.host-option.is-removed .host-opt-text { color: var(--ink-mute); text-decoration: line-through; }
+
+.host-note { margin: 0; font-size: 16px; color: var(--ink); }
+
+.host-money { display: grid; gap: 0.2rem; margin-top: 0.2rem; }
+.host-money-row { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 16px; }
+.host-money-k { color: var(--ink-dim); }
+.host-money-v { font-weight: 600; color: var(--gold-text); font-variant-numeric: tabular-nums; }
+
+/* ---------- the shared screen, answers private ---------- */
+
+.hp-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.2rem 0 0;
+}
+
+.hp-note-text { margin: 0; font-size: 16px; color: var(--ink-dim); }
+.hp-reveal { margin: 0; font-size: 18px; font-weight: 600; color: var(--ink); }
+.hp-show { min-height: 44px; }

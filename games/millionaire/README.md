@@ -176,6 +176,17 @@ The host is authoritative. A phone message is validated
 receives its own view, and no view ever contains the correct answer — not the
 ballot, not the hot seat, not the Fastest Finger order.
 
+### The host phone
+
+In the hub, a phone can join as the **host phone** (docs/22). It shows the
+current question with the right option marked, the money at stake, what a
+wrong answer or a walk would pay and, after 50:50, the two options left; during
+Fastest Finger it shows the correct order. While a host phone is assigned the
+shared screen says "Answer is on your host phone" under the options; if that
+phone drops off, "Host phone disconnected" and one **Show answer on this
+screen** button reveal the current answer only. With no host phone the game
+plays exactly as before.
+
 ## 7. Files
 
 ```
@@ -200,6 +211,10 @@ tests/harness.html         loopback harness (M-I1 … M-I7, X-1 … X-5)
 tests/x-scenarios.js       the X-1/X-2/X-3 scenarios, loaded by the harness
 sets/index.json            the question-set library manifest
 sets/*.json                the sets themselves
+js/wwm-host-view.js        PURE: hostView(state) for the host phone
+js/wwm-hostphone.js        host phone, shared-screen side (room glue, private mode, seat reconciliation)
+js/wwm-host-screen.js      host phone, phone side
+tests/harness-hostphone.html  host-phone harness (docs/22 §5.5)
 ```
 
 Game state is one serialisable object saved under `gsc-wwm-state-v1`; the

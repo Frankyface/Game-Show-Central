@@ -32,6 +32,11 @@
     <div id="tpir-playbar" class="playbar">
       <span id="tpir-segment-chip" class="playbar-status hidden"></span>
       <span id="tpir-room-chip" class="playbar-status hidden"></span>
+      <div id="tpir-hp-note" class="hp-note hidden" role="status" aria-live="polite">
+        <span id="tpir-hp-msg"></span>
+        <button id="btn-hp-fallback" class="btn btn-ghost btn-small hidden" type="button">Show answer on this screen</button>
+        <span id="tpir-hp-answer" class="hp-answer hidden"></span>
+      </div>
       <button id="btn-undo" class="btn btn-ghost btn-small hidden" type="button" data-gsc-icon="undo">Undo</button>
       <button id="btn-finish" class="btn btn-ghost btn-small hidden" type="button">End game</button>
       <button id="btn-exit" class="btn btn-ghost btn-small hidden" type="button">Back to lobby</button>
@@ -276,6 +281,7 @@
   <script src="js/tpir-content.js"></script>
   <script src="js/tpir-select.js"></script>
   <script src="js/tpir-core.js"></script>
+  <script src="js/tpir-host-view.js"></script>
   <script src="js/data.js"></script>
   <script src="js/tpir-sound.js"></script>
   <script src="js/tpir-wheel.js"></script>
@@ -285,7 +291,9 @@
   <script src="js/tpir-setup.js"></script>
   <script src="js/tpir-editor-media.js"></script>
   <script src="js/tpir-editor.js"></script>
+  <script src="js/tpir-hostroom.js"></script>
   <script src="js/tpir-room.js"></script>
+  <script src="js/tpir-hostphone.js"></script>
   <script src="js/tpir-phone.js"></script>
 </body>
 </html>

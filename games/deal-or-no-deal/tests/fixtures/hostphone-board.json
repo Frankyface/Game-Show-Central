@@ -1,0 +1,33 @@
+{
+  "title": "Host phone board",
+  "settings": {
+    "currency": "$",
+    "amounts": [
+      101,
+      203,
+      307,
+      401,
+      503,
+      601,
+      701,
+      809,
+      907,
+      1009
+    ],
+    "rounds": [
+      4,
+      2,
+      1,
+      1
+    ],
+    "offerFactors": [
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "jitter": 0,
+    "allowSwap": true,
+    "audienceAdvice": true
+  }
+}

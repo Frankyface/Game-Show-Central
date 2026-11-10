@@ -177,6 +177,9 @@
   /* ============ Rendering ============ */
 
   function render() {
+    // A host phone shows the host screen; the contestant renderer must never
+    // redraw over it (docs/22 §5.3).
+    if (window.OvhHostScreen && window.OvhHostScreen.isActive()) return;
     const card = $("ovh-phone-card");
     if (!card) return;
     const box = $("ovh-phone-choices");
@@ -205,7 +208,12 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (window.OvhHostScreen) window.OvhHostScreen.onStatus(up);
     render();
+  }
+
+  function onHostView(v) {
+    if (window.OvhHostScreen) window.OvhHostScreen.onHostView(v);
   }
 
   async function boot() {
@@ -214,13 +222,20 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
+      // The role comes from init, never from the URL (that is a layout hint).
+      if (window.OvhHostScreen) {
+        if (me.role === "host") window.OvhHostScreen.start();
+        else window.OvhHostScreen.stop();
+      }
     } catch (err) {
       setText("ovh-phone-headline", "Could not join");
       setText("ovh-phone-sub", err.message);
       return;
     }
-    setText("ovh-phone-status", "Connected. Waiting for the host…");
+    if (!(window.OvhHostScreen && window.OvhHostScreen.isActive())) {
+      setText("ovh-phone-status", "Connected. Waiting for the host…");
+    }
     render();
     window.OvhPhone = {
       me, onMessage, view: () => view,

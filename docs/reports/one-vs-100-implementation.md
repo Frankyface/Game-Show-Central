@@ -165,3 +165,60 @@ Two sheets were rewritten: `css/ovh.css` and `css/ovh-phone.css`. Markup changes
 | Live DOM walk (setup, lobby modal, window open, picked, locked, revealed, result, standings, editor) | 0 emoji, 0 backdrop-filter, 0 text-shadow, 0 gradients under text, 0 uppercase or tracked text outside Anton, 0 text < 14 px, minimum contrast 5.62:1 |
 | Reduced motion (emulated) | `getAnimations()` is 0 after a reveal. CSSOM walk found no @keyframes or animation outside no-preference, and no hover lifts. |
 | Static | V3 grep clean across `games/one-vs-100` (harness included), no `console.log`, every file < 800 lines (largest `ovh-core.js` 734) |
+
+---
+
+## Round 3 (2026-11-10): the host phone (docs/22 §5, §6 1 vs 100 row)
+
+### What was built
+
+All new code is in new files, except where an existing file had to be wired.
+
+| File | Role |
+|---|---|
+| `js/ovh-hostview.js` (new, UMD → `OvhHostView`) | Pure `hostView(state)`: the question, the three options with the **correct one marked**, the answer line, the Mob's live split, how many would fall (and stay), what they would bank, a wipe-out flag, the contestant's lock, and the **next question with its answer**. Setup, a revealed question, the result and the standings have `secret:false`. In the walk-or-continue phase only the next question is private. Also `itemKey`, `currentAnswer` and `phaseLabel`. |
+| `js/ovh-hostphone.js` (new) | Shared-screen side. Calls `room.setHostView({t:"host", item, seq, ...hostView})` on every change; `seq` moves only when the content changes. Answers-private mode and seat reconciliation are described below. |
+| `js/ovh-host-screen.js` (new) | Phone side, used when `me.role === "host"`. It shows "Host · 1 vs 100", the phase and bank, the question, the answer line (30 px, accent), the options with the right one marked by a border and the word "Correct", the Mob block, and the next question. It dims and says "Reconnecting — this may be out of date" while the transport is down, and reads "Too much to show — use the button on the laptop" for a `tooBig` view. It sends nothing and has no buttons. |
+| `css/ovh-host.css` (new) | The host card (v3, flat; text ≥ 16 px) and the shared-screen note. |
+| `tests/ovh-hostview.test.mjs` (new) | 9 unit tests (below). |
+| `tests/harness-hostphone.html` (new) | 28 checks (below). Frames are `flex:none`; the host phone is a real 320×640 frame. |
+
+**Edits to existing files (wiring only):**
+
+- `index.html`: script tags, the stylesheet, and the `#ovh-host-card` container.
+- `ovh-room.js`: passes `onHostPhones` and calls `OvhHostPhone.attach(room)`.
+- `ovh-phone.js`: passes `onHostView`, branches on `me.role`, and its renderer returns early while the host screen is active, so the contestant card never redraws over it.
+- `ovh-editor.js`: closing the editor removes the question rows, so no checked answer radio stays in the document.
+- `ovh-view.js`: Ask the Mob labels (below).
+- `ovh-core.js`: pre-draws the next question (below).
+- `css/ovh.css`: the host page is now a flex column (below).
+
+**Next question.** The draw is random, so the core now pre-draws the next question when a question comes up (`state.upcoming`). `continue` asks exactly that question; an older save without one draws as before. The rng distribution is unchanged, and every existing test still passes.
+
+**Answers-private mode** (`room.answersPrivate()`, a property of the roster).
+1 vs 100 already drew nothing that marks the right option before the reveal. What private mode adds:
+- **The note under the options:** "Answer is on your host phone" while a host phone is connected. When none is connected it reads "Host phone disconnected", with one **Show answer on this screen** button. That button shows "Answer: B — …" for the current question only, and the reveal clears on the next question.
+- **Ask the Mob:** the panel names its two members neutrally ("Mob member — chose A / chose B", in letter order) instead of "Says it is right / Says otherwise", which would tell the room the answer.
+
+With no host phone assigned the page is unchanged; HP-5 pins this.
+
+**Seat reconciliation (§5.6, F11), embedded only.** On the first render after the save is restored, phone seats in the setup list whose pid is not in `room.players()` are dropped. If the contestant's seat was dropped, the contestant moves to the first remaining player. A running or parked game keeps such a seat and shows one notice: "‹name› is no longer a player in this room … lock the contestant's answers from this screen, and a Mob seat with no phone counts as not answering. Or start a new game."
+
+**Layout.** The host page is now a flex column: toolbar, then the message line, then a screen that takes exactly what is left. A notice during play (for example the reconciliation message) therefore shrinks the Mob grid instead of pushing the controls off the screen. Before this change an error banner during play caused 40 px of scroll.
+
+### Verification (Node static server `.scratch/hp-1v100-serve.mjs` on port 8712; headless Chrome over CDP, `.scratch/hp-1v100-*`)
+
+| Check | Result |
+|---|---|
+| `node --test` | **95/95** (86 + 9 new) |
+| Unit HV | nothing secret in setup, result or standings; the correct option is marked at each phase (before and after close); the split and would-fall follow answers as they come in (unanswered counts as falling); a simulated Mob uses the typed count and flags a wipe-out; the previewed next question is the one `continue` asks whatever the rng; the item key is stable within a question; the view is pure and under 4 KB; contestant `phoneView` carries no upcoming question and no answer |
+| `tests/harness-hostphone.html` | **28/28**. Key checks:<br>• HP-1: the host-role frame gets the view through `onHostView`, contestant frames never do, the host phone is not seated, and the 320 px layout passes (answer 30 px, text ≥ 16 px, no sideways scroll, no buttons).<br>• HP-2 (connected) and HP-3 (disconnected but assigned): the correct-marking scan of the host document (classes, `data-*`, aria-label, title, text, editor radios, and that the three option buttons are identical) plus the answer-string scan (text, `value`, placeholder, option, title, alt, aria-label, `data-*`, `setTitle`) both come back empty before the reveal.<br>• HP-3: the fallback shows the answer, and the next question clears it. A control check confirms the scanner does see the marking once the reveal makes it public.<br>• HP-2: `seq` bumps on content change and not on a plain repaint.<br>• HP-4: the editor leaves no answer fields after close, the host phone sends nothing, and `tooBig` renders.<br>• HP-5: with no host phone, behaviour is identical.<br>• HP-6: reconciliation drops the seat from setup, keeps it in the running game, and shows the notice. |
+| `tests/harness.html` | 68/68 |
+| 1280×720 / 676 / 628 | play, result and standings: no scroll, including private mode with the note showing. Setup fits. 28 and 100 tiles show no hidden rows. |
+| v3 gates (720 and 676) | 0 emoji, 0 blur, 0 text-shadow, 0 gradient under text, 0 uppercase/tracking, 0 text < 14 px; minimum contrast 5.62:1; reduced motion clean |
+| Phones at 320 px | targets 56 px, no sideways scroll |
+| Static | V3 grep clean, no `console.log`, every file < 800 lines (largest `ovh-core.js` 745) |
+
+**Notes.**
+- The toolbar's Sound label now reads "Sound" / "Sound off". Someone else changed this in `ovh-app.js`; I kept it.
+- A first run of the v3 gate reported 2.65:1 on the Lock button. That was a sample taken mid-way through the theme's background transition 50 ms after the button was enabled; at rest it is the accent with `--accent-ink`. The gate now waits 450 ms.

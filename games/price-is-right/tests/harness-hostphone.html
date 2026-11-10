@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Price Is Right host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; overflow-x: auto; }
+    /* The hub's room for a game at 1280x720; `flex: none` pins it there. */
+    #host { flex: none; width: 1280px; height: 676px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { flex: none; width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>The Price Is Right — host phone harness (docs/22 §5.5)</h1>
+  <p class="lede">This page is the hub for one host frame, three contestant phones and one <b>host phone</b> (role=host). It speaks the bridge protocol including <code>host-phones</code> and <code>host-view</code>. The fixture uses distinctive prices so a leak is unambiguous. The load-bearing checks: with a host phone assigned — connected or not — the actual retail price of the item in play is nowhere in the host document (text, value, placeholder, option, title, alt, aria-label, data-*) or the shell title before its public reveal; the host phone always has it; the fallback button reveals the current item only and clears on the next.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script src="harness-lib.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    const { check, render, sleep, waitFor } = window.HarnessLib;
+
+    /* ============ The hub, with a host phone (docs/22 §4) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    const initRoom = () => ({ code: "TPHP", players, hostPhones, answersPrivate: hostPhones.length > 0 });
+
+    function deliverHostView() {
+      if (heldView && phoneFrames.has("h1")) post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") PLAYERS.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE) : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "TPHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-prizes.json";
+    const KEYS = ["gsc-tpir-state-v1-hpharness", "gsc-tpir-draft-v1-hpharness"];
+
+    const loadFrame = (frame, src) => new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().TpirApp.core();
+    const dispatch = (ev) => HW().TpirApp.dispatch(ev);
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostPhoneText = () => PW("h1").TpirHostPhone.text();
+    const hostPhoneView = () => PW("h1").TpirHostPhone.view();
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().TpirApp && HW().TpirApp.state().content, "host boot");
+      await sleep(80);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.TpirPhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title (docs/22 §5.5). */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    /** docs/22 §5.3: 320 px, no sideways scroll, text ≥ 16 px, the answer ≥ 28 px, no buttons, no images. */
+    function hostPhoneLayout(tag) {
+      const w = PW("h1");
+      const d = w.document;
+      const texts = [...d.querySelectorAll("#tpir-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(w.getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${w.getComputedStyle(n).fontSize}`);
+      const answer = d.querySelector(".host-answer");
+      const answerPx = answer ? parseFloat(w.getComputedStyle(answer).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answer ≥ 28 px, no buttons, no images`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0 && answerPx >= 28
+        && d.querySelectorAll("#tpir-host-card button, #tpir-host-card img").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px"
+        && w.getComputedStyle(d.getElementById("tpir-phone-card")).display === "none",
+        `scrollWidth ${d.documentElement.scrollWidth}, answer ${answerPx}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    /* ============ Scenarios ============ */
+
+    async function scenarioRow() {
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => hostPhoneView(), "the first host view");
+      check("HP-1 the host-role frame receives the view through onHostView: nothing secret in setup",
+        hostPhoneView().secret === false && /Nothing secret right now/.test(hostPhoneText())
+        && H("tpir-hp-note").classList.contains("hidden"),
+        hostPhoneText().slice(0, 80));
+
+      H("btn-start").click();
+      await waitFor(() => core() && core().phase === "row", "the row");
+      const item = core().row.item;
+      const price = HW().TpirCore.formatMoney(core(), item.price);
+      await waitFor(() => hostPhoneView().item === item.name, "the row item on the host phone");
+      check("HP-2 the host phone shows the item and its actual retail price",
+        hostPhoneText().indexOf(item.name) >= 0 && hostPhoneText().indexOf(price) >= 0
+        && hostPhoneView().seq >= 2, `${item.name} ${price} · seq ${hostPhoneView().seq}`);
+      hostPhoneLayout("HP-2");
+      check("HP-2 contestant frames never receive a host view, and never the price",
+        ["p1", "p2", "p3"].every((pid) => !PW(pid).TpirHostPhone.view()
+          && PW(pid).document.body.textContent.indexOf(price) < 0));
+      check("HP-3 CONNECTED: the price is nowhere in the host document or the shell title",
+        leaks(price).length === 0, leaks(price).join(", ") || `looked for “${price}”`);
+      check("HP-3 instead the laptop reads “Answer is on your host phone”, with no fallback button",
+        H("tpir-hp-msg").textContent === "Answer is on your host phone"
+        && H("btn-hp-fallback").classList.contains("hidden") && !H("tpir-hp-note").classList.contains("hidden"));
+      check("HP-3 the host phone sends nothing (no payload reached the game)",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone"));
+      return price;
+    }
+
+    async function scenarioAway(price) {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => H("tpir-hp-msg").textContent === "Host phone disconnected", "the away notice");
+      check("HP-4 DISCONNECTED: answers stay private and the price is still nowhere on the laptop",
+        leaks(price).length === 0, leaks(price).join(", ") || "clean");
+      check("HP-4 the laptop shows “Host phone disconnected” and exactly one fallback button",
+        [...HD().querySelectorAll("#tpir-hp-note button")].filter((b) => !b.classList.contains("hidden")).length === 1
+        && H("btn-hp-fallback").textContent === "Show answer on this screen");
+      await waitFor(() => /Reconnecting/.test(hostPhoneText()), "the stale host phone");
+      check("HP-4 the host phone dims and says it may be out of date",
+        PW("h1").document.getElementById("tpir-host-card").classList.contains("is-stale"));
+
+      H("btn-hp-fallback").click();
+      check("HP-5 the fallback button reveals the current item's price on the laptop",
+        H("tpir-hp-answer").textContent.indexOf(price) >= 0, H("tpir-hp-answer").textContent);
+
+      // The row is decided in public, then a pricing game brings a new item.
+      dispatch({ type: "bid", pid: core().row.seats[0], amount: 1 });
+      dispatch({ type: "revealBids" });
+      dispatch({ type: "nextSegment" });
+      H("tpir-game-pick").querySelector('.btn[data-kind="cliffhangers"]').click();
+      await waitFor(() => core().game.kind === "cliffhangers", "Cliff Hangers");
+      const first = core().game.items[0];
+      const firstPrice = HW().TpirCore.formatMoney(core(), first.price);
+      check("HP-5 …and clears on the next item: the new price is hidden again, the button is back",
+        leaks(firstPrice).length === 0 && H("tpir-hp-answer").textContent === ""
+        && !H("btn-hp-fallback").classList.contains("hidden"),
+        leaks(firstPrice).join(", ") || `“${firstPrice}” hidden`);
+      H("btn-hp-fallback").click();
+      check("HP-5 the fallback reveals only the current small item",
+        H("tpir-hp-answer").textContent === `${first.name}: ${firstPrice}`, H("tpir-hp-answer").textContent);
+      dispatch({ type: "chGuess", amount: first.price });
+      const second = core().game.items[1];
+      const secondPrice = HW().TpirCore.formatMoney(core(), second.price);
+      check("HP-5 the next small item is private again",
+        leaks(secondPrice).length === 0 && !H("btn-hp-fallback").classList.contains("hidden"),
+        leaks(secondPrice).join(", ") || "clean");
+
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => H("tpir-hp-msg").textContent === "Answer is on your host phone", "back online");
+      await waitFor(() => hostPhoneView().item === second.name, "the current host view");
+      check("HP-5 back online: the notice returns and the host phone is current",
+        hostPhoneText().indexOf(secondPrice) >= 0 && !/Reconnecting/.test(hostPhoneText()));
+      hostPhoneLayout("HP-5");
+    }
+
+    async function scenarioReconcile() {
+      // Cleo, seated in the running show, is no longer a player in this room.
+      players = PLAYERS.filter((p) => p.pid !== "p3");
+      const setup = HW().TpirApp.state().setup;
+      HW().TpirApp.set({ setup: Object.assign({}, setup, {
+        players: setup.players.concat([{ pid: "p9", name: "Gone", manual: false }]),
+      }) });
+      await bootHost(false);
+      await waitFor(() => core() && /no phone in this room/.test(H("tpir-error").textContent), "the reconcile notice");
+      check("HP-7 saved phone seats whose pid is not in the room are removed from the line-up",
+        !HW().TpirApp.state().setup.players.some((p) => p.pid === "p9" || p.pid === "p3"),
+        HW().TpirApp.state().setup.players.map((p) => p.name).join(","));
+      check("HP-7 the running show keeps that contestant's seat, phone-less, with one notice",
+        core().roster.some((r) => r.pid === "p3") && !HW().TpirApp.hasPhone("p3")
+        && /Cleo has no phone in this room/.test(H("tpir-error").textContent), H("tpir-error").textContent);
+      players = PLAYERS.slice();
+    }
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      heldView = null;
+      await bootHost();
+      await waitFor(() => HW().TpirApp.state().setup.players.length === 3, "the roster");
+      H("btn-start").click();
+      await waitFor(() => core() && core().phase === "row", "the row");
+      const price = HW().TpirCore.formatMoney(core(), core().row.item.price);
+      check("HP-8 with no host phone the shared screen is exactly as before: no notice, no fallback",
+        H("tpir-hp-note").classList.contains("hidden") && H("tpir-hp-msg").textContent === ""
+        && H("tpir-row-price").classList.contains("hidden") && leaks(price).length === 0);
+      dispatch({ type: "bid", pid: core().row.seats[0], amount: 1 });
+      dispatch({ type: "revealBids" });
+      check("HP-8 …and the public reveal still shows the price",
+        H("tpir-row-price").textContent.indexOf(price) >= 0, H("tpir-row-price").textContent);
+    }
+
+    (async function run() {
+      try {
+        const price = await scenarioRow();
+        await scenarioAway(price);
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        const message = err && err.message ? err.message : String(err);
+        window.HarnessLib.fail(message);
+        check("harness run completed", false, message);
+      }
+      await loadFrame(hostFrame, "about:blank");
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      render();
+      window.__TPIR_HP_DONE__ = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

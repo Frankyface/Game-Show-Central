@@ -527,3 +527,77 @@ This change touches only `#screen-fff`, which shows both the hand picker and Fas
 **Visual check:** `.scratch/wwm-d9-shot.mjs` renders both states at 1280×720 with no scroll:
 - picking: a centred prompt plus the name buttons;
 - open Fastest Finger: the items, "No answers yet.", Reveal, and the hand-pick row.
+
+## 14. The host phone (docs/22 §5, §6; review F11)
+
+All new code is in new files. The existing files only got small hooks.
+
+### New files
+
+| File | Lines | What it is |
+|---|---:|---|
+| `js/wwm-host-view.js` | 150 | **PURE** (UMD → `WwmHostView`). See the field list below. |
+| `js/wwm-hostphone.js` | 191 | Shared-screen side: room glue, answers-private mode, editor clearing, seat reconciliation. |
+| `js/wwm-host-screen.js` | 152 | The phone page in `role=host`. |
+| `css/wwm-host.css` | 90 | Host card, plus the shared screen's private-mode note. Design system v3. |
+| `tests/wwm-host-view.test.mjs` | 140 | HV-1 … HV-8. |
+| `tests/harness-hostphone.html` | 447 | HP-1 … HP-10 (26 checks). |
+
+**What `WwmHostView` exposes:**
+- `hostView(state)`, which returns for each moment:
+  - **Hot seat:** the question and contestant, all four options with exactly the right one marked, the money at stake, what a wrong answer pays (TV safe-haven rule), what walking away pays, and the two options left once 50:50 is used.
+  - **Fastest Finger:** the correct order.
+  - Otherwise `secret: false` with the phase. This covers setup, picking the hot seat, result and standings. Millionaire has no head-to-head.
+- `item(state)`: the human-readable question.
+- `itemKey(state)`: a private key that changes when the item changes.
+- `fallbackAnswer(state)`: the line the laptop fallback shows. It is empty once the public reveal has happened.
+
+### Hooks in existing files
+
+- `index.html`: the new script and stylesheet tags, and `#wwm-host-card` inside the phone screen.
+- `wwm-room.js`: passes `onHostPhones` to `GSC.host` and calls `WwmHostPhone.attach(room)`.
+- `wwm-phone.js`:
+  - passes `onHostView`;
+  - picks the screen by `me.role` once `GSC.player()` resolves;
+  - forwards `onStatus` to the host screen;
+  - makes `render()` return early while the host screen is active, so the contestant renderer can never redraw over it.
+
+### Contract items
+
+- **Room glue.** On every render the game calls `room.setHostView({t:"host", item, seq, …hostView})`.
+  - There is no cache and no resend logic.
+  - `seq` increases only when the view's content changes. HP-6 checks that a re-render with no change sends nothing and keeps `seq`, and that a content change raises it by exactly one.
+- **Host-phone page.** It replaces the contestant card and shows:
+  - a "Host" header, the phase and the question;
+  - the answer at 30 px in a lightened accent (it clears 4.5:1 on the surface);
+  - the options, with the right one marked "Correct" and removed ones marked "Removed";
+  - the money at stake, if wrong, and walk away.
+
+  On disconnect it dims and shows "Reconnecting — this may be out of date". `tooBig` shows "Too much to show — use the button on the laptop". The page sends nothing and has no buttons. At 320 px there is no sideways scroll, text is ≥ 16 px and the answer is ≥ 28 px.
+- **Answers-private mode.** The four options are public in this game, so the secret here is the **marking**. The shared screen never marked the right option before the paced reveal, and that is unchanged. What private mode adds:
+  - One note, under the options (hot seat) or in the arrivals column (Fastest Finger), shown only while the item is still secret: "Answer is on your host phone".
+  - While no host phone is connected: "Host phone disconnected" and one **Show answer on this screen** button. It reveals "Correct answer: B — …" (or the correct Fastest Finger order) for the current item only, and clears on the next item.
+  - The editor's question rows mark every answer (checked radios, order selects). They are emptied when the editor closes while a game runs, and rebuilt when it opens again.
+  - Millionaire has no remembered reveal switches to ignore.
+- **Seat reconciliation, embedded only, once after the save is restored.**
+  - Saved phone seats not in `room.players()` are dropped.
+  - A running or parked game keeps such a contestant's seat and shows one notice: "‹name› is no longer a player in this room (now the host phone, or gone) — play their turns from this screen, or start a new game."
+- **No host phone.** Nothing is added to the page; HP-10 checks this.
+
+### Tests
+
+- **Unit:** `node --test` gives **75/75**: the 67 existing tests plus HV-1 … HV-8. These cover:
+  - nothing secret in phases with no secret;
+  - the right option marked;
+  - money at stake and if-wrong at rungs 1, 5, 6 and 11;
+  - the 50:50 remainder;
+  - the Fastest Finger order;
+  - item keys, including a switched question;
+  - purity and size (< 4 KB);
+  - `phoneView` unchanged and free of answer or correct fields.
+- **Host-phone harness:** **26/26**, run headless through `.scratch/cdp.mjs .scratch/hp-mil-harness-run.mjs` against the Node static server `.scratch/hp-mil-serve.mjs` on port 8672. Frames are `flex:none` (host 1280×720, phones 320 px wide).
+  - The host-role frame receives views through `onHostView`; contestant frames never do.
+  - With a host phone assigned, connected **and** disconnected, `correctMarks()` finds nothing before the reveal. It scans for: correct or ordered classes and `data-*`; "correct answer" / "correct order" text; the answer line in text, `value`, `placeholder`, `title`, `alt`, `aria-label` and `data-*`; a checked editor answer radio; and `setTitle`.
+  - A positive control shows the scanner does catch the answer after the fallback is pressed.
+  - The answer is gone again on the next item, and the notice returns when the phone reconnects.
+- **Main harness:** `tests/harness.html` is still **79/79**. Its static-gate lists now include the new files.

@@ -196,7 +196,12 @@ function dondError(message) {
 
 /* ============ Content loading ============ */
 
-let dondLoadMessage = "";   // survives the dondSet() in dondBoot, which clears the banner
+let dondLoadMessage = "";
+
+// Resolved once dondBoot has restored the saved game and settled the content,
+// so the host-phone glue never reconciles seats against a half-loaded setup.
+let dondMarkReady = null;
+const dondReady = new Promise((resolve) => { dondMarkReady = resolve; });   // survives the dondSet() in dondBoot, which clears the banner
 
 async function dondFetchBoard(url, label, kind) {
   const res = await fetch(url, { cache: "no-store" });
@@ -624,6 +629,7 @@ async function dondBoot() {
   const loaded = await dondLoadContent();
   dondSet(dondChooseContent(saved, loaded));
   if (dondLoadMessage) dondError(dondLoadMessage);
+  dondMarkReady();
 }
 
 /** The public surface dond-editor.js / dond-room.js / the harness build on. */
@@ -653,6 +659,7 @@ window.DondApp = {
   showSplash: dondShowSplash,
   setPhoneCount: (n) => { if (n !== dondApp.phoneCount) dondSet({ phoneCount: Number(n) || 0 }); },
   STORAGE_KEY: DOND_STORAGE_KEY,
+  whenReady: () => dondReady,
   storeSuffix: dondStoreSuffix,
 };
 

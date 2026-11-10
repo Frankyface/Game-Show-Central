@@ -210,7 +210,11 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        // docs/22: a host phone's set or connection changed (tpir-hostroom.js).
+        onHostPhones: (list) => { if (window.TpirHostRoom) window.TpirHostRoom.onHostPhones(list); },
+      });
     } catch (err) {
       window.TpirApp.error(`Phones are unavailable: ${err.message}. The host can still run the show.`);
       return;
@@ -218,6 +222,8 @@
     // Bind the (possibly resumed) show to THIS room before any phone can join,
     // so a fresh p1 never inherits the previous room's seat.
     window.TpirApp.bindRoom(room.code);
+    // docs/22 §5.2/§5.4/§5.6: host view, answers-private notice, seat reconciliation.
+    if (window.TpirHostRoom) window.TpirHostRoom.attach(room, embedded);
     if (room.onStatus) {
       room.onStatus(() => { window.TpirApp.bindRoom(room.code); paintRoom(); });
     }

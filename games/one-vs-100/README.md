@@ -95,6 +95,19 @@ advance. A Mob phone's view never contains the correct answer or any other
 member's pick. Phones joining mid-game watch, and are added to the setup list as soon as
 no game is in progress (Play again, Start over, or the phone reloading).
 
+## Host phone (docs/22)
+
+In the hub, any phone can be made the **host phone**. It then shows, privately:
+the question with the correct option marked, the Mob's split as answers arrive,
+how many would fall (and what they would bank), and the next question with its
+answer. While a host phone is assigned the laptop shows "Answer is on your host
+phone"; if it disconnects, "Host phone disconnected" and one **Show answer on
+this screen** for the current question. Ask the Mob then names its two members
+without saying which is right. With no host phone nothing changes.
+Files: `js/ovh-hostview.js` (pure), `js/ovh-hostphone.js` (laptop side),
+`js/ovh-host-screen.js` (phone side), `css/ovh-host.css`,
+`tests/ovh-hostview.test.mjs`, `tests/harness-hostphone.html`.
+
 ## Layout
 
 ```
@@ -123,7 +136,7 @@ presses **Resume the Mob window**.
 ## Testing
 
 ```bash
-cd games/one-vs-100 && node --test          # 86 unit tests
+cd games/one-vs-100 && node --test          # 95 unit tests
 python -m http.server 8712 --bind 127.0.0.1  # then open games/one-vs-100/tests/harness.html (68 checks)
 ```
 

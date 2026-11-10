@@ -172,6 +172,18 @@ phone receives arrives as a formatted string rather than a number.
 The host is authoritative throughout. A phone can never open a case out of
 turn, take the banker's money, or advance the game.
 
+### The host phone
+
+In the hub, a phone made **host phone** gets a private screen instead of the
+contestant controller: the banker's next offer **before it is announced** — a
+projection while cases are still being opened, the exact offer before the jitter
+once the round is over — with how it is computed (the board average, the round's
+factor, the jitter band) and the amounts still in play. Once the offer is on the
+table it shows it against the board average. It never shows which amount is in
+which case: nobody in the studio knows that, the host included. The host phone
+sends nothing. With no host phone, nothing changes; the shared screen never shows
+the pending offer before the banker calls either way.
+
 ## 6. Files
 
 ```
@@ -194,6 +206,11 @@ tests/dond-core.test.mjs node:test, N-U1 … N-U10
 tests/dond-advice.test.mjs  the live ballot and the selector contract
 tests/harness.html       the loopback harness, N-I1 … N-I6
 tests/harness-x.js       the cross-cutting scenarios, X-1 … X-4
+js/dond-host-view.js     PURE: hostView(state) for the host phone
+js/dond-host-room.js     host-phone room glue + seat reconciliation
+js/dond-hostphone.js     the host-phone page (role=host)
+tests/dond-hostview.test.mjs  hostView unit tests
+tests/harness-hostphone.html  host-phone harness (docs/22 §5.5)
 ```
 
 ## 7. Known behaviour worth knowing

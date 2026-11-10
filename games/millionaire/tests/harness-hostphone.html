@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Millionaire host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    /* flex:none so a narrow pane can never squeeze the frames and break the layout checks */
+    #host { flex: none; width: 1280px; height: 720px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { flex: none; width: 320px; height: 600px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Millionaire — host phone harness (docs/22 §5.5, review F11)</h1>
+  <p class="lede">This page is the hub for one host frame, three contestant phones and one <b>host phone</b>
+    (role=host), speaking the bridge protocol including <code>host-phones</code> and <code>host-view</code>.
+    In Millionaire the four options are public, so the leak scanned for is the <b>correct-marking</b>: with a
+    host phone assigned — connected or not — nothing in the host document (classes, data-*, text, value,
+    placeholder, option, title, alt, aria-label, a checked editor radio, the Fastest Finger order) or the
+    shell title says which option is right before the paced reveal, until the per-item fallback is pressed.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__WWM_HP_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function waitFor(fn, label, timeout) {
+      const start = Date.now();
+      for (;;) {
+        let v = null;
+        try { v = fn(); } catch (err) { v = null; }
+        if (v) return v;
+        if (Date.now() - start > (timeout || 6000)) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub, with host phones (docs/22 §4) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    const hostViews = [];          // every view the host frame handed the hub
+    let heldView = null;
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "MIHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (!heldView || !phoneFrames.has("h1")) return;
+      post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; hostViews.push(d.m); deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") PLAYERS.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE)
+          : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "MIHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/harness-game.json";
+    const KEYS = ["gsc-wwm-state-v1-hpharness", "gsc-wwm-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().WwmApp.core();
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostPhoneText = () => PW("h1").WwmHostScreen.text();
+    const hpView = () => PW("h1").WwmHostScreen.view();
+    const notes = () => [...HD().querySelectorAll(".hp-note:not(.hidden)")];
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().WwmApp && HW().WwmApp.state().game && HW().WwmHostPhone, "host boot");
+      await sleep(80);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.WwmPhone), "phones join");
+    }
+
+    /**
+     * Every way the host document (or the shell title) could say which option is
+     * right, or what the Fastest Finger order is, before the paced reveal. The
+     * options' text is public in this game; the marking is the secret.
+     */
+    function correctMarks(answerLine) {
+      const where = [];
+      const doc = HD();
+      // The Fastest Finger order is only a secret while that round is on screen.
+      const ordered = core() && core().phase === "fff" ? ", .fff-item-ordered" : "";
+      if (doc.querySelector(".option-correct, [data-state='correct']" + ordered)) where.push("correct/ordered class");
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(class|data-)/.test(attr.name) && /correct|is-right|answer-idx/i.test(attr.value)
+              && !/^(hp-|host-)/.test(attr.value)) where.push(`${node.tagName}@${attr.name}=${attr.value}`);
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && answerLine
+              && attr.value.indexOf(answerLine) >= 0) where.push(`${node.tagName}@${attr.name}`);
+        }
+        if (answerLine && typeof node.value === "string" && node.value.indexOf(answerLine) >= 0) where.push(`${node.tagName}.value`);
+      }
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const t = walker.currentNode.textContent;
+        if (/correct answer|correct order/i.test(t)) where.push(`text “${t.trim().slice(0, 40)}”`);
+        if (answerLine && t.indexOf(answerLine) >= 0) where.push(`answer line in #${walker.currentNode.parentElement.id}`);
+      }
+      if (doc.querySelector("input[name^='wwm-ans-']:checked")) where.push("a checked editor answer radio");
+      if (shellLog.some((m) => m.t === "title" && /correct|answer/i.test(String(m.text)))) where.push("setTitle");
+      return where;
+    }
+
+    /** docs/22 §5.3: 320 px with no sideways scroll, text ≥ 16 px, the answer ≥ 28 px, no buttons. */
+    function hostPhoneLayout(tag) {
+      const w = PW("h1");
+      const d = w.document;
+      const texts = [...d.querySelectorAll("#wwm-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(w.getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${w.getComputedStyle(n).fontSize}`);
+      const answer = d.querySelector(".host-answer");
+      const answerPx = answer ? parseFloat(w.getComputedStyle(answer).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answer ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0
+        && answerPx >= 28 && d.querySelectorAll("#wwm-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, answer ${answerPx}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    function answerLineOf(c) {
+      return `${"ABCD"[c.question.answer]} — ${c.question.options[c.question.answer]}`;
+    }
+
+    /* ============ Scenarios ============ */
+
+    async function scenarioFastestFinger() {
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => hpView(), "the first host view");
+      check("HP-1 the host-role frame receives the view through onHostView: nothing secret in setup",
+        hpView().secret === false && /Nothing secret right now/.test(hostPhoneText())
+        && PW("h1").document.getElementById("wwm-phone-card").classList.contains("hidden"),
+        hostPhoneText().slice(0, 80));
+      check("HP-1 the host page is in answers-private mode",
+        HW().WwmHostPhone.isPrivate() === true);
+      check("HP-1 contestant frames never receive a host view and keep their own card",
+        ["p1", "p2", "p3"].every((pid) => !PW(pid).WwmHostScreen.view() && !PW(pid).WwmHostScreen.isActive()));
+
+      await waitFor(() => HW().WwmApp.state().setup.players.length === 3, "the roster");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "fff", "Fastest Finger");
+      click("btn-fff-open");
+      const fq = core().fff.question;
+      await waitFor(() => hpView().kind === "fff", "the Fastest Finger host view");
+      const orderText = fq.order.map((i) => fq.options[i]);
+      check("HP-2 the host phone shows the Fastest Finger question and the correct order",
+        hpView().item === fq.q && hpView().order.map((o) => o.text).join("|") === orderText.join("|")
+        && hostPhoneText().indexOf(hpView().answerText) >= 0,
+        hostPhoneText().slice(0, 120));
+      hostPhoneLayout("HP-2");
+      check("HP-2 the laptop shows no order before the reveal, and says the answer is on the host phone",
+        correctMarks("").length === 0 && notes().length === 1
+        && notes()[0].textContent.indexOf("Answer is on your host phone") === 0,
+        correctMarks("").join(", ") || notes().map((n) => n.textContent).join(" / "));
+    }
+
+    async function scenarioHotSeat() {
+      click("btn-fff-reveal");
+      HW().WwmApp.seat("p1");
+      await waitFor(() => core().phase === "hotseat", "the hot seat");
+      const c = core();
+      const line = answerLineOf(c);
+      await waitFor(() => hpView().kind === "question" && hpView().item === c.question.q, "the question view");
+      check("HP-3 the host phone shows the question, the right option marked, money at stake and if-wrong",
+        hpView().answerText === line && PW("h1").document.querySelectorAll(".host-option.is-right").length === 1
+        && PW("h1").document.querySelector(".host-option.is-right").textContent.indexOf(c.question.options[c.question.answer]) >= 0
+        && /Playing for\s*\$100/.test(hostPhoneText()) && /If wrong\s*\$0/.test(hostPhoneText()),
+        hostPhoneText().slice(0, 160));
+      hostPhoneLayout("HP-3");
+      check("HP-3 contestant frames never receive the host view or the answer line",
+        ["p1", "p2", "p3"].every((pid) => !PW(pid).WwmHostScreen.view()
+          && PW(pid).document.body.textContent.indexOf(line) < 0));
+      check("HP-4 CONNECTED: nothing on the laptop marks the right option before the reveal",
+        correctMarks(line).length === 0, correctMarks(line).join(", ") || `looked for “${line}” and every marker`);
+      check("HP-4 instead the laptop reads “Answer is on your host phone” under the options",
+        notes().length === 1 && /^Answer is on your host phone/.test(notes()[0].textContent)
+        && !notes()[0].querySelector(".hp-show:not(.hidden)"));
+      check("HP-4 the host phone sends nothing", !shellLog.some((m) => m.t === "dropped-from-host-phone"));
+
+      // 50:50: the host phone learns the two left.
+      HW().WwmApp.useLifeline("fifty");
+      await waitFor(() => hpView().remaining, "the 50:50 host view");
+      check("HP-5 after 50:50 the host phone lists the two options left, the right one among them",
+        hpView().remaining.length === 2 && hpView().remaining.indexOf("ABCD"[c.question.answer]) >= 0
+        && /50:50 left/.test(hostPhoneText()) && correctMarks(line).length === 0);
+
+      // The editor marks every answer; closed while a game runs, it must not keep them in the page.
+      click("btn-editor");
+      await waitFor(() => !H("screen-editor").classList.contains("hidden"), "the editor");
+      click("btn-editor-close");
+      await sleep(60);
+      check("HP-5 closing the editor mid-game leaves no marked answers in the page",
+        HD().querySelectorAll("#wwm-ed-rows *").length === 0 && correctMarks(line).length === 0,
+        correctMarks(line).join(", ") || "editor rows emptied");
+      return c;
+    }
+
+    async function scenarioSeq() {
+      const before = hostViews.length;
+      const seq = hostViews[hostViews.length - 1].seq;
+      HW().WwmApp.render();
+      await sleep(80);
+      check("HP-6 a render with no change sends nothing new and keeps seq",
+        hostViews.length === before && HW().WwmHostPhone.seq() === seq, `seq ${seq}, views ${before}`);
+      const free = [0, 1, 2, 3].find((i) => !core().removed.includes(i) && i !== core().selected);
+      HW().WwmApp.select(free);
+      await waitFor(() => hostViews.length > before, "a changed view");
+      check("HP-6 a content change bumps seq by exactly one",
+        hostViews[hostViews.length - 1].seq === seq + 1, `seq ${hostViews[hostViews.length - 1].seq}`);
+    }
+
+    async function scenarioDisconnected(c) {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => notes().length && /^Host phone disconnected/.test(notes()[0].textContent), "the away notice");
+      const line = answerLineOf(core());
+      check("HP-7 DISCONNECTED: still private, and still nothing marks the right option",
+        HW().WwmHostPhone.isPrivate() === true && correctMarks(line).length === 0,
+        correctMarks(line).join(", ") || "clean");
+      check("HP-7 the laptop shows “Host phone disconnected” and exactly one fallback button",
+        HD().querySelectorAll(".hp-show:not(.hidden)").length === 1
+        && HD().querySelector(".hp-show:not(.hidden)").textContent === "Show answer on this screen");
+      await waitFor(() => /Reconnecting/.test(hostPhoneText()), "the stale host phone");
+      check("HP-7 the host phone dims and says it may be out of date",
+        PW("h1").document.getElementById("wwm-host-card").classList.contains("is-stale"));
+
+      HD().querySelector(".hp-show:not(.hidden)").click();
+      await waitFor(() => HD().querySelector(".hp-reveal:not(.hidden)"), "the fallback answer");
+      check("HP-8 the fallback reveals the current answer on the laptop",
+        HD().querySelector(".hp-reveal:not(.hidden)").textContent === `Correct answer: ${line}`,
+        HD().querySelector(".hp-reveal:not(.hidden)").textContent);
+      check("HP-8 the leak scanner is live: it does see the answer once the fallback shows it",
+        correctMarks(line).length > 0, correctMarks(line).join(", "));
+      // The paced reveal, then the next question.
+      const q = core();
+      HD().querySelector(`#wwm-options .option[data-idx="${q.question.answer}"]`).click();
+      click("btn-lock");
+      click("btn-reveal");
+      click("btn-next");
+      await waitFor(() => core().rung === q.rung + 1, "the next question");
+      const nextLine = answerLineOf(core());
+      check("HP-8 …and clears on the next item: no marking again, the button is back",
+        correctMarks(nextLine).length === 0 && !HD().querySelector(".hp-reveal:not(.hidden)")
+        && HD().querySelectorAll(".hp-show:not(.hidden)").length === 1,
+        correctMarks(nextLine).join(", ") || "hidden again");
+
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => notes().length && /^Answer is on your host phone/.test(notes()[0].textContent), "back online");
+      check("HP-8 when the host phone comes back the notice returns and the phone is current",
+        hpView().item === core().question.q && !/Reconnecting/.test(hostPhoneText()));
+      return c;
+    }
+
+    async function scenarioReconcile() {
+      // A game running with Cleo seated; she is now a host phone, so not a player in this room.
+      players = PLAYERS.filter((p) => p.pid !== "p3");
+      const setup = HW().WwmApp.state().setup;
+      HW().WwmApp.set({ setup: Object.assign({}, setup, {
+        players: setup.players.concat([{ pid: "p9", name: "Gone", manual: false }]),
+      }) });
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "hotseat", "the restored game");
+      await sleep(80);
+      check("HP-9 a saved phone seat whose pid is not in the room is removed from setup",
+        !HW().WwmApp.state().setup.players.some((p) => p.pid === "p9" || p.pid === "p3"),
+        HW().WwmApp.state().setup.players.map((p) => p.name).join(","));
+      check("HP-9 the running game keeps that contestant's seat with one notice",
+        core().contestants.some((c) => c.pid === "p3")
+        && /Cleo is no longer a player in this room/.test(H("wwm-error").textContent),
+        H("wwm-error").textContent);
+      players = PLAYERS.slice();
+    }
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      await bootHost();
+      await waitFor(() => HW().WwmApp.state().setup.players.length === 3, "the roster");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "fff", "Fastest Finger");
+      HW().WwmApp.seat("p1");
+      await waitFor(() => core().phase === "hotseat", "the hot seat");
+      check("HP-10 with no host phone assigned the shared screen is exactly as before",
+        HW().WwmHostPhone.isPrivate() === false && HD().querySelectorAll(".hp-note").length === 0
+        && !/host phone/i.test(HD().body.textContent));
+    }
+
+    (async function run() {
+      try {
+        await scenarioFastestFinger();
+        const c = await scenarioHotSeat();
+        await scenarioSeq();
+        await scenarioDisconnected(c);
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      await loadFrame(hostFrame, "about:blank");
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      render();
+      window.__WWM_HP_DONE__ = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

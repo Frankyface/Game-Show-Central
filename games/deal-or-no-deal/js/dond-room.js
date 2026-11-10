@@ -195,7 +195,10 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        onHostPhones: () => { if (window.DondHostRoom) window.DondHostRoom.onHostPhones(); },
+      });
     } catch (err) {
       window.DondApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -207,6 +210,8 @@
       room.onStatus(() => { window.DondApp.bindRoom(room.code); paintRoom(); });
     }
     window.DondApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
+    // The host phone (docs/22): private view to the hub + seat reconciliation.
+    if (window.DondHostRoom) window.DondHostRoom.attach(room, embedded);
     wireRoomButton();
     (room.players ? room.players() : []).forEach(onPlayerJoin);
     paintRoom();

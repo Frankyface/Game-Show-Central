@@ -379,6 +379,10 @@ const TpirEditor = (function () {
 
   function close() {
     window.TpirApp.set({ editorOpen: false });
+    // Every price in the file sits in these inputs: drop them on close so a
+    // hidden editor never holds an unrevealed price (docs/22 §5.4).
+    const panel = $("tpir-editor-panel");
+    if (panel) panel.replaceChildren();
   }
 
   function useInGame() {

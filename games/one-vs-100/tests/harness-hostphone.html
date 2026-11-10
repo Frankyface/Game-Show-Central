@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1 vs 100 host-phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 64rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok { color: #35d68a; }
+    #summary.bad { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="true"] { border-left: 4px solid #35d68a; }
+    #results li[data-pass="false"] { border-left: 4px solid #ff5a66; background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    /* flex:none keeps every frame at its declared size: the host-phone layout
+       check measures a real 320 px viewport. */
+    #host { flex: none; width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { flex: none; width: 220px; height: 430px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+    .phones iframe.host-phone-frame { width: 320px; height: 640px; border-color: #19c9ff; }
+  </style>
+</head>
+<body>
+  <h1>1 vs 100 — host-phone harness (docs/22 §5.5, the 1 vs 100 row of §6)</h1>
+  <p class="lede">This page is the hub for one host frame, four contestant phones (a contestant and a Mob of three)
+    and one <b>host phone</b> (role=host). It speaks the bridge protocol including <code>host-phones</code> and
+    <code>host-view</code>. In 1 vs 100 all three option texts are public, so the load-bearing check is the
+    <b>correct-marking</b>: with a host phone assigned — connected or not — nothing in the host document (text,
+    value, placeholder, option, title, alt, aria-label, data-*, class) or the shell title says which option is right
+    until the reveal or the per-item fallback; the host phone always does.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__OVH_HP_HARNESS__ = { total: results.length, failed, uncaught, results, done: false };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function waitFor(fn, label, timeout) {
+      const limit = timeout || 6000;
+      const start = Date.now();
+      for (;;) {
+        let v = null;
+        try { v = fn(); } catch (err) { v = null; }
+        if (v) return v;
+        if (Date.now() - start > limit) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub (00 §6 + docs/22 §4.2) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Cass", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ada", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Ben", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+      { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
+    ];
+    const MOB = ["p2", "p3", "p4"];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+    const hostViewsTo = new Map();
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "OVHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (!heldView || !phoneFrames.has("h1")) return;
+      hostViewsTo.set("h1", (hostViewsTo.get("h1") || 0) + 1);
+      post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; shellLog.push({ t: "host-view", seq: d.m && d.m.seq }); deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") players.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE) : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "OVHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/harness-game.json";
+    const PHONE_SRC = "../index.html?embed=player&harness=1&store=hpharness";
+    const KEYS = ["gsc-ovh-state-v1-hpharness", "gsc-ovh-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().OvhApp.core();
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const PD = (pid) => phoneFrames.get(pid).contentDocument;
+    const hostPhoneText = () => PW("h1").OvhHostScreen.text();
+    const hpView = () => PW("h1").OvhHostScreen.view();
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      heldView = null;
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().OvhApp && HW().OvhApp.state().game && HW().OvhRoom, "host boot");
+      await sleep(80);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "p4", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        if (pid === "h1") frame.className = "host-phone-frame";
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `${PHONE_SRC}${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.OvhPhone), "phones join");
+    }
+
+    /* ============ The scanners (docs/22 §5.5) ============ */
+
+    /** Where, if anywhere, the string `s` appears in the host document or the shell title. */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    /**
+     * The correct-marking scan. In 1 vs 100 the right option's TEXT is always on
+     * screen (it is one of three), so what must not exist is anything that singles
+     * it out: a class, a data attribute, an aria-label/title, a "correct" word, the
+     * Ask panel's "right" label, a checked editor radio — or the three option
+     * buttons differing in any way other than the host's own pick.
+     */
+    function marks() {
+      const where = [];
+      const doc = HD();
+      const right = core().q.question.answer;
+      const word = /correct|is-right|says it is right|right answer/i;
+      for (const node of doc.querySelectorAll("*")) {
+        if (node.closest("#screen-phone")) continue;
+        const cls = typeof node.className === "string" ? node.className : "";
+        if (/\bis-correct\b|\bis-right\b|\bcorrect\b/.test(cls)) where.push(`class ${node.tagName}.${cls}`);
+        for (const attr of node.attributes) {
+          if (/^(data-|aria-label|title)/.test(attr.name) && word.test(attr.value)) where.push(`${node.tagName}@${attr.name}=${attr.value}`);
+          if (/^data-(answer|correct|right)/.test(attr.name)) where.push(`${node.tagName}@${attr.name}`);
+        }
+        if (node.matches && node.matches("input[type=radio]:checked") && node.closest("#ovh-ed-rows")) where.push("checked editor radio");
+      }
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.parentElement.closest("#screen-phone")) continue;
+        if (word.test(n.textContent)) where.push(`text "${n.textContent.trim().slice(0, 40)}"`);
+      }
+      const opts = [...doc.querySelectorAll("#ovh-options .option")];
+      const sig = (b) => [...b.classList].filter((c) => c !== "is-picked").sort().join(" ")
+        + "|" + [...b.attributes].filter((a) => !/^(class|data-idx)$/.test(a.name)).map((a) => a.name + "=" + a.value).join(",");
+      if (opts.length === 3 && new Set(opts.map(sig)).size !== 1) where.push(`options differ: ${opts.map(sig).join(" / ")}`);
+      if (opts[right] && /\bis-correct\b/.test(opts[right].className)) where.push("right option classed");
+      return where;
+    }
+
+    function answerString() {
+      const q = core().q.question;
+      return `${["A", "B", "C"][q.answer]} — ${q.options[q.answer]}`;
+    }
+
+    function hostPhoneLayout(tag) {
+      const w = PW("h1");
+      const d = PD("h1");
+      const texts = [...d.querySelectorAll("#ovh-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(w.getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${w.getComputedStyle(n).fontSize}`);
+      const answer = d.querySelector(".host-answer");
+      const answerPx = answer ? parseFloat(w.getComputedStyle(answer).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answer ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0
+        && answerPx >= 28 && d.querySelectorAll("#ovh-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, answer ${answerPx}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    async function startPhoneGame() {
+      await waitFor(() => HW().OvhApp.state().setup.players.length === 4, "roster from the shell");
+      H("ovh-mob-phones").checked = true;
+      H("ovh-mob-phones").dispatchEvent(new (HW().Event)("change"));
+      HW().OvhApp.setContestant("p1");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "question", "the question screen");
+    }
+
+    async function mobAnswer(pid, idx) {
+      const before = Object.keys(core().q.answers).length;
+      await waitFor(() => PD(pid).querySelectorAll("#ovh-phone-choices .phone-choice").length === 3, `${pid} options`);
+      PD(pid).querySelectorAll("#ovh-phone-choices .phone-choice")[idx].click();
+      await waitFor(() => Object.keys(core().q.answers).length === before + 1, `${pid}'s answer arrives`);
+    }
+
+    /* ============ HP-1 — the view reaches the host phone, and only it ============ */
+
+    async function scenarioView() {
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      players = PLAYERS.slice();
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => hpView(), "the first host view");
+      check("HP-1 the host-role frame shows the host screen, not the contestant card",
+        PW("h1").OvhHostScreen.isActive() && PD("h1").getElementById("ovh-phone-card").classList.contains("hidden")
+        && /Host/.test(hostPhoneText()), hostPhoneText().slice(0, 80));
+      check("HP-1 in setup the host phone says there is nothing secret",
+        /Nothing secret right now/.test(hostPhoneText()) && hpView().secret === false, hpView().phaseLabel);
+      check("HP-1 the host frame is in answers-private mode and the host phone is not a contestant",
+        HW().OvhHostPhone.isPrivate() && !HW().OvhApp.state().setup.players.some((p) => p.pid === "h1"),
+        HW().OvhApp.state().setup.players.map((p) => p.pid).join(","));
+
+      await startPhoneGame();
+      await waitFor(() => hpView() && hpView().secret, "the question reaches the host phone");
+      const v = hpView();
+      const q = core().q.question;
+      check("HP-1 the host phone has the question with the correct option marked",
+        v.current.q === q.q && v.current.options[q.answer].correct === true
+        && v.current.options.filter((o) => o.correct).length === 1
+        && PD("h1").querySelectorAll(".host-option.is-right").length === 1
+        && hostPhoneText().indexOf(answerString()) >= 0,
+        `${v.current.answerLetter} — ${v.current.answerText}`);
+      check("HP-1 the host phone previews the next question with its answer",
+        v.next && v.next.q && v.next.qNumber === 2 && hostPhoneText().indexOf(v.next.q) >= 0, v.next && v.next.q);
+      check("HP-1 contestant frames never receive a host view",
+        ["p1", "p2", "p3", "p4"].every((pid) => PW(pid).OvhHostScreen.view() === null && !PW(pid).OvhHostScreen.isActive())
+        && (hostViewsTo.get("h1") || 0) > 0, `${hostViewsTo.get("h1")} views to h1`);
+      hostPhoneLayout("HP-1");
+    }
+
+    /* ============ HP-2 — connected: nothing marks the answer on the shared screen ============ */
+
+    async function scenarioConnected() {
+      check("HP-2 connected: the shared screen says the answer is on the host phone, with no button",
+        H("ovh-hp-note") && !H("ovh-hp-note").classList.contains("hidden")
+        && /Answer is on your host phone/.test(H("ovh-hp-note").textContent)
+        && H("ovh-hp-note").querySelector(".hp-show").classList.contains("hidden"),
+        H("ovh-hp-note") && H("ovh-hp-note").textContent);
+      check("HP-2 connected: nothing in the host document marks the correct option (window not open)",
+        marks().length === 0 && leaks(answerString()).length === 0, marks().concat(leaks(answerString())).join("; "));
+
+      const seq0 = hpView().seq;
+      click("btn-open-window");
+      await waitFor(() => core().q.open, "window open");
+      await mobAnswer("p2", core().q.question.answer);
+      await mobAnswer("p3", (core().q.question.answer + 1) % 3);
+      await waitFor(() => hpView().mob.answered === 2, "the split reaches the host phone");
+      check("HP-2 the host phone's Mob split and would-fall follow the answers as they come in",
+        hpView().mob.answered === 2 && hpView().mob.wouldFall === 2 && hpView().mob.total === 3
+        && /answered 2 of 3/.test(hostPhoneText()) && /2 fall, 1 stay/.test(hostPhoneText()),
+        hostPhoneText().replace(/\s+/g, " ").slice(0, 200));
+      check("HP-2 seq moved because the content changed",
+        hpView().seq > seq0, `${seq0} → ${hpView().seq}`);
+      const seqNow = hpView().seq;
+      HW().OvhApp.render();
+      await sleep(80);
+      check("HP-2 a repaint with no change does not bump seq",
+        hpView().seq === seqNow, `${seqNow} → ${hpView().seq}`);
+
+      click("btn-close-mob");
+      await waitFor(() => core().q.closed, "the Mob locks");
+      click("btn-help-ask");
+      await waitFor(() => core().q.ask, "ask");
+      check("HP-2 Ask the Mob names its members neutrally: no 'right' label on the shared screen",
+        /Mob member/.test(H("ovh-ask").textContent) && !/right|otherwise/i.test(H("ovh-ask").textContent),
+        H("ovh-ask").textContent.replace(/\s+/g, " "));
+      check("HP-2 connected: still nothing marks the correct option after the close and Ask",
+        marks().length === 0 && leaks(answerString()).length === 0, marks().concat(leaks(answerString())).join("; "));
+      check("HP-2 the shell title never carries the answer",
+        shellLog.filter((m) => m.t === "title").every((m) => String(m.text).indexOf(core().q.question.options[core().q.question.answer]) < 0));
+    }
+
+    /* ============ HP-3 — away: one fallback, current question only ============ */
+
+    async function scenarioAway() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => /Host phone disconnected/.test(H("ovh-hp-note").textContent), "the away note");
+      check("HP-3 away: 'Host phone disconnected' and exactly one 'Show answer on this screen'",
+        HD().querySelectorAll(".hp-show:not(.hidden)").length === 1
+        && H("ovh-hp-note").querySelector(".hp-show").textContent === "Show answer on this screen",
+        H("ovh-hp-note").textContent);
+      check("HP-3 away (still assigned): nothing marks the correct option before the button",
+        HW().OvhHostPhone.isPrivate() && marks().length === 0 && leaks(answerString()).length === 0,
+        marks().concat(leaks(answerString())).join("; "));
+      await waitFor(() => /Reconnecting — this may be out of date/.test(hostPhoneText()), "stale host phone");
+      check("HP-3 the host phone dims and says it may be out of date while the transport is down",
+        PD("h1").getElementById("ovh-host-card").classList.contains("is-stale"));
+
+      const answer = answerString();
+      H("ovh-hp-note").querySelector(".hp-show").click();
+      await sleep(50);
+      check("HP-3 the fallback shows the current answer on the shared screen",
+        leaks(answer).length > 0 && /Answer: /.test(H("ovh-hp-note").textContent), leaks(answer).join("; "));
+
+      // The contestant locks the right one and the host plays on: the next item clears it.
+      HD().querySelector(`#ovh-options .option[data-idx="${core().q.question.answer}"]`).click();
+      click("btn-lock");
+      click("btn-reveal");
+      await waitFor(() => core().phase === "decision", "decision");
+      check("HP-3 control: the scanner does see the marking once the reveal makes it public",
+        marks().some((m) => /is-correct/.test(m)), marks().join("; "));
+      click("btn-continue");
+      await waitFor(() => core().qNumber === 2, "question 2");
+      check("HP-3 on the next question the fallback is gone and the answer is unmarked again",
+        leaks(answerString()).length === 0 && marks().length === 0
+        && HD().querySelectorAll(".hp-show:not(.hidden)").length === 1,
+        marks().concat(leaks(answerString())).join("; "));
+
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => /Answer is on your host phone/.test(H("ovh-hp-note").textContent), "connected again");
+      check("HP-3 back online: the note flips back and the host phone is no longer dimmed",
+        !PD("h1").getElementById("ovh-host-card").classList.contains("is-stale")
+        && HD().querySelectorAll(".hp-show:not(.hidden)").length === 0);
+    }
+
+    /* ============ HP-4 — the editor, tooBig, a host phone that sends nothing ============ */
+
+    async function scenarioEditorAndEdges() {
+      click("btn-editor");
+      await waitFor(() => HW().OvhApp.state().editorOpen, "editor open");
+      const rowsOpen = H("ovh-ed-rows").childElementCount;
+      click("btn-editor-close");
+      await waitFor(() => !HW().OvhApp.state().editorOpen, "editor closed");
+      check("HP-4 closing the editor leaves no answer fields in the document",
+        rowsOpen > 0 && H("ovh-ed-rows").childElementCount === 0 && marks().length === 0,
+        `${rowsOpen} rows open, ${H("ovh-ed-rows").childElementCount} after close`);
+
+      check("HP-4 the host phone sent nothing to the game",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone"));
+      post(phoneFrames.get("h1"), { t: "host-view", m: { t: "host", item: "x", tooBig: true } });
+      await waitFor(() => /Too much to show — use the button on the laptop/.test(hostPhoneText()), "tooBig");
+      check("HP-4 a refused (too big) view reads 'Too much to show — use the button on the laptop'", true);
+      deliverHostView();
+      await waitFor(() => hpView() && hpView().secret, "the real view again");
+    }
+
+    /* ============ HP-5 — no host phone: identical behaviour ============ */
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      await bootHost();
+      await startPhoneGame();
+      click("btn-open-window");
+      await mobAnswer("p2", core().q.question.answer);
+      await mobAnswer("p3", (core().q.question.answer + 1) % 3);
+      click("btn-close-mob");
+      await waitFor(() => core().q.closed, "closed");
+      click("btn-help-ask");
+      await waitFor(() => core().q.ask, "ask");
+      check("HP-5 no host phone: not private, no host-phone note, Ask labels unchanged",
+        !HW().OvhHostPhone.isPrivate() && !H("ovh-hp-note")
+        && /Says it is right/.test(H("ovh-ask").textContent),
+        H("ovh-ask").textContent.replace(/\s+/g, " "));
+    }
+
+    /* ============ HP-6 — seat reconciliation on boot (§5.6, review F11) ============ */
+
+    async function scenarioReconcile() {
+      // Dev (p4) is seated in the Mob of the running game, then becomes the host phone.
+      players = PLAYERS.filter((p) => p.pid !== "p4");
+      hostPhones = [{ pid: "p4", name: "Dev", connected: true }];
+      await bootHost(false);
+      await waitFor(() => core() && !HW().OvhApp.state().setup.players.some((p) => p.pid === "p4"), "p4 dropped from setup");
+      check("HP-6 a saved phone seat no longer in the room is dropped from setup",
+        HW().OvhApp.state().setup.players.map((p) => p.pid).join(",") === "p1,p2,p3",
+        HW().OvhApp.state().setup.players.map((p) => p.pid).join(","));
+      check("HP-6 the running game keeps the seat and says so once",
+        core().mob.members.some((m) => m.pid === "p4") && /Dev is no longer a player in this room/.test(H("ovh-error").textContent),
+        H("ovh-error").textContent);
+    }
+
+    (async function run() {
+      try {
+        await scenarioView();
+        await scenarioConnected();
+        await scenarioAway();
+        await scenarioEditorAndEdges();
+        await scenarioNoHostPhone();
+        await scenarioReconcile();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+      window.__OVH_HP_HARNESS__.done = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

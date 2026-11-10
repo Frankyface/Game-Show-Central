@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deal or No Deal host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { flex: none; width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { flex: none; width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>Deal or No Deal — host phone harness (docs/22 §5.5, §6, review F11)</h1>
+  <p class="lede">This page is the hub for one host frame, two contestant phones and one <b>host phone</b>
+    (role=host), speaking the bridge protocol including <code>host-phones</code> and <code>host-view</code>.
+    The host phone carries the banker's next offer before it is announced and how it is computed — never which
+    amount is in which case. The load-bearing checks: with a host phone assigned, connected or not, the pending
+    offer is nowhere in the shared document (text, value, placeholder, option, title, alt, aria-label, data-*)
+    or the shell title until the banker calls; no sealed case ever carries its amount; contestant frames never
+    receive a host view; the host phone sends nothing.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__DOND_HP_HARNESS__ = { total: results.length, failed, uncaught, results, done: false };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function waitFor(fn, label, timeout) {
+      const start = Date.now();
+      for (;;) {
+        let v = null;
+        try { v = fn(); } catch (err) { v = null; }
+        if (v) return v;
+        if (Date.now() - start > (timeout || 6000)) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub, with host phones (docs/22 §4) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+    const hostViewsTo = new Map();     // pid -> count of host views delivered
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "DDHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (!heldView || !phoneFrames.has("h1")) return;
+      hostViewsTo.set("h1", (hostViewsTo.get("h1") || 0) + 1);
+      post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") PLAYERS.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE) : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "DDHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-board.json";
+    const KEYS = ["gsc-dond-state-v1-hpharness", "gsc-dond-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().DondApp.core();
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hp = () => PW("h1").DondHostPhone;
+    const hostPhoneText = () => hp().text();
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().DondApp && HW().DondApp.state().game, "host boot");
+      await sleep(80);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.DondPhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title (docs/22 §5.5). */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    /** No sealed case carries its own amount anywhere in its element (text or attributes). */
+    function sealedCaseLeaks() {
+      const s = core();
+      const out = [];
+      s.cases.filter((c) => !c.opened).forEach((c) => {
+        const label = HW().DondCore.formatMoney(s, c.amount);
+        const node = HD().querySelector(`#dond-cases .case[data-n="${c.n}"]`);
+        if (!node) return;
+        const attrs = [...node.querySelectorAll("*"), node].flatMap((n) => [...n.attributes].map((a) => a.value));
+        if (node.textContent.indexOf(label) >= 0 || attrs.some((v) => v.indexOf(label) >= 0)) out.push(`case ${c.n}`);
+      });
+      if (HD().querySelector("[data-amount]")) out.push("a data-amount attribute");
+      if (shellLog.some((m) => m.t === "title" && /\$/.test(String(m.text)))) out.push("money in setTitle");
+      return out;
+    }
+
+    /** docs/22 §5.3: 320 px with no sideways scroll, text ≥ 16 px, the offer ≥ 28 px, no buttons. */
+    function hostPhoneLayout(tag) {
+      const w = PW("h1");
+      const d = w.document;
+      const texts = [...d.querySelectorAll("#dond-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(w.getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${w.getComputedStyle(n).fontSize}`);
+      const offer = d.querySelector(".host-answer");
+      const px = offer ? parseFloat(w.getComputedStyle(offer).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, offer ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0
+        && px >= 28 && d.querySelectorAll("#dond-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, offer ${px}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    function openRound() {
+      while (core().toOpen > 0) HD().querySelector("#dond-cases .case:not(:disabled)").click();
+    }
+
+    /* ============ Scenarios ============ */
+
+    async function scenarioViews() {
+      players = PLAYERS.slice();
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => hp().view(), "the first host view");
+      check("HP-1 the host-role frame receives the view through onHostView: nothing secret in setup",
+        hp().view().secret === false && /Nothing secret right now/.test(hostPhoneText()),
+        hostPhoneText().slice(0, 80));
+      check("HP-1 contestant frames never receive a host view, and never draw a host card",
+        [...hostViewsTo.keys()].join(",") === "h1"
+        && ["p1", "p2"].every((pid) => !PW(pid).document.getElementById("dond-host-card")
+          && (PW(pid).DondPhone.view() || {}).t !== "host"));
+      check("HP-1 the host phone's contestant card is hidden; it shows only the host card",
+        PW("h1").document.body.classList.contains("host-phone")
+        && PW("h1").getComputedStyle(PW("h1").document.getElementById("dond-phone-card")).display === "none");
+
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "seat", "the seat screen");
+      HD().querySelector('#dond-seat-list .seat-btn[data-pid="p1"]').click();
+      await waitFor(() => hp().view().phase === "pick", "the pick on the host phone");
+      HD().querySelector('#dond-cases .case[data-n="4"]').click();
+      HD().querySelector("#dond-cases .case:not(:disabled)").click();
+      await waitFor(() => hp().view().phase === "round" && hp().view().left.count === 9, "the round on the host phone");
+      const v = hp().view();
+      const ev = HW().DondCore.ev(core());
+      check("HP-2 mid-round the host phone projects the offer and shows how it is computed",
+        v.secret === true && v.item === "If the banker called now"
+        && v.offer === HW().DondCore.formatMoney(core(), HW().DondContent.niceOffer(ev * 0.25))
+        && hostPhoneText().indexOf(v.offer) >= 0 && hostPhoneText().indexOf(v.ev) >= 0
+        && /factor 0\.25/.test(hostPhoneText()) && /Still in play \(9\)/.test(hostPhoneText()),
+        hostPhoneText().slice(0, 160));
+      check("HP-2 the host view never carries which amount is in which case",
+        JSON.stringify(v).indexOf("\"amount\"") < 0 && JSON.stringify(v).indexOf("\"own\"") < 0
+        && JSON.stringify(v).indexOf("\"cases\"") < 0);
+      hostPhoneLayout("HP-2");
+
+      const seq = heldView.seq;
+      HW().DondApp.toggleEv();                     // re-renders, changes nothing secret
+      HW().DondApp.toggleEv();
+      await sleep(60);
+      check("HP-2 seq bumps only when the content changes", heldView.seq === seq, `seq ${seq} -> ${heldView.seq}`);
+      HD().querySelector("#dond-cases .case:not(:disabled)").click();
+      await waitFor(() => heldView.seq > seq, "a content change bumps seq");
+      check("HP-2 opening a case is a content change: seq goes up by one", heldView.seq === seq + 1, `seq ${heldView.seq}`);
+    }
+
+    async function scenarioPendingOffer(tag) {
+      openRound();
+      await waitFor(() => hp().view().item === "The banker's next offer", "the next offer on the host phone");
+      const pending = hp().view().offer;
+      check(`${tag} with the round over the host phone has the offer the banker is about to make`,
+        hostPhoneText().indexOf(pending) >= 0, pending);
+      const where = leaks(pending);
+      check(`${tag} that pending offer is nowhere on the shared screen or in the shell title before the call`,
+        where.length === 0, where.join("; ") || `"${pending}" absent`);
+      check(`${tag} no sealed case carries its amount (text, attributes, data-*) and no money reaches setTitle`,
+        sealedCaseLeaks().length === 0, sealedCaseLeaks().join("; ") || "clean");
+      click("btn-banker");
+      await waitFor(() => core().phase === "offer", "the banker's call");
+      await waitFor(() => hp().view().announced === true, "the announced offer on the host phone");
+      check(`${tag} after the call the shared screen shows exactly the offer the host phone predicted (jitter 0)`,
+        H("dond-offer").textContent === pending && hp().view().offer === pending, H("dond-offer").textContent);
+      check(`${tag} on the table the host phone measures it against the board average`,
+        /% of the board average/.test(hostPhoneText()) && hp().view().item === "The banker's offer");
+      click("btn-no-deal");
+      await waitFor(() => core().phase === "round", "the next round");
+      check(`${tag} on the next round the old offer is cleared from the hidden overlay`,
+        H("dond-offer").textContent === "", JSON.stringify(H("dond-offer").textContent));
+    }
+
+    async function scenarioDisconnected() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => /Reconnecting/.test(hostPhoneText()), "the stale banner");
+      check("HP-4 a disconnected host phone dims and says it may be out of date",
+        PW("h1").document.getElementById("dond-host-card").classList.contains("is-stale")
+        && /Reconnecting — this may be out of date/.test(hostPhoneText()));
+      check("HP-4 the shared screen did not change: there is no fallback button and nothing to reveal",
+        HW().DondApp.core().phase === "round" && !HD().querySelector("[id*='fallback']")
+        && !/host phone/i.test(HD().body.textContent));
+      await scenarioPendingOffer("HP-4 (disconnected)");
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      await waitFor(() => !/Reconnecting/.test(hostPhoneText()), "back online");
+
+      post(phoneFrames.get("h1"), { t: "host-view", m: { t: "host", item: "Round 3", tooBig: true } });
+      await waitFor(() => /Too much to show/.test(hostPhoneText()), "the tooBig card");
+      check("HP-5 a tooBig view reads 'Too much to show — use the button on the laptop'",
+        /Too much to show — use the button on the laptop/.test(hostPhoneText()) && /Round 3/.test(hostPhoneText()));
+      deliverHostView();
+      await waitFor(() => !/Too much to show/.test(hostPhoneText()), "the real view again");
+      check("HP-5 the host phone sends nothing and has no buttons",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone")
+        && PW("h1").document.querySelectorAll("#dond-host-card button").length === 0);
+    }
+
+    async function scenarioReconcile() {
+      // Ben's phone has become the host phone: the room no longer has p2 as a player.
+      players = [PLAYERS[0]];
+      hostPhones = [{ pid: "p2", name: "Ben", connected: true }];
+      await bootHost(false);
+      await waitFor(() => /no phone in this room/.test(H("dond-error").textContent), "the reconciliation notice");
+      const app = HW().DondApp.state();
+      check("HP-6 seat reconciliation drops the departed phone seat from the saved setup",
+        app.setup.players.map((p) => p.pid).join(",") === "p1", app.setup.players.map((p) => p.name).join(","));
+      check("HP-6 the running game keeps Ben's seat, phone-less, and says so once",
+        core().contestants.some((c) => c.pid === "p2") && /Ben has no phone in this room/.test(H("dond-error").textContent),
+        H("dond-error").textContent);
+    }
+
+    async function scenarioNoHostPhone() {
+      players = PLAYERS.slice();
+      hostPhones = [];
+      await bootHost();
+      await bootPhones();
+      check("HP-7 with no host phone the host page reports no private answers",
+        HW().GSC && HW().DondRoom && HW().DondRoom.room.answersPrivate() === false);
+      click("btn-start");
+      HD().querySelector('#dond-seat-list .seat-btn[data-pid="p1"]').click();
+      HD().querySelector('#dond-cases .case[data-n="4"]').click();
+      openRound();
+      click("btn-banker");
+      await waitFor(() => core().phase === "offer", "the call");
+      await waitFor(() => PW("p2").DondPhone.view().screen === "advice", "the ballot on Ben's phone");
+      check("HP-7 no host phone: the game plays exactly as before (the offer on screen, the ballot on the phones)",
+        H("dond-offer").textContent.length > 1 && PW("p2").DondPhone.view().screen === "advice"
+        && !/host phone/i.test(HD().body.textContent),
+        `${H("dond-offer").textContent} / ${PW("p2").DondPhone.view().screen}`);
+    }
+
+    (async function run() {
+      try {
+        await scenarioViews();
+        await scenarioPendingOffer("HP-3");
+        await scenarioDisconnected();
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      render();
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      window.__DOND_HP_HARNESS__.done = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

@@ -374,6 +374,10 @@ function ovhOpenEditor() {
 }
 
 function ovhCloseEditor() {
+  // The rows carry every answer (checked radios); a closed editor keeps none of
+  // them in the document. They are rebuilt from the draft on the next open.
+  const rows = $("ovh-ed-rows");
+  if (rows) rows.replaceChildren();
   window.OvhApp.set({ editorOpen: false });
 }
 

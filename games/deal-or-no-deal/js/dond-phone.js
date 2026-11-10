@@ -161,7 +161,10 @@
 
   /* ============ Transport ============ */
 
+  const isHostPhone = () => !!me && me.role === "host";
+
   function onMessage(raw) {
+    if (isHostPhone()) return;              // a host phone renders only onHostView
     if (!raw || typeof raw !== "object" || raw.t !== "view") return;
     view = raw;
     render();
@@ -169,7 +172,12 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (isHostPhone()) { window.DondHostPhone.status(connected); return; }
     render();
+  }
+
+  function onHostView(v) {
+    if (window.DondHostPhone) window.DondHostPhone.show(v);
   }
 
   async function boot() {
@@ -178,10 +186,15 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("dond-phone-headline", "Could not join");
       setText("dond-phone-sub", err.message);
+      return;
+    }
+    if (me.role === "host" && window.DondHostPhone) {
+      window.DondHostPhone.start();          // docs/22 §5.3: a host card, sends nothing
+      window.DondPhone = { me, role: "host", view: () => view };
       return;
     }
     setText("dond-phone-status", "Connected. Waiting for the host…");

@@ -1,0 +1,126 @@
+{
+  "title": "Host phone harness prizes",
+  "settings": {
+    "currency": "$",
+    "exactBidBonus": 500,
+    "showcaseMargin": 250,
+    "gamesPerShowdown": 2,
+    "pricingGames": [
+      "cliffhangers",
+      "plinko",
+      "luckyseven"
+    ]
+  },
+  "oneBid": [
+    {
+      "name": "Brass telescope",
+      "price": 4817,
+      "note": "Harness item"
+    },
+    {
+      "name": "Velvet armchair",
+      "price": 5293,
+      "note": "Harness item"
+    },
+    {
+      "name": "Cedar canoe",
+      "price": 6371,
+      "note": "Harness item"
+    },
+    {
+      "name": "Copper kettle set",
+      "price": 7429,
+      "note": "Harness item"
+    },
+    {
+      "name": "Marble chess table",
+      "price": 8153,
+      "note": "Harness item"
+    },
+    {
+      "name": "Rosewood cabinet",
+      "price": 9264,
+      "note": "Harness item"
+    }
+  ],
+  "cliffhangers": [
+    {
+      "items": [
+        {
+          "name": "Linen napkins",
+          "price": 73
+        },
+        {
+          "name": "Glass carafe",
+          "price": 58
+        },
+        {
+          "name": "Oak cutting board",
+          "price": 91
+        }
+      ],
+      "prize": {
+        "name": "Lakeside cabin week",
+        "price": 3786
+      }
+    }
+  ],
+  "plinko": [
+    {
+      "smallPrices": [
+        {
+          "name": "Sea salt",
+          "shown": 3,
+          "actual": 7
+        },
+        {
+          "name": "Rye crackers",
+          "shown": 6,
+          "actual": 6
+        },
+        {
+          "name": "Fig jam",
+          "shown": 9,
+          "actual": 2
+        },
+        {
+          "name": "Mint tea",
+          "shown": 4,
+          "actual": 4
+        }
+      ]
+    }
+  ],
+  "luckyseven": [
+    {
+      "car": "Harness roadster",
+      "price": 58263
+    }
+  ],
+  "showcases": [
+    {
+      "prizes": [
+        {
+          "name": "Orchard trip",
+          "price": 4000
+        },
+        {
+          "name": "Pottery studio",
+          "price": 5137
+        }
+      ]
+    },
+    {
+      "prizes": [
+        {
+          "name": "Rowing machine",
+          "price": 2500
+        },
+        {
+          "name": "Garden pavilion",
+          "price": 4412
+        }
+      ]
+    }
+  ]
+}

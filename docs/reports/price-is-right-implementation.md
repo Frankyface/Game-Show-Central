@@ -606,3 +606,74 @@ Verified on `python -m http.server 8691`:
 - [x] Only meaningful motion; every animation guarded; splash 600 ms plain.
 - [x] Toolbar: name left; Sound · Editor · Game lobby right; nothing else in the bar.
 - [x] Gates: unit tests and harness green; 720 and 676 fit; phone ≥ 56 px; contrast ≥ 4.5.
+
+---
+
+## 12. The host phone (docs/22 §5, §6 row; review F11)
+
+This is a minimal version that follows the seven-item contract. The new behaviour lives in new files:
+
+- `js/tpir-host-view.js` (160 lines): **pure** `hostView(state)` and `fallbackFor(state)`. UMD, exported as `TpirHostView`.
+- `js/tpir-hostroom.js` (138): laptop side. It hands the hub the host view, shows the answers-private notice and reconciles seats.
+- `js/tpir-hostphone.js` (104): the `role=host` page.
+
+The only edits to existing files are hooks:
+
+- `tpir-room.js` gets an `onHostPhones` handler and an `attach` call after `bindRoom`.
+- `tpir-phone.js` gets an `onHostView` handler and a role branch, so the contestant renderer never runs on a host phone.
+- `tpir-editor.js` clears the editor panel on close.
+- `index.html` gets three script tags and the notice node.
+- The CSS gains the host card and the notice styles.
+
+Helpers are `.scratch/hp-tpir-*`; the static server is `.scratch/hp-tpir-serve.mjs` (Node, `no-store`, port 8691).
+
+### What the host phone shows
+
+| Phase | Host view |
+| --- | --- |
+| Setup, showdown, standings, a game being picked or finished, Plinko drops | Nothing secret right now, plus the phase label |
+| Contestants' Row, before the reveal | Item name, then its **actual retail price** |
+| Cliff Hangers | The current small item and its price; all three listed, each marked Now or Done |
+| Plinko answer stage | The small price as shown, then its **actual** price and "Higher / Lower / Correct as shown"; all four listed |
+| Lucky Seven | The car and its full price; the five digits listed |
+| The Showcase, before the reveal | Both totals, each labelled with its owner once claimed |
+
+- **`seq`** increases only when the view's JSON changes (`room.setHostView({t:"host", item, seq, ...view})` is called on every change).
+- **No image data** ever goes into a host view.
+- Prices on the host phone use the money colour (gold, at 32 px). docs/21 reserves gold for money, which takes priority over "answer in the accent".
+- **Stale:** dims and shows "Reconnecting — this may be out of date".
+- **Too big:** shows "Too much to show — use the button on the laptop".
+- It sends nothing and has no buttons.
+
+### Answers-private mode on the shared screen
+
+- **Audit:** nothing on the laptop shows a price before its public reveal. Row bids are masked and the price tag is empty until the reveal. Cliff Hangers values read "?" until guessed. Lucky Seven shows only the digits already revealed. Showcase cards read "Total hidden". The Plinko truth appears only as the post-answer notice. There is no host price peek to remove.
+- **One real leak path fixed:** a closed editor kept every price in its hidden inputs. `close()` now empties the panel.
+- **Notice:** while a host phone is assigned and something is secret, the play bar reads "Answer is on your host phone".
+  - While the phone is away it reads "Host phone disconnected", with one **Show answer on this screen** button.
+  - The button reveals the **current item only**: the row price, the current Cliff Hangers item, the current Plinko price, the Lucky Seven car (one key for the whole car), or both showcase totals.
+  - The reveal clears on the next item.
+- **No host phone:** the notice is hidden and empty, and behaviour is identical to before.
+
+### Seat reconciliation (embedded only)
+
+After content has loaded:
+
+- Phone seats in the saved line-up whose pid is not in `room.players()` are removed.
+- A running or parked show keeps such a seat with its winnings and plays it phone-less (the host's own field is live because that pid has no connected phone).
+- One notice is shown: "Cleo has no phone in this room. They keep their seat and you enter their bids on this screen."
+
+### Verification
+
+- **Unit:** `tests/tpir-hostview.test.mjs`, 7 tests (HV-1 … HV-7). They cover nothing-secret phases; the row, Cliff Hangers (stepping, with the fallback key changing per item), Plinko (truth, then quiet at drops), Lucky Seven (one key per car) and Showcase (owners, quiet after reveal); no image keys even when every prize has a photo; no mutation (deep-frozen); under 16 KB; and phone views that never carry the answer.
+  - `cd games/price-is-right && node --test`: **118 / 118**.
+  - Root `node --test`: **1577 / 1577**.
+- **Harness:** `tests/harness-hostphone.html` (a 1280×676 host frame and 320 px phones, all `flex: none`) is **All 20 checks passed**. The fixture `tests/fixtures/hostphone-prizes.json` uses distinctive prices ($4,817 … $9,264, $73/$58/$91, $58,263, totals $9,137 and $6,912). The checks:
+  - The host-role frame receives the view through `onHostView`; contestant frames never do and never contain the price.
+  - The layout at 320 px passes: no sideways scroll, text ≥ 16 px, answer 32 px, no buttons, no images, and the contestant card hidden.
+  - **Connected and disconnected:** the price is absent from the host document's text, `value`, `placeholder`, `title`, `alt`, `aria-label` and `data-*`, and from `setTitle`.
+  - The fallback reveals "Actual retail price: $4,817". It clears on the next item ($73 hidden), reveals that item only ("Linen napkins: $73"), and hides again on the item after.
+  - When the phone comes back, the notice returns and the phone is current.
+  - Seat reconciliation removes seat p9 and Cleo's setup seat, keeps her show seat and shows one notice.
+  - With no host phone the screen is unchanged and the public reveal still shows the price.
+- **Main harness:** `tests/harness.html` still passes **All 80 checks**; its gated source list now includes the six new files.

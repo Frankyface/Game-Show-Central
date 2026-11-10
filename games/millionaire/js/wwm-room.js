@@ -179,7 +179,10 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        onHostPhones: (list) => { if (window.WwmHostPhone) window.WwmHostPhone.onHostPhones(list); },
+      });
     } catch (err) {
       window.WwmApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -199,6 +202,7 @@
       show(exit, embedded);
       exit.addEventListener("click", () => room.exit());
     }
+    if (window.WwmHostPhone) window.WwmHostPhone.attach(room);   // docs/22 §5.2
     window.WwmRoom = { room, pushViews, onMessage, phoneCount: () => (room.players ? room.players().length : 0) };
   }
 

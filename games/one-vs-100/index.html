@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="../../shared/theme.css">
   <link rel="stylesheet" href="css/ovh.css">
   <link rel="stylesheet" href="css/ovh-phone.css">
+  <link rel="stylesheet" href="css/ovh-host.css">
 </head>
 <body data-gsc-game="one-vs-100">
 
@@ -277,6 +278,8 @@
         <div id="ovh-phone-actions" class="phone-actions"></div>
         <p id="ovh-phone-status" class="phone-status" role="status" aria-live="polite"></p>
       </div>
+      <!-- The host's private second screen (docs/22 §5.3); filled by js/ovh-host-screen.js. -->
+      <div id="ovh-host-card" class="host-card hidden" aria-live="polite"></div>
     </section>
 
   </main>
@@ -317,12 +320,15 @@
   <script src="js/ovh-content.js"></script>
   <script src="js/ovh-phoneview.js"></script>
   <script src="js/ovh-core.js"></script>
+  <script src="js/ovh-hostview.js"></script>
   <script src="js/data.js"></script>
   <script src="js/ovh-sound.js"></script>
   <script src="js/ovh-view.js"></script>
   <script src="js/ovh-app.js"></script>
   <script src="js/ovh-editor.js"></script>
+  <script src="js/ovh-hostphone.js"></script>
   <script src="js/ovh-room.js"></script>
+  <script src="js/ovh-host-screen.js"></script>
   <script src="js/ovh-phone.js"></script>
 </body>
 </html>

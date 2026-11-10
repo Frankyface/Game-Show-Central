@@ -202,7 +202,10 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        onHostPhones: (list) => { if (window.OvhHostPhone) window.OvhHostPhone.onHostPhones(list); },
+      });
     } catch (err) {
       window.OvhApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -218,6 +221,7 @@
       pushViews(state); reportProgress(state); paintRoom();
     });
     wireRoomButton();
+    if (window.OvhHostPhone) window.OvhHostPhone.attach(room);
     (room.players ? room.players() : []).forEach(onPlayerJoin);
     paintRoom();
     const exit = $("btn-exit");

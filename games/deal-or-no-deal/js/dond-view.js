@@ -272,7 +272,9 @@ const DondView = (function () {
     const state = app.core;
     const on = !!state && state.phase === "offer";
     show($("dond-banker"), on);
-    if (!on) return;
+    // Off the table, the overlay keeps no money text: a stale offer in a hidden
+    // node is still in the shared DOM (docs/22 §5.5 hygiene).
+    if (!on) { setText("dond-offer", ""); setText("dond-ev", ""); return; }
     setText("dond-offer", core().formatMoney(state, state.offer));
     setText("dond-offer-sub", offerSub(state));
     renderRequest(state);

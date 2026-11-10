@@ -246,6 +246,7 @@
   function render() {
     const card = $("wwm-phone-card");
     if (!card) return;
+    if (window.WwmHostScreen && window.WwmHostScreen.isActive()) return;   // host phone
     const box = $("wwm-phone-choices");
     const actions = $("wwm-phone-actions");
     box.replaceChildren();
@@ -270,7 +271,12 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (window.WwmHostScreen) window.WwmHostScreen.onStatus(up);
     render();
+  }
+
+  function onHostView(hostView) {
+    if (window.WwmHostScreen) window.WwmHostScreen.onHostView(hostView);
   }
 
   async function boot() {
@@ -279,7 +285,12 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
+      // The role comes from init, never from the URL (that is a layout hint).
+      if (window.WwmHostScreen) {
+        if (me.role === "host") window.WwmHostScreen.start();
+        else window.WwmHostScreen.stop();
+      }
     } catch (err) {
       setText("wwm-phone-headline", "Could not join");
       setText("wwm-phone-sub", err.message);

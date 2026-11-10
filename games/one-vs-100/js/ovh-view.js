@@ -246,7 +246,13 @@ const OvhView = (function () {
     show(box, !!ask);
     if (!ask) return;
     box.appendChild(el("p", "ask-title", "Ask the Mob"));
-    [["Says it is right", ask.right], ["Says otherwise", ask.wrong]].forEach(([label, who]) => {
+    // With a host phone assigned the room must not learn which of the two is
+    // right before the reveal: both are named neutrally, in letter order.
+    const hp = window.OvhHostPhone;
+    const rows = hp && hp.isPrivate()
+      ? [ask.right, ask.wrong].filter(Boolean).sort((a, b) => a.idx - b.idx).map((who) => ["Mob member", who])
+      : [["Says it is right", ask.right], ["Says otherwise", ask.wrong]];
+    rows.forEach(([label, who]) => {
       const row = el("p", "ask-row");
       row.appendChild(el("span", "ask-k", label));
       row.appendChild(el("span", "ask-v", who

@@ -226,13 +226,19 @@
 
 /* ============ Play ============ */
 
+/* The host page is a column: toolbar, an optional message line, then the
+   screen, which takes exactly what is left. So a notice during play (for
+   example the seat-reconciliation message) shrinks the Mob grid instead of
+   pushing the controls off the bottom. */
+body:not(.player-mode) { display: flex; flex-direction: column; height: 100vh; margin: 0; }
+body:not(.player-mode) #ovh-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+body:not(.player-mode) .topbar, body:not(.player-mode) #ovh-error { flex: none; }
+
 #screen-play {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  /* topbar + main padding. Keeps 1280x676 (the hub frame) scroll-free. */
-  min-height: calc(100vh - 5.15rem);
-  max-height: calc(100vh - 5.15rem);
+  height: 100%;
 }
 
 .play-top {

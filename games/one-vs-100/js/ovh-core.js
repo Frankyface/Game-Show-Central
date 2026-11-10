@@ -122,6 +122,7 @@
       mob: { simulated: true, members: [] },
       qNumber: 0,
       used: [],
+      upcoming: null,       // the next question, pre-drawn (host phone preview)
       wrapped: false,
       bank: 0,
       q: blankSlate(g.settings.answerSeconds),
@@ -187,14 +188,24 @@
 
   /** Draw the question for `n` (1-based) and fold it into a fresh slate. */
   function questionFor(state, n, rng) {
-    const draw = drawQuestion(state.game, levelForQuestion(n), state.used, rng);
+    // A question pre-drawn for the host phone's "next question" preview is the
+    // one that gets asked, so the host phone never shows a question that then
+    // does not come up. Without one (an older save) the draw happens here.
+    const pre = state.upcoming && state.upcoming.n === n && state.upcoming.question
+      && state.used.indexOf(state.upcoming.question.id) < 0 ? state.upcoming : null;
+    const draw = pre || drawQuestion(state.game, levelForQuestion(n), state.used, rng);
     const slate = blankSlate(state.game.settings.answerSeconds);
-    if (!draw.question) return { q: slate, used: state.used, wrapped: state.wrapped, notice: NO_QUESTION };
+    if (!draw.question) {
+      return { q: slate, used: state.used, wrapped: state.wrapped, notice: NO_QUESTION, upcoming: null };
+    }
+    const used = state.used.concat([draw.question.id]);
+    const ahead = drawQuestion(state.game, levelForQuestion(n + 1), used, rng);
     return {
       q: Object.assign(slate, { question: draw.question }),
-      used: state.used.concat([draw.question.id]),
+      used,
       wrapped: state.wrapped || draw.wrapped,
       notice: draw.wrapped ? "The question pool has wrapped — this one has been asked before." : "",
+      upcoming: ahead.question ? { n: n + 1, question: ahead.question, wrapped: ahead.wrapped } : null,
     };
   }
 

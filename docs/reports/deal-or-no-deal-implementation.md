@@ -558,3 +558,26 @@ earlier run reported 82 / 82: my headless runner read the results a beat before
 the harness's final 320 px phone check landed. The runner now waits for that
 check; it was never a harness failure.)
 
+---
+
+## 14. The host phone (docs/22 §5, §6; review F11) — 2026-11-10
+
+Minimal version of the seven-item contract. New code is in new files; the
+existing files only gained the hooks that wire it in.
+
+| # | Item | Where |
+|---|---|---|
+| 1 | Pure `hostView(state)` | `js/dond-host-view.js` (UMD → `DondHostView`). While a case is being picked or opened: the offer the banker would make **now** (the jitter-free midpoint `niceOffer(EV × factor)`) and the band the jitter can move it within. When the round is over it is exactly the offer about to be made, before the jitter. On the table: the actual offer as a percentage of the board average. Always: the board average, the round's factor and jitter, and the amounts still in play (sorted, capped at 30). **Never** which amount is in which case — the host isn't meant to know, so the view carries no case numbers, no `own`, no raw amounts; every money value is a formatted string. Setup, seat, swap, reveal, result, standings: "Nothing secret right now". |
+| 2 | Room glue | `js/dond-host-room.js`: `room.setHostView({ t:"host", item, seq, ...hostView(state) })` on every state change; `seq` bumps only when the view's JSON changes; no cache, no `room.send`. Hooked from `dond-room.js` with one `DondHostRoom.attach(room, embedded)` call, plus a no-op `onHostPhones` (nothing on the shared screen depends on a host phone). |
+| 3, 7 | Host-phone page | `js/dond-hostphone.js` + `css/dond-hostphone.css`: in `role=host` the contestant card is hidden and never redrawn (`dond-phone.js` routes `onStatus` to the host card and ignores `onMessage`). v3 flat card: "Host · Deal or No Deal", the phase and contestant, the offer as the one Anton hero in money gold (44 px), how it is computed, the amounts still in play. Dims with "Reconnecting — this may be out of date"; renders `tooBig` as "Too much to show — use the button on the laptop"; sends nothing; no buttons. |
+| 4 | Answers-private mode | Not needed (docs/22 §6: "No change"). Nothing secret is ever on the shared screen: sealed cases carry only their number (text, `aria-label`, `data-n`) and the pending offer does not exist in the shared DOM until the banker calls. **One hygiene fix found while checking:** once an offer left the table, its text stayed in the hidden overlay node; `renderBanker` now clears `#dond-offer` and `#dond-ev` whenever no offer is on the table. So no fallback button. |
+| 5 | Tests | Unit `tests/dond-hostview.test.mjs` (7 tests): no secret outside play; the mid-round projection and its range; the end-of-round offer always lands inside the shown band, and equals it with no jitter; the announced offer; across a whole game no view carries a sealed amount, `own` or the case grid (fixture amounts that no offer can coincide with); the 30-item cap; purity and `phoneView` unchanged. Harness `tests/harness-hostphone.html` (28 checks, port 8693, Node static server `.scratch/hp-dond-serve.mjs`, frames `flex: none`): the host-role frame receives the view through `onHostView`, contestant frames never do and never draw a host card; the projection and its maths; `seq` stable on a re-render and +1 on a content change; with the host phone connected **and** disconnected, the pending offer is absent from the shared document's text, `value`, `placeholder`, `<option>`, `title`, `alt`, `aria-label`, `data-*` and from `setTitle` before the call, no sealed case carries its amount, and after the call the shared screen shows exactly the offer the phone predicted (jitter 0 fixture); the stale and `tooBig` renders; the host phone sends nothing; layout at 320 px (no sideways scroll, text ≥ 16 px, offer ≥ 28 px, no buttons); with no host phone the game plays exactly as before. |
+| 6 | Seat reconciliation (embedded only) | `DondHostRoom.reconcileSeats`, run once `DondApp.whenReady()` resolves (a new promise `dond-app.js` resolves at the end of boot, so it never reconciles a half-restored setup): setup phone seats whose pid is not in `room.players()` are dropped; a running or parked game that still seats such a pid keeps the seat (played from the laptop like any phone-less contestant) and the host sees one notice — "Ben has no phone in this room. They keep their seat — play their cases from this screen, or start a new game." Pinned by HP-6. |
+
+**Gates.** `node --test` 97 / 97 (90 + 7); repo root 1577 / 1577.
+`tests/harness.html` 83 / 83 ×3 and `tests/harness-hostphone.html` 28 / 28 ×2, on
+port 8693 under the Node static server (`.scratch/hp-dond-run.mjs`,
+`.scratch/dond-harness-run.mjs`). No `innerHTML`/`console.log`; every file
+under 800 lines (largest shipped `js/dond-core.js` 750). README gained a short
+"The host phone" section and the new files.
+

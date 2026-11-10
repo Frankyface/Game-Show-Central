@@ -194,12 +194,14 @@
   /* ============ Transport ============ */
 
   function onMessage(raw) {
+    if (me && me.role === "host") return;   // a host phone renders only its host card
     if (!raw || typeof raw !== "object" || raw.t !== "view") return;
     view = raw;
     render();
   }
 
   function onStatus(up) {
+    if (me && me.role === "host") { window.TpirHostPhone.status(up); return; }
     connected = !!up;
     render();
   }
@@ -210,10 +212,19 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({
+        onMessage, onStatus,
+        onHostView: (v) => { if (window.TpirHostPhone) window.TpirHostPhone.show(v); },
+      });
     } catch (err) {
       setText("tpir-phone-headline", "Could not join");
       setText("tpir-phone-sub", err.message);
+      return;
+    }
+    if (me.role === "host" && window.TpirHostPhone) {
+      // docs/22 §5.3: the host's second screen. It sends nothing, ever.
+      window.TpirHostPhone.start();
+      window.TpirPhone = { me, role: "host", view: () => view, typed: () => "" };
       return;
     }
     setText("tpir-phone-status", "Connected. Waiting for the host…");

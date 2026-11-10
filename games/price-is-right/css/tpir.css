@@ -661,3 +661,8 @@ body.gsc-embedded #tpir-room-chip { display: none !important; }
 
 .ed-photo-size { font-size: 0.76rem; color: var(--ink-mute); }
 .ed-photo-error { margin: 0; font-size: 0.8rem; color: var(--red); }
+
+/* ============ Answers-private notice (docs/22 §5.4) ============ */
+
+.hp-note { display: flex; align-items: center; gap: 0.6rem; color: var(--ink-dim); font-size: 15px; font-weight: 500; }
+.hp-answer { color: var(--tpir-money); font-weight: 600; }
