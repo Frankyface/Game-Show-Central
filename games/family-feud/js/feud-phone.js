@@ -18,6 +18,9 @@ const FeudPhone = (function () {
   /** Which Fast Money question this phone is looking at. */
   let fmIndex = 0;
   let connected = true;
+  /* docs/22: on a host phone this page is the host's private second screen.
+     The frame URL's `role=host` is a layout hint only; `me.role` decides. */
+  let hostRole = new URLSearchParams(window.location.search).get("role") === "host";
 
   /* ============ Set-up ============ */
 
@@ -29,6 +32,10 @@ const FeudPhone = (function () {
     // !important, so the class has to come off rather than be overridden in CSS.
     show($("screen-player"), true);
     wire();
+    if (hostRole) {
+      document.body.classList.add("host-phone");
+      window.FeudHostCard?.setView(null); // "Waiting for the game…" until a view lands
+    }
     paint();
     if (!GSC || typeof GSC.player !== "function") {
       setError("This controller needs the shared room code (shared/bridge.js), which isn’t loaded.");
@@ -37,18 +44,27 @@ const FeudPhone = (function () {
     try {
       me = await GSC.player({
         onMessage: onHostMessage,
-        onStatus: (isConnected) => { connected = isConnected; paint(); },
+        onStatus: (isConnected) => {
+          connected = isConnected;
+          window.FeudHostCard?.setConnected(isConnected);
+          paint();
+        },
+        // Only ever fires on a host phone (the SDK checks me.role).
+        onHostView: (hv) => window.FeudHostCard?.setView(hv),
       });
     } catch (err) {
       console.warn("Could not join the room:", err);
       setError(`Could not join the room: ${err.message}`);
       return;
     }
+    hostRole = me.role === "host";
+    document.body.classList.toggle("host-phone", hostRole);
     setError("");
     paint();
   }
 
   function onHostMessage(msg) {
+    if (hostRole) return; // a host phone is never a contestant
     if (!msg || typeof msg !== "object" || msg.t !== "view") return;
     const previous = view;
     view = msg;
@@ -59,11 +75,18 @@ const FeudPhone = (function () {
     paint();
   }
 
-  const send = (payload) => { if (me) me.send(payload); };
+  // A host phone sends nothing (docs/22 §5.7); the hub would drop it anyway.
+  const send = (payload) => { if (me && !hostRole) me.send(payload); };
 
   /* ============ Render ============ */
 
   function paint() {
+    show($("player-host"), hostRole);
+    if (hostRole) {
+      ["player-head", "player-team-pick", "player-faceoff", "player-fm", "player-message"]
+        .forEach((id) => show($(id), false));
+      return;
+    }
     const screen = view ? view.screen : "wait";
     show($("player-head"), !!view);
     show($("player-team-pick"), screen === "team-pick");

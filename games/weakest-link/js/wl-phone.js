@@ -111,6 +111,9 @@
   };
 
   function render() {
+    // A host phone shows the host screen (wl-host-screen.js) and never this card:
+    // render() rewrites the card's className, which would un-hide it.
+    if (window.WlHostScreen && window.WlHostScreen.isActive()) return;
     const box = card();
     if (!box) return;
     const build = SCREENS[view.screen] || SCREENS.wait;
@@ -144,7 +147,13 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (window.WlHostScreen) window.WlHostScreen.onStatus(up);
     render();
+  }
+
+  /** docs/22: only a host phone ever receives these; the host screen draws them. */
+  function onHostView(view) {
+    if (window.WlHostScreen) window.WlHostScreen.onHostView(view);
   }
 
   async function boot() {
@@ -153,7 +162,12 @@
     document.body.classList.add("player-mode");
     show(document.getElementById("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
+      // The role comes from init, never from the URL (that is a layout hint).
+      if (window.WlHostScreen) {
+        if (me.role === "host") window.WlHostScreen.start();
+        else window.WlHostScreen.stop();
+      }
     } catch (err) {
       setText("wl-phone-headline", "Could not join");
       setText("wl-phone-sub", err.message);

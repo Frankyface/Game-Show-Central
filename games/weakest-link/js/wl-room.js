@@ -142,7 +142,11 @@
     const GSC = window.GSC;
     if (!GSC || GSC.mode.endsWith("-player")) return;
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        // docs/22: host phones are never players; wl-hostphone.js owns them.
+        onHostPhones: (list) => { if (window.WlHostPhone) window.WlHostPhone.onHostPhones(list); },
+      });
     } catch (err) {
       window.WlApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -153,6 +157,9 @@
     // An embedded game already has its roster; seed it before the first render.
     (room.players ? room.players() : []).forEach(onPlayerJoin);
     paintRoom();
+    // The host phone (docs/22 §5.2/§5.4/§5.6): host view, answers-private mode,
+    // seat reconciliation. Attached after the roster seed above.
+    if (window.WlHostPhone) window.WlHostPhone.attach(room);
     const exit = document.getElementById("btn-exit");
     if (exit && room.exit) exit.addEventListener("click", () => room.exit());
     window.WlRoom = { room, pushViews, onMessage };

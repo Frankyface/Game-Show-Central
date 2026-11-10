@@ -244,6 +244,7 @@ async function chaseBoot() {
   const loaded = await chaseLoadContent();
   chaseSet(chaseChooseContent(saved, loaded));
   if (chaseLoadMessage) chaseError(chaseLoadMessage);
+  chaseMarkContentReady();
 }
 
 /* ============ Go ============ */

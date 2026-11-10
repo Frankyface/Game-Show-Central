@@ -36,9 +36,25 @@
 
   <p id="save-warning" class="error-msg hidden" role="alert"></p>
 
+  <!-- docs/22 §5.6: shown once when a seated phone is now the host phone. -->
+  <div id="seat-notice" class="seat-notice hidden" role="status">
+    <span id="seat-notice-text"></span>
+    <button id="btn-seat-notice" class="btn btn-ghost btn-small" type="button">OK</button>
+  </div>
+
   <main>
     <!-- Undo is a game control: bottom-left of the stage, not in the toolbar. -->
     <button id="btn-undo" class="btn btn-ghost btn-small host-undo hidden" type="button" data-gsc-icon="undo">Undo</button>
+
+    <!-- Answers-private mode (docs/22 §5.4): where the answers are, and the
+         per-item fallback. Rendered only while a host phone is assigned. -->
+    <div id="private-panel" class="private-panel hidden" role="status" aria-live="polite">
+      <ol id="private-answers" class="private-answers hidden" aria-label="Answers for this round"></ol>
+      <div class="private-row">
+        <span id="private-text"></span>
+        <button id="btn-show-answer" class="btn btn-ghost btn-small hidden" type="button">Show answer on this screen</button>
+      </div>
+    </div>
 
     <!-- ===== Setup ===== -->
     <section id="screen-setup" class="screen screen-setup">
@@ -318,6 +334,19 @@
       <p id="player-fm-note" class="player-panel-note"></p>
     </div>
 
+    <!-- role=host (docs/22 §5.3/§5.7): the host's private second screen.
+         Read-only: it renders hostView and sends nothing. -->
+    <div id="player-host" class="host-card hidden">
+      <p class="host-head"><span class="host-tag">Host</span> <span>Family Feud</span></p>
+      <p id="host-stale" class="host-stale hidden">Reconnecting — this may be out of date</p>
+      <p id="host-item" class="host-item"></p>
+      <p id="host-question" class="host-question"></p>
+      <ol id="host-answers" class="host-answers"></ol>
+      <p id="host-meta" class="host-meta"></p>
+      <div id="host-fm" class="host-fm"></div>
+      <p id="host-empty" class="host-empty hidden"></p>
+    </div>
+
     <div id="player-message" class="player-panel hidden">
       <p id="player-message-title" class="player-panel-title"></p>
       <p id="player-message-sub" class="player-panel-note"></p>
@@ -336,6 +365,7 @@
   <script src="js/feud-sound.js"></script>
   <script src="js/feud-content.js"></script>
   <script src="js/feud-core.js"></script>
+  <script src="js/feud-select.js"></script>
   <script src="../../shared/room-protocol.js"></script>
   <script src="../../shared/room-net.js"></script>
   <script src="../../shared/room-host.js"></script>
@@ -345,9 +375,11 @@
   <script src="../../shared/icons.js"></script>
   <script src="js/feud-app.js"></script>
   <script src="js/feud-setup.js"></script>
+  <script src="js/feud-private.js"></script>
   <script src="js/feud-fm.js"></script>
   <script src="js/feud-editor.js"></script>
   <script src="js/feud-room.js"></script>
+  <script src="js/feud-hostcard.js"></script>
   <script src="js/feud-phone.js"></script>
   <script src="js/feud-boot.js"></script>
 </body>

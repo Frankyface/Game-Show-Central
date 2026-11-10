@@ -230,6 +230,11 @@ body {
 
 .rapid-q { margin: 0 0 0.8rem; font-size: clamp(22px, 2.4vw, 36px); line-height: 1.22; font-weight: 600; }
 .answer-label { margin-top: 0.4rem; padding-top: 0.7rem; border-top: 1px solid var(--hairline); }
+/* docs/22 section 5.4: what stands in for the answer while a host phone is assigned. */
+.answer-note { margin: 0.4rem 0 0.5rem; padding-top: 0.7rem; border-top: 1px solid var(--hairline);
+  color: var(--ink-dim); font-size: 1.05rem; font-weight: 500; }
+.answer-note.is-away { color: var(--amber); }
+
 .rapid-a { margin: 0; font-size: clamp(22px, 2.4vw, 34px); line-height: 1.2; font-weight: 600; color: var(--chase-blue-ink); }
 
 /* ============ The offers ============ */

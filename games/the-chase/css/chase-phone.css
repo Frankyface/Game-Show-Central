@@ -105,6 +105,51 @@ body.player-mode .screen:not(.screen-phone) { display: none !important; }
   font-size: 0.95rem;
 }
 
+/* ============ The host phone (docs/22 section 5.3) ============ */
+
+body.host-phone #chase-phone-card { display: none !important; }
+
+.host-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.9rem 0.9rem 1.1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+
+.host-card.is-stale { opacity: 0.6; }
+
+.host-head { display: flex; align-items: center; gap: 0.5rem; padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--hairline); }
+.host-tag { font-size: 1rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: var(--radius-sm);
+  color: var(--accent-ink); background: var(--accent); }
+.host-game { font-size: 1rem; font-weight: 600; }
+
+.host-stale { margin: 0; color: var(--amber); font-size: 1rem; font-weight: 600; }
+.host-phase { margin: 0; color: var(--ink-dim); font-size: 1rem; }
+.host-label { margin: 0.2rem 0 0; color: var(--ink-mute); font-size: 1rem; font-weight: 500; }
+.host-item { margin: 0; font-size: 1.3rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.host-answer { margin: 0; font-size: 30px; font-weight: 600; line-height: 1.15; color: var(--accent-2);
+  overflow-wrap: anywhere; }
+.host-note { margin: 0; color: var(--ink-dim); font-size: 1rem; line-height: 1.4; }
+
+.host-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.host-option { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.6rem; font-size: 1.05rem;
+  border-radius: var(--radius-sm); border: 1px solid var(--hairline); overflow-wrap: anywhere; }
+.host-option.is-right { border: 2px solid var(--accent-2); }
+.host-opt-letter { width: 1.2rem; flex: 0 0 auto; color: var(--ink-mute); font-weight: 600; }
+.host-opt-text { flex: 1 1 auto; min-width: 0; }
+.host-option.is-right .host-opt-text { font-size: 28px; font-weight: 600; color: var(--accent-2); }
+.host-opt-tag { flex: 0 0 auto; font-size: 1rem; font-weight: 600; color: var(--accent-2); }
+
+.host-next { margin-top: 0.3rem; padding-top: 0.6rem; border-top: 1px solid var(--hairline); }
+.host-next-q { margin: 0.15rem 0 0; font-size: 1rem; line-height: 1.35; }
+.host-next-a { margin: 0.1rem 0 0; font-size: 1rem; font-weight: 600; color: var(--accent-2); }
+
 @media (max-width: 340px) {
   .phone-headline { font-size: 32px; }
   .btn-option { font-size: 0.95rem; }

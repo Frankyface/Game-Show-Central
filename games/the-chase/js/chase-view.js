@@ -150,7 +150,7 @@ const ChaseView = (function () {
     setText("chase-cash-wrong", cb.wrong);
     setText("chase-cash-passed", cb.passed);
     setText("chase-cash-q", cb.item ? cb.item.q : (cb.finished ? "That is the Cash Builder." : ""));
-    setText("chase-cash-a", cb.item ? cb.item.a : "");
+    renderAnswerSlot(app, "chase-cash", cb.item ? cb.item.a : "", answerKey(state));
     setText("chase-cash-state", cashState(state, cb));
     setText("chase-cash-notice", state.repeating
       ? "The question list has come all the way round — these have been asked already." : "");
@@ -186,6 +186,47 @@ const ChaseView = (function () {
 
   function kbd(key) {
     return el("kbd", "gsc-kbd", key);
+  }
+
+  /* ============ The answer line: public, or private to the host phone ============ */
+
+  function phoneless(app, pid) {
+    return !!pid && (app.phoneless || []).indexOf(pid) >= 0;
+  }
+
+  /** One key per rapid-fire item: the fallback button clears on the next one. */
+  function answerKey(state) {
+    return `${state.phase}:${state.seat}:${state.rapidCursor}`;
+  }
+
+  /**
+   * docs/22 section 5.4. With no host phone assigned this is the line it always
+   * was. With one assigned, the answer node is not created at all: "Answer is
+   * on your host phone" while it is connected; "Host phone disconnected" and
+   * one per-item fallback button while it is not.
+   */
+  function renderAnswerSlot(app, prefix, answer, key) {
+    const slot = $(`${prefix}-answer`);
+    slot.replaceChildren();
+    if (!answer) return;
+    if (!app.answersPrivate || app.fallbackKey === key) {
+      slot.appendChild(el("p", "col-label answer-label",
+        app.answersPrivate ? "Answer (shown on this screen)" : "Answer (host only)"));
+      const line = el("p", "rapid-a", answer);
+      line.id = `${prefix}-a`;
+      slot.appendChild(line);
+      return;
+    }
+    if (app.hostPhoneLive) {
+      slot.appendChild(el("p", "answer-note", "Answer is on your host phone"));
+      return;
+    }
+    slot.appendChild(el("p", "answer-note is-away", "Host phone disconnected"));
+    const btn = el("button", "btn btn-ghost", "Show answer on this screen");
+    btn.type = "button";
+    btn.id = `btn-${prefix.replace("chase-", "")}-fallback`;
+    btn.addEventListener("click", () => window.ChaseApp.showFallback(key));
+    slot.appendChild(btn);
   }
 
   /* ============ The offers ============ */
@@ -266,23 +307,26 @@ const ChaseView = (function () {
 
   function renderLocks(app, state, h) {
     setText("chase-chaser-label", state.chaser.name);
-    setText("chase-lock-contestant", lockText(state, h, "contestant"));
-    setText("chase-lock-chaser", lockText(state, h, "chaser"));
+    setText("chase-lock-contestant", lockText(state, h, "contestant", app));
+    setText("chase-lock-chaser", lockText(state, h, "chaser", app));
     lockButtons($("chase-lock-c-buttons"), state, h, "contestant", true);
-    lockButtons($("chase-lock-h-buttons"), state, h, "chaser", state.chaser.isHost);
+    // A player-Chaser with no phone (docs/22 section 5.6) is locked by the host.
+    lockButtons($("chase-lock-h-buttons"), state, h, "chaser", state.chaser.isHost || phoneless(app, state.chaser.pid));
     $("chase-lock-contestant").className = `lock-state${h.locks.contestant !== null ? " is-locked" : ""}`;
     $("chase-lock-chaser").className = `lock-state${h.locks.chaser !== null ? " is-locked" : ""}`;
     void app;
   }
 
-  function lockText(state, h, side) {
+  function lockText(state, h, side, app) {
     if (h.revealed[side]) {
       const letter = core().revealedLetter(state, side);
       const right = h.locks[side] === h.q.answer;
       return `${letter} — ${right ? "correct" : "wrong"}`;
     }
     if (h.locks[side] !== null) return "Locked in";
-    if (side === "chaser" && !state.chaser.isHost) return `Waiting for ${state.chaser.name}…`;
+    if (side === "chaser" && !state.chaser.isHost && !phoneless(app, state.chaser.pid)) {
+      return `Waiting for ${state.chaser.name}…`;
+    }
     return "Not locked";
   }
 
@@ -395,7 +439,7 @@ const ChaseView = (function () {
   function renderFinalQuestion(state, f, team) {
     const asking = team ? (!f.teamFinished && f.teamStarted) : !f.chaserFinished;
     setText("chase-final-q", asking && f.item ? f.item.q : "");
-    setText("chase-final-a", asking && f.item ? f.item.a : "");
+    renderAnswerSlot(window.ChaseApp.state(), "chase-final", asking && f.item ? f.item.a : "", answerKey(state));
     setText("chase-final-notice", state.repeating
       ? "The rapid-fire list has come round again — these have been asked already." : "");
     show($("chase-pushback"), !team && !!f.pushback);
@@ -525,8 +569,8 @@ const ChaseView = (function () {
     $("btn-game-lobby").disabled = !app.core;
     // A screen we are leaving is never repainted, so a question would sit in
     // its (hidden) panel for the rest of the night. Empty them here.
-    if (which !== "cash") { setText("chase-cash-q", ""); setText("chase-cash-a", ""); }
-    if (which !== "final") { setText("chase-final-q", ""); setText("chase-final-a", ""); }
+    if (which !== "cash") { setText("chase-cash-q", ""); $("chase-cash-answer").replaceChildren(); }
+    if (which !== "final") { setText("chase-final-q", ""); $("chase-final-answer").replaceChildren(); }
     if (which !== "board") $("chase-options").replaceChildren();
     if (which === "setup") renderSetup(app);
     if (!app.core) return;

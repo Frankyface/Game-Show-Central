@@ -262,6 +262,7 @@ function render() {
   if (onBoard) renderBoard();
   if (phase === "fastmoney") window.FeudFM?.render();
   if (phase === "final") renderFinal();
+  window.FeudPrivate?.render(state);
   window.FeudRoom?.onRender?.();
 }
 
@@ -333,8 +334,13 @@ function buildTile(tile) {
   const back = el("div", "tile-back");
   back.appendChild(el("span", "tile-number", String(tile.number)));
   const face = el("div", "tile-face");
-  face.appendChild(el("span", "tile-text", tile.text));
-  face.appendChild(el("span", "tile-count", String(tile.count)));
+  // An unrevealed answer is never put in the DOM: the face was hidden only by
+  // backface-visibility, which still leaves the text to screen readers and to
+  // anyone inspecting the shared page (docs/22 §5.4 / review F13).
+  if (tile.revealed) {
+    face.appendChild(el("span", "tile-text", tile.text));
+    face.appendChild(el("span", "tile-count", String(tile.count)));
+  }
   inner.appendChild(back);
   inner.appendChild(face);
   node.appendChild(inner);
@@ -585,6 +591,8 @@ function wireHostEvents() {
   });
   wireSpaceToArm();
   wireEscape();
+  window.FeudPrivate?.wire();
+  $("btn-seat-notice").addEventListener("click", () => setSeatNotice(""));
 }
 
 /** Esc closes the Game lobby confirm — it is a real modal. */
@@ -648,6 +656,8 @@ window.FeudApp = {
   resumeSummary: (snap) => resumeSummary(snap),
   syncRoster: (players) => syncRoster(players),
   bindRoom: (code) => bindRoom(code),
+  reconcileSeats: (pids, hostPhones) => reconcileSeats(pids, hostPhones),
+  setSeatNotice: (msg) => setSeatNotice(msg),
   setSetupError: (msg) => setSetupError(msg),
   helpers: { $, el, button, show, group },
 };

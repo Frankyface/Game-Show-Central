@@ -28,6 +28,11 @@
   </header>
 
   <p id="save-warning" class="error-msg hidden" role="alert"></p>
+  <!-- docs/22 §5.6: shown once when a saved seat is no longer a contestant. -->
+  <div id="hp-notice" class="hp-notice hidden" role="status">
+    <p id="hp-notice-text" class="hp-notice-text"></p>
+    <button id="btn-hp-notice" class="btn btn-ghost btn-small" type="button">OK</button>
+  </div>
 
   <main>
 
@@ -154,7 +159,16 @@
           </div>
         </div>
 
-        <div id="podiums" class="podiums" aria-label="Players"></div>
+        <div class="side-col">
+          <div id="podiums" class="podiums" aria-label="Players"></div>
+          <!-- docs/22 §5.4: only while a host phone is assigned. The answer
+               text is created only after the host asks for it. -->
+          <div id="hp-status" class="hp-status hidden" role="status" aria-live="polite">
+            <p id="hp-status-text" class="hp-status-text"></p>
+            <button id="btn-hp-show" class="btn btn-ghost hidden" type="button">Show answer on this screen</button>
+            <p id="hp-answer" class="hp-answer hidden"></p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -332,6 +346,8 @@
       <div id="phone-bonus-timer" class="timer-bar timer-bar-phone gsc-timer hidden" aria-hidden="true"></div>
     </div>
 
+    <!-- host phone (docs/22 §5.3/§5.7): filled by WheelHostCard -->
+    <div id="p-host" class="p-host hidden"></div>
     <!-- result -->
     <div id="p-result" class="p-screen hidden">
       <ol id="p-standings" class="final-list"></ol>
@@ -349,6 +365,7 @@
   <script src="../../shared/icons.js"></script>
   <script src="js/wheel-content.js"></script>
   <script src="js/wheel-core.js"></script>
+  <script src="js/wheel-select.js"></script>
   <script src="js/timer-core.js"></script>
   <script src="js/wheel-timer.js"></script>
   <script src="js/wheel-sound.js"></script>
@@ -362,7 +379,9 @@
   <script src="../../shared/library.js"></script>
   <script src="../../shared/bridge.js"></script>
   <script src="js/wheel-app.js"></script>
+  <script src="js/wheel-hostphone.js"></script>
   <script src="js/wheel-room.js"></script>
+  <script src="js/wheel-hostcard.js"></script>
   <script src="js/wheel-phone.js"></script>
   <script src="js/wheel-editor.js"></script>
 </body>

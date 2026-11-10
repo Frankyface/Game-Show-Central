@@ -531,3 +531,60 @@ there needs code moved out first), `tests/harness-x.js` (425),
 `tests/harness.html` (one call added). Static gates clean (no HTML-string /
 `document.write` / `eval` / `new Function` / `console.log`; `.eval(` is gone
 from the harness too). Patch script: `.scratch/wof-xfix.py`.
+
+---
+
+## 11. Host phone (docs/22 §5, §6 Wheel row; review F11)
+
+Implemented against the SDK as built (`docs/reports/host-phone-shell-implementation.md`
+§1). New code lives in new files; `js/wheel-app.js` grew by two lines only.
+`node --test` **78/78** (71 + 7 new); `tests/harness.html` on 127.0.0.1:8643
+(Node static server, `.scratch/hp-wheel-serve.mjs`) **"All 110 checks passed."**
+(95 + 15 new HP checks). No host phone assigned → behaviour identical (HP-7).
+
+### 11.1 The seven contract items
+
+| # | Item | As built |
+| --- | --- | --- |
+| 1 | Pure `hostView(state)` | `js/wheel-select.js` (UMD → `WheelSelect`, pure, 134 lines). Returns `item` (`round-N`), phase, round label/number/count, category, and while the puzzle is unsolved `secret:true` with the **full solution**, `rows` (the board layout with every letter, each tile flagged shown/still hidden), `hidden` letters, `used`, whose turn; regular: the pending wedge and what a phone said when solving; toss-up: value and who buzzed; bonus: the contestant, the picks and the prize. `next` lists the following round (label, category, solution) for host prep. Setup, standings and a solved round carry `secret:false` and no current solution. A puzzle is ≤ 52 tiles, so the view is far under 16 KB. |
+| 2 | Room glue | `js/wheel-hostphone.js` `pushHostView()` runs on every state change: `room.setHostView({t:"host", seq, ...hostView(state)})` (`seq` bumps when the view changes). No cache, no resend, no `room.send`. Contestant `phoneView` unchanged. `onHostPhones` re-renders the status line. |
+| 3 | Phone page in `role=host` | `js/wheel-phone.js` branches on `me.role === "host"` (`onHostView` stores the view) and `js/wheel-hostcard.js` paints the v3 card: "Host · Wheel of Fortune", the round and category, the solution **laid out like the board** (tiles still face-down on the shared screen outlined in the accent), the answer at 29.6 px in the accent, "Still hidden:", turn/wedge/buzz/picks, and "Up next" with the next solution. Setup/standings/solved: "Nothing secret right now" + the phase. All player chrome is hidden (`body.host-role`). |
+| 4 | Answers-private mode | When `room.answersPrivate()`: a status line under the podiums — "Answer is on your host phone", or while none is connected "Host phone disconnected" + **Show answer on this screen**, which creates the answer text only on click, for the current puzzle only, and clears on the next puzzle. The **editor's puzzle list is emptied and the Editor button disabled while a game runs**, because the editor DOM holds every solution. "Reveal all" is unchanged (a host action). |
+| 5 | Tests | Unit `tests/wheel-host.test.mjs` (7): nothing secret at setup/final/solved; toss-up, regular and bonus solutions; board layout and hidden letters; purity/JSON/size; `phoneView` unchanged. Harness `tests/harness-hp.js` (15 checks, its own three frames and `?store=harnesshp`), below. |
+| 6 | Seat reconciliation on boot | `reconcileSeats(savedPhones)` (embedded host, after `init`): phone seats from the save whose pid is not in `room.players()` leave a setup list; a running or parked game keeps the seat (scores stand), treats it as phone-less, and shows one notice — "Ana is now the host phone — play their turns from this screen, or start a new game." (or "…'s phone has left the room…" for a pid that is simply gone). |
+| 7 | Host-phone page | Shows `item` beside the answer; dims and shows "Reconnecting — this may be out of date" on `onStatus(false)`; renders `tooBig` as "Too much to show — use the button on the laptop"; sends nothing; no buttons. |
+
+### 11.2 Two real leaks found by the new scan, both fixed
+
+- **`#board` carried `data-board-key="<round>:<PUZZLE>"`** — the full solution in a
+  `data-*` attribute on the shared screen, with or without a host phone. The board
+  is now keyed on the tile *shape* (`0/1` per cell), which the board shows anyway.
+- **The set manifest descriptions quoted solutions** ("…the final episode",
+  "…under the couch cushions") and the library preview puts the loaded set's
+  description in the host DOM. Both descriptions are rewritten.
+
+### 11.3 Harness checks (docs/22 §5.5)
+
+The scan reads the host document's text, every `value`, `placeholder`, `title`,
+`alt`, `aria-label` and `data-*`, every `<option>`, `document.title`, and every
+`setTitle` the game sent.
+
+- HP-1 the host-role frame receives the view via `onHostView` (card answer "THE JUNK DRAWER"); the card lays the solution out like the board and lists what is hidden; the contestant frame never receives a host view; the host phone sends nothing.
+- HP-2 (connected) "Answer is on your host phone"; neither the current nor the next solution anywhere in the host document — with the editor opened at setup first; the editor holds no puzzles and is disabled while the game runs.
+- HP-3 (disconnected) still clean; the fallback button is offered; the phone dims with the Reconnecting note.
+- HP-4 the fallback reveals the current puzzle; on the next puzzle it clears and the new solution stays private.
+- HP-5 `tooBig` renders the plain line.
+- HP-6 seat reconciliation: dropped from setup; kept phone-less in a running game with one notice.
+- HP-7 no host phone: no status line, Editor enabled, `answersPrivate()` false.
+
+### 11.4 Files
+
+New: `js/wheel-select.js` (134), `js/wheel-hostphone.js` (158), `js/wheel-hostcard.js`
+(111), `tests/wheel-host.test.mjs` (119), `tests/harness-hp.js` (281). Changed:
+`index.html` (script tags, side column with `#hp-status`, `#hp-notice`, `#p-host`),
+`js/wheel-room.js` (`onHostPhones`, attach + reconcile in boot), `js/wheel-phone.js`
+(host role), `js/wheel-app.js` (`resumableSeats()`, the shape-keyed board — now
+**798 lines**; nothing more can go in it), `css/wheel.css` / `css/wheel-phone.css`
+(v3 styles for the status line, notice and host card), `sets/index.json`
+(descriptions), `tests/harness.html` (assets, gate list, the HP run). Helpers:
+`.scratch/hp-wheel-serve.mjs`, `.scratch/hp-wheel-patch1..3.py`. Static gates clean.

@@ -20,6 +20,10 @@ const FeudRoom = (function () {
   /** Last payload sent per pid, so an unchanged view isn't re-sent. */
   const lastSent = new Map();
   let lastTitle = "";
+  /* Host phone (docs/22 §5.2). `seq` advances only when the view's content
+     changes, so identical views stay identical and the SDK can skip them. */
+  let hostSeq = 0;
+  let lastHostBody = "";
 
   const core = () => window.FeudCore;
 
@@ -42,6 +46,9 @@ const FeudRoom = (function () {
         onPlayerLeave: (pid) => { lastSent.delete(pid); syncPlayers(); },
         onPlayerStatus: (pid) => { lastSent.delete(pid); syncPlayers(); },
         onMessage: handleMessage,
+        // A host phone came, went, dropped or reconnected: repaint the
+        // "Answers are on your host phone" / "Host phone disconnected" line.
+        onHostPhones: () => { readPrivacy(); window.FeudApp.render(); },
       });
     } catch (err) {
       console.warn("Could not start the room:", err);
@@ -52,6 +59,11 @@ const FeudRoom = (function () {
     // so a fresh p1 never inherits the previous room's seat. Embedded: the code
     // arrives with `init`. Standalone: it arrives when the room opens.
     window.FeudApp.bindRoom(room.code);
+    readPrivacy();
+    // docs/22 §5.6: a seated phone that is no longer a contestant (made the
+    // host phone, or gone) is reconciled once, after init. Embedded only: a
+    // standalone room is closed at boot, so its empty roster means nothing.
+    if (embedded) window.FeudApp.reconcileSeats(room.players().map((p) => p.pid), room.hostPhones());
     if (typeof room.onStatus === "function") {
       room.onStatus(() => {
         window.FeudApp.bindRoom(room.code);
@@ -128,6 +140,7 @@ const FeudRoom = (function () {
     const state = window.FeudApp.getState();
     if (!state) return;
     broadcastViews(state);
+    sendHostView(state);
     reportScores(state);
     setTitle(state);
     paintRoom();
@@ -143,6 +156,24 @@ const FeudRoom = (function () {
       lastSent.set(player.pid, encoded);
       room.send(player.pid, payload);
     });
+  }
+
+  function readPrivacy() {
+    const phones = typeof room.hostPhones === "function" ? room.hostPhones() : [];
+    const isPrivate = typeof room.answersPrivate === "function" && room.answersPrivate();
+    window.FeudPrivate?.setRoom(isPrivate, phones.some((p) => p.connected !== false));
+  }
+
+  /** The host's private view, on every render (the SDK and hub de-duplicate). */
+  function sendHostView(state) {
+    if (typeof room.setHostView !== "function" || !window.FeudSelect) return;
+    const body = window.FeudSelect.hostView(state);
+    const json = JSON.stringify(body);
+    if (json !== lastHostBody) {
+      lastHostBody = json;
+      hostSeq += 1;
+    }
+    room.setHostView({ t: "host", seq: hostSeq, ...body });
   }
 
   function reportScores(state) {

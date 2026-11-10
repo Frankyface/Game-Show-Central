@@ -377,7 +377,8 @@ const WheelApp = (function () {
     const board = core().boardView(state);
     const actions = core().legalActions(state);
     const isRound = state.phase === "round";
-    view().renderBoard($("board"), board, `${state.roundIndex}:${state.round.puzzle}`);
+    // Keyed on the tile SHAPE, never the letters: a data-* attribute is DOM (docs/22 §5.5).
+    view().renderBoard($("board"), board, `${state.roundIndex}:${board.rows.map((r) => r.map((c) => (c ? 1 : 0)).join("")).join("/")}`);
     $("category").textContent = board.category;
     $("banner").textContent = spinning ? "Spinning…" : state.banner;
     view().renderUsed($("used-letters"), state.used);
@@ -768,6 +769,7 @@ const WheelApp = (function () {
     hasResumable: () => !!resumable,
     library: () => library,
     storeSuffix,
+    resumableSeats: () => (resumable ? resumable.players.map((p) => ({ pid: p.pid, name: p.name })) : []),
     roomCode: () => roomCode,
     takenOverPid: () => takenOverPid,
     isSpinning: () => spinning,

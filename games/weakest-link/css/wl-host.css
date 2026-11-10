@@ -1,0 +1,61 @@
+/* ============================================================
+   Weakest Link — host phone (docs/22 §5.3/§5.7, design system v3)
+   The phone screen: a small "Host" header, the current question
+   large with its answer in the accent (>= 28 px), what comes next
+   below. Text >= 16 px, no horizontal scroll at 320 px, no buttons.
+   Plus the shared-screen notes for answers-private mode (§5.4).
+   ============================================================ */
+
+/* ---- The phone ---- */
+
+.host-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.1rem 1.6rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.host-card.is-stale { opacity: 0.55; }
+
+/* Colour is never the only signal: the word "Host" names the screen. */
+.host-head {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--accent, #7c99b6);
+}
+.host-tag {
+  padding: 0.1em 0.5em;
+  border-radius: 6px;
+  background: var(--accent, #7c99b6);
+  color: var(--accent-ink, #06101a);
+  font-size: 16px;
+  font-weight: 600;
+}
+.host-game { font-size: 16px; font-weight: 600; color: var(--ink, #eceef3); }
+
+.host-stale { margin: 0; font-size: 16px; font-weight: 600; color: var(--amber, #ffb347); }
+.host-phase { margin: 0; font-size: 16px; font-weight: 500; color: var(--ink-dim, #a9aebb); }
+.host-empty { margin: 0.4rem 0 0; font-size: 20px; font-weight: 600; color: var(--ink, #eceef3); }
+.host-flag, .host-note { margin: 0; font-size: 16px; color: var(--ink-dim, #a9aebb); }
+.host-flag { color: var(--amber, #ffb347); font-weight: 600; }
+
+.host-q { padding: 0.6rem 0 0.7rem; border-top: 1px solid var(--hairline, rgba(255, 255, 255, 0.1)); }
+.host-q-current { border-top: 0; padding-top: 0.2rem; }
+.host-who { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink, #eceef3); }
+.host-cat { margin: 0.1rem 0 0; font-size: 16px; color: var(--ink-mute, #8b919f); }
+.host-question { margin: 0.35rem 0 0; font-size: 21px; font-weight: 600; line-height: 1.25; color: var(--ink, #eceef3); }
+.host-answer { margin: 0.35rem 0 0; font-size: 30px; font-weight: 600; line-height: 1.15; color: var(--accent, #7c99b6); }
+.host-next-title { margin: 0.5rem 0 0; font-size: 16px; font-weight: 600; color: var(--ink-dim, #a9aebb); }
+.host-question-next { margin: 0.2rem 0 0; font-size: 17px; line-height: 1.3; color: var(--ink, #eceef3); }
+.host-answer-next { margin: 0.15rem 0 0; font-size: 18px; font-weight: 600; color: var(--accent, #7c99b6); }
+
+/* A host phone shows no contestant chrome: the Host header names the game. */
+body.host-phone .topbar { display: none; }
+
+/* ---- The shared screen in answers-private mode ---- */
+
+.hp-note { display: flex; align-items: center; justify-content: center; gap: 0.6rem; flex-wrap: wrap; }
+.hp-note-text { margin: 0; font-size: 16px; color: var(--ink-dim, #a9aebb); }
+.hp-reveal { margin: 0; }

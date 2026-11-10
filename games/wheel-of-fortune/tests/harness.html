@@ -38,6 +38,7 @@
   </div>
 
   <script src="harness-x.js"></script>
+  <script src="harness-hp.js"></script>
   <script>
   (function () {
     "use strict";
@@ -160,6 +161,7 @@
       "../js/wheel-view.js", "../js/wheel-app.js", "../js/wheel-room.js",
       "../js/wheel-phone.js", "../js/wheel-editor.js", "../js/wheel-sound.js",
       "../js/wheel-timer.js", "../js/timer-core.js", "../js/data.js",
+      "../js/wheel-select.js", "../js/wheel-hostphone.js", "../js/wheel-hostcard.js",
       "../css/wheel.css", "../css/wheel-phone.css", "../css/timer.css",
       "../../../shared/bridge.js", "../../../shared/room-protocol.js",
       "../../../shared/room-net.js", "../../../shared/room-host.js",
@@ -708,7 +710,7 @@
     const SOURCE_FILES = ASSETS.filter((u) => u.indexOf("shared/") < 0)
       .concat(["../README.md", "../sets/index.json", "./wheel-core.test.mjs",
         "./wheel-fixes.test.mjs", "./wheel-adversarial.test.mjs",
-        "./harness-x.js", "./harness.html"]);
+        "./harness-x.js", "./harness-hp.js", "./wheel-host.test.mjs", "./harness.html"]);
 
     /* ============ Run ============ */
 
@@ -743,6 +745,8 @@
         await X.testEditorLibrary();
         await X.testStoreNamespacing();
         await X.testTossupResume();
+        // docs/22 host phone: its own frames and ?store= namespace.
+        await window.WheelHarnessHP({ check, waitFor, sleep }).run();
         await X.testGates();
       } catch (err) {
         uncaught = uncaught || (err && err.message) || String(err);

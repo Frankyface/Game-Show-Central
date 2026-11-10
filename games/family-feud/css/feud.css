@@ -367,3 +367,23 @@ body.gsc-embedded .room-chip { display: none !important; }
   .final-standings { grid-template-columns: 1fr; }
   .topbar { padding: 0 12px; }
 }
+
+/* ============ Seat notice (docs/22 §5.6) ============ */
+
+.seat-notice {
+  position: fixed;
+  top: calc(var(--feud-topbar) + 8px);
+  left: 50%;
+  z-index: 35;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 8px 8px 8px 14px;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+}

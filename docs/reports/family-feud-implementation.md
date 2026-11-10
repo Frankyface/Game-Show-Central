@@ -507,3 +507,105 @@ enabled. This replaces the earlier "hidden on setup" behaviour (§9 and
   toggling `.hidden`).
 - Harness: X-1 now asserts "on setup it is present but disabled" and "it is
   enabled once a game is running". `node --test` 87/87, harness 84/84 on 8642.
+
+---
+
+## 11. Host phone (docs/22 §5 + §6, review F10 / F11 / F13)
+
+`node --test` **95/95** (the 87 + 8 new) and `tests/harness.html` **109/109**
+(the 84 + 25 new `HP-` checks, `uncaught: null`), served by a Node static server
+on 127.0.0.1:8642 (`.scratch/hp-feud-serve.mjs`). With no host phone assigned the
+game behaves as before: the private panel never renders, the pickers keep their
+answer text, and every pre-existing check passes. The one change visible without
+a host phone is in the DOM only: see "the board" below.
+
+### The seven contract items
+
+1. **Pure selector** — new `js/feud-select.js` (UMD `FeudSelect`, 133 lines):
+   `hostView(state)` returns `kind:"survey"` on the board phases (question, the
+   numbered answers with counts and `revealed`, strikes / limit, bank, multiplier,
+   who is playing or stealing, and in round-over the *next* question without its
+   answers), `kind:"fastmoney"` (slot, stage, total / target, the five questions
+   with numbered answers + counts, and both sheets' picks as answer numbers), and
+   `kind:"none"` on setup and final standings. `itemOf(state)` is the item label
+   ("Round 2 of 6", "Fast Money · player 1"). `fmPickOptions(question, hideText)`
+   builds the Fast Money picker (F10). The host plays no role in Feud, so there is
+   nothing a host-played role must not know. Worst case the validator allows (8 ×
+   40-char answers, 200-char questions) stays well under 16 KB (asserted).
+2. **Room glue** — `feud-room.js` calls `room.setHostView({t:"host", seq, ...hostView})`
+   on every render; `seq` advances only when the content changes, so identical
+   views stay identical for the SDK's de-duplication. No cache, no resend, no
+   `room.send`. `onHostPhones` re-reads privacy and repaints. `phoneView` is untouched.
+3. **Phone page in `role=host`** — `js/feud-hostcard.js` + markup in `#screen-player`:
+   a "Host · Family Feud" header (the word plus the accent tag; the top bar rule
+   turns accent), the item, the question, then the survey as a numbered list
+   (number · answer at 28 px in the lifted Feud red · count); revealed answers are
+   struck through, dimmed and labelled "On the board"; then strikes, bank and who
+   is playing. Fast Money lists the five questions with numbered answers and marks
+   "Picked", "Picked — duplicate" and (for player 2) "Player 1's answer". Setup /
+   standings: "Nothing secret right now · ‹phase›". Verified at 320 px: no
+   horizontal scroll, answers 28 px, all text ≥ 16 px, no buttons.
+4. **Answers-private mode** — `js/feud-private.js`. While `room.answersPrivate()`:
+   - The board already shows blank numbered tiles.
+   - **F10:** the Fast Money picker reads "Pick the answer number… / Answer 1…N /
+     No match → 0"; option *values* are unchanged, so scoring is identical.
+   - A bottom-right status line (fixed, outside the layout, so the 1280×676 budget
+     is untouched): "Answers are on your host phone." while one is connected;
+     "Host phone disconnected." plus one **Show answer on this screen** button while
+     none is. The button shows the current item only: on the board, a numbered list
+     of this round's answers; in Fast Money, answer text in this player's pickers.
+     It clears on the next item (next round / player 2). It is display state, never
+     saved, so a reload re-hides.
+   - **The board (F13, all modes):** an unrevealed tile's face used to hold the
+     answer text in the DOM, hidden only by `backface-visibility`, so it was there
+     for screen readers and anyone inspecting the page. Now the face is only filled
+     once the tile is revealed. Nothing looks different.
+   - `setTitle` ("Round N of M" / "Fast Money") and `reportScores` carry no answers
+     (asserted).
+5. **Tests** — unit `tests/feud-select.test.mjs` (8): nothing secret on setup/final;
+   the full survey at face-off; ticks / strikes / bank / control / steal team in play;
+   round-over shows the next question but none of its answers, and the item changes;
+   Fast Money questions, answers and picks, with player 2 a new item; deterministic,
+   no mutation, < 16 KB at the validator's maximum; `phoneView` unchanged; F10
+   labels. Harness `tests/harness-hp.js` (25 `HP-` checks): the host-role frame gets
+   the view via `onHostView`, contestant frames never do; with the host phone
+   connected **and** disconnected no round-1 answer appears in the host document's
+   text, any `value`, `placeholder`, `<option>`, `title`, `alt`, `aria-label`,
+   `data-*`, nor in `setTitle` / `reportScores`; a public reveal shows exactly
+   that answer; the fallback shows the round, and the next round hides it again;
+   Fast Money pickers read "Answer 1…N", the fallback fills them for player 1 only,
+   and player 2's are numbers again; stale and `tooBig`; the host phone sends nothing.
+6. **Seat reconciliation (F11)** — `reconcileSeats()` in `feud-setup.js`, called once
+   after `init` (embedded only; a standalone room is closed at boot). On a plain setup,
+   a phone seat whose pid is no longer in `room.players()` is dropped from the line-up.
+   When a running or parked game seats it, the seat stays (team scores stand), the
+   roster entry becomes phone-less (the host buzzes and types for it), and one notice
+   appears: "Ben is now the host phone — play their turns from this screen, or start a
+   new game." (or "has left the room"). Asserted both ways.
+7. **Host-phone page** — shows the item beside the answers; dims and shows
+   "Reconnecting — this may be out of date" on `onStatus(false)`; renders `tooBig` as
+   "Too much to show — use the button on the laptop"; sends nothing (the send path is
+   closed on a host phone, and the harness counts zero payloads).
+
+### Files
+
+New: `js/feud-select.js` (133), `js/feud-private.js` (90), `js/feud-hostcard.js` (102),
+`tests/feud-select.test.mjs` (134), `tests/harness-hp.js` (246). Changed:
+`index.html` (status panel, seat notice, host card, three script tags),
+`js/feud-app.js` (tile face only when revealed; render hook; wiring),
+`js/feud-fm.js` (picker via `fmPickOptions`), `js/feud-room.js` (host view,
+privacy, reconciliation), `js/feud-setup.js` (`reconcileSeats`, `setSeatNotice`),
+`js/feud-phone.js` (role branch; never sends as host), three CSS files, and
+`tests/harness.html` (the mini-shell now speaks `hostPhones` / `answersPrivate` in
+`init`, `host-phones`, `host-view`, `role` in `me`, and drops host-phone sends;
+the new files are cache-refreshed and gated). Every file < 800 lines; no markup or
+dynamic-code sinks; no `console.log`; no new external URLs.
+
+### Notes
+
+- **The editor** still lists every answer when the host opens it: it is an explicit
+  host action, like opening `questions.json`. It is not gated by private mode.
+- **Fast Money answers on the host phone are 28 px** like the board's, so the
+  five-question list is long; it scrolls vertically, with no horizontal scroll at 320 px.
+- **Fallback scope.** "Current item" is the round on the board, and the active
+  player's sheet in Fast Money.

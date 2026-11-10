@@ -396,6 +396,79 @@
     return mine && mine.amount > 0 ? "That is yours." : "The team held on.";
   }
 
+  /* ============ The host phone (docs/22 §5–§6) ============ */
+
+  const PHASE_LABELS = Object.freeze({
+    setup: "Setting up", cashBuilder: "Cash Builder", offer: "The offers", headToHead: "Head to head",
+    finalTeam: "Final Chase — the team", finalChaser: "Final Chase — the Chaser",
+    result: "Result", standings: "Standings",
+  });
+
+  function quiet(phase) {
+    return { phase, phaseLabel: PHASE_LABELS[phase] || "", secret: false, item: "",
+      note: "Nothing secret right now" };
+  }
+
+  /** The rapid-fire question after the one on the table (the cursor is already past it). */
+  function upNext(state) {
+    const drawn = Content.itemAt(state.order.rapid, state.rapidCursor);
+    return drawn.item ? { q: drawn.item.q, a: drawn.item.a } : null;
+  }
+
+  function rapidHostView(state, phase, current, extra) {
+    if (!current) return quiet(phase);
+    return Object.assign({
+      phase, phaseLabel: PHASE_LABELS[phase], secret: true,
+      item: current.q, answer: current.a, next: upNext(state),
+    }, extra);
+  }
+
+  /**
+   * Head to head. The correct option is part of the host's private view —
+   * EXCEPT while the host is playing the Chaser and has not locked his own
+   * answer: a host view never holds what a role the host is playing must not
+   * know (docs/22 §5.1, review F4). With a player-Chaser it shows at once.
+   */
+  function h2hHostView(state) {
+    const h = state.h2h;
+    if (!h || !h.q) return quiet("headToHead");
+    const withheld = state.chaser.isHost && h.locks.chaser === null && !h.outcome;
+    return {
+      phase: "headToHead", phaseLabel: PHASE_LABELS.headToHead, secret: !withheld,
+      item: h.q.q, options: h.q.options.slice(), correct: withheld ? null : h.q.answer,
+      withheld, hostIsChaser: state.chaser.isHost,
+      who: hotSeat(state) ? hotSeat(state).name : "", amountText: formatMoney(state, h.amount),
+      note: withheld ? "Lock the Chaser's answer on the laptop — the right one appears here after." : "",
+    };
+  }
+
+  /**
+   * What the host's private phone shows right now. Pure, deterministic and
+   * small (two questions at most). Phases with nothing secret say so.
+   * @param {object|null} state
+   */
+  function hostView(state) {
+    if (!state || !state.game) return quiet("setup");
+    const who = hotSeat(state) ? hotSeat(state).name : "";
+    if (state.phase === "cashBuilder" && state.cb) {
+      return rapidHostView(state, "cashBuilder", state.cb.item, { who });
+    }
+    if (state.phase === "headToHead") return h2hHostView(state);
+    if ((state.phase === "finalTeam" || state.phase === "finalChaser") && state.final) {
+      const f = state.final;
+      const live = state.phase === "finalTeam" ? !f.teamFinished : !f.chaserFinished;
+      return rapidHostView(state, state.phase, live ? f.item : null, {
+        pushback: !!f.pushback,
+        // Final Chase with a host Chaser: the answer stays visible to the reader,
+        // as it was on the laptop before host phones (review F4) — said here.
+        hostIsChaser: state.phase === "finalChaser" && state.chaser.isHost,
+        note: state.phase === "finalChaser" && state.chaser.isHost
+          ? "You are the Chaser: this answer is for judging — play it straight." : "",
+      });
+    }
+    return quiet(state.phase);
+  }
+
   /* ============ Export ============ */
 
   return Object.assign({}, Content, Rules, {
@@ -410,5 +483,7 @@
     nameOf, seatOf, hotSeat, standings,
     // phones
     validatePhoneMsg, phoneView, phoneCanLock, lockSideFor,
+    // host phone
+    hostView, PHASE_LABELS,
   });
 });

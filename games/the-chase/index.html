@@ -144,8 +144,9 @@
         <div class="cash-right">
           <p class="col-label">Read this out</p>
           <p id="chase-cash-q" class="rapid-q">&nbsp;</p>
-          <p class="col-label answer-label">Answer (host only)</p>
-          <p id="chase-cash-a" class="rapid-a">&nbsp;</p>
+          <!-- Built by chase-view.js: the answer line, or, with a host phone
+               assigned, a notice instead (docs/22 section 5.4). -->
+          <div id="chase-cash-answer" class="answer-slot"></div>
           <p id="chase-cash-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
         </div>
       </div>
@@ -288,8 +289,7 @@
         <div class="final-right">
           <p class="col-label">Read this out</p>
           <p id="chase-final-q" class="rapid-q">&nbsp;</p>
-          <p class="col-label answer-label">Answer (host only)</p>
-          <p id="chase-final-a" class="rapid-a">&nbsp;</p>
+          <div id="chase-final-answer" class="answer-slot"></div>
           <p id="chase-final-notice" class="notice" role="status" aria-live="polite">&nbsp;</p>
           <div id="chase-pushback" class="pushback hidden">
             <p class="pushback-title">Pushback &mdash; the team can take it back</p>
@@ -470,6 +470,7 @@
   <script src="js/chase-wire.js"></script>
   <script src="js/chase-editor.js"></script>
   <script src="js/chase-room.js"></script>
+  <script src="js/chase-hostphone.js"></script>
   <script src="js/chase-phone.js"></script>
 </body>
 </html>

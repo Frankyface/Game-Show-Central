@@ -484,3 +484,22 @@ body.gsc-embedded #room-panel { display: none; }
   .wheel-faded { animation: wheel-fade 300ms linear both; }
   @keyframes wheel-fade { from { opacity: 0.4; } to { opacity: 1; } }
 }
+
+/* ============ Host phone, laptop side (docs/22 §5.4, §5.6) ============ */
+
+.side-col { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+
+.hp-status {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.hp-status-text { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink); }
+.hp-answer { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+
+.hp-notice {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+  margin: 0.5rem 1rem 0; padding: 0.5rem 0.8rem;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.hp-notice-text { margin: 0; font-size: 1rem; color: var(--ink); }

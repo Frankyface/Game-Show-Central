@@ -42,6 +42,13 @@ const GscEmbed = (function () {
   const MODE = SDK ? SDK.mode : "standalone-host";
   const IS_HOST = MODE === "embed-host";
   const IS_PLAYER = MODE === "embed-player";
+  /**
+   * docs/22: the hub mounts the host's own phone as `?embed=player&role=host`
+   * with no `name=`, so upstream's auto-join never runs. The URL flag is only a
+   * layout hint (it decides the first paint); `me.role` from the handshake is
+   * the authority and can undo it.
+   */
+  const IS_HOST_PHONE = IS_PLAYER && !!(SDK && SDK.params && SDK.params.role === "host");
   const EMBEDDED = IS_HOST || IS_PLAYER;
   /** Shell room code, captured before the URL is rewritten. */
   const ROOM_CODE = SDK && SDK.params ? SDK.params.room || null : null;
@@ -111,7 +118,8 @@ const GscEmbed = (function () {
     const apply = () => {
       if (!document.body) return;
       document.body.classList.add("gsc-embedded");
-      if (IS_PLAYER) document.body.classList.add("gsc-autojoin");
+      if (IS_HOST_PHONE) document.body.classList.add("gsc-host-phone");
+      else if (IS_PLAYER) document.body.classList.add("gsc-autojoin");
     };
     if (document.body) apply();
     else document.addEventListener("DOMContentLoaded", apply);
@@ -172,6 +180,7 @@ const GscEmbed = (function () {
     h.openRoom(ROOM_CODE || undefined);
     syncManualPlayers();
     renderManagedNote();
+    pushHostView();
     reportScores();
   }
 
@@ -334,6 +343,7 @@ const GscEmbed = (function () {
    */
   function revealJoinCardIfStuck() {
     if (!stillOnJoinScreen() || !document.body) return;
+    if (document.body.classList.contains("gsc-host-phone")) return; // no join card on a host phone
     document.body.classList.remove("gsc-autojoin");
     document.body.classList.add("gsc-join-stuck");
     relabelJoinCard("Buzz In");
@@ -345,6 +355,126 @@ const GscEmbed = (function () {
   function onStateChanged() {
     if (!IS_HOST) return;
     reportScores();
+    pushHostView();
+  }
+
+  /* ============ Host phone: the host side (docs/22 §5.2) ============ */
+
+  let hostSeq = 0;
+  let lastHostKey = "";
+
+  /**
+   * Hand the hub the host's private view on every state change. The view comes
+   * from the pure js/gsc-hostview.js; `seq` only moves when the content does,
+   * so the SDK's identical-view skip still works. The hub holds the latest view
+   * and delivers it to a host phone if and when one is assigned — with none,
+   * nothing on any screen changes.
+   */
+  function pushHostView() {
+    if (!room || typeof room.setHostView !== "function" || !window.JeopardyHostView) return;
+    const view = window.JeopardyHostView.build(appState());
+    const key = JSON.stringify(view);
+    if (key !== lastHostKey) { lastHostKey = key; hostSeq += 1; }
+    room.setHostView({ ...view, seq: hostSeq });
+  }
+
+  /* ============ Host phone: the phone side (docs/22 §5.3, §5.7) ============ */
+
+  let hostCard = null;
+
+  function hcEl(tag, cls, txt) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (txt !== undefined) node.textContent = txt;
+    return node;
+  }
+
+  function bootHostPhone() {
+    whenReady(buildHostCard);
+    SDK.player({
+      onMessage: () => {},           // a host phone sends and receives no game payloads
+      onStatus: (connected) => setHostCardStale(!connected),
+      onHostView: renderHostView,
+    })
+      .then((me) => {
+        if (me && me.role === "host") return;
+        // The handshake says this is a contestant after all: give the page back.
+        document.body.classList.remove("gsc-host-phone");
+        if (hostCard && hostCard.root.parentNode) hostCard.root.parentNode.removeChild(hostCard.root);
+        hostCard = null;
+      })
+      .catch((err) => console.warn("GSC: host-phone handshake failed", err));
+  }
+
+  function buildHostCard() {
+    if (hostCard || !document.body) return;
+    const root = hcEl("section", "gsc-host-card");
+    root.id = "gsc-host-card";
+    root.setAttribute("aria-label", "Host view");
+    const head = hcEl("p", "gsc-hc-head", "Host · Jeopardy");
+    const status = hcEl("p", "gsc-hc-status");
+    status.setAttribute("role", "status");
+    const body = hcEl("div", "gsc-hc-body");
+    body.setAttribute("aria-live", "polite");
+    body.appendChild(hcEl("p", "gsc-hc-quiet", "Waiting for the host screen…"));
+    root.appendChild(head);
+    root.appendChild(status);
+    root.appendChild(body);
+    document.body.appendChild(root);
+    hostCard = { root, status, body };
+  }
+
+  function setHostCardStale(stale) {
+    if (!hostCard) buildHostCard();
+    if (!hostCard) return;
+    hostCard.root.classList.toggle("is-stale", stale);
+    hostCard.status.textContent = stale ? "Reconnecting — this may be out of date" : "";
+  }
+
+  /** Read-only: renders what the laptop sent, sends nothing back (§5.7). */
+  function renderHostView(v) {
+    if (!hostCard) buildHostCard();
+    if (!hostCard || !v || typeof v !== "object") return;
+    const body = hostCard.body;
+    body.replaceChildren();
+    if (v.item) body.appendChild(hcEl("p", "gsc-hc-item", String(v.item)));
+    if (v.tooBig) {
+      body.appendChild(hcEl("p", "gsc-hc-quiet", "Too much to show — use the button on the laptop"));
+      return;
+    }
+    if (v.kind !== "clue" && v.kind !== "final") {
+      body.appendChild(hcEl("p", "gsc-hc-quiet", "Nothing secret right now"));
+      if (v.phase && v.phase !== v.item) body.appendChild(hcEl("p", "gsc-hc-meta", String(v.phase)));
+      return;
+    }
+    const context = hostContext(v);
+    if (context !== v.item) body.appendChild(hcEl("p", "gsc-hc-meta", context));
+    body.appendChild(hcEl("p", "gsc-hc-clue", String(v.clue || "")));
+    body.appendChild(hcEl("p", "gsc-hc-label", "Correct response"));
+    body.appendChild(hcEl("p", "gsc-hc-answer", String(v.answer || "")));
+    for (const note of hostNotes(v)) body.appendChild(hcEl("p", "gsc-hc-meta", note));
+  }
+
+  function hostContext(v) {
+    if (v.kind === "final") {
+      const stage = { wager: "wagers", clue: "clue on screen", judge: "judging" }[v.stage] || v.stage || "";
+      return `Final Jeopardy · ${v.category || ""}${stage ? " · " + stage : ""}`;
+    }
+    return `${v.category || ""} · ${v.value || ""}`;
+  }
+
+  function hostNotes(v) {
+    const notes = [];
+    const dd = v.dailyDouble;
+    if (dd) {
+      notes.push(dd.wagerLocked
+        ? `Daily Double — ${dd.player || "the player"} wagered ${dd.wager}`
+        : "Daily Double — waiting for the wager");
+    }
+    if (v.hasImage) notes.push("This clue has a picture on the main screen.");
+    if (v.hasAnswerImage) notes.push("The answer has a picture too.");
+    if (v.revealed) notes.push("Revealed on the main screen.");
+    return notes;
   }
 
   /* ============ Boot ============ */
@@ -358,6 +488,7 @@ const GscEmbed = (function () {
     if (!install()) return;
     stripRoomParam();
     if (IS_HOST) bootHost();
+    else if (IS_HOST_PHONE) bootHostPhone();
     else bootPlayer();
   }
 
@@ -372,6 +503,8 @@ const GscEmbed = (function () {
     _pidFor: (playerId, name) => { refreshPidMap(); return pidFor(playerId, name); },
     _syncManualPlayers: syncManualPlayers,
     _revealJoinCardIfStuck: revealJoinCardIfStuck,
+    _renderHostView: (v) => renderHostView(v),
+    _hostSeq: () => hostSeq,
   };
 })();
 

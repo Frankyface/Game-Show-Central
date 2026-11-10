@@ -76,6 +76,25 @@ hosting cannot write files — this is the honest workflow.)
 Editor format: rapid-fire one per line `Question? | Answer`; head-to-head
 `Question? | A | B | C | B` (last field = right letter).
 
+## Host phone (docs/22)
+
+Make a phone the **host phone** in the hub lobby and it becomes the host's
+private second screen for The Chase (read-only, sends nothing):
+
+| Moment | Host phone shows |
+|---|---|
+| Cash Builder | the question on the table, its answer, the next question and answer |
+| Head to head | the question and the three options with the right one marked. **While the host plays the Chaser, the right option is withheld until the Chaser's answer is locked**; with a player-Chaser it shows at once |
+| Final Chase | the question, its answer and the next one; a pushback keeps the missed question |
+| Setup, offers, result | "Nothing secret right now" |
+
+While a host phone is assigned (connected or not) the laptop never draws the
+rapid-fire answer: it reads "Answer is on your host phone", or "Host phone
+disconnected" with one **Show answer on this screen** button that reveals the
+current question's answer only. With no host phone assigned nothing changes.
+On boot, saved phone seats whose phone is not in the room are removed from
+setup; a running game keeps such a seat and the host locks for it.
+
 ## Phones
 
 | Screen | Who | Shows |
@@ -110,12 +129,15 @@ js/chase-clock.js, chase-sound.js
 css/chase.css, chase-play.css, chase-phone.css
 tests/chase-core.test.mjs   CH-U1 … CH-U10 (node --test)
 tests/harness.html          CH-I1 … CH-I6 loopback (serve the repo root)
+tests/harness-hostphone.html  host phone checks (docs/22 §5.5)
+tests/chase-hostview.test.mjs hostView selector (HV-1 … HV-7)
+js/chase-hostphone.js       the host-phone page (role=host)
 ```
 
 ## Tests
 
 ```bash
-cd games/the-chase && node --test                    # 75 unit tests (incl. the tester's adversarial suite)
+cd games/the-chase && node --test                    # 82 unit tests (incl. the tester's adversarial suite)
 python -m http.server 8711 --bind 127.0.0.1          # from the repo root
 # open http://127.0.0.1:8711/games/the-chase/tests/harness.html  → "All 64 checks passed."
 ```

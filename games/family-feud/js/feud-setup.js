@@ -303,3 +303,50 @@ function newGame() {
   clearSavedState();
   backToSetup();
 }
+
+/* ============ Seat reconciliation on boot (docs/22 §5.6, review F11) ============ */
+
+/**
+ * The hub only tells a game about contestants. A phone that was seated earlier
+ * and has since been made the host phone (or left) is no longer in
+ * `room.players()`, and nothing else would ever un-seat it. So, once, after
+ * `init`: on a plain setup, drop those phone seats; when a running or parked
+ * game seats one, keep the seat (the team's score stands) but turn it into a
+ * phone-less player — the host buzzes and types for them — and say so once.
+ * Hand-typed players are never touched.
+ */
+function reconcileSeats(livePids, hostPhones) {
+  if (!state) return;
+  const live = new Set(livePids);
+  const hostNames = new Map((hostPhones || []).map((h) => [h.pid, h.name]));
+  const manual = new Set(state.roster.filter((p) => p.manual).map((p) => p.pid));
+  const gone = (pid) => !!pid && !manual.has(pid) && !live.has(pid);
+  const seatsOf = (s) => (s ? s.teams.flatMap((t) => t.players).concat(s.fastMoney.players) : []);
+  const inGame = state.phase !== "setup" ? state : state.resumable;
+  const keep = new Set(seatsOf(inGame).filter(gone));
+  const drop = new Set(seatsOf(state).filter((pid) => gone(pid) && !keep.has(pid)));
+  if (!keep.size && !drop.size) return;
+
+  const nameOf = (pid) => hostNames.get(pid) ||
+    (state.roster.find((p) => p.pid === pid) || {}).name || "A player";
+  const roster = state.roster.map((p) => (keep.has(p.pid) ? { ...p, manual: true } : p));
+  keep.forEach((pid) => {
+    if (!roster.some((p) => p.pid === pid)) roster.push({ pid, name: nameOf(pid), manual: true, connected: true });
+  });
+  const teams = state.teams.map((t) => ({ ...t, players: t.players.filter((pid) => !drop.has(pid)) }));
+  setState({ roster, teams });
+
+  if (keep.size) {
+    const pid = Array.from(keep)[0];
+    const what = hostNames.has(pid) ? "is now the host phone" : "has left the room";
+    const more = keep.size > 1 ? ` (and ${keep.size - 1} more)` : "";
+    setSeatNotice(`${nameOf(pid)}${more} ${what} — play their turns from this screen, or start a new game.`);
+  }
+}
+
+function setSeatNotice(msg) {
+  const node = $("seat-notice");
+  if (!node) return;
+  $("seat-notice-text").textContent = msg || "";
+  show(node, !!msg);
+}

@@ -190,17 +190,14 @@ const FeudFM = (function () {
     if (fm.stage !== "reveal") return el("span", null, "");
     const select = el("select");
     select.setAttribute("aria-label", `Board answer for question ${index + 1}`);
-    const blank = el("option", null, "Pick the board answer…");
-    blank.value = "";
-    select.appendChild(blank);
-    question.answers.forEach((answer, i) => {
-      const option = el("option", null, `${answer.text} — ${answer.count}`);
-      option.value = String(i);
+    // Review F10: while answers are private the options are numbers only;
+    // the host phone lists the same numbers with the text and counts.
+    const hideText = !!window.FeudPrivate?.hidden(state);
+    window.FeudSelect.fmPickOptions(question, hideText).forEach((opt) => {
+      const option = el("option", null, opt.label);
+      option.value = opt.value;
       select.appendChild(option);
     });
-    const none = el("option", null, "No match → 0");
-    none.value = "none";
-    select.appendChild(none);
     select.addEventListener("change", () => {
       if (select.value === "") return;
       revealRow(index, select.value === "none" ? null : Number.parseInt(select.value, 10));

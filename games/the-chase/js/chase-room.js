@@ -33,6 +33,10 @@
     // otherwise be suppressed and the phone would sit on "Waiting…".
     delete lastSent[player.pid];
     const app = window.ChaseApp.state();
+    // A phone-less seat (docs/22 section 5.6) whose phone turns up gets it back.
+    if ((app.phoneless || []).indexOf(player.pid) >= 0) {
+      window.ChaseApp.set({ phoneless: app.phoneless.filter((pid) => pid !== player.pid) });
+    }
     if (app.core) {
       const seated = app.core.contestants.some((c) => c.pid === player.pid)
         || app.core.chaser.pid === player.pid;
@@ -71,6 +75,24 @@
     // ChaseApp.phoneIntent re-checks that this pid really may lock right now
     // before anything reaches the reducer, and the reducer checks again.
     window.ChaseApp.phoneIntent(pid, msg);
+  }
+
+  /* ============ The host phone (docs/22 section 5.2) ============ */
+
+  let hostSeq = 0;
+  let lastHostJson = "";
+
+  /** Hand the hub the private view; the SDK and the hub de-duplicate and resend. */
+  function pushHostView(state) {
+    if (!room || typeof room.setHostView !== "function") return;
+    const view = core().hostView(state);
+    const json = JSON.stringify(view);
+    if (json !== lastHostJson) { lastHostJson = json; hostSeq += 1; }
+    room.setHostView(Object.assign({ t: "host", item: view.item || "", seq: hostSeq }, view));
+  }
+
+  function onHostPhones(list) {
+    window.ChaseApp.setHostPhones(list, room ? room.answersPrivate() : false);
   }
 
   /* ============ Outbound: one masked view per phone ============ */
@@ -175,7 +197,7 @@
     if (GSC.mode.endsWith("-player")) return;
     embedded = GSC.mode === "embed-host";
     try {
-      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage, onHostPhones });
     } catch (err) {
       window.ChaseApp.error(`Phones are unavailable: ${err.message}. The host can still run the game.`);
       return;
@@ -186,7 +208,15 @@
     if (room.onStatus) {
       room.onStatus(() => { window.ChaseApp.bindRoom(room.code); paintRoom(); });
     }
-    window.ChaseApp.subscribe((state) => { pushViews(state); reportProgress(state); paintRoom(); });
+    // docs/22 section 5.6 then 5.2: seats reconciled against this room, then the
+    // host phone's private view on every change.
+    await window.ChaseApp.contentReady;
+    window.ChaseApp.reconcileSeats((room.players ? room.players() : []).map((p) => p.pid));
+    window.ChaseApp.setHostPhones(room.hostPhones(), room.answersPrivate());
+    window.ChaseApp.subscribe((state) => {
+      pushViews(state); pushHostView(state); reportProgress(state); paintRoom();
+    });
+    pushHostView(window.ChaseApp.core());
     wireRoomButton();
     (room.players ? room.players() : []).forEach(onPlayerJoin);
     paintRoom();

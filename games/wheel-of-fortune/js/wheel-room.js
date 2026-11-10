@@ -203,7 +203,12 @@
     }
     if (window.GSC.mode.endsWith("-player")) return; // wheel-phone.js drives that side
     try {
-      room = await window.GSC.host({ onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage });
+      room = await window.GSC.host({
+        onPlayerJoin, onPlayerLeave, onPlayerStatus, onMessage,
+        // docs/22: a host phone joined, dropped or came back — re-render the
+        // "Answer is on your host phone" / "disconnected" line.
+        onHostPhones() { if (window.WheelHostPhone) window.WheelHostPhone.render(); },
+      });
     } catch (err) {
       console.warn("The room could not be opened:", err);
       status(`Phones are unavailable: ${err.message}`);
@@ -214,7 +219,12 @@
     // adopt BEFORE the roster is read, so a new room's p1 cannot inherit the
     // old p1's podium and grand total (W-D9).
     await app().ready;
+    const savedPhones = app().phonePids(); // read before the roster resync clears it
     adoptRoomCode(room.code);
+    if (window.WheelHostPhone) {
+      window.WheelHostPhone.attach(room); // host view + answers-private (docs/22 §5)
+      if (window.GSC.mode === "embed-host") window.WheelHostPhone.reconcileSeats(savedPhones);
+    }
     if (window.GSC.mode === "embed-host") {
       show($("btn-exit"), true);
       $("btn-exit").addEventListener("click", () => room.exit());

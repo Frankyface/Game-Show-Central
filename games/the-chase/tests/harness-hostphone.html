@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Chase host phone harness (docs/22 §5.5)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #f6f7f9; margin: 0; padding: 1.6rem; }
+    h1 { font-size: 1.15rem; margin: 0 0 0.4rem; }
+    p.lede { color: #9aa3ad; font-size: 0.85rem; margin: 0 0 1rem; max-width: 66rem; }
+    #summary { font-weight: 700; margin: 0.6rem 0 1rem; }
+    #summary.ok, li[data-pass="true"] .tag { color: #35d68a; }
+    #summary.bad, li[data-pass="false"] .tag { color: #ff5a66; }
+    #results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    #results li { padding: 0.4rem 0.7rem; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.86rem; }
+    #results li[data-pass="false"] { background: rgba(255,90,102,0.12); }
+    .tag { font-weight: 700; margin-right: 0.5rem; }
+    .detail { display: block; opacity: 0.75; font-size: 0.78rem; margin-top: 0.15rem; }
+    .stage { display: flex; gap: 0.6rem; margin-top: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+    #host { width: 1000px; height: 640px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: #000; }
+    .phones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .phones iframe { width: 320px; height: 560px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: #000; }
+  </style>
+</head>
+<body>
+  <h1>The Chase — host phone harness (docs/22 §5.5, review F4)</h1>
+  <p class="lede">This page is the hub for one host frame, three contestant phones and one <b>host phone</b> (role=host). It speaks the bridge protocol including <code>host-phones</code> and <code>host-view</code>. The load-bearing checks: with a host phone assigned — connected or not — the rapid-fire answer is nowhere in the host document (text, value, placeholder, option, title, alt, aria-label, data-*) or the shell title until the per-item fallback is pressed; the host phone always has it; and while the host plays the Chaser the head-to-head answer is withheld from the host phone until the Chaser has locked.</p>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+  <div class="stage">
+    <iframe id="host" title="host game under test"></iframe>
+    <div class="phones" id="phones"></div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const results = [];
+    let uncaught = null;
+    window.addEventListener("error", (e) => { uncaught = e.message; });
+    window.addEventListener("unhandledrejection", (e) => { uncaught = String(e.reason); });
+
+    function check(label, cond, detail) {
+      results.push({ label, pass: !!cond, detail: detail === undefined ? "" : String(detail) });
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("results");
+      list.replaceChildren();
+      for (const r of results) {
+        const li = document.createElement("li");
+        li.dataset.pass = String(r.pass);
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = r.pass ? "PASS" : "FAIL";
+        li.appendChild(tag);
+        li.appendChild(document.createTextNode(r.label));
+        if (r.detail) {
+          const d = document.createElement("span");
+          d.className = "detail";
+          d.textContent = r.detail;
+          li.appendChild(d);
+        }
+        list.appendChild(li);
+      }
+      const failed = results.filter((r) => !r.pass).length;
+      const summary = document.getElementById("summary");
+      const ok = failed === 0 && !uncaught;
+      summary.className = ok ? "ok" : "bad";
+      summary.textContent = ok ? `All ${results.length} checks passed.`
+        : `${failed} of ${results.length} checks FAILED${uncaught ? ` — uncaught: ${uncaught}` : ""}`;
+      window.__CHASE_HP_HARNESS__ = { total: results.length, failed, uncaught, results };
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function waitFor(fn, label, timeout) {
+      const start = Date.now();
+      for (;;) {
+        let v = null;
+        try { v = fn(); } catch (err) { v = null; }
+        if (v) return v;
+        if (Date.now() - start > (timeout || 6000)) throw new Error(`timed out waiting for ${label}`);
+        await sleep(30);
+      }
+    }
+
+    /* ============ The hub, with host phones (docs/22 §4) ============ */
+
+    const PLAYERS = [
+      { pid: "p1", name: "Ada", color: "#f2c94c", avatar: "🦊", connected: true, manual: false },
+      { pid: "p2", name: "Ben", color: "#8cb0ff", avatar: "🐼", connected: true, manual: false },
+      { pid: "p3", name: "Cleo", color: "#c1121f", avatar: "🐙", connected: true, manual: false },
+    ];
+    const HOST_PHONE = { pid: "h1", name: "Hana" };
+    let players = PLAYERS.slice();
+    let hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+
+    const hostFrame = document.getElementById("host");
+    const phoneFrames = new Map();
+    const shellLog = [];
+    let heldView = null;
+    const hostViewsTo = new Map();     // pid -> count of host views delivered
+
+    function post(frame, msg) {
+      if (frame && frame.contentWindow) frame.contentWindow.postMessage(Object.assign({ gsc: 1 }, msg), location.origin);
+    }
+
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin) return;
+      const d = event.data;
+      if (!d || typeof d !== "object" || d.gsc !== 1 || typeof d.t !== "string") return;
+      if (event.source === hostFrame.contentWindow) { fromHost(d); return; }
+      for (const [pid, frame] of phoneFrames) {
+        if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
+      }
+    });
+
+    function initRoom() {
+      return { code: "CHHP", players, hostPhones, answersPrivate: hostPhones.length > 0 };
+    }
+
+    function deliverHostView() {
+      if (!heldView || !phoneFrames.has("h1")) return;
+      hostViewsTo.set("h1", (hostViewsTo.get("h1") || 0) + 1);
+      post(phoneFrames.get("h1"), { t: "host-view", m: heldView });
+    }
+
+    function fromHost(d) {
+      if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: initRoom() }); return; }
+      if (d.t === "host-view") { heldView = d.m; deliverHostView(); return; }
+      if (d.t === "send") {
+        // A host phone never receives a game send or a broadcast (docs/22 §4.2).
+        if (d.pid === "*") PLAYERS.forEach((p) => post(phoneFrames.get(p.pid), { t: "msg", m: d.m }));
+        else if (d.pid !== "h1") post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
+        return;
+      }
+      shellLog.push(d);
+    }
+
+    function fromPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = pid === "h1" ? Object.assign({ role: "host" }, HOST_PHONE)
+          : PLAYERS.find((p) => p.pid === pid);
+        post(phoneFrames.get(pid), { t: "init", mode: "embed-player", me, room: { code: "CHHP" } });
+        if (pid === "h1") deliverHostView();
+        return;
+      }
+      if (d.t === "send") {
+        if (pid === "h1") { shellLog.push({ t: "dropped-from-host-phone", m: d.m }); return; }
+        post(hostFrame, { t: "msg", pid, m: d.m });
+      }
+    }
+
+    function setHostPhones(list) {
+      hostPhones = list;
+      post(hostFrame, { t: "host-phones", list });
+    }
+
+    const HOST_SRC = "../index.html?embed=host&harness=1&store=hpharness&game=tests/fixtures/hostphone-game.json";
+    const KEYS = ["gsc-chase-state-v1-hpharness", "gsc-chase-draft-v1-hpharness"];
+
+    function loadFrame(frame, src) {
+      return new Promise((resolve) => { frame.onload = resolve; frame.src = src; });
+    }
+
+    const HW = () => hostFrame.contentWindow;
+    const HD = () => hostFrame.contentDocument;
+    const H = (id) => HD().getElementById(id);
+    const core = () => HW().ChaseApp.core();
+    const click = (id) => H(id).click();
+    const PW = (pid) => phoneFrames.get(pid).contentWindow;
+    const hostPhoneText = () => PW("h1").ChaseHostPhone.text();
+
+    async function bootHost(clear) {
+      if (clear !== false) {
+        await loadFrame(hostFrame, "about:blank");
+        KEYS.forEach((k) => localStorage.removeItem(k));
+      }
+      await loadFrame(hostFrame, HOST_SRC);
+      await waitFor(() => HW().ChaseApp && HW().ChaseApp.state().game, "host boot");
+      await sleep(60);
+    }
+
+    async function bootPhones() {
+      const box = document.getElementById("phones");
+      box.replaceChildren();
+      phoneFrames.clear();
+      for (const pid of ["p1", "p2", "p3", "h1"]) {
+        const frame = document.createElement("iframe");
+        frame.title = pid === "h1" ? "host phone" : `phone ${pid}`;
+        box.appendChild(frame);
+        phoneFrames.set(pid, frame);
+        await loadFrame(frame, `../index.html?embed=player&harness=1&store=hpharness${pid === "h1" ? "&role=host" : ""}`);
+      }
+      await waitFor(() => [...phoneFrames.values()].every((f) => f.contentWindow.ChasePhone), "phones join");
+    }
+
+    /** Where, if anywhere, `s` appears in the host document or the shell title (docs/22 §5.5). */
+    function leaks(s) {
+      const where = [];
+      const doc = HD();
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.textContent.indexOf(s) >= 0) where.push(`text in #${n.parentElement.id}.${n.parentElement.className}`);
+      }
+      for (const node of doc.querySelectorAll("*")) {
+        for (const attr of node.attributes) {
+          if (/^(value|placeholder|title|alt|aria-label|data-)/.test(attr.name) && attr.value.indexOf(s) >= 0) {
+            where.push(`${node.tagName}@${attr.name}`);
+          }
+        }
+        if (typeof node.value === "string" && node.value.indexOf(s) >= 0) where.push(`${node.tagName}.value`);
+      }
+      if (shellLog.some((m) => m.t === "title" && String(m.text).indexOf(s) >= 0)) where.push("setTitle");
+      return where;
+    }
+
+    /** docs/22 §5.3: 320 px with no sideways scroll, text ≥ 16 px, the answer ≥ 28 px, no buttons. */
+    function hostPhoneLayout(tag) {
+      const d = PW("h1").document;
+      const texts = [...d.querySelectorAll("#chase-host-card *")].filter((n) => n.childElementCount === 0
+        && n.textContent.trim() && n.getClientRects().length);
+      const small = texts.filter((n) => parseFloat(PW("h1").getComputedStyle(n).fontSize) < 16)
+        .map((n) => `${n.className}:${PW("h1").getComputedStyle(n).fontSize}`);
+      const answer = d.querySelector(".host-answer, .host-option.is-right .host-opt-text");
+      const answerPx = answer ? parseFloat(PW("h1").getComputedStyle(answer).fontSize) : 0;
+      check(`${tag} host phone at 320 px: no sideways scroll, text ≥ 16 px, answer ≥ 28 px, no buttons`,
+        d.documentElement.scrollWidth <= d.documentElement.clientWidth && small.length === 0
+        && answerPx >= 28 && d.querySelectorAll("#chase-host-card button").length === 0
+        && getComputedStyle(phoneFrames.get("h1")).width === "320px",
+        `scrollWidth ${d.documentElement.scrollWidth}, answer ${answerPx}px${small.length ? `, small: ${small.join(" ")}` : ""}`);
+    }
+
+    /* ============ Scenarios ============ */
+
+    async function scenarioCashBuilder() {
+      hostPhones = [{ pid: "h1", name: "Hana", connected: true }];
+      await bootHost();
+      await bootPhones();
+      await waitFor(() => PW("h1").ChaseHostPhone.view(), "the first host view");
+      check("HP-1 the host-role frame receives the view through onHostView: nothing secret in setup",
+        PW("h1").ChaseHostPhone.view().secret === false && /Nothing secret right now/.test(hostPhoneText()),
+        hostPhoneText().slice(0, 80));
+      check("HP-1 the host page knows a host phone is assigned (answers private)",
+        HW().ChaseApp.state().answersPrivate === true && HW().ChaseApp.state().hostPhoneLive === true);
+
+      HW().ChaseApp.set({ setup: Object.assign({}, HW().ChaseApp.state().setup, { chaserMode: "host" }) });
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "cashBuilder", "the Cash Builder");
+      click("btn-cash-clock");
+      const item = core().cb.item;
+      await waitFor(() => PW("h1").ChaseHostPhone.view().item === item.q, "the host phone's question");
+      check("HP-2 the host phone shows the question, the answer and the next question",
+        hostPhoneText().indexOf(item.q) >= 0 && hostPhoneText().indexOf(item.a) >= 0
+        && PW("h1").ChaseHostPhone.view().next && hostPhoneText().indexOf(PW("h1").ChaseHostPhone.view().next.q) >= 0,
+        hostPhoneText().slice(0, 120));
+      hostPhoneLayout("HP-2");
+      check("HP-2 contestant frames never receive a host view",
+        ["p1", "p2", "p3"].every((pid) => !PW(pid).ChaseHostPhone.view()
+          && PW(pid).document.body.textContent.indexOf(item.a) < 0),
+        ["p1", "p2", "p3"].map((pid) => `${pid}:${!!PW(pid).ChaseHostPhone.view()}:`
+          + `${PW(pid).document.body.textContent.indexOf(item.a)}`).join(" ") + ` “${item.a}”`);
+      check("HP-3 CONNECTED: the answer is nowhere in the host document or the shell title",
+        leaks(item.a).length === 0, leaks(item.a).join(", ") || `looked for “${item.a}”`);
+      check("HP-3 instead the laptop reads “Answer is on your host phone”, and no answer node exists",
+        /Answer is on your host phone/.test(H("chase-cash-answer").textContent) && !H("chase-cash-a"));
+      check("HP-3 the host phone sends nothing (no payload reached the game)",
+        !shellLog.some((m) => m.t === "dropped-from-host-phone"));
+      return item;
+    }
+
+    async function scenarioDisconnected() {
+      setHostPhones([{ pid: "h1", name: "Hana", connected: false }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: false });
+      await waitFor(() => /Host phone disconnected/.test(H("chase-cash-answer").textContent), "the away notice");
+      const item = core().cb.item;
+      check("HP-4 DISCONNECTED: answers stay private and the answer is still nowhere on the laptop",
+        HW().ChaseApp.state().answersPrivate === true && leaks(item.a).length === 0,
+        leaks(item.a).join(", ") || "clean");
+      check("HP-4 the laptop shows “Host phone disconnected” and one fallback button",
+        HD().querySelectorAll("#chase-cash-answer button").length === 1
+        && H("btn-cash-fallback").textContent === "Show answer on this screen");
+      await waitFor(() => /Reconnecting/.test(hostPhoneText()), "the stale host phone");
+      check("HP-4 the host phone dims and says it may be out of date",
+        PW("h1").document.getElementById("chase-host-card").classList.contains("is-stale"),
+        hostPhoneText().slice(0, 80));
+
+      click("btn-cash-fallback");
+      await waitFor(() => H("chase-cash-a"), "the fallback answer");
+      check("HP-5 the fallback button reveals the current answer on the laptop",
+        H("chase-cash-a").textContent === item.a, H("chase-cash-a").textContent);
+      click("btn-cash-right");
+      await waitFor(() => core().cb.item.q !== item.q, "the next question");
+      const next = core().cb.item;
+      check("HP-5 …and clears on the next item: the new answer is hidden again, the button is back",
+        !H("chase-cash-a") && leaks(next.a).length === 0 && !!H("btn-cash-fallback"),
+        leaks(next.a).join(", ") || `“${next.a}” hidden`);
+
+      setHostPhones([{ pid: "h1", name: "Hana", connected: true }]);
+      post(phoneFrames.get("h1"), { t: "status", connected: true });
+      await waitFor(() => /Answer is on your host phone/.test(H("chase-cash-answer").textContent), "back online");
+      check("HP-5 when the host phone comes back the notice returns and the phone is current",
+        PW("h1").ChaseHostPhone.view().item === next.q && !/Reconnecting/.test(hostPhoneText()));
+    }
+
+    async function scenarioHeadToHead() {
+      HW().ChaseApp.dispatch({ type: "cbExpired" });
+      click("btn-cash-next");
+      click("btn-cash-next");
+      await waitFor(() => core().phase === "offer", "the offers");
+      click("btn-offer-middle");
+      await waitFor(() => core().phase === "headToHead" && core().h2h.q, "the board");
+      const q = core().h2h.q;
+      const right = q.options[q.answer];
+      await waitFor(() => PW("h1").ChaseHostPhone.view().item === q.q, "the h2h host view");
+      check("HP-6 F4: host as Chaser, before his lock the host phone has the options but NOT the answer",
+        PW("h1").ChaseHostPhone.view().correct === null && PW("h1").ChaseHostPhone.view().withheld === true
+        && PW("h1").document.querySelectorAll(".host-option.is-right").length === 0
+        && hostPhoneText().indexOf("Correct") < 0,
+        JSON.stringify(PW("h1").ChaseHostPhone.view()).slice(0, 140));
+      HD().querySelectorAll("#chase-lock-c-buttons button")[0].click();
+      await sleep(60);
+      check("HP-6 the contestant's lock does not release it",
+        PW("h1").ChaseHostPhone.view().correct === null);
+      HD().querySelectorAll("#chase-lock-h-buttons button")[1].click();
+      await waitFor(() => PW("h1").ChaseHostPhone.view().correct === q.answer, "the released answer");
+      check("HP-6 once the Chaser has locked, the right option is marked on the host phone",
+        PW("h1").document.querySelector(".host-option.is-right").textContent.indexOf(right) >= 0,
+        PW("h1").document.querySelector(".host-option.is-right").textContent);
+      hostPhoneLayout("HP-6");
+      check("HP-6 the shared screen still marks nothing before the reveal",
+        HD().querySelectorAll("#chase-options .option.is-right").length === 0
+        && H("chase-lock-contestant").textContent === "Locked in");
+    }
+
+    async function scenarioReconcile() {
+      // A game running with Cleo seated; she is now a host phone, so not a player in this room.
+      players = PLAYERS.filter((p) => p.pid !== "p3");
+      const setup = HW().ChaseApp.state().setup;
+      HW().ChaseApp.set({ setup: Object.assign({}, setup, {
+        players: setup.players.concat([{ pid: "p9", name: "Gone", manual: false }]),
+      }) });
+      await bootHost(false);
+      await waitFor(() => core() && core().phase === "headToHead", "the restored game");
+      check("HP-7 a saved phone seat whose pid is not in the room is removed from setup",
+        !HW().ChaseApp.state().setup.players.some((p) => p.pid === "p9" || p.pid === "p3"),
+        HW().ChaseApp.state().setup.players.map((p) => p.name).join(","));
+      check("HP-7 the running game keeps that contestant's seat, phone-less, with one notice",
+        core().contestants.some((c) => c.pid === "p3")
+        && HW().ChaseApp.state().phoneless.indexOf("p3") >= 0
+        && /Cleo has no phone in this room/.test(H("chase-error").textContent),
+        H("chase-error").textContent);
+      players = PLAYERS.slice();
+    }
+
+    async function scenarioNoHostPhone() {
+      hostPhones = [];
+      await bootHost();
+      HW().ChaseApp.set({ setup: Object.assign({}, HW().ChaseApp.state().setup, { chaserMode: "host" }) });
+      await waitFor(() => HW().ChaseApp.state().setup.players.length === 3, "the roster");
+      click("btn-start");
+      await waitFor(() => core() && core().phase === "cashBuilder", "the Cash Builder");
+      check("HP-8 with no host phone assigned the laptop shows the answer line exactly as before",
+        HW().ChaseApp.state().answersPrivate === false && H("chase-cash-a")
+        && H("chase-cash-a").textContent === core().cb.item.a
+        && !/host phone/i.test(H("chase-cash-answer").textContent));
+    }
+
+    (async function run() {
+      try {
+        await scenarioCashBuilder();
+        await scenarioDisconnected();
+        await scenarioHeadToHead();
+        await scenarioReconcile();
+        await scenarioNoHostPhone();
+      } catch (err) {
+        uncaught = err && err.message ? err.message : String(err);
+        check("harness run completed", false, uncaught);
+      }
+      await loadFrame(hostFrame, "about:blank");
+      KEYS.forEach((k) => localStorage.removeItem(k));
+      render();
+      window.__CHASE_HP_DONE__ = true;
+    })();
+  })();
+  </script>
+</body>
+</html>

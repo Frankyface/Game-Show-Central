@@ -476,3 +476,92 @@ reports it is off). Standalone, the picker was always correct.
 
 README: set sizes updated to 126; the Game lobby section says the button is
 disabled on the setup screen.
+
+---
+
+## 13. Host phone (docs/22 §5, §6 Weakest Link row; review F1, F5, F11)
+
+Environment: Node v24.16.0, headless Chrome over CDP (`.scratch/cdp.mjs`), served
+by a Node static server on port 8644 (`.scratch/hp-wl-serve.mjs`), 2026-11-10.
+
+**`node --test` 108/108** (98 + 10 new). **`tests/harness.html` 86/86** (75 + 11
+new HP checks). The 75 earlier checks run with no host phone and pass unchanged:
+with no host phone assigned, the game behaves exactly as before.
+
+New code is in new files: `wl-core.js` (797) and `wl-app.js` (778) are untouched.
+
+| File | Lines | What |
+|---|---:|---|
+| `js/wl-host-view.js` | 134 | **pure (UMD)**: `hostView(state)`, `itemKey(state)`, `currentAnswer(state)` |
+| `js/wl-hostphone.js` | 192 | shared screen: `room.setHostView` on every state change, answers-private mode, seat reconciliation |
+| `js/wl-host-screen.js` | 110 | phone page as the host phone: the host screen, stale and too-big states |
+| `css/wl-host.css` | 61 | the host screen and the answers-private notes |
+| `tests/wl-host-view.test.mjs` | 170 | 10 unit tests |
+| `tests/harness-hostphone.js` | 162 | the HP-1…HP-6 harness scenario |
+| `js/wl-room.js` | 173 (+8) | passes `onHostPhones`; calls `WlHostPhone.attach(room)` after the roster seed |
+| `js/wl-phone.js` | 186 (+14) | `onHostView` and `onStatus` forwarded; branches on `me.role` from init (the URL is only a layout hint); the contestant card is never re-drawn on a host phone |
+
+### The seven-item contract
+
+1. **`hostView(state)`.**
+   - Round: the player on turn, their category, question and **answer**, the next two questions with answers (the pool wraps), and an `expired` flag.
+   - Final intro: the two opening head-to-head questions.
+   - Final and sudden death: the finalist on turn, then the other finalist, then back again, each with question and answer.
+   - Setup, voting, tie-break, goodbye and result: `secret:false` with the phase label only.
+   - The host never plays a role in this game, so nothing has to be withheld from the host.
+   - Under 2 KB even with maximum-length text.
+   - **Unit tests:** every phase above, pool wrap, a bank keeps the same question, deep-frozen purity, size, and that `phoneView` for every pid (and a stray pid) never carries the answer on the table.
+2. **Room glue.**
+   - On every render, `room.setHostView({t:"host", item, seq, ...hostView(core)})`.
+   - `item` is `phase:round:qIndex:repeating`, so it changes exactly when a new question goes on the table.
+   - `seq` is the core's history depth.
+   - No cache and no resend; `room.send` is never used for host data.
+3. **Host phone page.**
+   - A "Host" tag and the game name; the phase; the current question at 21 px with its answer at **30 px** in the accent; then "Next".
+   - "Nothing secret right now" outside play; no buttons.
+   - Measured at 320×640: `scrollWidth` 320, no text under 16 px, no contrast failure.
+4. **Answers-private mode.**
+   - Driven by `room.answersPrivate()`, a property of the roster (F1).
+   - `#wl-answer`, `#wl-final-answer` and both "Show answer" peeks are taken out of the document. The "Keep answers on screen" switch is hidden and disabled; it is ignored, not cleared (F5).
+   - Each answer row instead shows "Answer is on your host phone".
+   - While no host phone is connected, it shows "Host phone disconnected" plus one **Show answer on this screen** button. The button reveals the current item only and clears when `itemKey` changes.
+   - If the last host phone is removed, the nodes go back where they were.
+5. **Harness** (HP-1…HP-6, evidence below).
+6. **Seat reconciliation (F11).**
+   - Once, after the app has restored its save, and only when embedded: phone seats in the saved setup whose pid is not in `room.players()` are dropped.
+   - A running or parked game that seats such a pid keeps the seat. It is already phone-less, because `phoneView` only goes to `room.players()`.
+   - One notice is shown: "‹name› is no longer a player in this room (now the host phone, or gone) — play their turns from this screen, or start a new game."
+   - Standalone is skipped: there the room is closed at boot, so an empty roster would wrongly empty the list.
+7. **Phone states.**
+   - Transport down: the card dims and says "Reconnecting — this may be out of date".
+   - A view refused as too big: "Too much to show — use the button on the laptop".
+   - The host phone sends nothing.
+
+### Harness evidence (`tests/harness-hostphone.js`)
+
+The harness shell gained a host-role frame: `init` with `me.role:"host"`;
+`host-view` frames from the game are routed to host phones only, and every
+`send` is logged.
+
+The leak scan covers the shared screen's whole document:
+- `textContent`;
+- every `value`;
+- the `placeholder`, `title`, `alt`, `aria-label` and `data-*` attributes;
+- every `setTitle` payload.
+
+- **HP-1** — the host phone shows "Answer 0"; 82 host views were sent up across the run.
+- **HP-2** — contestant phones never got a host view or the answer; 358 sends checked, none carrying `t:"host"` or the answer.
+- **HP-3** — host phone connected: answer "Answer 0", `leaks []`, note "Answer is on your host phone", no peek nodes.
+- **HP-3** — the saved `keepAnswers: true` is ignored: the switch is hidden and disabled, and its value is kept.
+- **HP-4** — host phone disconnected: still private, one fallback button, `leaks []`.
+- **HP-4** — the button reveals "Answer 0".
+- **HP-4** — on the next question, the previous "Answer 0" is gone and the current "Answer 1" stays hidden.
+- **HP-5** — the stale state dims the card; the too-big state shows its message; the host phone has no buttons and no contestant card.
+- **HP-6** — a stale seat `p9` "Zed" leaves setup, the running game keeps it, and the notice shows once.
+
+**One defect found and fixed:** `wl-phone.js` `render()` rewrites the contestant
+card's `className`, which un-hid the card on a host phone (caught by HP-5). It
+now returns early while the host screen is active.
+
+Static gates: every file under 800 lines (largest `wl-core.js` 797); no
+`innerHTML`, `eval` or `console.log` in the new files.

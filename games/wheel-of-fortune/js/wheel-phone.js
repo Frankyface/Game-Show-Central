@@ -18,6 +18,7 @@
   let view = null;
   let bonusPicks = [];
   let connected = true;
+  let hostView = null; // docs/22: only ever set on a host phone (me.role === "host")
   let composing = false; // the player tapped Solve and is typing
 
   function el(tag, className, text) {
@@ -37,7 +38,15 @@
     }
   }
 
+  /** A host phone shows the host card instead of the player screens. */
+  function renderHost() {
+    document.body.classList.add("host-role");
+    show($("p-host"), true);
+    window.WheelHostCard.render($("p-host"), hostView, connected);
+  }
+
   function render() {
+    if (me && me.role === "host") { renderHost(); return; }
     if (!view) {
       $("p-banner").textContent = connected ? "Waiting for the host…" : "Reconnecting…";
       screens("wait");
@@ -233,6 +242,8 @@
           render();
         },
         onStatus(up) { connected = !!up; render(); },
+        // Fires only on a host phone; a contestant never receives one.
+        onHostView(v) { hostView = v && typeof v === "object" ? v : null; render(); },
       });
     } catch (err) {
       console.warn("Could not join the room:", err);
@@ -241,7 +252,7 @@
     }
     $("p-name").textContent = me.name;
     render();
-    window.WheelPhone = { me, getView: () => view, render };
+    window.WheelPhone = { me, getView: () => view, getHostView: () => hostView, render };
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

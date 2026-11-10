@@ -249,3 +249,68 @@ body.editor-open { overflow: hidden; }
   .editor-answer-row { grid-template-columns: 1fr 4.5rem 44px; }
   .editor-inner { padding: 16px; }
 }
+
+/* ============ Host phone (docs/22 §5.3 + §5.7) ============ */
+
+body.host-phone .topbar { border-bottom-color: var(--accent); }
+
+.host-card { display: flex; flex-direction: column; gap: 12px; }
+.host-card.is-stale > :not(.host-stale):not(.host-head) { opacity: 0.45; }
+
+.host-head { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink-dim); }
+
+/* The word "Host" carries the role; the accent fill is the second signal. */
+.host-tag {
+  padding: 2px 10px;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.host-stale {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--amber);
+  border: 1px solid rgba(255, 179, 71, 0.55);
+  border-radius: var(--radius-sm);
+}
+
+.host-item { margin: 0; font-size: 1rem; font-weight: 500; color: var(--ink-dim); }
+.host-item:empty { display: none; }
+.host-question { margin: 0; font-size: 1.25rem; font-weight: 600; line-height: 1.35; color: var(--ink); }
+.host-question:empty { display: none; }
+
+.host-answers { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hairline); }
+
+.host-answers li {
+  display: grid;
+  grid-template-columns: 1.4em minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.host-n { font-size: 1.1rem; font-weight: 600; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+
+/* The answer: ≥ 28 px, the game's accent (lifted for contrast on the stage). */
+.host-answer {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: color-mix(in srgb, var(--accent) 70%, white);
+  overflow-wrap: anywhere;
+}
+
+.host-count { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.host-tick { grid-column: 2 / -1; font-size: 1rem; font-weight: 500; color: var(--ink-dim); }
+.host-answers li.is-revealed .host-answer { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+
+.host-meta { margin: 0; font-size: 1rem; color: var(--ink); }
+.host-meta:empty { display: none; }
+.host-next { margin: 4px 0 0; font-size: 1rem; color: var(--ink-dim); }
+.host-fm { display: flex; flex-direction: column; gap: 16px; }
+.host-fm-question { margin: 0 0 4px; font-size: 1.1rem; font-weight: 600; color: var(--ink); }
+.host-empty { margin: 0; font-size: 1.1rem; color: var(--ink-dim); }

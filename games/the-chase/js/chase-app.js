@@ -57,6 +57,11 @@ function chaseFreshApp() {
     phoneCount: 0,
     editorOpen: false,
     lobbyOpen: false,
+    // docs/22 host phone: ephemeral, never saved; the shell is the source.
+    answersPrivate: false,  // a host phone is assigned (connected or not)
+    hostPhoneLive: false,   // at least one assigned host phone is connected
+    fallbackKey: null,      // the one item "Show answer on this screen" opened
+    phoneless: [],          // seated pids with no phone in this room (section 5.6)
   };
 }
 
@@ -597,6 +602,57 @@ function chaseWireClock() {
   chaseClock.start();
 }
 
+/* ============ Host phone (docs/22 section 5.4, 5.6) ============ */
+
+// Resolved by chaseBoot once the saved game and the content have settled, so
+// seat reconciliation never runs before the saved setup it reconciles.
+let chaseMarkContentReady = null;
+const chaseContentReady = new Promise((resolve) => { chaseMarkContentReady = resolve; });
+
+function chaseSetHostPhones(list, isPrivate) {
+  const live = (Array.isArray(list) ? list : []).some((p) => p && p.connected !== false);
+  chaseSet({ answersPrivate: !!isPrivate, hostPhoneLive: live });
+}
+
+/** The per-item fallback: reveals the current answer on the laptop only. */
+function chaseShowFallback(key) {
+  chaseSet({ fallbackKey: key });
+}
+
+/** Every pid a game seats: contestants and a player-Chaser. */
+function chaseSeatedPids(st) {
+  if (!st) return [];
+  return st.contestants.map((c) => c.pid).concat(st.chaser.pid ? [st.chaser.pid] : []);
+}
+
+/**
+ * Seat reconciliation on boot. Phone seats in the saved setup whose pid is not
+ * in this room are removed (a former contestant now a host phone, a phone that
+ * never came back). A running or parked game keeps such a seat, plays it
+ * phone-less (the host locks for it) and says so once.
+ * @param {string[]} present the room's contestant pids
+ */
+function chaseReconcileSeats(present) {
+  const here = new Set(present);
+  const setup = chaseApp.setup;
+  const manual = new Set(setup.players.filter((p) => p.manual).map((p) => p.pid));
+  const players = setup.players.filter((p) => p.manual || here.has(p.pid));
+  const phoneless = [...new Set(chaseSeatedPids(chaseApp.core).concat(chaseSeatedPids(chaseApp.resumable)))]
+    .filter((pid) => !here.has(pid) && !manual.has(pid));
+  chaseSet({
+    phoneless,
+    setup: Object.assign({}, setup, {
+      players,
+      chaserPid: players.some((p) => p.pid === setup.chaserPid) ? setup.chaserPid : "",
+    }),
+  });
+  if (!phoneless.length) return;
+  const st = chaseApp.core || chaseApp.resumable;
+  const names = phoneless.map((pid) => window.ChaseCore.nameOf(st, pid)).filter(Boolean).join(", ");
+  chaseError(`${names} ${phoneless.length === 1 ? "has" : "have"} no phone in this room. `
+    + "They keep their seat and the host locks their answers on this screen.");
+}
+
 /* ============ The public surface ============ */
 
 /** What chase-wire.js, chase-editor.js, chase-room.js and the harness build on. */
@@ -619,6 +675,10 @@ window.ChaseApp = {
   toggleClock: chaseToggleClock,
   phoneIntent: chasePhoneIntent,
   bindRoom: chaseBindRoom,
+  setHostPhones: chaseSetHostPhones,
+  showFallback: chaseShowFallback,
+  reconcileSeats: chaseReconcileSeats,
+  contentReady: chaseContentReady,
   showSplash: () => window.ChaseView.showSplash(),
   storeSuffix: chaseStoreSuffix,
   setPhoneCount: (n) => { if (n !== chaseApp.phoneCount) chaseSet({ phoneCount: Number(n) || 0 }); },

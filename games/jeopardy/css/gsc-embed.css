@@ -103,3 +103,62 @@ body.gsc-embedded .screen-player {
   min-height: 100%;
   padding-bottom: 1rem;
 }
+
+/* ============ Host phone (docs/22 §5.3, §5.7) ============ */
+
+/* The host's own phone is not a contestant: no buzzer, no join card. */
+body.gsc-host-phone #screen-player { display: none !important; }
+
+.gsc-host-card { display: none; }
+
+body.gsc-host-phone .gsc-host-card {
+  display: block;
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 1rem 1rem 1.5rem;
+  color: var(--ink, #eceef3);
+  overflow-wrap: anywhere;
+}
+
+.gsc-hc-head {
+  margin: 0 0 0.25rem;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-dim, #a9aebb);
+}
+
+.gsc-hc-status:empty { display: none; }
+.gsc-hc-status {
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffd6a0;
+  border: 1px solid rgba(255, 179, 71, 0.5);
+  border-radius: 6px;
+}
+
+.gsc-hc-body {
+  padding: 1rem;
+  background-color: var(--surface, #151820);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius, 8px);
+}
+
+.gsc-host-card.is-stale .gsc-hc-body { opacity: 0.5; }
+
+.gsc-hc-item { margin: 0 0 0.5rem; font-size: 16px; font-weight: 600; color: var(--ink, #eceef3); }
+.gsc-hc-meta { margin: 0.35rem 0 0; font-size: 16px; color: var(--ink-dim, #a9aebb); }
+.gsc-hc-clue { margin: 0.8rem 0 0; font-size: 19px; line-height: 1.4; color: var(--ink, #eceef3); }
+.gsc-hc-label {
+  margin: 1rem 0 0.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--hairline, rgba(255, 255, 255, 0.1));
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-dim, #a9aebb);
+}
+/* The answer, in Jeopardy's light accent: 7.3:1 on the surface. */
+.gsc-hc-answer { margin: 0; font-size: 30px; font-weight: 600; line-height: 1.2; color: #8fa0ff; }
+.gsc-hc-quiet { margin: 0.2rem 0 0; font-size: 20px; font-weight: 600; color: var(--ink, #eceef3); }

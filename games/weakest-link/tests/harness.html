@@ -39,6 +39,7 @@
   </div>
 
   <script src="harness-cross.js"></script>
+  <script src="harness-hostphone.js"></script>
   <script>
   (function () {
     "use strict";
@@ -109,7 +110,12 @@
       { pid: "p4", name: "Dev", color: "#35a06a", avatar: "🦉", connected: true, manual: false },
       { pid: "p5", name: "Eve", color: "#8a6bd5", avatar: "🐝", connected: true, manual: false },
     ];
+    // `hostPhones` / `answersPrivate` are set only by the host-phone scenario
+    // (harness-hostphone.js); every other scenario runs with no host phone.
     const ROOM = { code: "TEST", players: PLAYERS };
+    const hostPhoneFrames = new Map(); // pid -> iframe, role "host"
+    const hostViewLog = [];            // every host-view the game frame sent up
+    const sendLog = [];                // every {t:"send"} the game frame sent up
 
     const hostFrame = document.getElementById("host");
     const phoneFrames = new Map();   // pid -> iframe
@@ -128,11 +134,21 @@
       for (const [pid, frame] of phoneFrames) {
         if (event.source === frame.contentWindow) { fromPhone(pid, d); return; }
       }
+      for (const [pid, frame] of hostPhoneFrames) {
+        if (event.source === frame.contentWindow) { fromHostPhone(pid, d); return; }
+      }
     });
 
     function fromHost(d) {
       if (d.t === "ready") { post(hostFrame, { t: "init", mode: "embed-host", room: ROOM }); return; }
+      if (d.t === "host-view") {
+        // The hub delivers host views to host phones only (docs/22 §4.2).
+        hostViewLog.push(d.m);
+        hostPhoneFrames.forEach((f) => post(f, { t: "host-view", m: d.m }));
+        return;
+      }
       if (d.t === "send") {
+        sendLog.push(d);
         if (d.pid === "*") phoneFrames.forEach((f) => post(f, { t: "msg", m: d.m }));
         else post(phoneFrames.get(d.pid), { t: "msg", m: d.m });
         return;
@@ -149,6 +165,18 @@
       if (d.t === "send") post(hostFrame, { t: "msg", pid, m: d.m });
     }
 
+    /** A host phone gets init with role "host" and the latest host view; it sends nothing. */
+    function fromHostPhone(pid, d) {
+      if (d.t === "ready") {
+        const me = (ROOM.hostPhones || []).find((p) => p.pid === pid) || { pid, name: "Host" };
+        post(hostPhoneFrames.get(pid), { t: "init", mode: "embed-player",
+          me: { pid, name: me.name, color: "#7c99b6", avatar: "", role: "host" }, room: { code: ROOM.code } });
+        if (hostViewLog.length) post(hostPhoneFrames.get(pid), { t: "host-view", m: hostViewLog[hostViewLog.length - 1] });
+        return;
+      }
+      if (d.t === "send") shellLog.push({ t: "host-phone-sent", pid, m: d.m }); // must never happen
+    }
+
     /* ============ Loading (stale-bundle guard, Jeopardy's pattern) ============ */
 
     const ASSETS = [
@@ -161,7 +189,8 @@
       "../sets/index.json", "../sets/pop-culture.json", "../sets/science-nature.json",
       "../../../shared/room-protocol.js", "../../../shared/room-net.js",
       "../../../shared/room-host.js", "../../../shared/room-player.js", "../../../shared/bridge.js",
-      "fixtures/harness-game.json", "harness-cross.js",
+      "fixtures/harness-game.json", "harness-cross.js", "harness-hostphone.js",
+      "../js/wl-host-view.js", "../js/wl-hostphone.js", "../js/wl-host-screen.js", "../css/wl-host.css",
     ];
 
     // ?store=harness namespaces this run's localStorage (js/wl-store.js), so a
@@ -586,6 +615,8 @@
       "../js/wl-phone.js", "../js/wl-splash.js", "../js/wl-store.js",
       "../js/wl-lobby.js", "../js/wl-library.js",
       "../tests/wl-core.test.mjs", "../tests/harness.html", "../tests/harness-cross.js",
+      "../tests/harness-hostphone.js", "../tests/wl-host-view.test.mjs",
+      "../js/wl-host-view.js", "../js/wl-hostphone.js", "../js/wl-host-screen.js", "../css/wl-host.css",
       "../tests/fixtures/harness-game.json",
       "../sets/index.json", "../sets/pop-culture.json", "../sets/science-nature.json",
     ];
@@ -648,6 +679,11 @@
         await X.library();
         await X.libraryDownload();
         await X.store();
+        // docs/22 §5.5: the host phone, last, so it cannot affect anything above.
+        await window.WLHostPhone({
+          check, click, waitFor, sleep, H, HD, HW, core, bootHost, hostFrame, post, loadFrame,
+          ROOM, PLAYERS, STORE, phoneFrames, hostPhoneFrames, hostViewLog, sendLog, shellLog,
+        }).run();
         await scenarioGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

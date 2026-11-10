@@ -218,7 +218,13 @@
 
   function onStatus(up) {
     connected = !!up;
+    if (me && me.role === "host") { window.ChaseHostPhone.status(connected); return; }
     render();
+  }
+
+  /** docs/22: only a host phone ever receives one; it is rendered, never answered. */
+  function onHostView(v) {
+    if (window.ChaseHostPhone) window.ChaseHostPhone.show(v);
   }
 
   async function boot() {
@@ -227,10 +233,16 @@
     document.body.classList.add("player-mode");
     show($("screen-phone"), true);
     try {
-      me = await GSC.player({ onMessage, onStatus });
+      me = await GSC.player({ onMessage, onStatus, onHostView });
     } catch (err) {
       setText("chase-phone-headline", "Could not join");
       setText("chase-phone-sub", err.message);
+      return;
+    }
+    if (me.role === "host") {
+      // The host's private second screen: it renders and sends nothing (docs/22 section 5.7).
+      window.ChaseHostPhone.start();
+      window.ChasePhone = { me, role: "host", view: () => view };
       return;
     }
     me.send({ t: "ready" });

@@ -646,3 +646,122 @@ Harness evidence:
 Helpers: `.scratch/jeopardy-j1.py`, `.scratch/jeopardy-c1.py`,
 `.scratch/jeopardy-harness-j1j2.py`, `.scratch/jeopardy-validate-sets.mjs`,
 `.scratch/jeopardy-embed-only.mjs`. No git.
+
+---
+
+## 12. Host phone (docs/22, 2026-11-10)
+
+Jeopardy's implementation of the seven-item per-game contract (docs/22 §5) and
+its §6 row, following review F8. **No upstream file was edited** — everything
+lives in `gsc-embed.js`, a new pure `gsc-hostview.js`, `gsc-embed.css`, one
+`<!-- GSC: -->` script tag in `index.html`, and tests.
+
+### What was built
+
+| File | Lines | Role |
+| --- | ---: | --- |
+| `js/gsc-hostview.js` | 132 | **New, pure (UMD).** `JeopardyHostView.build(state)` → the host view. No DOM, no clock, no mutation; strings capped at 1 200 chars. |
+| `js/gsc-embed.js` | 511 | Host side: `pushHostView()` from `onStateChanged` (and once when the buzzer room opens). Phone side: `bootHostPhone()` + the host card. |
+| `css/gsc-embed.css` | 164 | The host card (v3: flat surface, hairline, 16 px text, 30 px answer). |
+| `index.html` | 329 | +1 `<!-- GSC: -->` tag for `js/gsc-hostview.js`, before `gsc-embed.js`. |
+| `tests/gsc-hostview.test.mjs` | 97 | **New.** HV-1 … HV-7. |
+| `tests/gsc-embed-harness.html` | 785 | HP-1 … HP-7, a host-role frame, payload recorders. |
+
+### The seven items
+
+1. **Pure selector.** `build(state)`:
+   - open clue → `{kind:"clue", item:"<Category> · $<value>", category, value, clue, answer, hasImage, hasAnswerImage, revealed, dailyDouble}`; a Daily Double's item is `Daily Double · <Category>` and `dailyDouble` is `{wagerLocked, wager, player}` (wager/player only once locked);
+   - Final (wager / clue / judge) → `{kind:"final", item:"Final Jeopardy", stage, category, clue, answer, hasImage}`;
+   - setup, idle board, standings → `{kind:"quiet", secret:false, item/phase}` and nothing else.
+
+   Images never ride the view (review F8.4): only the two flags. The largest
+   view observed in the harness was 308 bytes.
+2. **Room glue.** `GscEmbed.onStateChanged` (already called by app.js's one
+   `// GSC:` hook on every `setState`) now also calls `pushHostView()`:
+   `room.setHostView({ ...build(state), seq })`. `seq` moves only when the
+   content does, so the SDK's identical-view skip still applies. No cache, no
+   resend, never `room.send`. With **no host phone assigned** the hub just
+   holds the view: nothing on any screen changes, and every pre-existing check
+   (the first 21 harness checks, buzzer 70, photo 26) is unchanged and green.
+3. **Phone page in `role=host`.** The hub mounts `?embed=player&role=host`
+   with no `name=`, so upstream's `gscAutoJoin` returns at its `!name` guard
+   and no virtual connection is ever opened. `gsc-embed.js` adds
+   `body.gsc-host-phone` from the URL hint at first paint (CSS hides
+   `#screen-player`), takes `me.role` from the handshake as the authority (a
+   `"player"` answer gives the page back), and renders the host card from
+   `onHostView`: "Host · Jeopardy", the item, the clue, **Correct response**
+   in Jeopardy's light accent `#8fa0ff` (30 px, 7.3:1), then Daily Double /
+   picture / "Revealed on the main screen" notes. Quiet phases show "Nothing
+   secret right now" (plus the phase when it differs from the item). The 12 s
+   stuck-join watchdog is a no-op on a host phone.
+4. **Answers-private mode.** Unchanged for Jeopardy, as §6 says: upstream
+   already keeps the response hidden until **Reveal answer**, which is the
+   show's public reveal. Per F8.4 the assertion is on *visible* content.
+5. **Tests** — see below.
+6. **Seat reconciliation.** Not applicable: Jeopardy has no saved phone
+   seats. Scoreboard rows are created by joins, and the host phone never joins.
+7. **Host-phone page.** Shows `item` above the answer; `onStatus(false)` dims
+   the card and shows "Reconnecting — this may be out of date"; `tooBig`
+   renders "Too much to show — use the button on the laptop"; it sends
+   nothing (the harness records zero sends from the host-phone frame).
+
+### Tests
+
+**Unit** — `cd games/jeopardy && node --test`: **56/56** (the original 49 plus
+HV-1 … HV-7):
+
+| ID | Checks |
+| --- | --- |
+| HV-1 | setup, idle board, `null`/`undefined` state → quiet, no `answer`/`clue` keys |
+| HV-2 | open clue → category, `$200`, clue, correct response, item |
+| HV-3 | Daily Double before the lock (no wager/player) and after (`$1,500`, "Ann") |
+| HV-4 | Final wager/clue/judge carry clue + response; standings carries nothing |
+| HV-5 | image flags set; neither the URL nor a data URI is in the view |
+| HV-6 | deep-frozen input, identical output; 50 000-char fields stay < 16 KB |
+| HV-7 | a dangling `active` pointer degrades to a quiet board, never throws |
+
+**Harness** — `tests/gsc-embed-harness.html`: **28/28** (21 before + HP-1 … HP-7).
+The harness is the shell: a host-role frame is mounted exactly as the hub
+mounts it (`role=host`, no name) and is deliberately **not** in the broadcast
+list, matching the hub. Every host→contestant payload and every `setTitle`
+is recorded.
+
+| ID | Evidence |
+| --- | --- |
+| HP-1 | `body="gsc-embedded gsc-host-phone player-mode" screen-player=none` — after firing the stuck-join watchdog by hand, still no join card |
+| HP-2 | `answersPrivate=true view.item="Animal Kingdom · $200" seq=17 phoneShowsAnswer=true leakedToContestants=false hostPhoneSent=0` |
+| HP-3 | `connected: visible=false attrs=[] title=false · disconnected: visible=false answersPrivate=true` |
+| HP-4 | `class="gsc-host-card is-stale" status="Reconnecting — this may be out of date"` |
+| HP-5 | after **Reveal answer**: `visibleAfterReveal=true stale=false` |
+| HP-6 | `board=true final=true standings=true` (quiet / Final on phone only / quiet) |
+| HP-7 | `views=21 largest=308B`; tooBig text shown |
+
+The HP-3 attribute scan covers `title`, `alt`, `placeholder`, `aria-label`,
+`value` and `data-*` on **visible** elements. The first run counted the closed
+Question Editor's hidden `<textarea>` values, which hold the whole board. That
+is the editor's own storage, not on screen, so it falls under F8.4's visible-text
+rule for this vendored game. Noted rather than hidden.
+
+**Host phone at 320×640** (`.scratch/hp-jeo-phone320.mjs`): `scrollWidth 320`
+(no horizontal scroll); every line ≥ 16 px; answer 30 px; contrast 7.3–15.3:1;
+`#screen-player` `display:none`. Screenshots: `.scratch/jeopardy-ui/hp-phone-*-320.png`.
+
+**Everything else still green:** `tests/harness.html` **70/70**,
+`tests/photo-harness.html` **26/26**, and the v3 UI audit is clean on every
+shared screen. The board still fits 1280×720 and 1280×676 with no scroll.
+Served by a Node static server (`.scratch/hp-jeo-serve.mjs`, 127.0.0.1:8631).
+
+### Known gaps
+
+- **Answer images are flags only.** The phone says "This clue has a picture on
+  the main screen" / "The answer has a picture too" rather than showing it;
+  a picture cannot ride a host view under the 16 KB rule (review F8.4).
+- **The shared screen keeps the response in its DOM before Reveal** (upstream
+  `app.js`, class-hidden). Not visible, and docs/22 §6 accepts that for this
+  vendored game; changing it would mean an upstream logic edit.
+- **v1 host card has no buttons** (docs/22 §5.3), so the host still reveals and
+  judges on the laptop.
+
+Helpers: `.scratch/hp-jeo-embed.py`, `.scratch/hp-jeo-harness.py`,
+`.scratch/hp-jeo-harness-block.js`, `.scratch/hp-jeo-embed-run.mjs`,
+`.scratch/hp-jeo-phone320.mjs`, `.scratch/hp-jeo-serve.mjs`. No git.

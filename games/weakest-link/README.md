@@ -112,6 +112,22 @@ GitHub Pages cannot write files, so adding a set is a commit, not a button:
 Opened straight from disk (`file://`) the picker hides itself and says that
 saved sets need a web server — everything else on the page still works.
 
+## The host phone
+
+In the hub lobby the host can make one phone the **host phone** (docs/22). That
+phone stops being a contestant and becomes a private second screen: the player on
+turn, their question **with the answer**, and the next two questions; in the
+head-to-head, both finalists' upcoming questions. Voting, setup and the result
+show "Nothing secret right now".
+
+While a host phone is assigned (connected or not), the shared screen is
+**answers private**: the answer line, the "Show answer" peek and the "Keep
+answers on screen" switch are taken off the page (the switch is ignored, not
+cleared). In their place it reads "Answer is on your host phone"; if that phone
+drops, "Host phone disconnected" and one **Show answer on this screen** button,
+which shows the current question's answer only and clears on the next question.
+With no host phone everything works exactly as before.
+
 ## Storage namespacing
 
 `?store=NAME` moves this page's saved game and editor draft into their own
@@ -191,12 +207,18 @@ which never contains the question, the answer, or anyone else's vote.
 | `js/wl-store.js` | `?store=` namespacing and the saved-state shape check |
 | `js/wl-lobby.js` | the Game lobby control: Keep this game / Start over / Resume |
 | `js/wl-library.js` | mounts the shared set picker; the editor's library download |
+| `js/wl-host-view.js` | **pure**: `hostView(state)` for the host phone, `itemKey`, `currentAnswer` |
+| `js/wl-hostphone.js` | shared screen: `setHostView` on every change, answers-private mode, seat reconciliation |
+| `js/wl-host-screen.js` | phone page in `role=host`: the host screen, stale and too-big states |
+| `css/wl-host.css` | the host screen and the answers-private notes |
 | `js/wl-room.js` | host glue on `GSC.host` — roster in, masked views out |
 | `js/wl-phone.js` | phone glue on `GSC.player` |
 | `js/data.js` | offline mirror of `questions.json` |
 | `tests/wl-core.test.mjs` | `node --test` suite, success states K-U1…K-U10 |
 | `tests/harness.html` | loopback harness, success states K-I1…K-I6 |
 | `tests/harness-cross.js` | the cross-cutting harness scenarios (X-1…X-3, X-5) |
+| `tests/harness-hostphone.js` | the host-phone harness scenario (HP-1…HP-6) |
+| `tests/wl-host-view.test.mjs` | `hostView` unit tests |
 | `sets/` | the committed question-set library plus its `index.json` manifest |
 
 `wl-content.js` and `wl-core.js` are the only files with game rules in them,

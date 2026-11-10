@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeopardy embed harness (E1–E6, X-1–X-3, J-1, J-2)</title>
+  <title>Jeopardy embed harness (E1–E6, X-1–X-3, J-1, J-2, HP-1–HP-7)</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #04062b; color: #f4f5ff; margin: 0; padding: 2rem; }
     h1 { font-size: 1.2rem; }
@@ -45,6 +45,7 @@
     <div class="phone-slot" id="phone-p1"></div>
     <div class="phone-slot" id="phone-p2"></div>
     <div class="phone-slot" id="phone-p9"></div>
+    <div class="phone-slot" id="phone-host"></div>
   </div>
 
   <!-- The shell side of the bridge, exactly as index.html uses it. -->
@@ -97,6 +98,10 @@
       let hostBridge = null;
       let hostReady = false;
       let lastScores = null;
+      const hostViews = [];       // every view the host game handed the "hub" (docs/22)
+      const hostPhoneSends = [];  // anything the host phone tried to send (must stay empty)
+      const contestantSends = []; // every host → contestant payload
+      const titles = [];          // every setTitle the host game made
       /**
        * Phone intents that beat the host frame's `ready`. The real shell keeps
        * exactly this queue (js/hub-host.js `pending`, flushed in
@@ -124,6 +129,7 @@
           },
           // docs/00 §6: a host game payload for one phone, or "*" for everyone.
           onSend(pid, m) {
+            contestantSends.push(m);
             if (pid === "*") { for (const id of Object.keys(phones)) postToPhone(id, m); return; }
             postToPhone(pid, m);
           },
@@ -132,8 +138,9 @@
             if (ph && ph.ready) ph.bridge.postConnClose();
           },
           onScores(scores) { lastScores = scores; },
+          onHostView(m) { hostViews.push(m); relayHostView(m); },
           onExit() {},
-          onTitle() {},
+          onTitle(text) { titles.push(String(text)); },
         });
       }
 
@@ -548,6 +555,7 @@
         g("btn-editor-close").click();
 
         await staticGate();
+        await runHostPhone();
       }
 
       /* ============ J-2: static gate over the gsc-* files ============ */
@@ -555,7 +563,7 @@
       // The patterns are built from fragments so this harness never trips the
       // hub-wide gate that scans tests/ for the same strings.
       const GATED = [
-        "../js/gsc-embed.js", "../js/gsc-extras.js",
+        "../js/gsc-embed.js", "../js/gsc-extras.js", "../js/gsc-hostview.js",
         "../css/gsc-embed.css", "../css/gsc-extras.css", "../css/gsc-look.css",
       ];
       const BANNED = [
@@ -589,6 +597,156 @@
           problems.length === 0, problems.length ? problems.join("; ") : sizes.join(" "));
       }
 
+
+      /* ============ docs/22 host phone (HP-1 … HP-7) ============ */
+
+      // The host's own phone is mounted like the hub mounts it: role=host and no
+      // name. It is deliberately NOT in `phones`, so a host broadcast can never
+      // reach it — exactly the hub's rule (host phones get no game payloads).
+      const HOST_PHONE = { pid: "h1", name: "Host" };
+      let hostPhone = null;
+
+      function mountHostPhone() {
+        const slot = document.getElementById("phone-host");
+        slot.replaceChildren();
+        const frame = document.createElement("iframe");
+        frame.title = "Host phone";
+        frame.src = `${PAGE}?embed=player&room=${CODE}&pid=${HOST_PHONE.pid}&role=host`;
+        slot.appendChild(frame);
+        const entry = { frame, bridge: null, ready: false };
+        entry.bridge = GSCBridge.attachPlayerFrame(frame, {
+          onReady() {
+            entry.ready = true;
+            entry.bridge.postInit({ pid: HOST_PHONE.pid, name: HOST_PHONE.name, role: "host" }, { code: CODE });
+            entry.bridge.postStatus(true);
+            if (hostViews.length) entry.bridge.postHostView(hostViews[hostViews.length - 1]);
+          },
+          onSend(m) { hostPhoneSends.push(m); }, // must stay empty: a host phone sends nothing
+        });
+        hostPhone = entry;
+      }
+
+      function relayHostView(m) {
+        if (hostPhone && hostPhone.ready) hostPhone.bridge.postHostView(m);
+      }
+
+      const hpDoc = () => hostPhone && hostPhone.frame.contentDocument;
+      const hpText = () => {
+        const d = hpDoc();
+        const card = d && d.getElementById("gsc-host-card");
+        return card ? card.innerText : "";
+      };
+      /** The shared screen's VISIBLE text (docs/22 F8.4: Jeopardy asserts on innerText). */
+      const sharedVisible = () => (hostDoc() ? hostDoc().body.innerText : "");
+      /** Attributes and field values that are on screen. Jeopardy's closed
+          editor keeps the board in hidden textareas; F8.4 asserts on what is
+          visible for this vendored game, so hidden elements are skipped. */
+      function attrLeaks(doc, needle) {
+        const hits = [];
+        const shown = (el) => el.getClientRects().length > 0;
+        for (const el of doc.querySelectorAll("*")) {
+          if (!shown(el)) continue;
+          for (const a of el.attributes) {
+            if (/^(title|alt|placeholder|aria-label|value|data-)/.test(a.name) && a.value.indexOf(needle) !== -1) hits.push(`${el.tagName}[${a.name}]`);
+          }
+        }
+        for (const el of doc.querySelectorAll("input, textarea, option")) {
+          if (shown(el) && (el.value || "").indexOf(needle) !== -1) hits.push(`${el.tagName}.value`);
+        }
+        return hits;
+      }
+
+      // One scripted scenario, like run(): the seven checks share one board.
+      async function runHostPhone() {
+        const w = hostWin();
+        mountHostPhone();
+        await waitFor(() => hostPhone.ready && hpDoc() && hpDoc().getElementById("gsc-host-card"), 10000);
+        await waitFor(() => hpText().indexOf("Waiting") === -1, 6000);
+        const hd = hpDoc();
+        const screenPlayer = hd.getElementById("screen-player");
+        hostPhone.frame.contentWindow.GscEmbed._revealJoinCardIfStuck(); // the 12 s watchdog, now
+        check("HP-1 the host-phone frame shows the host card, never the buzzer or a join card",
+          hd.body.classList.contains("gsc-host-phone") &&
+          hostPhone.frame.contentWindow.getComputedStyle(screenPlayer).display === "none" &&
+          !hd.body.classList.contains("gsc-join-stuck") && !!hd.getElementById("gsc-host-card"),
+          `body="${hd.body.className}" screen-player=${hostPhone.frame.contentWindow.getComputedStyle(screenPlayer).display} ` +
+          `card="${hpText().replace(/\s+/g, " ").slice(0, 80)}"`);
+
+        // Assign it (connected), then put a clue up.
+        hostBridge.postHostPhones([{ pid: HOST_PHONE.pid, name: HOST_PHONE.name, connected: true }]);
+        await sleep(200);
+        if (hostState().phase !== "board") { w.startGame(); await waitFor(() => hostState().phase === "board", 4000); }
+        const sendsBefore = contestantSends.length;
+        w.openClue(0, 0);
+        await waitFor(() => hostState() && hostState().active, 4000);
+        const st = hostState();
+        const clue = st.game.categories[0].clues[0];
+        const answer = clue.answer;
+        await waitFor(() => hpText().indexOf(answer) !== -1, 6000);
+        const lastView = hostViews[hostViews.length - 1] || {};
+        const leakedToContestants = contestantSends.slice(sendsBefore).some((m) => JSON.stringify(m).indexOf(answer) !== -1) ||
+          Object.keys(phones).some((pid) => phoneDoc(pid) && phoneDoc(pid).body.innerText.indexOf(answer) !== -1);
+        check("HP-2 the host phone gets the open clue with its correct response; contestants never do",
+          w.GscEmbed._room().answersPrivate() === true &&
+          lastView.answer === answer && lastView.kind === "clue" && typeof lastView.seq === "number" &&
+          hpText().indexOf(answer) !== -1 && hpText().indexOf(st.game.categories[0].name) !== -1 &&
+          !leakedToContestants && hostPhoneSends.length === 0,
+          `answersPrivate=${w.GscEmbed._room().answersPrivate()} view.item="${lastView.item}" seq=${lastView.seq} ` +
+          `phoneShowsAnswer=${hpText().indexOf(answer) !== -1} leakedToContestants=${leakedToContestants} hostPhoneSent=${hostPhoneSends.length}`);
+
+        const connectedLeak = sharedVisible().indexOf(answer) !== -1;
+        const connectedAttrs = attrLeaks(hostDoc(), answer);
+        const titleLeak = titles.some((t) => t.indexOf(answer) !== -1);
+
+        // Host phone drops: still assigned, card dims, shared screen still clean.
+        hostBridge.postHostPhones([{ pid: HOST_PHONE.pid, name: HOST_PHONE.name, connected: false }]);
+        hostPhone.bridge.postStatus(false);
+        await sleep(300);
+        const stale = hpDoc().getElementById("gsc-host-card");
+        const disconnectedLeak = sharedVisible().indexOf(answer) !== -1;
+        check("HP-3 before Reveal the shared screen shows no response (host phone connected and disconnected)",
+          !connectedLeak && !disconnectedLeak && connectedAttrs.length === 0 && !titleLeak &&
+          w.GscEmbed._room().answersPrivate() === true,
+          `connected: visible=${connectedLeak} attrs=[${connectedAttrs.join(",")}] title=${titleLeak} · ` +
+          `disconnected: visible=${disconnectedLeak} answersPrivate=${w.GscEmbed._room().answersPrivate()}`);
+
+        check("HP-4 a dropped host phone dims and says it may be out of date",
+          stale.classList.contains("is-stale") && /Reconnecting — this may be out of date/.test(stale.innerText),
+          `class="${stale.className}" status="${(hpDoc().querySelector(".gsc-hc-status") || {}).textContent || ""}"`);
+
+        hostPhone.bridge.postStatus(true);
+        hostBridge.postHostPhones([{ pid: HOST_PHONE.pid, name: HOST_PHONE.name, connected: true }]);
+        await sleep(250); // let both postMessages land before judging the card
+        w.revealAnswer();
+        await waitFor(() => sharedVisible().indexOf(answer) !== -1, 4000);
+        check("HP-5 the public Reveal still shows the response on the shared screen",
+          sharedVisible().indexOf(answer) !== -1 && !stale.classList.contains("is-stale"),
+          `visibleAfterReveal=${sharedVisible().indexOf(answer) !== -1} stale=${stale.classList.contains("is-stale")}`);
+        w.closeClue();
+        await waitFor(() => !hostState().active, 4000);
+        await waitFor(() => /Nothing secret right now/.test(hpText()), 4000);
+        const quietBoard = /Nothing secret right now/.test(hpText()) && hpText().indexOf(answer) === -1;
+
+        w.startFinal();
+        await waitFor(() => hostState().final, 4000);
+        const fj = hostState().game.finalJeopardy;
+        await waitFor(() => hpText().indexOf(fj.answer) !== -1, 4000);
+        const finalShown = hpText().indexOf(fj.answer) !== -1 && sharedVisible().indexOf(fj.answer) === -1;
+        w.showStandings();
+        await waitFor(() => /Nothing secret right now/.test(hpText()), 4000);
+        const standingsQuiet = /Nothing secret right now/.test(hpText()) && hpText().indexOf(fj.answer) === -1;
+        w.setState({ final: null });
+        check("HP-6 board and standings: nothing secret; Final: clue + response on the phone only",
+          quietBoard && finalShown && standingsQuiet,
+          `board=${quietBoard} final=${finalShown} standings=${standingsQuiet}`);
+
+        hostPhone.frame.contentWindow.GscEmbed._renderHostView({ t: "host", item: "Big one", tooBig: true });
+        const tooBigText = hpText();
+        const sizes = hostViews.map((v) => new Blob([JSON.stringify(v)]).size);
+        check("HP-7 tooBig renders the laptop hint; every view sent was under 16 KB",
+          /Too much to show — use the button on the laptop/.test(tooBigText) && Math.max(...sizes) < 16384,
+          `views=${hostViews.length} largest=${Math.max(...sizes)}B text="${tooBigText.replace(/\s+/g, " ").slice(0, 70)}"`);
+      }
 
       function report() {
         const list = document.getElementById("results");

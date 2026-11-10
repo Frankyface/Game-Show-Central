@@ -38,6 +38,7 @@
   </div>
 
   <script src="harness-x.js"></script>
+  <script src="harness-hp.js"></script>
   <script>
   (function () {
     "use strict";
@@ -102,8 +103,8 @@
 
     const ASSETS = [
       "../js/feud-content.js", "../js/feud-core.js", "../js/feud-app.js", "../js/feud-fm.js",
-      "../js/feud-setup.js",
-      "../tests/harness-x.js",
+      "../js/feud-setup.js", "../js/feud-select.js", "../js/feud-private.js", "../js/feud-hostcard.js",
+      "../tests/harness-x.js", "../tests/harness-hp.js",
       "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
       "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
       "../css/feud.css", "../css/feud-board.css", "../css/feud-phone.css", "../css/timer.css", "../questions.json",
@@ -132,7 +133,11 @@
     /** [{pid,name,color,avatar,connected,manual}] — the shell's roster */
     let roster = [];
     let hostReady = false;
-    const shellLog = { scores: null, title: null, exited: false };
+    const shellLog = { scores: null, title: null, titles: [], exited: false };
+    /* Host phone (docs/22 §4.2): the shell's host-phone list, the latest view
+       the game handed over, and every payload a host-role frame tried to send. */
+    let hostPhoneList = [];
+    const hostLog = { views: [], latest: null, sentByHostPhone: 0 };
 
     function post(target, msg) {
       if (!target || !target.contentWindow) return;
@@ -154,20 +159,29 @@
     function onHostFrame(d) {
       if (d.t === "ready") {
         hostReady = true;
-        toHost({ t: "init", mode: "embed-host", room: { code: ROOM_CODE, players: roster.slice() } });
+        toHost({ t: "init", mode: "embed-host", room: {
+          code: ROOM_CODE, players: roster.slice(),
+          hostPhones: hostPhoneList.slice(), answersPrivate: hostPhoneList.length > 0,
+        } });
         return;
       }
       if (d.t === "send") {
         if (d.pid === "*") {
-          phones.forEach((entry) => post(entry.iframe, { t: "msg", m: d.m }));
+          phones.forEach((entry) => { if (entry.role !== "host") post(entry.iframe, { t: "msg", m: d.m }); });
         } else {
           const entry = phones.get(d.pid);
-          if (entry) post(entry.iframe, { t: "msg", m: d.m });
+          if (entry && entry.role !== "host") post(entry.iframe, { t: "msg", m: d.m });
         }
         return;
       }
+      if (d.t === "host-view") {
+        hostLog.views.push(d.m);
+        hostLog.latest = d.m;
+        phones.forEach((entry) => { if (entry.role === "host") post(entry.iframe, { t: "host-view", m: d.m }); });
+        return;
+      }
       if (d.t === "scores") shellLog.scores = d.scores;
-      if (d.t === "title") shellLog.title = d.text;
+      if (d.t === "title") { shellLog.title = d.text; shellLog.titles.push(d.text); }
       if (d.t === "exit") shellLog.exited = true;
     }
 
@@ -175,12 +189,16 @@
       if (d.t === "ready") {
         post(entry.iframe, {
           t: "init", mode: "embed-player",
-          me: { pid: entry.pid, name: entry.name, color: "#f2b632", avatar: "🙂" },
+          me: { pid: entry.pid, name: entry.name, color: "#f2b632", avatar: "🙂", role: entry.role || "player" },
           room: { code: ROOM_CODE },
         });
+        if (entry.role === "host" && hostLog.latest) post(entry.iframe, { t: "host-view", m: hostLog.latest });
         return;
       }
-      if (d.t === "send") toHost({ t: "msg", pid: entry.pid, m: d.m });
+      if (d.t === "send") {
+        if (entry.role === "host") { hostLog.sentByHostPhone += 1; return; } // the hub drops it
+        toHost({ t: "msg", pid: entry.pid, m: d.m });
+      }
     }
 
     /* ============ Frames ============ */
@@ -230,7 +248,32 @@
     function resetPhones() {
       phones.clear();
       roster = [];
+      hostPhoneList = [];
+      hostLog.views = [];
+      hostLog.latest = null;
+      hostLog.sentByHostPhone = 0;
       phoneHost.replaceChildren();
+    }
+
+    /** A host-role phone: never in the contestant roster, no name= in its URL. */
+    async function addHostPhone(pid, name) {
+      hostPhoneList = hostPhoneList.filter((h) => h.pid !== pid).concat([{ pid, name, connected: true }]);
+      const iframe = document.createElement("iframe");
+      iframe.className = "phone";
+      iframe.title = `host phone ${name}`;
+      phoneHost.appendChild(iframe);
+      const entry = { iframe, pid, name, role: "host" };
+      phones.set(pid, entry);
+      await loadFrame(iframe, `../index.html?embed=player&harness=1&store=${STORE}&pid=${pid}&role=host`);
+      toHost({ t: "host-phones", list: hostPhoneList.slice() });
+      await waitFor(() => iframe.contentWindow.FeudHostCard, `host phone ${name} boot`);
+      return entry;
+    }
+
+    /** The hub marking a host phone connected / away. */
+    function setHostPhoneConnected(pid, connected) {
+      hostPhoneList = hostPhoneList.map((h) => (h.pid === pid ? { ...h, connected } : h));
+      toHost({ t: "host-phones", list: hostPhoneList.slice() });
     }
 
     const phoneDoc = (pid) => phones.get(pid).iframe.contentDocument;
@@ -624,12 +667,12 @@
     const SOURCE_FILES = [
       "../index.html",
       "../js/feud-content.js", "../js/feud-core.js", "../js/feud-app.js", "../js/feud-fm.js",
-      "../js/feud-setup.js",
-      "../tests/harness-x.js",
+      "../js/feud-setup.js", "../js/feud-select.js", "../js/feud-private.js", "../js/feud-hostcard.js",
+      "../tests/harness-x.js", "../tests/harness-hp.js",
       "../js/feud-editor.js", "../js/feud-room.js", "../js/feud-phone.js", "../js/feud-boot.js",
       "../js/feud-sound.js", "../js/feud-timer.js", "../js/timer-core.js", "../js/data.js",
       "../css/feud.css", "../css/feud-board.css", "../css/feud-phone.css", "../css/timer.css",
-      "../tests/feud-core.test.mjs", "../tests/feud-adversarial.test.mjs", "../tests/harness.html",
+      "../tests/feud-core.test.mjs", "../tests/feud-adversarial.test.mjs", "../tests/feud-select.test.mjs", "../tests/harness.html",
     ];
 
     async function testStaticGates() {
@@ -691,14 +734,22 @@
         await testFastMoney();
         await testEditor();
         await testRoomBinding();
-        const X = window.FeudHarnessX({
+        const kit = {
           check, waitFor, sleep, HD, HW, hostState, bootHost, resetPhones,
-          clickHost, dispatchHost, loadFrame, hostFrame, HOST_SRC, DRAFT_KEY,
+          clickHost, dispatchHost, loadFrame, hostFrame, HOST_SRC, DRAFT_KEY, STATE_KEY,
           setHostReady: (value) => { hostReady = value; },
-        });
+          addPhone, addHostPhone, setHostPhoneConnected, phones, post, toHost, hostLog, shellLog,
+          setRoster: (list) => { roster = list; },
+          setHostPhoneList: (list) => { hostPhoneList = list; },
+        };
+        const X = window.FeudHarnessX(kit);
         await X.testGameLobby();
         await X.testLibrary();
         await X.testLibraryExport();
+        const HP = window.FeudHarnessHP(kit);
+        await HP.testHostPhone();
+        await HP.testPrivateFastMoney();
+        await HP.testSeatReconciliation();
         await testStaticGates();
       } catch (err) {
         uncaught = err && err.message ? err.message : String(err);

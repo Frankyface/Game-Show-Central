@@ -134,3 +134,56 @@ Verification (headless Chrome over CDP, `.scratch/chase-v3-check.mjs`, server 12
 - DOM walk on every one of those screens and all four 320 px phone frames: no text pair under 4.5:1 (3:1 for large / disabled), no emoji, no `backdrop-filter`, no `text-shadow`, no gradient under text.
 - CSSOM walk: no `@keyframes`, `animation` or `transition` outside the no-preference guard; under emulated `reduce`, `document.getAnimations()` is 0.
 - Phones: no horizontal scroll at 320 px, option buttons ≥ 56 px, no host screen displayed.
+
+## Round 3 — host phone (docs/22 §5–§6, review F4)
+
+The seven per-game items:
+
+1. **Selector** `ChaseCore.hostView(state)` (`js/chase-core.js`): Cash Builder →
+   question, answer, next question + answer, who is in the hot seat; head to head →
+   question, the three options, `correct` index; Final Chase → question, answer,
+   next, `pushback` flag (the missed question stays the item). Setup, offers,
+   result, standings and the gap between the two Final Chase halves →
+   `secret:false`, "Nothing secret right now" + the phase label.
+   **F4:** while `chaser.isHost` and the Chaser has not locked (and no outcome),
+   `correct` is `null`, `withheld:true` and no answer field exists; the
+   contestant's lock does not release it, undo of the Chaser's lock withholds it
+   again. With a player-Chaser it is present at once. Final Chase with a host
+   Chaser keeps the answer (the reader judges) and says so in `note`.
+2. **Room glue** (`js/chase-room.js`): `room.setHostView({t:"host", item, seq, ...hostView})`
+   on every state change (seq bumps when the view changes); `onHostPhones` feeds
+   the app. Contestant `phoneView` unchanged.
+3. **Host page** (`js/chase-hostphone.js`, `role=host`): "Host · The Chase"
+   header, the item large, the answer at 30 px in `--accent-2` (7.2:1), the next
+   question below; in the head to head the right option is outlined, 28 px and
+   labelled "Correct". No buttons; sends nothing (not even `ready`).
+4. **Answers-private** (`js/chase-view.js` `renderAnswerSlot`, markup slots
+   `#chase-cash-answer` / `#chase-final-answer`): with a host phone assigned the
+   answer node is not created; "Answer is on your host phone" while connected;
+   "Host phone disconnected" + one **Show answer on this screen** (keyed to the
+   item, cleared on the next) while not. The head-to-head options are public on
+   the show and the correct mark is already reveal-only; `setTitle` never carried
+   an answer. No host phone → the old "Answer (host only)" line, unchanged.
+5. **Tests**: `tests/chase-hostview.test.mjs` HV-1…HV-7 (each phase, F4 both
+   ways, pushback, size/determinism, phoneView unchanged) — **82/82** in the
+   game, **1491/1491** at the root. `tests/harness-hostphone.html` **22/22**:
+   view delivered via `onHostView` to the role=host frame only; contestant frames
+   never get one; answer string absent from host text, `value`, `placeholder`,
+   option, `title`, `alt`, `aria-label`, `data-*` and `setTitle` with the host
+   phone connected AND disconnected; fallback reveals it, next item hides it;
+   F4 on the live page; host phone at 320 px (no sideways scroll, text ≥ 16 px,
+   answer ≥ 28 px, no buttons, stale dimming); no-host behaviour unchanged.
+   Uses `tests/fixtures/hostphone-game.json` (answers prefixed `Zq<n>` so the leak
+   scan cannot match static page copy such as "Eighty"). The original
+   `tests/harness.html` stays **64/64**, unmodified except that its gate list now
+   includes the three new files.
+6. **Seat reconciliation** (`chaseReconcileSeats`, run after the saved game and
+   content settle): setup phone seats not in `room.players()` are removed (and a
+   Chaser pick pointing at one is cleared); a running or parked game keeps the
+   seat as phone-less, shows one notice, and the laptop gets lock buttons for a
+   phone-less player-Chaser. A phone that turns up later leaves the phone-less list.
+7. Stale/tooBig on the host page as specified.
+
+Served with the Node static server (`.scratch/hp-shell-serve.mjs 8711`), run
+headless via `.scratch/cdp.mjs .scratch/hp-chase-run.mjs`; helpers
+`.scratch/hp-chase-*`. Server stopped afterwards.
