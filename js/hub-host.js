@@ -26,8 +26,6 @@ const HubHost = (function () {
     return clean ? ":" + clean : "";
   }
   const FRAME_READY_MS = 8000; // a game page that never says `ready` is missing
-  const BEEP_HZ = 660;
-  const BEEP_MS = 120;
 
   /* ============ Serialisable state ============ */
 
@@ -56,7 +54,11 @@ const HubHost = (function () {
   let gameSubtitle = "";
   let popoverOpen = false;
   let soundOn = true;
-  let audioCtx = null;
+  // docs/22: the latest host view from the mounted frame, and the last
+  // host-phone notice ("‹name› rejoined from another device …").
+  const hostView = HubHostPhone.createViewHolder();
+  let hostNotice = "";
+  let hostNoticeTimer = null;
   let started = false; // has the host left the landing screen?
 
   /* ============ DOM helpers ============ */
@@ -186,7 +188,7 @@ const HubHost = (function () {
     const msg = ev.msg;
     if (msg.t === "join") {
       const known = !!lobby.peers[ev.peerId];
-      reduce({ type: "join", peerId: ev.peerId, name: msg.name, avatar: msg.avatar, pid: msg.pid });
+      reduce({ type: "join", peerId: ev.peerId, name: msg.name, avatar: msg.avatar, pid: msg.pid, hk: msg.hk });
       if (!known) beep();
       return;
     }
@@ -197,6 +199,7 @@ const HubHost = (function () {
       }
       const pid = lobby.peers[ev.peerId];
       if (!pid || !frameBridge) return;
+      if (RP.isHost(lobby.players[pid])) return; // docs/22: a host phone is read-only; dropped, not queued
       if (frameReady) frameBridge.postMsg(pid, msg.m);
       else { pending.push({ pid, m: msg.m }); if (pending.length > PENDING_MAX) pending.shift(); } // D2
       return;
@@ -224,7 +227,40 @@ const HubHost = (function () {
       else if (eff.broadcastLobby) broadcastLobby();
       else if (eff.close) { if (host) host.dropConnection(eff.close, true); }
       else if (eff.frame) sendToFrame(eff.frame);
+      else if (eff.notice === "host-demoted") showHostNotice(eff.pid);
     }
+  }
+
+  function showHostNotice(pid) {
+    const p = lobby.players[pid];
+    hostNotice = `${p ? p.name : "A player"} rejoined from another device — host phone role removed.`;
+    if (hostNoticeTimer) clearTimeout(hostNoticeTimer);
+    hostNoticeTimer = setTimeout(() => { hostNotice = ""; hostNoticeTimer = null; render(); }, 30000);
+  }
+
+  /** Contestants only: what a game sees (docs/22 §4.2). */
+  function roomInfo() {
+    const hostPhones = RP.hostPhoneList(lobby);
+    return {
+      code: roomStatus.code || state.roomCode, players: RP.playerList(lobby),
+      hostPhones, answersPrivate: hostPhones.length > 0,
+    };
+  }
+
+  /** The held host view goes to every bound host phone as an h:1 game payload. */
+  function deliverHostView() {
+    const view = hostView.get();
+    if (!host || !view || !state.activeGame) return;
+    const env = { v: 2, t: "game", g: state.activeGame, m: view, h: 1 };
+    for (const peerId of Object.keys(lobby.peers)) {
+      if (RP.isHost(lobby.players[lobby.peers[peerId]])) host.send(peerId, env);
+    }
+  }
+
+  /** Never a host phone: a game's `send` and `broadcast` reach contestants only. */
+  function isContestantPeer(peerId) {
+    const pid = lobby.peers[peerId];
+    return !!pid && !RP.isHost(lobby.players[pid]);
   }
 
   // Only peers still ON the roster get the snapshot: a just-kicked phone must
@@ -235,6 +271,13 @@ const HubHost = (function () {
   }
 
   function sendToFrame(msg) {
+    if (msg.t === "host-phones") {
+      // A host phone joined, dropped, came back or was kicked: tell the game,
+      // and hand every bound host phone the held view again.
+      if (frameBridge && frameReady) frameBridge.postHostPhones(RP.hostPhoneList(lobby));
+      deliverHostView();
+      return;
+    }
     if (!frameBridge || !frameReady) return;
     if (msg.t === "player-join") frameBridge.postPlayerJoin(msg.player);
     else if (msg.t === "player-leave") frameBridge.postPlayerLeave(msg.pid);
@@ -289,7 +332,7 @@ const HubHost = (function () {
         if (frameTimer) clearTimeout(frameTimer);
         frameTimer = null;
         frameError = "";
-        frameBridge.postInit({ code: roomStatus.code || state.roomCode, players: RP.playerList(lobby) });
+        frameBridge.postInit(roomInfo());
         const queued = pending;
         pending = [];
         for (const q of queued) frameBridge.postMsg(q.pid, q.m); // phone intents that beat `ready` (D2)
@@ -298,13 +341,18 @@ const HubHost = (function () {
       onSend(pid, m) {
         if (!host || RP.payloadTooBig(m)) return;
         const env = RP.gameMsg(state.activeGame, m);
-        if (pid === "*") host.broadcast(env, (peerId) => !!lobby.peers[peerId]);
+        if (pid === "*") host.broadcast(env, isContestantPeer);
         else {
           const peerId = peerFor(pid);
-          if (peerId) host.send(peerId, env);
+          if (peerId && isContestantPeer(peerId)) host.send(peerId, env);
         }
       },
+      onHostView(m) {
+        if (RP.payloadTooBig(m)) return; // the SDK already caps at 16 KB
+        if (hostView.set(m)) deliverHostView();
+      },
       onClose(pid) {
+        if (RP.isHost(lobby.players[pid])) return;
         const peerId = peerFor(pid);
         if (peerId && host) host.send(peerId, { v: 2, t: "conn-close", g: state.activeGame });
       },
@@ -328,6 +376,7 @@ const HubHost = (function () {
     frameReady = false;
     pending = [];
     frame = null;
+    hostView.clear(); // a host view belongs to the frame that made it
     const slot = $("game-frame-slot");
     if (slot) slot.replaceChildren();
   }
@@ -353,55 +402,9 @@ const HubHost = (function () {
     });
   }
 
-  /* ============ Dialogs (role="dialog", built node by node) ============ */
+  /* ============ Dialogs + sound (bodies in js/hub-ui.js) ============ */
 
-  let dialogCloser = null;
-
-  function openDialog(opts) {
-    closeDialog();
-    const root = $("dialog-root");
-    const back = el("div", "dialog-backdrop");
-    const box = el("div", "dialog");
-    box.setAttribute("role", "dialog");
-    box.setAttribute("aria-modal", "true");
-    box.setAttribute("aria-label", opts.title);
-    box.appendChild(el("h2", "dialog-title", opts.title));
-    if (opts.body) box.appendChild(el("p", "dialog-body", opts.body));
-    let input = null;
-    if (opts.input) {
-      input = el("input", "field-input");
-      input.type = "text";
-      input.maxLength = RP.NAME_MAX;
-      input.value = opts.inputValue || "";
-      input.setAttribute("aria-label", opts.input);
-      box.appendChild(input);
-    }
-    const err = el("p", "error-msg");
-    box.appendChild(err);
-    const row = el("div", "dialog-row");
-    row.appendChild(button("btn btn-ghost", "Cancel", closeDialog));
-    row.appendChild(button("btn btn-gold", opts.confirmText || "OK", () => {
-      const value = input ? input.value : null;
-      if (input && !RP.sanitizeName(value)) { err.textContent = "Enter a name."; return; }
-      closeDialog();
-      opts.onConfirm(value);
-    }));
-    box.appendChild(row);
-    if (input) input.addEventListener("keydown", (e) => { if (e.key === "Enter") row.lastChild.click(); });
-    back.appendChild(box);
-    root.appendChild(back);
-    (input || row.lastChild).focus();
-    const onKey = (e) => { if (e.key === "Escape") closeDialog(); };
-    document.addEventListener("keydown", onKey);
-    dialogCloser = () => { document.removeEventListener("keydown", onKey); root.replaceChildren(); };
-  }
-
-  function closeDialog() {
-    if (dialogCloser) dialogCloser();
-    dialogCloser = null;
-  }
-
-  /* ============ Sound ============ */
+  const openDialog = (opts) => HubUI.openDialog(opts);
 
   function toggleSound() {
     soundOn = !soundOn;
@@ -410,23 +413,7 @@ const HubHost = (function () {
   }
 
   function beep() {
-    if (!soundOn) return;
-    try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      audioCtx = audioCtx || new Ctx();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = BEEP_HZ;
-      const t = audioCtx.currentTime;
-      gain.gain.setValueAtTime(0.12, t);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + BEEP_MS / 1000);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(t);
-      osc.stop(t + BEEP_MS / 1000 + 0.02);
-    } catch (err) { console.warn("Hub: beep failed", err); }
+    if (soundOn) HubUI.beep();
   }
 
   /* ============ Splash (decoration only) ============ */
@@ -458,8 +445,13 @@ const HubHost = (function () {
     return `${location.origin}${location.pathname}?room=${code}`;
   }
 
+  /** Connected CONTESTANTS (host phones are counted separately). */
   function connectedCount() {
-    return lobby.order.filter((pid) => lobby.players[pid].connected).length;
+    return lobby.order.filter((pid) => lobby.players[pid].connected && !RP.isHost(lobby.players[pid])).length;
+  }
+
+  function contestantCount() {
+    return lobby.order.length - RP.hostPhoneList(lobby).length;
   }
 
   function render() {
@@ -555,14 +547,18 @@ const HubHost = (function () {
   function renderRoster() {
     const list = $("roster-list");
     list.replaceChildren();
-    $("roster-count").textContent = `${lobby.order.length}/${lobby.maxPlayers}`;
+    const hosts = RP.hostPhoneList(lobby).length;
+    const n = contestantCount();
+    $("roster-count").textContent = `${n} ${n === 1 ? "player" : "players"}`
+      + (hosts ? ` + ${hosts} host ${hosts === 1 ? "phone" : "phones"}` : "")
+      + ` · ${lobby.order.length}/${lobby.maxPlayers}`;
     if (lobby.order.length === 0) {
       list.appendChild(el("li", "roster-empty", "Nobody yet — share the code, or add players by hand."));
     }
     for (const pid of lobby.order) list.appendChild(rosterRow(lobby.players[pid]));
-    $("roster-hint").textContent = lobby.locked
+    $("roster-hint").textContent = hostNotice || (lobby.locked
       ? "The lobby is locked: new players can't join, but anyone who drops can come back."
-      : "";
+      : "");
   }
 
   function rosterRow(player) {
@@ -584,10 +580,32 @@ const HubHost = (function () {
       li.appendChild(button("btn btn-danger btn-small", "Remove",
         () => reduce({ type: "remove", pid: player.pid }), `Remove ${player.name}`));
     } else {
+      if (RP.isHost(player)) li.appendChild(el("span", "roster-tag roster-tag-host", "Host phone"));
+      li.appendChild(roleButton(player));
       li.appendChild(button("btn btn-danger btn-small", "Kick",
         () => reduce({ type: "kick", pid: player.pid }), `Remove ${player.name} from the room`));
     }
     return li;
+  }
+
+  /** docs/22 §3: only the laptop grants the role, and only while no game runs. */
+  function roleButton(player) {
+    const isHost = RP.isHost(player);
+    const full = !isHost && RP.hostPhoneList(lobby).length >= RP.MAX_HOST_PHONES;
+    const b = withIcon(button("btn btn-ghost btn-small roster-role", isHost ? "Make player" : "Make host phone",
+      () => setRole(player.pid, isHost ? "player" : "host"),
+      isHost ? `Make ${player.name} a player again` : `Make ${player.name}'s phone the host phone`), "phone");
+    const away = !isHost && !player.connected;
+    b.disabled = !!state.activeGame || full || away;
+    if (state.activeGame) b.title = "Go to the lobby to change roles";
+    else if (full) b.title = "There are already two host phones";
+    else if (away) b.title = "This phone is not connected right now";
+    return b;
+  }
+
+  function setRole(pid, role) {
+    hostNotice = "";
+    reduce({ type: "setRole", pid, role, key: role === "host" ? HubHostPhone.newKey() : undefined });
   }
 
   function renderTiles() {
@@ -600,7 +618,7 @@ const HubHost = (function () {
   function gameTile(game) {
     const li = el("li", "game-tile");
     cardBody(li, game, "tile");
-    const hint = HubRegistry.playerHint(game, lobby.order.length);
+    const hint = HubRegistry.playerHint(game, contestantCount());
     if (hint) li.appendChild(el("p", "tile-hint", hint));
     li.appendChild(button("btn btn-gold tile-play", "Play", () => pickGame(game.id), `Play ${game.name}`));
     return li;
@@ -638,7 +656,8 @@ const HubHost = (function () {
     $("shell-game-sub").textContent = frameError || gameSubtitle;
     $("shell-game-sub").classList.toggle("shell-sub-error", !!frameError);
     const broker = NET && roomStatus.status === "open" ? NET.brokerLabel(roomStatus.broker) : "";
-    $("shell-broker").textContent = broker;
+    $("shell-broker").textContent = hostNotice || broker;
+    renderHostPhoneChip();
     const chipNode = $("shell-chip");
     const code = roomStatus.code || state.roomCode || "—";
     const n = connectedCount();
@@ -646,6 +665,19 @@ const HubHost = (function () {
     withIcon(chipNode, "phone");
     chipNode.setAttribute("aria-label", `Room ${code}, ${n} connected. Show room details`);
     chipNode.setAttribute("aria-expanded", popoverOpen ? "true" : "false");
+  }
+
+  /** "Host phone ●" (connected) / "Host phone ○" (away): shape + word, not colour alone. */
+  function renderHostPhoneChip() {
+    const node = $("shell-hostphone");
+    if (!node) return;
+    const list = RP.hostPhoneList(lobby);
+    show(node, list.length > 0);
+    if (!list.length) return;
+    const on = list.some((p) => p.connected);
+    node.textContent = `Host phone ${on ? "●" : "○"}`;
+    node.classList.toggle("is-away", !on);
+    node.setAttribute("aria-label", on ? "Host phone connected" : "Host phone away");
   }
 
   function renderPopover() {

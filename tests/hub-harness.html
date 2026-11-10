@@ -446,6 +446,210 @@
             !!restored && !!reinit, `code=${reinit} game=${hostFrame.contentWindow.HubHost._state().activeGame}`);
     }
 
+    /* ============ HP-I — the host phone (docs/22 §4.5) ============ */
+    // Runs after L-I9: the fake game is on, Alex (p1) and Cy (p3) are
+    // connected, the lobby is locked. Alex becomes the host phone.
+
+    const H = () => hostFrame.contentWindow.HubHost;
+    const rowFor = (frame, sel, name) => Array.from(doc(frame).querySelectorAll(`${sel} .roster-row`))
+      .find((r) => r.querySelector(".roster-name").textContent === name) || null;
+    const roleBtn = (row) => (row ? row.querySelector(".roster-role") : null);
+    const peerIdOf = (pid) => Object.keys(H()._peers()).find((id) => H()._peers()[id] === pid) || null;
+
+    async function backToLobby() {
+      $id(hostFrame, "shell-lobby").click();
+      const ok = await until(() => {
+        const btns = Array.from(doc(hostFrame).querySelectorAll("#dialog-root .btn-gold"));
+        return btns.length ? btns[btns.length - 1] : null;
+      }, 4000);
+      if (ok) ok.click();
+      return until(() => H()._state().activeGame === null, 4000);
+    }
+
+    async function scenarioHP1() {
+      // In-game the role control is disabled and the roster does not change.
+      $id(hostFrame, "shell-chip").click();
+      const inGameBtn = await until(() => roleBtn(rowFor(hostFrame, "#shell-popover", "Alex")), 4000);
+      const before = H()._lobby().players.p1.role;
+      if (inGameBtn) inGameBtn.click();
+      await wait(200);
+      check("HP-I1a", "Role change is refused while a game is active (control disabled, roster unchanged)",
+            !!inGameBtn && inGameBtn.disabled && inGameBtn.title === "Go to the lobby to change roles" &&
+            H()._lobby().players.p1.role === before,
+            `disabled=${inGameBtn && inGameBtn.disabled} title="${inGameBtn && inGameBtn.title}" role=${H()._lobby().players.p1.role}`);
+      $id(hostFrame, "shell-chip").click();
+
+      // In the lobby: make Alex the host phone.
+      const inLobby = await backToLobby();
+      // After L-I9's hub reload Alex reconnects on the 3 s loop; the role can
+      // only be granted to a phone that is connected (the key must reach it).
+      await until(() => H()._lobby().players.p1 && H()._lobby().players.p1.connected && peerIdOf("p1"), 15000);
+      const btn = await until(() => {
+        const b = roleBtn(rowFor(hostFrame, "#roster-list", "Alex"));
+        return b && !b.disabled ? b : null;
+      }, 6000);
+      const why = `lobby=${!!inLobby} btn=${btn ? "enabled" : "missing/disabled"}`;
+      if (btn) btn.click();
+      const granted = await until(() => p1.contentWindow.HubPlayer._role() === "host", 4000);
+      let stored = {};
+      try { stored = JSON.parse(p1.contentWindow.localStorage.getItem("gsc-phone-v1:p1") || "{}"); } catch (err) { stored = {}; }
+      const snapHasKey = JSON.stringify(H()._lobby().players.p1.hostKey) !== "null";
+      check("HP-I1", "Granting the role: the phone reads it from its lobby row and stores its key",
+            !!granted && typeof stored.hk === "string" && stored.hk === H()._lobby().players.p1.hostKey && snapHasKey &&
+            doc(hostFrame).querySelector("#roster-count").textContent.includes("1 host phone"),
+            `${why} role=${p1.contentWindow.HubPlayer._role()} stored-hk=${!!stored.hk} count="${doc(hostFrame).querySelector("#roster-count").textContent}"`);
+    }
+
+    async function scenarioHP2() {
+      clickPlay(hostFrame);
+      const hg = await until(() => {
+        const w = hostGame(hostFrame);
+        return w && w.FakeGame && w.FakeGame.room() ? w : null;
+      }, 8000);
+      const meHost = await until(() => {
+        const w = phoneGame(p1);
+        return w && w.FakeGame && w.FakeGame.me() ? w.FakeGame.me() : null;
+      }, 8000);
+      const src = doc(p1).querySelector(".phone-frame").getAttribute("src");
+      check("HP-I2a", "The host phone's frame loads with role=host and no name=, and init says me.role host",
+            !!meHost && meHost.role === "host" && src.includes("role=host") && !src.includes("name="),
+            `src=${src} role=${meHost && meHost.role}`);
+
+      const room = hg ? hg.FakeGame.room() : null;
+      const players = room ? room.players().map((p) => p.pid) : [];
+      const hostPhones = room ? room.hostPhones() : [];
+      check("HP-I2b", "The host game frame's players() excludes the host phone; hostPhones() includes it; answersPrivate()",
+            !players.includes("p1") && players.includes("p3") &&
+            hostPhones.length === 1 && hostPhones[0].pid === "p1" && room.answersPrivate() === true,
+            `players=${players.join(",")} hostPhones=${JSON.stringify(hostPhones)} private=${room && room.answersPrivate()}`);
+
+      hg.FakeGame.setHostView({ t: "host", item: "Q1", seq: 1, answer: "Paris" });
+      const got = await until(() => phoneGame(p1).FakeGame.hostViews().some((v) => v.answer === "Paris"), 4000);
+      await wait(300);
+      const cyViews = phoneGame(p4).FakeGame.hostViews().length;
+      const cyLog = phoneGame(p4).FakeGame.log().join(" ");
+      check("HP-I2c", "setHostView reaches only the host phone (as onHostView); a contestant never gets it",
+            !!got && cyViews === 0 && !cyLog.includes("Paris"),
+            `host-phone views=${phoneGame(p1).FakeGame.hostViews().length} contestant views=${cyViews}`);
+    }
+
+    async function scenarioHP3() {
+      const hg = hostGame(hostFrame);
+      phoneGame(p1).FakeGame.send({ probe: "from-host-phone" });
+      hg.FakeGame.broadcast({ hpb: 1 });
+      hg.FakeGame.sendTo("p1", { hps: 1 });
+      await until(() => phoneGame(p4).FakeGame.log().some((l) => l.includes('"hpb":1')), 4000);
+      await wait(500);
+      const hostLog = hg.FakeGame.log().join(" ");
+      const p1Log = phoneGame(p1).FakeGame.log().join(" ");
+      const events = hg.FakeGame.events().join(",");
+      check("HP-I3", "A host phone's game payload never reaches the frame; send/broadcast never reach a host phone; no player-* events for it",
+            !hostLog.includes("from-host-phone") && !p1Log.includes("hpb") && !p1Log.includes("hps") &&
+            !/(join|leave|status):p1/.test(events),
+            `host-log-has-probe=${hostLog.includes("from-host-phone")} p1-log="${p1Log}" events=${events}`);
+    }
+
+    async function scenarioHP4() {
+      // Stale host phone: answersPrivate stays on.
+      const hg = hostGame(hostFrame);
+      const pid1Peer = peerIdOf("p1");
+      H()._event({ type: "stale", peerId: pid1Peer, stale: true });
+      const away = await until(() => {
+        const list = hg.FakeGame.room().hostPhones();
+        return list.length === 1 && list[0].connected === false;
+      }, 4000);
+      const chip = $id(hostFrame, "shell-hostphone").textContent;
+      check("HP-I4", "A host phone marked stale keeps answersPrivate true (and shows away on the shell bar)",
+            !!away && hg.FakeGame.room().answersPrivate() === true && chip === "Host phone ○",
+            `connected=${JSON.stringify(hg.FakeGame.room().hostPhones())} chip="${chip}"`);
+      H()._event({ type: "stale", peerId: pid1Peer, stale: false });
+      await until(() => hg.FakeGame.room().hostPhones()[0].connected === true, 4000);
+
+      // The host phone reloads: same pid + key → still the host phone, view re-delivered.
+      // A real reload closes the connection; the fake network's peers live in
+      // this page, so close it the way L-I6 does before reloading.
+      const oldPeer = net.peers.get(peerIdOf("p1"));
+      if (oldPeer) oldPeer.destroy();
+      await until(() => H()._lobby().players.p1.connected === false, 6000);
+      await reloadFrame(p1);
+      const back = await until(() => p1.contentWindow.HubPlayer._role() === "host" &&
+                                      H()._lobby().players.p1.connected === true, 15000);
+      const reView = await until(() => {
+        const w = phoneGame(p1);
+        return w && w.FakeGame && w.FakeGame.hostViews().some((v) => v.answer === "Paris");
+      }, 8000);
+      check("HP-I5", "A host phone that reloads keeps the role and gets the held host view again",
+            !!back && !!reView && H()._lobby().players.p1.role === "host",
+            `role=${H()._lobby().players.p1.role} re-delivered=${!!reView}`);
+    }
+
+    async function scenarioHP6() {
+      // The virtual-peer shim (Jeopardy) in the host game frame never holds a host-phone connection.
+      const hw = hostGame(hostFrame);
+      await new Promise((res) => {
+        const s = hw.document.createElement("script");
+        s.src = "../shared/virtual-peer.js";
+        s.onload = res; s.onerror = res;
+        hw.document.head.appendChild(s);
+      });
+      const conns = [];
+      const vp = hw.VirtualPeer.createHub(hw.VirtualPeer.defaultBus("embed-host"));
+      const peer = new vp.Peer(`gsc-${code}`);
+      peer.on("connection", (c) => conns.push(c.peer));
+      await wait(50);
+      // Post `ready` FROM the game frame (a script it runs), so the hub sees the
+      // right event.source and re-sends init.
+      const again = hw.document.createElement("script");
+      again.textContent = "parent.postMessage({ gsc: 1, t: \"ready\" }, location.origin);";
+      hw.document.head.appendChild(again);
+      await until(() => conns.length > 0, 4000);
+      await wait(200);
+      check("HP-I6", "The virtual-peer hub holds no connection for a host pid",
+            conns.length > 0 && !conns.includes("p1"), `connections=${conns.join(",")}`);
+    }
+
+    async function scenarioHP7() {
+      // Another device joins with the host phone's pid and no key while it is away.
+      const hg = hostGame(hostFrame);
+      H()._event({ type: "stale", peerId: peerIdOf("p1"), stale: true });
+      await until(() => H()._lobby().players.p1.connected === false, 4000);
+      const intruder = document.createElement("iframe");
+      intruder.className = "rig";
+      const loaded = new Promise((res) => intruder.addEventListener("load", res, { once: true }));
+      intruder.src = `../index.html?room=${code}&harness=1&store=hpx`;
+      document.getElementById("frames").appendChild(intruder);
+      await loaded;
+      intruder.contentWindow.localStorage.setItem("gsc-phone-v1:hpx", JSON.stringify({ code, pid: "p1", name: "Alex", avatar: "🦊" }));
+      intruder.contentWindow.__gscPeerFactory = createPeer;
+      intruder.contentWindow.HubRegistry.register(FAKE_GAME);
+      intruder.contentWindow.__gscBoot();
+
+      const demoted = await until(() => H()._lobby().players.p1.role === "player" &&
+                                        H()._peers()[peerIdOf("p1")] === "p1" &&
+                                        intruder.contentWindow.HubPlayer._me().pid === "p1", 10000);
+      hg.FakeGame.setHostView({ t: "host", item: "Q2", seq: 2, answer: "Rome" });
+      await until(() => phoneGame(intruder) && phoneGame(intruder).FakeGame, 8000);
+      await wait(600);
+      const iw = phoneGame(intruder);
+      const views = iw && iw.FakeGame ? iw.FakeGame.hostViews().length : -1;
+      const role = intruder.contentWindow.HubPlayer._role();
+      const notice = $id(hostFrame, "shell-broker").textContent;
+      const players = hg.FakeGame.room().players().map((p) => p.pid);
+      check("HP-I7", "A phone joining with the host pid and no key is seated as a player, gets no host view, the laptop is told",
+            !!demoted && role === "player" && views === 0 && notice.includes("rejoined from another device") &&
+            players.includes("p1") && hg.FakeGame.room().answersPrivate() === false,
+            `role=${role} views=${views} notice="${notice}" players=${players.join(",")}`);
+    }
+
+    async function scenarioHP() {
+      await scenarioHP1();
+      await scenarioHP2();
+      await scenarioHP3();
+      await scenarioHP4();
+      await scenarioHP6();
+      await scenarioHP7();
+    }
+
     /* ============ L-I10 — static gates over the shell files ============ */
 
     const SHELL_FILES = [
@@ -493,6 +697,7 @@
         ["L-I1", scenarioI1], ["L-I2", scenarioI2], ["L-I3", scenarioI3],
         ["L-I4", scenarioI4], ["L-I7", scenarioI7], ["L-I6", scenarioI6],
         ["L-I5", scenarioI5], ["L-I8", scenarioI8], ["L-I9", scenarioI9],
+        ["HP-I", scenarioHP],
         ["L-I10", scenarioI10],
       ];
       for (const [id, fn] of steps) {

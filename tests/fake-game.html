@@ -44,6 +44,7 @@
       const $ = (id) => document.getElementById(id);
       const log = [];
       const events = [];
+      const hostViews = []; // docs/22: what onHostView delivered (host phones only)
       let room = null;
       let me = null;
 
@@ -77,6 +78,7 @@
           },
           onStatus(connected) { events.push("status:" + connected); paint(); },
           onConnClose() { events.push("conn-close"); paint(); },
+          onHostView(v) { hostViews.push(v); },
         }).then((player) => {
           me = player;
           document.body.classList.add("player-mode");
@@ -90,6 +92,7 @@
           onPlayerLeave(pid) { events.push("leave:" + pid); paint(); },
           onPlayerStatus(pid, connected) { events.push(`status:${pid}:${connected}`); paint(); },
           onMessage(pid, m) { note(pid, m); },
+          onHostPhones(list) { events.push("host-phones:" + list.map((p) => `${p.pid}:${p.connected}`).join("/")); },
         }).then((r) => {
           room = r;
           if (GSC.isEmbedded()) document.body.classList.add("gsc-embedded");
@@ -112,6 +115,8 @@
         title: (t) => (room ? room.setTitle(t) : null),
         log: () => log.slice(),
         events: () => events.slice(),
+        hostViews: () => hostViews.slice(),
+        setHostView: (v) => (room ? room.setHostView(v) : null),
       };
     })();
   </script>

@@ -551,6 +551,19 @@ label, row and preview get `.hidden`, the box gets `.gsc-library-off`, and the
 error line carries a plain-English sentence. Nothing else on the setup screen
 changes, so a game that ships no sets simply shows a one-line note.
 
+### Host phone UI in the hub (docs/22)
+
+| Where | What | Classes |
+| --- | --- | --- |
+| Lobby roster row | a "Host phone" tag, then a hairline **Make host phone / Make player** button (`phone` icon, 44 px) before Kick. Disabled in-game ("Go to the lobby to change roles"), when two host phones exist, and for a phone that is not connected right now. | `.roster-tag-host`, `.roster-role` |
+| Roster count | "N players + H host phone(s) · total/max" | `#roster-count` |
+| Shell bar (in game) | "Host phone ●" (connected) / "Host phone ○" (away, amber) beside the room chip — shape and word, not colour alone | `#shell-hostphone`, `.shell-hostphone.is-away` |
+| Phone waiting room | an amber **Host** tag, amber-tinted screen, "You're the host's second screen…" | `.phone-role-tag`, `body.phone-host` |
+| Phone in a game | an amber strip "Host phone · keep this screen to yourself" above the frame | `.phone-role-bar` |
+
+Amber (`--amber`) is the host-phone colour in the shell; ink on it is `#1f1300` (10.2:1).
+Games draw their own host-phone page inside the frame (docs/22 §5.3).
+
 ## 4. The splash (`.gsc-splash`)
 
 A 600 ms plain title card on a game switch, on the host screen and on every phone.

@@ -106,6 +106,7 @@
     let name = "";
     let pid = null;
     let avatar = null;
+    let hk = null; // docs/22: the host-phone key this device holds, if any
     let phase = "idle"; // idle | connecting | connected | reconnecting | failed
     let message = "";
     let connLive = false;
@@ -136,11 +137,12 @@
 
     /* ---- connecting ---- */
 
-    function connect(roomCode, playerName, savedPid, savedAvatar) {
+    function connect(roomCode, playerName, savedPid, savedAvatar, savedHk) {
       code = RP.normalizeRoomCode(roomCode) || String(roomCode || "").toUpperCase();
       name = playerName;
       pid = RP.isPid(savedPid) ? savedPid : null;
       avatar = RP.sanitizeAvatar(savedAvatar);
+      hk = RP.isHostKey(savedHk) ? savedHk : null;
       wantConnected = true;
       everConnected = false;
       attempts = NET ? NET.createJoinAttempts() : { attempt: 0, startedAt: null };
@@ -233,6 +235,7 @@
       const join = { v: 2, t: "join", name };
       if (avatar) join.avatar = avatar;
       if (pid) join.pid = pid;
+      if (hk) join.hk = hk; // only a host phone has one, so ordinary joins are unchanged
       safeSend(join);
       acquireWakeLock();
       emit();
@@ -244,6 +247,7 @@
       if (!msg) return;
       if (msg.t === "pong") return;
       if (msg.t === "joined") { pid = msg.pid; name = msg.name; avatar = msg.avatar; }
+      if (msg.t === "role") hk = msg.role === "host" ? msg.hk : null; // re-sent on every reconnect
       if (msg.t === "reject") {
         stopRetrying();
         message = msg.reason;

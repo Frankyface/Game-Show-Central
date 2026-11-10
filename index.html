@@ -23,6 +23,7 @@
       <span id="shell-game-sub" class="shell-game-sub"></span>
     </div>
     <p id="shell-broker" class="shell-broker"></p>
+    <span id="shell-hostphone" class="shell-hostphone hidden" role="status"></span>
     <button id="shell-chip" class="shell-chip" type="button" aria-expanded="false"
             aria-controls="shell-popover">Room</button>
   </header>
@@ -113,9 +114,10 @@
   <!-- ============ PHONE: waiting room ============ -->
   <main id="screen-waiting" class="screen screen-waiting hidden">
     <div class="phone-card">
+      <p id="wait-role" class="phone-role-tag hidden">Host</p>
       <p id="wait-avatar" class="wait-avatar"></p>
       <h1 id="wait-title" class="phone-title"></h1>
-      <p class="wait-sub">The host is picking a game.</p>
+      <p id="wait-sub" class="wait-sub">The host is picking a game.</p>
       <h2 class="card-heading">In the room</h2>
       <ul id="wait-roster" class="wait-roster"></ul>
       <button id="btn-leave" class="btn btn-ghost btn-tap btn-block" type="button">Leave</button>
@@ -126,6 +128,7 @@
   <!-- ============ PHONE: in a game ============ -->
   <main id="screen-play" class="screen screen-play hidden">
     <div id="phone-health" class="phone-health"></div>
+    <p id="phone-role" class="phone-role-bar hidden">Host phone · keep this screen to yourself</p>
     <div id="phone-frame-slot" class="phone-frame-slot"></div>
     <div id="phone-banner" class="phone-banner hidden" role="status"></div>
   </main>
@@ -147,6 +150,8 @@
   <script src="shared/bridge.js"></script>
   <script src="js/hub-registry.js"></script>
   <script src="js/hub-night.js"></script>
+  <script src="js/hub-ui.js"></script>
+  <script src="js/hub-hostphone.js"></script>
   <script src="js/hub-host.js"></script>
   <script src="js/hub-player.js"></script>
 </body>

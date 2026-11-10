@@ -181,6 +181,18 @@
       case "lobby": return validateLobby(m);
       case "room-closed": return { v: 2, t: "room-closed" };
       case "kicked": return { v: 2, t: "kicked" };
+      // docs/22 §4.1: the hub tells ONE phone its host-phone role (and the key
+      // that binds the role to that device). Phones read their role from their
+      // own `lobby` row; this message only carries the key.
+      case "role": {
+        if (m.role !== "host" && m.role !== "player") return null;
+        const out = { v: 2, t: "role", role: m.role };
+        if (m.role === "host") {
+          if (!isHostKey(m.hk)) return null;
+          out.hk = m.hk;
+        }
+        return out;
+      }
       // ADDITION to 00 §5 (documented in docs/reports/shell-implementation.md):
       // the carrier for bridge `close` (00 §6) — a host game closed one phone's
       // virtual connection, so that phone's game iframe must get `conn-close`.
@@ -203,14 +215,24 @@
       if (!isPid(m.pid)) return null;
       out.pid = m.pid;
     }
+    // docs/22 §4.1: the host key a host phone presents when it rejoins. A
+    // malformed key is dropped (the join still seats the phone as a player).
+    if (isHostKey(m.hk)) out.hk = m.hk;
     return out;
+  }
+
+  /** A host key the hub generated: 8–64 URL-safe characters. */
+  function isHostKey(v) {
+    return typeof v === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(v);
   }
 
   function validateGame(m) {
     if (typeof m.g !== "string" || !m.g || m.g.length > GAME_ID_MAX) return null;
     if (m.m === undefined) return null;
     if (payloadTooBig(m.m)) return null;
-    return { v: 2, t: "game", g: m.g, m: m.m };
+    const out = { v: 2, t: "game", g: m.g, m: m.m };
+    if (m.h === 1) out.h = 1; // docs/22 §4.2: a host view, for host phones only
+    return out;
   }
 
   function validateJoined(m) {
@@ -245,10 +267,15 @@
     if (!isPid(raw.pid) || !name || !avatar) return null;
     if (typeof raw.color !== "string" || raw.color.length > 24) return null;
     if (typeof raw.connected !== "boolean") return null;
-    return {
+    const row = {
       pid: raw.pid, name, color: raw.color, avatar,
       connected: raw.connected, manual: raw.manual === true,
     };
+    // docs/22: `role` travels only when it is "host"; anything else means
+    // player. Keeping it absent for players leaves every no-host-phone message
+    // byte-for-byte what it was before the feature.
+    if (raw.role === "host" && !row.manual) row.role = "host";
+    return row;
   }
 
   /** A player id the host assigned: "p" + digits, short. */
@@ -267,6 +294,9 @@
   /* ============ Lobby state ============ */
 
   /** @returns {LobbyState} */
+  /** docs/22 §3: at most two host phones in a room. */
+  const MAX_HOST_PHONES = 2;
+
   function createLobbyState() {
     return {
       players: {}, order: [], locked: false, maxPlayers: DEFAULT_MAX_PLAYERS,
@@ -283,12 +313,26 @@
       v: 2, t: "lobby", game: state.activeGame,
       players: state.order.map((pid) => {
         const p = state.players[pid];
-        return {
+        const row = {
           pid: p.pid, name: p.name, color: p.color, avatar: p.avatar,
           connected: p.connected, manual: p.manual,
         };
+        if (isHost(p)) row.role = "host"; // the host KEY is never in a snapshot
+        return row;
       }),
     };
+  }
+
+  /** Is this lobby entry a host phone? (Entries from before the feature have no role.) */
+  function isHost(p) {
+    return !!p && p.role === "host";
+  }
+
+  /** Host phones, in join order: what a game may know about them. */
+  function hostPhoneList(state) {
+    return state.order
+      .filter((pid) => isHost(state.players[pid]))
+      .map((pid) => ({ pid, name: state.players[pid].name, connected: state.players[pid].connected }));
   }
 
   /** Immutable snapshot of one player (what games see). */
@@ -296,9 +340,10 @@
     return { pid: p.pid, name: p.name, color: p.color, avatar: p.avatar, connected: p.connected, manual: p.manual };
   }
 
-  /** All players, in order, as immutable copies. */
+  /** All CONTESTANTS, in order, as immutable copies. Host phones are never
+   *  players of a game (docs/22 §3), so they are left out here. */
   function playerList(state) {
-    return state.order.map((pid) => playerCopy(state.players[pid]));
+    return state.order.filter((pid) => !isHost(state.players[pid])).map((pid) => playerCopy(state.players[pid]));
   }
 
   /** First unused colour, else cycle by roster length so we never run dry. */
@@ -352,6 +397,7 @@
       case "lock": return reduceLock(state, event);
       case "setGame": return reduceSetGame(state, event);
       case "setMax": return reduceSetMax(state, event);
+      case "setRole": return reduceSetRole(state, event);
       default: return unchanged(state);
     }
   }
@@ -400,7 +446,7 @@
     const newPid = "p" + state.nextId;
     const player = {
       pid: newPid, name, color: pickColor(state), avatar: avatar || pickAvatar(state),
-      connected: true, manual: false,
+      connected: true, manual: false, role: "player", hostKey: null,
     };
     const next = {
       ...state,
@@ -435,29 +481,46 @@
     return next;
   }
 
-  /** An existing (or manual) player is taken over by this connection. */
+  /**
+   * An existing (or manual) player is taken over by this connection.
+   * docs/22 §3: a host-phone role is bound to the DEVICE. The role survives a
+   * relink only when the phone presents the matching host key; any other
+   * device that relinks onto the entry (by pid or by name) is seated as a
+   * player, the key is cleared and the laptop is told.
+   */
   function relink(state, event, pid, name, avatar) {
     const prev = state.players[pid];
+    const wasHost = isHost(prev);
+    const keepHost = wasHost && isHostKey(prev.hostKey) && event.hk === prev.hostKey;
     const player = {
       ...prev,
       name: prev.manual ? prev.name : name, // a manual entry keeps the host's spelling
       avatar: avatar || prev.avatar,
       connected: true,
       manual: false,
+      role: keepHost ? "host" : "player",
+      hostKey: keepHost ? prev.hostKey : null,
     };
     const next = {
       ...state,
       players: { ...state.players, [pid]: player },
       peers: bindPeer(state.peers, event.peerId, pid),
     };
-    return {
-      state: next,
-      effects: [
-        { send: { to: event.peerId, msg: joinedMsg(player) } },
-        { broadcastLobby: true },
-        { frame: { t: "player-status", pid, connected: true } },
-      ],
-    };
+    const effects = [
+      { send: { to: event.peerId, msg: joinedMsg(player) } },
+      { broadcastLobby: true },
+    ];
+    if (keepHost) {
+      effects.push({ frame: { t: "host-phones" } });
+    } else if (wasHost) {
+      // Demoted: the game never knew this pid, so it arrives as a new player.
+      effects.push({ notice: "host-demoted", pid });
+      effects.push({ frame: { t: "host-phones" } });
+      effects.push({ frame: { t: "player-join", player: playerCopy(player) } });
+    } else {
+      effects.push({ frame: { t: "player-status", pid, connected: true } });
+    }
+    return { state: next, effects };
   }
 
   /** A connection dropped: the player stays on the roster, marked 🔴. */
@@ -473,8 +536,13 @@
     };
     return {
       state: next,
-      effects: [{ broadcastLobby: true }, { frame: { t: "player-status", pid, connected: false } }],
+      effects: [{ broadcastLobby: true }, rosterFrame(state.players[pid], { t: "player-status", pid, connected: false })],
     };
+  }
+
+  /** A roster change for a host phone is a `host-phones` frame, never `player-*` (docs/22 §4.1). */
+  function rosterFrame(p, playerFrame) {
+    return { frame: isHost(p) ? { t: "host-phones" } : playerFrame };
   }
 
   /** Host-side liveness sweep flipping a player's dot without dropping them. */
@@ -489,7 +557,7 @@
     };
     return {
       state: next,
-      effects: [{ broadcastLobby: true }, { frame: { t: "player-status", pid, connected } }],
+      effects: [{ broadcastLobby: true }, rosterFrame(state.players[pid], { t: "player-status", pid, connected })],
     };
   }
 
@@ -504,7 +572,7 @@
       effects.push({ close: peerId });
     }
     effects.push({ broadcastLobby: true });
-    effects.push({ frame: { t: "player-leave", pid } });
+    effects.push(rosterFrame(state.players[pid], { t: "player-leave", pid }));
     return { state: next, effects };
   }
 
@@ -527,7 +595,7 @@
     const pid = "p" + state.nextId;
     const player = {
       pid, name, color: pickColor(state), avatar: sanitizeAvatar(event.avatar) || pickAvatar(state),
-      connected: false, manual: true,
+      connected: false, manual: true, role: "player", hostKey: null,
     };
     const next = {
       ...state,
@@ -579,6 +647,38 @@
     return { state: { ...state, activeGame: gameId }, effects: [{ broadcastLobby: true }] };
   }
 
+  /**
+   * docs/22 §3: only the laptop grants the host-phone role, only in the lobby.
+   * `key` is generated by the hub (crypto) so this reducer stays pure.
+   * Refused while a game runs, for an unknown or manual pid, without a valid
+   * key on a grant, when it would make a third host phone, and when the phone
+   * is not connected right now — the key must reach the device it binds to
+   * (a grant to an absent phone would demote it the moment it came back).
+   */
+  function reduceSetRole(state, event) {
+    const pid = event.pid;
+    const role = event.role === "host" ? "host" : event.role === "player" ? "player" : null;
+    if (!role || state.activeGame || !hasPlayer(state, pid)) return unchanged(state);
+    const prev = state.players[pid];
+    if (prev.manual) return unchanged(state);
+    if ((role === "host") === isHost(prev)) return unchanged(state);
+    const peerId = peerForPid(state, pid);
+    if (role === "host") {
+      if (!isHostKey(event.key)) return unchanged(state);
+      if (hostPhoneList(state).length >= MAX_HOST_PHONES) return unchanged(state);
+      if (!peerId || !prev.connected) return unchanged(state);
+    }
+    const player = { ...prev, role, hostKey: role === "host" ? event.key : null };
+    const next = { ...state, players: { ...state.players, [pid]: player } };
+    const effects = [];
+    if (peerId) {
+      const msg = role === "host" ? { v: 2, t: "role", role, hk: event.key } : { v: 2, t: "role", role };
+      effects.push({ send: { to: peerId, msg } });
+    }
+    effects.push({ broadcastLobby: true });
+    return { state: next, effects };
+  }
+
   function reduceSetMax(state, event) {
     const n = Number(event.n);
     if (!Number.isInteger(n)) return unchanged(state);
@@ -592,7 +692,12 @@
   /** The serialisable slice of the lobby (no peer ids — connections die on reload). */
   function serializeLobby(state) {
     return {
-      players: state.order.map((pid) => ({ ...playerCopy(state.players[pid]), connected: false })),
+      players: state.order.map((pid) => {
+        const p = state.players[pid];
+        const row = { ...playerCopy(p), connected: false };
+        if (isHost(p)) { row.role = "host"; row.hostKey = p.hostKey; }
+        return row;
+      }),
       nextId: state.nextId,
     };
   }
@@ -603,10 +708,13 @@
     if (!saved || typeof saved !== "object" || !Array.isArray(saved.players)) return fresh;
     const players = {};
     const order = [];
+    let hosts = 0;
     for (const raw of saved.players.slice(0, MAX_PLAYERS_CAP)) {
       const p = validateLobbyPlayer(raw);
-      if (!p || players[p.pid]) continue;
-      players[p.pid] = { ...p, connected: false };
+      if (!p || Object.prototype.hasOwnProperty.call(players, p.pid)) continue;
+      const host = p.role === "host" && isHostKey(raw.hostKey) && hosts < MAX_HOST_PHONES;
+      if (host) hosts += 1;
+      players[p.pid] = { ...p, connected: false, role: host ? "host" : "player", hostKey: host ? raw.hostKey : null };
       order.push(p.pid);
     }
     const nextId = Number.isInteger(saved.nextId) && saved.nextId > 0 ? saved.nextId : order.length + 1;
@@ -621,11 +729,12 @@
     NAME_MAX, NAME_FIELD_MAX, GAME_ID_MAX, MAX_PLAYERS_CAP, DEFAULT_MAX_PLAYERS,
     PAYLOAD_MAX_BYTES, AVATARS, COLORS, REJECT_REASONS,
     // sanitising + validation
-    sanitizeName, sanitizeAvatar, payloadTooBig, utf8Bytes, isPid, validateEnvelope,
+    sanitizeName, sanitizeAvatar, payloadTooBig, utf8Bytes, isPid, isHostKey, validateEnvelope,
     // builders
     joinedMsg, rejectMsg, gameMsg,
     // lobby
     createLobbyState, lobbyReduce, lobbySnapshot, playerCopy, playerList,
+    hostPhoneList, isHost, MAX_HOST_PHONES,
     serializeLobby, restoreLobby,
   };
 });

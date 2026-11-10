@@ -130,15 +130,21 @@ const HubRegistry = (function () {
     return `${game.path}${pageOf(game)}?embed=host&room=${encodeURIComponent(code || "")}${storeParam()}`;
   }
 
-  /** Phone iframe URL for a game — name and pid ride along for games that read them. */
-  function playerUrl(game, code, pid, name) {
+  /**
+   * Phone iframe URL for a game — name and pid ride along for games that read
+   * them. A host phone (docs/22 §4.3) gets `role=host` and NO `name=`: the
+   * role param is a layout hint only (init's me.role is authoritative), and
+   * leaving the name out stops pages that auto-join on it (Jeopardy).
+   */
+  function playerUrl(game, code, pid, name, role) {
     const q = [
       "embed=player",
       `room=${encodeURIComponent(code || "")}`,
       `pid=${encodeURIComponent(pid || "")}`,
-      `name=${encodeURIComponent(name || "")}`,
-    ].join("&");
-    return `${game.path}${pageOf(game)}?${q}${storeParam()}`;
+    ];
+    if (role === "host") q.push("role=host");
+    else q.push(`name=${encodeURIComponent(name || "")}`);
+    return `${game.path}${pageOf(game)}?${q.join("&")}${storeParam()}`;
   }
 
   /** "Plays best with 4+" style hint, or "" when the roster suits the game. */

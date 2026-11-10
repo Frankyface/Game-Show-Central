@@ -144,3 +144,29 @@ body.player-mode #shell-popover { display: none !important; }
   .avatar-grid { grid-template-columns: repeat(4, 1fr); }
   .code-input { font-size: 2rem; letter-spacing: 0.22em; text-indent: 0.22em; }
 }
+
+/* ============ Host phone (docs/22 §4.3) ============ */
+/* A distinct header colour PLUS the word "Host": colour is never the only signal. */
+
+.phone-role-tag {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  padding: 0.2em 0.6em;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f1300;
+  background: var(--amber);
+  border-radius: var(--radius-sm);
+}
+
+body.phone-host .screen-waiting { background: color-mix(in srgb, var(--amber) 6%, var(--stage-base)); }
+
+.phone-role-bar {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f1300;
+  background: var(--amber);
+}

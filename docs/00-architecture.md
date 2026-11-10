@@ -103,7 +103,7 @@ Phone → host:
 
 | Message | Notes |
 |---|---|
-| `{v:2,t:"join",name,avatar?,pid?}` | once per connection open. `pid` = previously assigned id (phone stored it) so a refresh re-links to the same player. |
+| `{v:2,t:"join",name,avatar?,pid?,hk?}` | once per connection open. `pid` = previously assigned id (phone stored it) so a refresh re-links to the same player. `hk` = the host key a **host phone** holds (docs/22); only sent by a phone that has one, so ordinary joins are unchanged. A malformed `hk` is dropped, not fatal. |
 | `{v:2,t:"ping"}` | heartbeat every 10 s (RoomNet timings); exempt from rate limit. |
 | `{v:2,t:"game",g,m}` | game payload `m` for game id `g`; shell forwards to host game iframe if `g` is the active game, else drops. |
 | `{v:2,t:"avatar",emoji}` | (SHOULD) change avatar; validated against the allowed emoji list. |
@@ -115,8 +115,10 @@ Host → phone:
 | `{v:2,t:"joined",pid,name,color,avatar}` | accepted; the name may be the canonical relinked name. |
 | `{v:2,t:"reject",reason}` | `name-taken` / `room-full` / `bad-name` / `locked` (host locked the lobby); host then closes the connection. |
 | `{v:2,t:"pong"}` | heartbeat reply. |
-| `{v:2,t:"lobby",game,players}` | full lobby snapshot: `game` = active game id or null; `players` = `[{pid,name,color,avatar,connected}]`. Sent on join, on any roster change, on game switch. |
+| `{v:2,t:"lobby",game,players}` | full lobby snapshot: `game` = active game id or null; `players` = `[{pid,name,color,avatar,connected,manual,role?}]`. `role:"host"` appears **only** on a host phone's row (absent = player, so a room with no host phone sends exactly the pre-feature shape); the host key is **never** in a snapshot. A phone reads its own role from its own row — the single source. Sent on join, on any roster change, on game switch. |
 | `{v:2,t:"game",g,m}` | game payload for the phone's game iframe. |
+| `{v:2,t:"game",g,m,h:1}` | a **host view** (docs/22): sent only to host-phone connections; the phone shell forwards it to its frame as bridge `host-view`, and only when its own lobby row says `host`. |
+| `{v:2,t:"role",role,hk?}` | sent to ONE phone when the laptop grants (`role:"host"`, with the device's random host key `hk`) or revokes (`role:"player"`) the host-phone role. The phone stores `hk` with its pid and presents it on every join. |
 | `{v:2,t:"room-closed"}` | host closed the room. |
 | `{v:2,t:"kicked"}` | host removed this player; then the connection closes. |
 
@@ -124,7 +126,20 @@ Caps: `name` ≤ 24 chars after sanitising (control chars stripped, trimmed;
 structural cap 240); `m` serialised ≤ 32 KB (host drops larger; never
 forwards); 20 messages/s per phone (Jeopardy's `MAX_MSGS_PER_SEC`), pings exempt.
 Room codes: 4 chars from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, peer id `gsc-<CODE>`.
-Max players: 16 (lobby setting, default 12).
+Max players: 16 (lobby setting, default 12). Host keys: 8–64 chars of
+`[A-Za-z0-9_-]` (the hub generates 24 with `crypto.getRandomValues`).
+
+**Host phones (docs/22 §3–§4).** The laptop may make up to **two** connected,
+non-manual roster entries host phones, only while no game runs
+(`lobbyReduce` `setRole{pid,role,key}`). Host phones count toward the player
+limit, are never contestants, and are bound to their device: a relink onto a
+host-role entry keeps the role only with the matching `hk`; any other device
+relinking by pid or by name is seated as a player, the key is cleared and the
+laptop is told (`{notice:"host-demoted",pid}` effect). For a host-role pid the
+reducer emits the frame effect `{t:"host-phones"}` instead of
+`player-join/leave/status`; `playerList` returns contestants only and
+`hostPhoneList` returns `[{pid,name,connected}]`. `game` payloads FROM a host
+phone are dropped by the hub (v1 is read-only).
 
 ## 6. Bridge protocol — shell ⇄ game iframe (postMessage, same origin)
 
@@ -135,9 +150,10 @@ Shell → host game iframe:
 
 | Message | Meaning |
 |---|---|
-| `{t:"init",mode:"embed-host",room:{code,players:[Player]}}` | sent after the iframe posts `ready`. |
-| `{t:"player-join",player}` / `{t:"player-leave",pid}` / `{t:"player-status",pid,connected}` | roster events. |
-| `{t:"msg",pid,m}` | game payload from phone `pid`. |
+| `{t:"init",mode:"embed-host",room:{code,players:[Player],hostPhones:[{pid,name,connected}],answersPrivate}}` | sent after the iframe posts `ready`. `players` is **contestants only**; `answersPrivate` is true while any host-role entry exists (connected or not). |
+| `{t:"player-join",player}` / `{t:"player-leave",pid}` / `{t:"player-status",pid,connected}` | roster events — never for a host phone. |
+| `{t:"host-phones",list}` | the host-phone set or a host phone's connection changed; `list` = `[{pid,name,connected}]`. |
+| `{t:"msg",pid,m}` | game payload from phone `pid` (never from a host phone). |
 
 Host game iframe → shell:
 
@@ -149,12 +165,14 @@ Host game iframe → shell:
 | `{t:"exit"}` | back to lobby. |
 | `{t:"scores",scores:[{pid,name,score}]}` | (SHOULD) report standings for the night scoreboard. |
 | `{t:"title",text}` | (SHOULD) shell bar subtitle, e.g. "Round 2". |
+| `{t:"host-view",m}` | the game's current private view for host phones (≤ 16 KB; the SDK substitutes `{t:"host",item,tooBig:true}`). The hub keeps the latest one for the mounted frame, sends it to every host phone as `{v:2,t:"game",g,m,h:1}`, re-sends it whenever a host phone connects, reconnects or relinks with its key, and clears it when the frame unmounts. A `send` to a host pid, and a broadcast, never reach a host phone. |
 
 Shell → phone game iframe:
 
 | Message | Meaning |
 |---|---|
-| `{t:"init",mode:"embed-player",me:{pid,name,color,avatar},room:{code}}` | after `ready`. |
+| `{t:"init",mode:"embed-player",me:{pid,name,color,avatar,role?},room:{code}}` | after `ready`. `me.role:"host"` only on a host phone (absent = player). A host phone's frame URL carries `&role=host` and **no `name=`** — a layout hint only; `init` is authoritative. |
+| `{t:"host-view",m}` | the held host view, on a host phone only (also re-posted after every `ready`). |
 | `{t:"msg",m}` | game payload from the host. |
 | `{t:"status",connected}` | transport up/down (phone shows its own reconnect banner; the shell also shows one). |
 | `{t:"conn-close"}` | host game closed this player's virtual connection. |
@@ -189,11 +207,22 @@ room.onStatus(fn)              // standalone room lifecycle (opening/open/error/
 room.open(); room.close()      // standalone only (embedded: no-ops)
 room.joinUrl()                 // standalone: page URL without query + ?room=CODE
 room.kick(pid)                 // standalone only (embedded: no-op; the shell kicks)
+// Host phone (docs/22 §4.4) — present on EVERY room object; standalone: [] / false / no-op
+room.hostPhones()              // [{pid,name,connected}] — never in players()
+room.answersPrivate()          // true while any host phone is assigned (connected or not)
+room.setHostView(view)         // call on every state change; the hub de-duplicates, holds, re-delivers
+//   + handler onHostPhones(list) — fires when the set or a host phone's connection changes
 
 // Player side
-const me = await GSC.player({ onMessage(m), onStatus(connected) });
-me.pid, me.name, me.color, me.avatar, me.send(m), me.leave()
+const me = await GSC.player({ onMessage(m), onStatus(connected), onHostView(view) });
+me.pid, me.name, me.color, me.avatar, me.role /* "player" | "host" */, me.send(m), me.leave()
 ```
+
+- Host phones: `onPlayerJoin/Leave/Status` and `onMessage` never fire for one;
+  `onHostView` fires only on a host phone, and a host view never reaches
+  `onMessage`. A view over 16 KB (or unserialisable) is refused with a
+  `console.warn` and replaced by `{t:"host",item,tooBig:true}`. Full API as
+  built: `docs/reports/host-phone-shell-implementation.md`.
 
 - Embedded: `GSC.host/player` post `ready`, resolve on `init`.
 - Standalone host: `GSC.host` resolves immediately with a closed room; the
@@ -227,6 +256,8 @@ loading the CDN. In embedded mode the adapter installs
   synthetic `{type:"network"}` when the shell reports `status connected:false`
   — Jeopardy's player then shows its own "Reconnecting…" and its reconnect
   loop resolves instantly once `status connected:true` arrives.
+
+Host phones never reach the virtual peer: the hub strips them from `init.room.players` and emits `host-phones` (which the shim ignores) instead of `player-*`, so the shim never announces a connection for a host pid — pinned by `tests/host-phone.test.mjs` HP-U10 and the hub harness HP-I6. `shared/virtual-peer.js` is unchanged.
 
 ## 9. Shared conventions every game implements
 

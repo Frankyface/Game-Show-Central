@@ -421,3 +421,22 @@ body.in-game { overflow: hidden; }
   .room-code { font-size: clamp(64px, 22vw, 120px); }
   .landing-games, .game-tiles { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Host phone (docs/22 §4.2): roster tag + role control, shell-bar status
+   ============================================================ */
+
+.roster-tag-host { color: var(--ink); font-weight: 600; }
+
+/* The role control is a full 44 px target even inside a compact row. */
+.roster-row .roster-role { min-height: 44px; }
+
+.shell-hostphone {
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.shell-hostphone.is-away { color: var(--amber); }

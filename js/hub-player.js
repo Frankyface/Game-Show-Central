@@ -31,6 +31,12 @@ const HubPlayer = (function () {
   let avatarChoice = null;
   let roster = [];
   let activeGame = null;
+  // docs/22 §4.3: this phone's role, read from its OWN row in each `lobby`
+  // snapshot; the host key that binds the role to this device; and the latest
+  // host view (kept so a remounted frame gets it again on `ready`).
+  let role = "player";
+  let hostKey = null;
+  let lastHostView = null;
   let frameSession = null; // host-frame session from the last `lobby` (see hub-host)
   let screen = "join"; // join | waiting | play
   let notice = "";
@@ -113,7 +119,10 @@ const HubPlayer = (function () {
         loadPeerJs: globalThis.__gscPeerFactory ? () => Promise.resolve() : undefined,
       });
     }
-    transport.connect(code, name, pid, avatarChoice || readStore().avatar);
+    const saved = readStore();
+    const hk = saved.code === code && saved.pid && saved.pid === pid ? saved.hk : null;
+    hostKey = hk || null;
+    transport.connect(code, name, pid, avatarChoice || saved.avatar, hostKey);
   }
 
   function leave() {
@@ -124,6 +133,9 @@ const HubPlayer = (function () {
     me = { pid: null, name: "", color: null, avatar: null };
     roster = [];
     activeGame = null;
+    role = "player";
+    hostKey = null;
+    lastHostView = null;
     screen = "join";
     notice = "";
     render();
@@ -146,6 +158,7 @@ const HubPlayer = (function () {
     if (msg.t === "joined") return onJoined(msg);
     if (msg.t === "lobby") return onLobby(msg);
     if (msg.t === "game") return onGamePayload(msg);
+    if (msg.t === "role") return onRole(msg);
     if (msg.t === "conn-close") {
       if (frameBridge && frameReady && msg.g === activeGame) frameBridge.postConnClose();
       return undefined;
@@ -159,16 +172,41 @@ const HubPlayer = (function () {
     dismissed = false;
     me = { pid: msg.pid, name: msg.name, color: msg.color, avatar: msg.avatar };
     avatarChoice = msg.avatar;
-    writeStore({ code, pid: msg.pid, name: msg.name, avatar: msg.avatar });
+    if (readStore().pid !== msg.pid) hostKey = null; // a key belongs to one pid
+    writeStore({ code, pid: msg.pid, name: msg.name, avatar: msg.avatar, hk: hostKey || undefined });
     setError("");
     if (screen === "join") screen = "waiting";
     vibrate(30);
     render();
   }
 
+  /** The hub sends the key (grant) or clears it (revoke); the ROLE comes from the lobby row. */
+  function onRole(msg) {
+    hostKey = msg.role === "host" ? msg.hk : null;
+    writeStore({ ...readStore(), hk: hostKey || undefined });
+  }
+
+  /** Read this phone's role from its own lobby row; a change remounts a mounted frame. */
+  function syncRole() {
+    const mine = roster.find((p) => p.pid === me.pid);
+    const next = mine && mine.role === "host" ? "host" : "player";
+    if (next === role) return false;
+    role = next;
+    lastHostView = null;
+    document.body.classList.toggle("phone-host", role === "host");
+    return true;
+  }
+
   function onLobby(msg) {
     if (dismissed) return;
     roster = msg.players;
+    const roleChanged = syncRole();
+    if (roleChanged && activeGame && msg.game === activeGame) {
+      // Cannot normally happen (roles change only in the lobby), but if it
+      // does the frame must reload with the right layout and init.
+      const g = HubRegistry.find(activeGame);
+      if (g) mountFrame(g);
+    }
     const next = msg.game;
     const session = typeof msg.session === "number" ? msg.session : null;
     if (next === activeGame) {
@@ -182,6 +220,7 @@ const HubPlayer = (function () {
     }
     activeGame = next;
     frameSession = session;
+    lastHostView = null; // a host view belongs to one game
     const game = next ? HubRegistry.find(next) : null;
     if (game) mountFrame(game);
     else { unmountFrame(); screen = "waiting"; }
@@ -190,6 +229,14 @@ const HubPlayer = (function () {
 
   function onGamePayload(msg) {
     if (dismissed || msg.g !== activeGame) return;
+    if (msg.h === 1) {
+      // docs/22: a host view goes to the frame as `host-view`, never `msg`, and
+      // only when this phone's own lobby row says host. Otherwise dropped.
+      if (role !== "host") return;
+      lastHostView = msg.m;
+      if (frameBridge && frameReady) frameBridge.postHostView(msg.m);
+      return;
+    }
     if (frameBridge && frameReady) { frameBridge.postMsg(msg.m); return; }
     if (frameBridge) { pending.push(msg.m); if (pending.length > PENDING_MAX) pending.shift(); }
   }
@@ -243,7 +290,7 @@ const HubPlayer = (function () {
     frame.className = "phone-frame";
     frame.title = game.name;
     frame.setAttribute("allow", "screen-wake-lock");
-    frame.src = HubRegistry.playerUrl(game, code, me.pid, me.name);
+    frame.src = HubRegistry.playerUrl(game, code, me.pid, me.name, role);
     slot.appendChild(frame);
     frameReady = false;
     pending = [];
@@ -253,11 +300,11 @@ const HubPlayer = (function () {
         if (frameTimer) clearTimeout(frameTimer);
         frameTimer = null;
         notice = "";
-        frameBridge.postInit(
-          { pid: me.pid, name: me.name, color: me.color, avatar: me.avatar },
-          { code },
-        );
+        const info = { pid: me.pid, name: me.name, color: me.color, avatar: me.avatar };
+        if (role === "host") info.role = "host"; // absent = player, as before the feature
+        frameBridge.postInit(info, { code });
         frameBridge.postStatus(lastStatus.connected);
+        if (role === "host" && lastHostView) frameBridge.postHostView(lastHostView);
         flushPending();
         render();
       },
@@ -330,7 +377,12 @@ const HubPlayer = (function () {
   function renderWaiting() {
     $("wait-avatar").textContent = me.avatar || "";
     $("wait-avatar").style.color = me.color || "";
-    $("wait-title").textContent = `You're in, ${me.name}!`;
+    const isHost = role === "host";
+    $("wait-title").textContent = isHost ? `Host phone — ${me.name}` : `You're in, ${me.name}!`;
+    $("wait-sub").textContent = isHost
+      ? "You're the host's second screen. Answers for each game appear here — keep this phone to yourself."
+      : "The host is picking a game.";
+    show($("wait-role"), isHost);
     const list = $("wait-roster");
     list.replaceChildren();
     for (const p of roster) {
@@ -348,6 +400,7 @@ const HubPlayer = (function () {
   }
 
   function renderPlay() {
+    show($("phone-role"), role === "host");
     const health = $("phone-health");
     health.classList.toggle("down", !lastStatus.connected);
     const banner = $("phone-banner");
@@ -438,6 +491,7 @@ const HubPlayer = (function () {
     _game: () => activeGame,
     _status: () => lastStatus,
     _frameReady: () => frameReady,
+    _role: () => role,
   };
 })();
 

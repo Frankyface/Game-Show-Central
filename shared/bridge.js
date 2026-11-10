@@ -21,6 +21,10 @@
      · room.gameId and me.gameId expose <body data-gsc-game>.
      · GSC.ready is a promise that resolves once mode detection is done
        (it already is at load; kept for symmetry).
+     · Host phone (docs/22 §4.4): room.hostPhones(), room.answersPrivate(),
+       room.setHostView(view), handlers.onHostPhones(list) on the host
+       side; me.role and handlers.onHostView(view) on the player side.
+       Every room object has them; standalone returns [] / false / no-op.
    No HTML strings anywhere: every node is createElement + textContent.
    ============================================================ */
 
@@ -102,6 +106,36 @@
 
   function noop() {}
 
+  /** docs/22 §4.4: a host view is at most 16 KB of JSON. */
+  const HOST_VIEW_MAX_BYTES = 16384;
+
+  function jsonBytes(json) {
+    if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(json).length;
+    if (RP && RP.utf8Bytes) return RP.utf8Bytes(json);
+    return json.length * 3;
+  }
+
+  /**
+   * The view the hub will hold for host phones: the game's own view, or — when
+   * it cannot be serialised or is over 16 KB — `{t:"host", item, tooBig:true}`.
+   * @returns {{json:string, view:object}}
+   */
+  function hostViewPayload(view) {
+    let json = null;
+    try { json = JSON.stringify(view === undefined ? null : view); } catch (err) { json = null; }
+    if (typeof json === "string" && jsonBytes(json) <= HOST_VIEW_MAX_BYTES) {
+      return { json, view: JSON.parse(json) };
+    }
+    console.warn("GSC: host view refused (not serialisable or over 16 KB); sending tooBig instead");
+    const item = view && typeof view === "object" && typeof view.item === "string" ? view.item.slice(0, 120) : "";
+    const small = { t: "host", item, tooBig: true };
+    return { json: JSON.stringify(small), view: small };
+  }
+
+  function copyHostPhone(p) {
+    return { pid: String(p.pid), name: String(p.name || ""), connected: p.connected === true };
+  }
+
   function callSafe(fn, a, b) {
     if (typeof fn !== "function") return;
     try { fn(a, b); } catch (err) { console.warn("GSC handler threw:", err); }
@@ -110,7 +144,10 @@
   /* ============ Embedded host ============ */
 
   function embeddedHost(handlers) {
-    const roster = new Map(); // pid → Player
+    const roster = new Map(); // pid → Player (contestants only: the hub filters host phones)
+    let hostPhones = [];       // [{pid,name,connected}] — never players
+    let answersPrivate = false;
+    let lastHostJson = null;
     let code = null;
     let resolved = false;
     const room = makeRoomShell();
@@ -124,6 +161,21 @@
     room.setTitle = (text) => postUp({ t: "title", text: String(text == null ? "" : text) });
     room.status = () => ({ open: true, connecting: false, error: null, code });
     room.gameId = gameId();
+    room.hostPhones = () => hostPhones.map(copyHostPhone);
+    room.answersPrivate = () => answersPrivate;
+    // Call on every state change; identical views are not re-sent. The hub
+    // holds the latest one and re-delivers it to host phones on (re)connect.
+    room.setHostView = (view) => {
+      const out = hostViewPayload(view);
+      if (out.json === lastHostJson) return;
+      lastHostJson = out.json;
+      postUp({ t: "host-view", m: out.view });
+    };
+
+    function setHostPhones(list) {
+      hostPhones = Array.isArray(list) ? list.filter((p) => p && p.pid).map(copyHostPhone) : [];
+      answersPrivate = hostPhones.length > 0; // a host-role entry exists, connected or not
+    }
 
     return new Promise((resolve) => {
       listenDown((d) => {
@@ -132,7 +184,15 @@
           roster.clear();
           const list = (d.room && Array.isArray(d.room.players)) ? d.room.players : [];
           for (const p of list) roster.set(p.pid, copyPlayer(p));
+          setHostPhones(d.room && d.room.hostPhones);
+          if (d.room && d.room.answersPrivate === true) answersPrivate = true;
+          lastHostJson = null; // a fresh init: the next view is always delivered
           if (!resolved) { resolved = true; resolve(room); }
+          return;
+        }
+        if (d.t === "host-phones") {
+          setHostPhones(d.list);
+          callSafe(handlers.onHostPhones, room.hostPhones());
           return;
         }
         if (d.t === "player-join" && d.player) {
@@ -164,6 +224,8 @@
       joinUrl: () => null,
       onStatus: noop,
       reportScores: noop, setTitle: noop,
+      // docs/22 §4.4: present everywhere; host phones exist only inside the hub.
+      hostPhones: () => [], answersPrivate: () => false, setHostView: noop,
     };
   }
 
@@ -173,6 +235,7 @@
     let resolved = false;
     const me = {
       pid: null, name: "", color: null, avatar: null, code: null,
+      role: "player", // docs/22: "host" when this phone is the host's second screen
       gameId: gameId(),
       send: (m) => postUp({ t: "send", m }),
       leave: noop, // the shell owns leaving in embedded mode
@@ -186,11 +249,14 @@
           me.name = info.name || "";
           me.color = info.color || null;
           me.avatar = info.avatar || null;
+          me.role = info.role === "host" ? "host" : "player";
           me.code = d.room && d.room.code ? d.room.code : null;
           if (!resolved) { resolved = true; resolve(me); }
           return;
         }
         if (d.t === "msg") { callSafe(handlers.onMessage, d.m); return; }
+        // A host view never reaches onMessage; the hub only sends one to a host phone.
+        if (d.t === "host-view") { if (me.role === "host") callSafe(handlers.onHostView, d.m); return; }
         if (d.t === "status") {
           me.connected = d.connected === true;
           callSafe(handlers.onStatus, me.connected);
@@ -338,6 +404,7 @@
     const saved = readStore();
     const me = {
       pid: null, name: "", color: null, avatar: null, code, gameId: id,
+      role: "player", // host phones are hub-only in v1
       connected: false,
       send: noop, leave: noop,
     };
@@ -532,9 +599,11 @@
       else if (d.t === "exit") callSafe(a.onExit);
       else if (d.t === "scores") callSafe(a.onScores, d.scores);
       else if (d.t === "title") callSafe(a.onTitle, d.text);
+      else if (d.t === "host-view") callSafe(a.onHostView, d.m);
     });
     return {
       postInit: (room) => postTo(iframe, { t: "init", mode: "embed-host", room }),
+      postHostPhones: (list) => postTo(iframe, { t: "host-phones", list }),
       postPlayerJoin: (player) => postTo(iframe, { t: "player-join", player }),
       postPlayerLeave: (pid) => postTo(iframe, { t: "player-leave", pid }),
       postPlayerStatus: (pid, connected) => postTo(iframe, { t: "player-status", pid, connected }),
@@ -555,10 +624,11 @@
       postMsg: (m) => postTo(iframe, { t: "msg", m }),
       postStatus: (connected) => postTo(iframe, { t: "status", connected }),
       postConnClose: () => postTo(iframe, { t: "conn-close" }),
+      postHostView: (m) => postTo(iframe, { t: "host-view", m }),
       detach,
     };
   }
 
   root.GSC = GSC;
-  root.GSCBridge = { attachHostFrame, attachPlayerFrame, attachFrame, postTo, ORIGIN };
+  root.GSCBridge = { attachHostFrame, attachPlayerFrame, attachFrame, postTo, ORIGIN, hostViewPayload, HOST_VIEW_MAX_BYTES };
 })(typeof globalThis !== "undefined" ? globalThis : this);
